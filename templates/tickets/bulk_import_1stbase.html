@@ -1,39 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Bulk Import 1stbase Returns{% endblock %}
+{% block title %}Bulk Import 1stBase Returns{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Bulk Import 1stbase Returns</h1>
-                    <p class="mt-2 text-gray-600">Upload a 1stbase CSV file to create multiple return tickets with automatic customer creation</p>
-                </div>
-                <a href="{{ url_for('static', filename='sample_1stbase_import.csv') }}"
-                   download="sample_1stbase_import.csv"
-                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Download Sample CSV
-                </a>
-            </div>
+            <h1 class="text-3xl font-bold text-gray-900">Bulk Import 1stBase Returns</h1>
+            <p class="mt-2 text-gray-600">Upload a CSV file to create multiple Asset Return tickets with automatic customer creation</p>
         </div>
 
         <!-- Instructions Card -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
             <h2 class="text-lg font-semibold text-blue-900 mb-3">📋 Instructions</h2>
             <ol class="list-decimal list-inside space-y-2 text-blue-800">
-                <li>Download the sample CSV above to see the required format</li>
-                <li>Export the CSV from 1stbase system or prepare your own file following the sample format</li>
-                <li>Ensure the CSV contains all required columns</li>
-                <li>Upload the CSV file below</li>
-                <li>Review and confirm the import preview</li>
-                <li>Complete the import process</li>
+                <li>Download the CSV template or view the sample file below</li>
+                <li>Fill in your data following the format guidelines</li>
+                <li>Upload the completed CSV file</li>
+                <li>Review the import results</li>
             </ol>
+        </div>
+
+        <!-- Download Templates -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Download Templates</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a href="{{ url_for('static', filename='csv_templates/1stbase_bulk_import_template.csv') }}"
+                   download
+                   class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download Template (Empty)
+                </a>
+                <a href="{{ url_for('static', filename='csv_templates/1stbase_bulk_import_sample.csv') }}"
+                   download
+                   class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download Sample (With Examples)
+                </a>
+            </div>
         </div>
 
         <!-- CSV Format Requirements -->
@@ -82,25 +91,34 @@
         <div class="bg-white shadow-md rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload CSV File</h2>
 
-            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+            <form id="uploadForm" method="POST" enctype="multipart/form-data" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div>
-                    <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-2">
-                        Select 1stbase CSV File
-                    </label>
+
+                <!-- Drag and Drop Zone -->
+                <div id="dropZone"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer">
                     <input type="file"
                            id="csv_file"
                            name="csv_file"
                            accept=".csv"
                            required
-                           class="block w-full text-sm text-gray-500
-                                  file:mr-4 file:py-2 file:px-4
-                                  file:rounded-md file:border-0
-                                  file:text-sm file:font-semibold
-                                  file:bg-blue-50 file:text-blue-700
-                                  hover:file:bg-blue-100
-                                  cursor-pointer">
-                    <p class="mt-1 text-sm text-gray-500">Upload the CSV exported from 1stbase system</p>
+                           class="hidden">
+                    <div id="dropZoneContent">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="mt-2 text-sm text-gray-600">
+                            <span class="font-semibold text-blue-600">Click to browse</span> or drag and drop
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500">CSV file (Maximum 10MB)</p>
+                    </div>
+                    <div id="fileSelected" class="hidden">
+                        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="mt-2 text-sm font-semibold text-green-600" id="fileName"></p>
+                        <p class="mt-1 text-xs text-gray-500">Click button below to import</p>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-4">
@@ -109,8 +127,9 @@
                         Cancel
                     </a>
                     <button type="submit"
+                            id="uploadBtn"
                             class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        Upload and Preview
+                        Upload and Import
                     </button>
                 </div>
             </form>
@@ -120,16 +139,66 @@
         <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mt-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">Important Notes:</h3>
             <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
-                <li>Column headers must match the 1stbase export format exactly</li>
-                <li>Country codes will be converted to full country names automatically</li>
-                <li>Order ID, product description, and serial number will be combined in the ticket description</li>
-                <li>The queue will be auto-assigned based on the country field</li>
+                <li>Column headers are case-sensitive and must match exactly</li>
+                <li>Empty cells are allowed for optional fields</li>
                 <li>If a row has errors, it will be skipped and reported</li>
                 <li>Valid rows will still be imported even if some rows fail</li>
                 <li>All tickets will be created with category "Asset Return (claw)"</li>
-                <li>You will be able to review and edit data before final import</li>
+                <li>You will receive a detailed summary after import completes</li>
             </ul>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('csv_file');
+    const dropZoneContent = document.getElementById('dropZoneContent');
+    const fileSelected = document.getElementById('fileSelected');
+    const fileName = document.getElementById('fileName');
+
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                showSelectedFile(this.files[0]);
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('border-blue-500', 'bg-blue-100');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-100');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-100');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.csv')) {
+                fileInput.files = files;
+                showSelectedFile(files[0]);
+            } else {
+                alert('Please drop a CSV file');
+            }
+        });
+
+        function showSelectedFile(file) {
+            dropZoneContent.classList.add('hidden');
+            fileSelected.classList.remove('hidden');
+            fileName.textContent = file.name;
+        }
+    }
+});
+</script>
 {% endblock %}

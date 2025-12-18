@@ -1,0 +1,5 @@
+Name,Company,Country,Contact Number,Address,Email,Notes
+John Smith,Acme Corporation,SINGAPORE,+6512345678,"123 Orchard Road, #10-01, Singapore 238896",john.smith@acme.com,VIP customer
+Jane Doe,Tech Solutions Inc,USA,+14155551234,"456 Market Street, Suite 100, San Francisco, CA 94102",jane.doe@techsol.com,Primary contact for West Coast
+Bob Wilson,Global Trading Co,JAPAN,+81312345678,"1-2-3 Shibuya, Tokyo 150-0002",bob.wilson@globaltrade.jp,Requires Japanese language support
+Alice Chen,Innovation Labs,INDIA,+919876543210,"123 MG Road, Bangalore, Karnataka 560001",alice.chen@innolabs.in,New customer - needs onboarding

@@ -1,89 +1,193 @@
 {% extends "base.html" %}
 
+{% block title %}Import Customer Users{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Back Button -->
-    <div class="mb-6">
-        <a href="{{ url_for('inventory.list_customer_users') }}"
-            class="text-blue-600 hover:text-blue-800 flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Customer Users
-        </a>
-    </div>
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Import Customer Users</h1>
+            <p class="mt-2 text-gray-600">Upload a CSV file to import multiple customer users at once with automatic company creation</p>
+        </div>
 
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Import Customer Users</h1>
-        <p class="mt-2 text-gray-600">Upload a CSV file with customer user data to import multiple customers at once.
-        </p>
-    </div>
+        <!-- Instructions Card -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-blue-900 mb-3">📋 Instructions</h2>
+            <ol class="list-decimal list-inside space-y-2 text-blue-800">
+                <li>Download the CSV template or view the sample file below</li>
+                <li>Fill in your data following the format guidelines</li>
+                <li>Upload the completed CSV file</li>
+                <li>Review the import results</li>
+            </ol>
+        </div>
 
-    <!-- Template Download -->
-    <div class="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-        <h2 class="text-lg font-semibold text-blue-800 mb-4">Download Template</h2>
-        <p class="text-blue-700 mb-4">
-            Download our CSV template to ensure your import file has the correct format.
-            The template includes example data and all required fields.
-        </p>
-        <a href="{{ url_for('inventory.download_customer_template') }}"
-            class="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                    clip-rule="evenodd" />
-            </svg>
-            Download Sample CSV
-        </a>
-    </div>
-
-    <!-- Import Form -->
-    <div class="bg-white shadow-lg rounded-lg p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Upload CSV File</h2>
-        <form action="{{ url_for('inventory.import_customers') }}" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div class="mb-6">
-                <label for="file" class="block text-sm font-medium text-gray-700 mb-2">
-                    Select CSV File
-                </label>
-                <div class="flex items-center">
-                    <input type="file" id="file" name="file" accept=".csv"
-                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        required>
-                </div>
-            </div>
-
-            <div class="border-t border-gray-200 pt-4">
-                <button type="submit"
-                    class="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-                            clip-rule="evenodd" />
+        <!-- Download Templates -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Download Templates</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a href="{{ url_for('inventory.download_customer_template') }}"
+                   download
+                   class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    Import Customers
-                </button>
+                    Download Template (Empty)
+                </a>
+                <a href="{{ url_for('static', filename='csv_templates/customer_import_sample.csv') }}"
+                   download
+                   class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download Sample (With Examples)
+                </a>
             </div>
-        </form>
-    </div>
+        </div>
 
-    <!-- Guidelines -->
-    <div class="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Import Guidelines</h2>
-        <div class="text-gray-700 space-y-4">
-            <p>Please ensure your CSV file follows these guidelines:</p>
-            <ul class="list-disc pl-5 space-y-2">
-                <li>The file must be in CSV format with headers as in the template.</li>
-                <li>Required fields: <span class="font-medium">Name, Company, Country, Contact Number, Address</span>.
-                </li>
-                <li>Email is optional but recommended.</li>
-                <li>Country must be one of the valid country codes (e.g., USA, UK, Singapore).</li>
-                <li>If a company doesn't exist in the system, it will be created automatically.</li>
-                <li>Large imports may take a few moments to process.</li>
+        <!-- CSV Format Requirements -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">CSV Format Requirements</h2>
+
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Required Columns:</h3>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                    <li><code class="bg-gray-100 px-1 rounded">Name</code> - Full name of the customer</li>
+                    <li><code class="bg-gray-100 px-1 rounded">Company</code> - Company name (will be auto-created if needed)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">Country</code> - Country code (e.g., USA, UK, Singapore)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">Contact Number</code> - Customer's phone number</li>
+                    <li><code class="bg-gray-100 px-1 rounded">Address</code> - Full address</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Optional Columns:</h3>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                    <li><code class="bg-gray-100 px-1 rounded">Email</code> - Customer's email address (recommended)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">Notes</code> - Additional notes about the customer</li>
+                </ul>
+            </div>
+
+            <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
+                <p class="text-sm text-yellow-800">
+                    <strong>Auto Company Creation:</strong> If a company doesn't exist in the system,
+                    it will be automatically created with the information from the CSV.
+                </p>
+            </div>
+        </div>
+
+        <!-- Upload Form -->
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload CSV File</h2>
+
+            <form id="uploadForm" action="{{ url_for('inventory.import_customers') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Drag and Drop Zone -->
+                <div id="dropZone"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer">
+                    <input type="file"
+                           id="file"
+                           name="file"
+                           accept=".csv"
+                           required
+                           class="hidden">
+                    <div id="dropZoneContent">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="mt-2 text-sm text-gray-600">
+                            <span class="font-semibold text-blue-600">Click to browse</span> or drag and drop
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500">CSV file (Maximum 10MB)</p>
+                    </div>
+                    <div id="fileSelected" class="hidden">
+                        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="mt-2 text-sm font-semibold text-green-600" id="fileName"></p>
+                        <p class="mt-1 text-xs text-gray-500">Click button below to import</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-4">
+                    <a href="{{ url_for('inventory.list_customer_users') }}"
+                       class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            id="uploadBtn"
+                            class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Upload and Import
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Important Notes -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mt-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Important Notes:</h3>
+            <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <li>Column headers are case-sensitive and must match exactly</li>
+                <li>Empty cells are allowed for optional fields</li>
+                <li>If a row has errors, it will be skipped and reported</li>
+                <li>Valid rows will still be imported even if some rows fail</li>
+                <li>Country must be a valid country code (e.g., USA, UK, Singapore)</li>
+                <li>You will receive a detailed summary after import completes</li>
             </ul>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('file');
+    const dropZoneContent = document.getElementById('dropZoneContent');
+    const fileSelected = document.getElementById('fileSelected');
+    const fileName = document.getElementById('fileName');
+
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                showSelectedFile(this.files[0]);
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('border-blue-500', 'bg-blue-100');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-100');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-100');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.csv')) {
+                fileInput.files = files;
+                showSelectedFile(files[0]);
+            } else {
+                alert('Please drop a CSV file');
+            }
+        });
+
+        function showSelectedFile(file) {
+            dropZoneContent.classList.add('hidden');
+            fileSelected.classList.remove('hidden');
+            fileName.textContent = file.name;
+        }
+    }
+});
+</script>
 {% endblock %}

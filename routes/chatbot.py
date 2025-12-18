@@ -1380,3 +1380,620 @@ def api_submit_feedback():
         return jsonify({"success": False, "error": str(e)})
     finally:
         db_session.close()
+
+
+# ============= Mobile API Routes for iOS App =============
+# These routes use JWT token authentication instead of session-based auth
+
+def verify_mobile_token_for_chatbot(token):
+    """Verify JWT token and return user for chatbot API"""
+    try:
+        import jwt
+        from flask import current_app
+        secret_key = current_app.config.get('SECRET_KEY', 'fallback-secret-key')
+
+        payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+        user_id = payload['user_id']
+
+        db_session = SessionLocal()
+        try:
+            user = db_session.query(User).filter(User.id == user_id).first()
+            return user
+        finally:
+            db_session.close()
+
+    except Exception:
+        return None
+
+
+def mobile_chatbot_auth(f):
+    """Decorator to require mobile JWT authentication for chatbot"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Missing or invalid authorization header'}), 401
+
+        token = auth_header.split(' ')[1]
+        user = verify_mobile_token_for_chatbot(token)
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+
+        # Set current user for the request
+        request.mobile_chatbot_user = user
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+@chatbot_bp.route('/mobile/ask', methods=['POST'])
+@mobile_chatbot_auth
+def mobile_ask():
+    """
+    Mobile API: Process a user question and return an answer
+
+    POST /chatbot/mobile/ask
+    Headers: Authorization: Bearer <jwt_token>
+    Body: {
+        "query": "How do I create a ticket?"
+    }
+
+    Response: {
+        "success": true,
+        "type": "answer",
+        "answer": "To create a new ticket...",
+        "matched_question": "How do I create a new ticket?",
+        "url": "/tickets/create",
+        "suggestions": ["...", "..."]
+    }
+    """
+    data = request.get_json()
+    query = data.get('query', '').strip() if data else ''
+
+    if not query:
+        return jsonify({
+            "success": False,
+            "error": "Please enter a question"
+        })
+
+    user = request.mobile_chatbot_user
+    user_id = user.id if user else None
+
+    # First, check if this is an action command
+    action = parse_action(query)
+    if action:
+        # Validate the action and return confirmation prompt
+        db_session = SessionLocal()
+        try:
+            if action["action"] == "update_ticket_status":
+                ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
+                if not ticket:
+                    answer = f"Ticket #{action['ticket_id']} not found."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                # Check for custom status
+                custom_status = db_session.query(CustomTicketStatus).filter_by(
+                    name=action["new_status"],
+                    is_active=True
+                ).first()
+
+                status_display = action["new_status"]
+                if custom_status:
+                    status_display = custom_status.display_name
+
+                answer = f"Do you want to update **Ticket #{action['ticket_id']}** status to **{status_display}**?\n\nTicket: {ticket.subject}\nCurrent Status: {ticket.status.value if hasattr(ticket.status, 'value') else ticket.status}"
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "ticket_id": action["ticket_id"],
+                    "ticket_subject": ticket.subject,
+                    "current_status": ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status),
+                    "new_status": action["new_status"],
+                    "answer": answer
+                })
+
+            elif action["action"] == "update_ticket_priority":
+                ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
+                if not ticket:
+                    answer = f"Ticket #{action['ticket_id']} not found."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                answer = f"Do you want to change **Ticket #{action['ticket_id']}** priority to **{action['new_priority']}**?\n\nTicket: {ticket.subject}\nCurrent Priority: {ticket.priority.value if ticket.priority else 'None'}"
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "ticket_id": action["ticket_id"],
+                    "ticket_subject": ticket.subject,
+                    "current_priority": ticket.priority.value if ticket.priority else "None",
+                    "new_priority": action["new_priority"],
+                    "answer": answer
+                })
+
+            elif action["action"] == "assign_ticket":
+                ticket = db_session.query(Ticket).filter_by(id=action["ticket_id"]).first()
+                if not ticket:
+                    answer = f"Ticket #{action['ticket_id']} not found."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                # Find user by name
+                assignee_name = action["assignee"]
+                assignee_user = db_session.query(User).filter(
+                    User.name.ilike(f"%{assignee_name}%")
+                ).first()
+
+                if not assignee_user:
+                    answer = f"User '{assignee_name}' not found. Please check the name and try again."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                answer = f"Do you want to assign **Ticket #{action['ticket_id']}** to **{assignee_user.username}**?\n\nTicket: {ticket.subject}\nCurrent Assignee: {ticket.assigned_to.username if ticket.assigned_to else 'Unassigned'}"
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "ticket_id": action["ticket_id"],
+                    "ticket_subject": ticket.subject,
+                    "current_assignee": ticket.assigned_to.username if ticket.assigned_to else "Unassigned",
+                    "new_assignee_id": assignee_user.id,
+                    "new_assignee": assignee_user.username,
+                    "answer": answer
+                })
+
+            elif action["action"] == "report_bug":
+                answer = f"Do you want to create a bug report?\n\n**Title:** {action['bug_title']}\n**Severity:** {action['severity']}\n\nYou can add more details after creation."
+                log_chat_interaction(user_id, query, answer, "action_confirm", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "action_confirm",
+                    "action": action["action"],
+                    "bug_title": action["bug_title"],
+                    "severity": action["severity"],
+                    "answer": answer
+                })
+
+            elif action["action"] == "asset_lookup":
+                # Look up asset by serial number
+                serial_number = action["serial_number"]
+                from models.asset import Asset
+                from sqlalchemy import or_
+
+                # Search by serial number or asset tag
+                asset = db_session.query(Asset).filter(
+                    or_(
+                        Asset.serial_num.ilike(f"%{serial_number}%"),
+                        Asset.asset_tag.ilike(f"%{serial_number}%")
+                    )
+                ).first()
+
+                if not asset:
+                    answer = f"No asset found with serial number or asset tag matching '{serial_number}'."
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
+                # Build asset info response
+                answer = f"**Asset Found**\n\n"
+                answer += f"• **Asset Tag:** {asset.asset_tag or 'N/A'}\n"
+                answer += f"• **Name:** {asset.name or 'N/A'}\n"
+                answer += f"• **Serial Number:** {asset.serial_num or 'N/A'}\n"
+                answer += f"• **Status:** {asset.status.value if asset.status else 'N/A'}\n"
+                answer += f"• **Model:** {asset.model or 'N/A'}\n"
+                answer += f"• **Manufacturer:** {asset.manufacturer or 'N/A'}\n"
+
+                if asset.company:
+                    answer += f"• **Company:** {asset.company.name}\n"
+                if asset.country:
+                    answer += f"• **Country:** {asset.country}\n"
+
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "answer",
+                    "answer": answer,
+                    "asset": {
+                        "id": asset.id,
+                        "asset_tag": asset.asset_tag,
+                        "name": asset.name,
+                        "serial_num": asset.serial_num,
+                        "status": asset.status.value if asset.status else None,
+                        "model": asset.model,
+                        "manufacturer": asset.manufacturer
+                    }
+                })
+
+        finally:
+            db_session.close()
+
+    # Find matching answer from knowledge base
+    result = find_best_match(query)
+
+    if result:
+        response = {
+            "success": True,
+            "type": result["type"],
+            "answer": result["answer"],
+        }
+
+        if result["type"] == "answer":
+            response["matched_question"] = result.get("question")
+            response["url"] = result.get("url")
+            response["permission"] = result.get("permission")
+            response["suggestions"] = get_suggested_questions(3)
+
+        # Log the interaction
+        log_chat_interaction(
+            user_id, query, result["answer"], result["type"],
+            matched_question=result.get("question") if result["type"] == "answer" else None
+        )
+
+        return jsonify(response)
+
+    # Fallback
+    import random
+    fallback_answer = random.choice(FALLBACK_RESPONSES)
+    log_chat_interaction(user_id, query, fallback_answer, "fallback")
+    return jsonify({
+        "success": True,
+        "type": "fallback",
+        "answer": fallback_answer,
+        "suggestions": get_suggested_questions(5)
+    })
+
+
+@chatbot_bp.route('/mobile/execute', methods=['POST'])
+@mobile_chatbot_auth
+def mobile_execute_action():
+    """
+    Mobile API: Execute a confirmed action
+
+    POST /chatbot/mobile/execute
+    Headers: Authorization: Bearer <jwt_token>
+    Body: {
+        "action": "update_ticket_status",
+        "ticket_id": 123,
+        "new_status": "RESOLVED"
+    }
+
+    Response: {
+        "success": true,
+        "message": "Ticket #123 status updated to RESOLVED",
+        "ticket_url": "/tickets/123"
+    }
+    """
+    data = request.get_json()
+    action = data.get('action') if data else None
+
+    if not action:
+        return jsonify({"success": False, "error": "Missing action"})
+
+    user = request.mobile_chatbot_user
+
+    db_session = SessionLocal()
+    try:
+        # Handle bug report action
+        if action == "report_bug":
+            from models.bug_report import BugReport, BugStatus, BugSeverity, BugPriority
+
+            bug_title = data.get('bug_title')
+            bug_description = data.get('bug_description', '')
+            severity = data.get('severity', 'Medium')
+
+            if not bug_title:
+                return jsonify({"success": False, "error": "Missing bug title"})
+
+            try:
+                bug = BugReport(
+                    title=bug_title,
+                    description=bug_description or f"Bug reported via mobile chatbot: {bug_title}",
+                    severity=BugSeverity(severity),
+                    priority=BugPriority("Medium"),
+                    reporter_id=user.id,
+                    component="Mobile Chatbot Report"
+                )
+                db_session.add(bug)
+                db_session.commit()
+
+                return jsonify({
+                    "success": True,
+                    "message": f"Bug report {bug.display_id} created successfully!",
+                    "bug_url": f"/development/bugs/{bug.id}",
+                    "bug_id": bug.display_id
+                })
+            except Exception as e:
+                db_session.rollback()
+                return jsonify({"success": False, "error": f"Failed to create bug report: {str(e)}"})
+
+        # For ticket-related actions, require ticket_id
+        ticket_id = data.get('ticket_id')
+        if not ticket_id:
+            return jsonify({"success": False, "error": "Missing ticket_id"})
+
+        ticket = db_session.query(Ticket).filter_by(id=ticket_id).first()
+        if not ticket:
+            return jsonify({"success": False, "error": f"Ticket #{ticket_id} not found"})
+
+        # Check permissions
+        user_permissions = user.permissions
+        if not user_permissions or not user_permissions.can_edit_tickets:
+            return jsonify({"success": False, "error": "You don't have permission to edit tickets"})
+
+        if action == "update_ticket_status":
+            new_status = data.get('new_status')
+            if not new_status:
+                return jsonify({"success": False, "error": "Missing new_status"})
+
+            # Check if it's a system status or custom status
+            status_set = False
+
+            if hasattr(TicketStatus, new_status):
+                ticket.status = getattr(TicketStatus, new_status)
+                status_set = True
+            else:
+                try:
+                    ticket.status = TicketStatus(new_status)
+                    status_set = True
+                except ValueError:
+                    pass
+
+            if not status_set:
+                custom_status = db_session.query(CustomTicketStatus).filter_by(
+                    name=new_status,
+                    is_active=True
+                ).first()
+                if custom_status:
+                    ticket.custom_status_id = custom_status.id
+                    ticket.status = TicketStatus.PROCESSING
+                    status_set = True
+
+            if not status_set:
+                return jsonify({"success": False, "error": f"Invalid status: {new_status}"})
+
+            db_session.commit()
+            return jsonify({
+                "success": True,
+                "message": f"Ticket #{ticket_id} status updated to {new_status}",
+                "ticket_url": f"/tickets/{ticket_id}"
+            })
+
+        elif action == "update_ticket_priority":
+            new_priority = data.get('new_priority')
+            if not new_priority:
+                return jsonify({"success": False, "error": "Missing new_priority"})
+
+            if hasattr(TicketPriority, new_priority):
+                ticket.priority = getattr(TicketPriority, new_priority)
+            else:
+                try:
+                    ticket.priority = TicketPriority(new_priority)
+                except ValueError:
+                    return jsonify({"success": False, "error": f"Invalid priority: {new_priority}"})
+
+            db_session.commit()
+            return jsonify({
+                "success": True,
+                "message": f"Ticket #{ticket_id} priority updated to {new_priority}",
+                "ticket_url": f"/tickets/{ticket_id}"
+            })
+
+        elif action == "assign_ticket":
+            new_assignee_id = data.get('new_assignee_id')
+            if not new_assignee_id:
+                return jsonify({"success": False, "error": "Missing assignee"})
+
+            assignee = db_session.query(User).filter_by(id=new_assignee_id).first()
+            if not assignee:
+                return jsonify({"success": False, "error": "User not found"})
+
+            ticket.assigned_to_id = assignee.id
+            db_session.commit()
+            return jsonify({
+                "success": True,
+                "message": f"Ticket #{ticket_id} assigned to {assignee.username}",
+                "ticket_url": f"/tickets/{ticket_id}"
+            })
+
+        else:
+            return jsonify({"success": False, "error": f"Unknown action: {action}"})
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({"success": False, "error": str(e)})
+    finally:
+        db_session.close()
+
+
+@chatbot_bp.route('/mobile/suggestions', methods=['GET'])
+@mobile_chatbot_auth
+def mobile_suggestions():
+    """
+    Mobile API: Get suggested questions
+
+    GET /chatbot/mobile/suggestions
+    Headers: Authorization: Bearer <jwt_token>
+
+    Response: {
+        "success": true,
+        "suggestions": [
+            "How do I create a new ticket?",
+            "How do I add a new asset?",
+            ...
+        ]
+    }
+    """
+    return jsonify({
+        "success": True,
+        "suggestions": get_suggested_questions(6)
+    })
+
+
+@chatbot_bp.route('/mobile/history', methods=['GET'])
+@mobile_chatbot_auth
+def mobile_chat_history():
+    """
+    Mobile API: Get user's chat history
+
+    GET /chatbot/mobile/history?limit=20
+    Headers: Authorization: Bearer <jwt_token>
+
+    Response: {
+        "success": true,
+        "history": [
+            {
+                "id": 1,
+                "query": "How do I create a ticket?",
+                "response": "To create a new ticket...",
+                "response_type": "answer",
+                "created_at": "2025-01-01T10:00:00Z"
+            },
+            ...
+        ]
+    }
+    """
+    user = request.mobile_chatbot_user
+    limit = request.args.get('limit', 20, type=int)
+    limit = min(limit, 100)  # Max 100
+
+    db_session = SessionLocal()
+    try:
+        from sqlalchemy import desc
+
+        logs = db_session.query(ChatLog).filter(
+            ChatLog.user_id == user.id
+        ).order_by(desc(ChatLog.created_at)).limit(limit).all()
+
+        history = []
+        for log in logs:
+            history.append({
+                "id": log.id,
+                "query": log.query,
+                "response": log.response,
+                "response_type": log.response_type,
+                "matched_question": log.matched_question,
+                "action_type": log.action_type,
+                "created_at": log.created_at.isoformat() + 'Z' if log.created_at else None
+            })
+
+        return jsonify({
+            "success": True,
+            "history": history
+        })
+
+    finally:
+        db_session.close()
+
+
+@chatbot_bp.route('/mobile/capabilities', methods=['GET'])
+def mobile_capabilities():
+    """
+    Mobile API: Get chatbot capabilities and documentation
+
+    GET /chatbot/mobile/capabilities
+
+    Response: {
+        "success": true,
+        "version": "1.0",
+        "capabilities": {
+            "knowledge_base": true,
+            "ticket_actions": true,
+            "asset_lookup": true,
+            "bug_reporting": true
+        },
+        "action_commands": {
+            "update_status": "Update ticket #123 to resolved",
+            "update_priority": "Set ticket #123 priority to high",
+            "assign_ticket": "Assign ticket #123 to John",
+            "report_bug": "Report bug: Login page not loading",
+            "asset_lookup": "Find asset serial ABC123"
+        },
+        "sample_queries": [...]
+    }
+    """
+    return jsonify({
+        "success": True,
+        "version": "1.0",
+        "description": "Help Assistant chatbot for inventory management system",
+        "capabilities": {
+            "knowledge_base": True,
+            "ticket_actions": True,
+            "asset_lookup": True,
+            "bug_reporting": True,
+            "user_lookup": True
+        },
+        "action_commands": {
+            "update_status": {
+                "description": "Update a ticket's status",
+                "examples": [
+                    "Update ticket #123 to resolved",
+                    "Mark ticket #456 as in progress",
+                    "Resolve ticket #789"
+                ]
+            },
+            "update_priority": {
+                "description": "Change a ticket's priority",
+                "examples": [
+                    "Set ticket #123 priority to high",
+                    "Change ticket #456 priority to critical"
+                ]
+            },
+            "assign_ticket": {
+                "description": "Assign a ticket to a user",
+                "examples": [
+                    "Assign ticket #123 to John",
+                    "Transfer ticket #456 to Sarah"
+                ]
+            },
+            "report_bug": {
+                "description": "Report a bug in the system",
+                "examples": [
+                    "Report bug: Login page not loading",
+                    "Report critical bug: System crash on submit"
+                ]
+            },
+            "asset_lookup": {
+                "description": "Look up an asset by serial number or asset tag",
+                "examples": [
+                    "Find asset serial ABC123",
+                    "Lookup SN: XYZ789",
+                    "Check asset tag AT001"
+                ]
+            }
+        },
+        "sample_queries": get_suggested_questions(10),
+        "response_types": {
+            "greeting": "Initial greeting response",
+            "answer": "Direct answer from knowledge base",
+            "action_confirm": "Request confirmation before executing action",
+            "error": "Error message (e.g., ticket not found)",
+            "fallback": "Could not find matching answer"
+        }
+    })

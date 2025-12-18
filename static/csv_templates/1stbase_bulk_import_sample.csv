@@ -1,0 +1,4 @@
+ship_to_first_name,ship_to_last_name,email,country,san,company,order_id,product_description,serial_number,address_line_1,address_line_2,city,state,zip,secondary_email,Notes 1 (exceptions - any legacy device or wiping questions),Notes 2 (TL acknowledges order and prepares kit)
+John,Smith,john.smith@acme.com,SG,+6512345678,Acme Corporation,ORD-001,MacBook Pro 14-inch M3,C02XL1234567,123 Orchard Road,#10-01,Singapore,,238896,john.alt@acme.com,Legacy device - needs special handling,Kit prepared and ready
+Jane,Doe,jane.doe@techcorp.com,PH,+639171234567,Tech Corp,ORD-002,Dell Latitude 5540,ABC123DEF456,456 Makati Ave,Unit 2501,Makati City,Metro Manila,1200,,Standard return,Kit prepared
+Bob,Wilson,bob.wilson@globex.com,JP,+81312345678,Globex Inc,ORD-003,ThinkPad X1 Carbon,PF2ABC123,1-2-3 Shibuya,Shibuya Building 5F,Tokyo,,150-0002,bob.alt@globex.com,Wiping questions - contact IT,Acknowledged

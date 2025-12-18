@@ -1,116 +1,128 @@
 {% extends "base.html" %}
 
+{% block title %}Import from Retool{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Back Button -->
-    <div class="mb-6">
-        <a href="{{ url_for('tickets.list_tickets') }}"
-           class="text-blue-600 hover:text-blue-800">
-            &larr; Back to Tickets
-        </a>
-    </div>
-
-    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-900">Import from Retool</h2>
-            <p class="mt-1 text-sm text-gray-600">Download the CSV from Retool and it will be automatically imported.</p>
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Import from Retool</h1>
+            <p class="mt-2 text-gray-600">Upload a CSV file from Retool to create Asset Checkout tickets with automatic customer creation</p>
         </div>
 
-        <div class="p-6">
-            <!-- Quick Upload Section (Prominent) -->
-            <div class="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">Quick Import from Retool</h3>
-                <p class="text-sm text-gray-600 mb-4">Download the CSV from Retool, then drag and drop it here:</p>
+        <!-- Instructions Card -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-blue-900 mb-3">📋 Instructions</h2>
+            <ol class="list-decimal list-inside space-y-2 text-blue-800">
+                <li>Use the Retool interface below to view and filter 3PL Orders</li>
+                <li>Click the "Download" button in Retool to download the CSV</li>
+                <li>Drag and drop the downloaded CSV file into the upload box (or click to browse)</li>
+                <li>Click "Upload and Import" to review the data before final import</li>
+            </ol>
+        </div>
 
-                <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <!-- Upload Form -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload CSV File</h2>
 
-                    <!-- Drag and Drop Zone -->
-                    <div id="dropZone"
-                         class="border-2 border-dashed border-green-300 rounded-lg p-8 text-center bg-white hover:bg-green-50 transition-colors cursor-pointer">
-                        <input type="file"
-                               id="csvFile"
-                               name="file"
-                               accept=".csv"
-                               class="hidden">
-                        <div id="dropZoneContent">
-                            <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                            </svg>
-                            <p class="mt-2 text-sm text-gray-600">
-                                <span class="font-semibold text-green-600">Click to browse</span> or drag and drop
-                            </p>
-                            <p class="mt-1 text-xs text-gray-500">CSV file from Retool</p>
-                        </div>
-                        <div id="fileSelected" class="hidden">
-                            <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <p class="mt-2 text-sm font-semibold text-green-600" id="fileName"></p>
-                            <p class="mt-1 text-xs text-gray-500">Click button below to import</p>
-                        </div>
+            <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Drag and Drop Zone -->
+                <div id="dropZone"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer">
+                    <input type="file"
+                           id="csvFile"
+                           name="file"
+                           accept=".csv"
+                           class="hidden">
+                    <div id="dropZoneContent">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="mt-2 text-sm text-gray-600">
+                            <span class="font-semibold text-blue-600">Click to browse</span> or drag and drop
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500">CSV file from Retool (Maximum 10MB)</p>
                     </div>
+                    <div id="fileSelected" class="hidden">
+                        <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="mt-2 text-sm font-semibold text-green-600" id="fileName"></p>
+                        <p class="mt-1 text-xs text-gray-500">Click button below to import</p>
+                    </div>
+                </div>
 
+                <div class="flex items-center justify-between pt-4">
+                    <a href="{{ url_for('tickets.list_tickets') }}"
+                       class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
                     <button type="submit"
                             id="uploadBtn"
-                            class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
-                        <span id="uploadBtnText">Import CSV to System</span>
+                            class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <span id="uploadBtnText">Upload and Import</span>
                         <span id="uploadBtnLoading" class="hidden">Processing...</span>
                     </button>
-                </form>
-            </div>
-
-            <!-- Instructions -->
-            <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 class="text-sm font-semibold text-blue-900 mb-2">How to import from Retool:</h3>
-                <ol class="list-decimal list-inside text-sm text-blue-800 space-y-2">
-                    <li>Use the Retool interface below to view and filter 3PL Orders</li>
-                    <li>Click the "Download" button in Retool to download the CSV</li>
-                    <li>Drag and drop the downloaded CSV file into the box above (or click to browse)</li>
-                    <li>Click "Import CSV to System" and review the data before final import</li>
-                </ol>
-            </div>
-
-            <!-- Retool Iframe -->
-            <div class="mb-6">
-                <h3 class="text-sm font-semibold text-gray-900 mb-3">Retool 3PL Orders</h3>
-                <div class="border-2 border-gray-300 rounded-lg overflow-hidden" style="height: 800px;">
-                    <iframe
-                        id="retoolFrame"
-                        src="{{ retool_url }}"
-                        width="100%"
-                        height="100%"
-                        frameborder="0"
-                        allow="clipboard-write"
-                        style="border: none;">
-                    </iframe>
                 </div>
-            </div>
-
-            <!-- Advanced: Direct URL Fetch -->
-            <details class="border-t border-gray-200 pt-6">
-                <summary class="cursor-pointer text-sm font-semibold text-gray-900 mb-3 hover:text-blue-600">
-                    Advanced: Fetch directly from URL (if you have a direct CSV export URL)
-                </summary>
-                <div class="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p class="text-sm text-gray-600 mb-4">If you have a direct CSV export URL from Retool API:</p>
-                    <div class="space-y-4">
-                        <div>
-                            <label for="retoolExportUrl" class="block text-sm font-medium text-gray-700 mb-2">CSV Export URL</label>
-                            <input type="url"
-                                   id="retoolExportUrl"
-                                   placeholder="https://..."
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <button id="fetchBtn"
-                                class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
-                            <span id="fetchBtnText">Fetch from URL</span>
-                            <span id="fetchBtnLoading" class="hidden">Fetching...</span>
-                        </button>
-                    </div>
-                </div>
-            </details>
+            </form>
         </div>
+
+        <!-- Retool Interface -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Retool 3PL Orders</h2>
+            <p class="text-sm text-gray-600 mb-4">Use the interface below to view, filter, and download orders from the 3PL system.</p>
+            <div class="border-2 border-gray-200 rounded-lg overflow-hidden" style="height: 600px;">
+                <iframe
+                    id="retoolFrame"
+                    src="{{ retool_url }}"
+                    width="100%"
+                    height="100%"
+                    frameborder="0"
+                    allow="clipboard-write"
+                    style="border: none;">
+                </iframe>
+            </div>
+        </div>
+
+        <!-- Important Notes -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Important Notes:</h3>
+            <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <li>CSV must be downloaded directly from the Retool interface</li>
+                <li>Orders already imported will be automatically detected and skipped</li>
+                <li>Processing orders will also be skipped to prevent duplicates</li>
+                <li>You will be able to review all data before final import</li>
+                <li>Customer records will be auto-created if they don't exist</li>
+            </ul>
+        </div>
+
+        <!-- Advanced: Direct URL Fetch (collapsed) -->
+        <details class="mt-6">
+            <summary class="cursor-pointer text-sm font-semibold text-gray-700 hover:text-blue-600">
+                Advanced: Fetch directly from URL
+            </summary>
+            <div class="mt-4 bg-white shadow-md rounded-lg p-6">
+                <p class="text-sm text-gray-600 mb-4">If you have a direct CSV export URL from Retool API:</p>
+                <div class="space-y-4">
+                    <div>
+                        <label for="retoolExportUrl" class="block text-sm font-medium text-gray-700 mb-2">CSV Export URL</label>
+                        <input type="url"
+                               id="retoolExportUrl"
+                               placeholder="https://..."
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button id="fetchBtn"
+                            type="button"
+                            class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <span id="fetchBtnText">Fetch from URL</span>
+                        <span id="fetchBtnLoading" class="hidden">Fetching...</span>
+                    </button>
+                </div>
+            </div>
+        </details>
     </div>
 </div>
 
@@ -146,19 +158,19 @@ document.addEventListener('DOMContentLoaded', function() {
     dropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        this.classList.add('border-green-500', 'bg-green-100');
+        this.classList.add('border-blue-500', 'bg-blue-100');
     });
 
     dropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        this.classList.remove('border-green-500', 'bg-green-100');
+        this.classList.remove('border-blue-500', 'bg-blue-100');
     });
 
     dropZone.addEventListener('drop', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        this.classList.remove('border-green-500', 'bg-green-100');
+        this.classList.remove('border-blue-500', 'bg-blue-100');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -296,5 +308,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
 {% endblock %}
