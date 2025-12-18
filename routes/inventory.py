@@ -271,6 +271,26 @@ def debug_user_permissions():
 @inventory_bp.route('/')
 @login_required
 def view_inventory():
+    # Check if we should redirect to SF view based on system setting
+    # Allow ?use_classic=1 to bypass the redirect for preview purposes
+    if not request.args.get('use_classic'):
+        redirect_db_session = None
+        try:
+            redirect_db_session = db_manager.get_session()
+            from models.system_settings import SystemSettings
+            inventory_view_setting = redirect_db_session.query(SystemSettings).filter_by(
+                setting_key='default_inventory_view'
+            ).first()
+            if inventory_view_setting and inventory_view_setting.get_value() == 'sf':
+                # Preserve any query parameters when redirecting (exclude use_classic)
+                args = {k: v for k, v in request.args.items() if k != 'use_classic'}
+                return redirect(url_for('inventory.view_inventory_sf', **args))
+        except Exception as e:
+            logger.warning(f"Could not check default_inventory_view setting: {str(e)}")
+        finally:
+            if redirect_db_session:
+                redirect_db_session.close()
+
     db_session = db_manager.get_session()
     try:
         # Get the current user

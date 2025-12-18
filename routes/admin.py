@@ -2247,6 +2247,18 @@ def system_config():
         except Exception as e:
             logger.warning(f"Could not load default_ticket_view setting: {str(e)}")
 
+        # Get default inventory view setting
+        default_inventory_view = 'classic'
+        try:
+            from models.system_settings import SystemSettings
+            inventory_view_setting = db_session.query(SystemSettings).filter_by(
+                setting_key='default_inventory_view'
+            ).first()
+            if inventory_view_setting:
+                default_inventory_view = inventory_view_setting.get_value()
+        except Exception as e:
+            logger.warning(f"Could not load default_inventory_view setting: {str(e)}")
+
         return render_template('admin/system_config.html',
                              user=user,
                              firecrawl_keys=firecrawl_keys,
@@ -2255,7 +2267,8 @@ def system_config():
                              version_info=version_info,
                              config=config_with_ms,
                              default_homepage=default_homepage,
-                             default_ticket_view=default_ticket_view)
+                             default_ticket_view=default_ticket_view,
+                             default_inventory_view=default_inventory_view)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
@@ -2334,6 +2347,44 @@ def update_default_ticket_view():
     except Exception as e:
         db_session.rollback()
         flash(f'Error updating ticket view setting: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.system_config'))
+
+
+@admin_bp.route('/update-default-inventory-view', methods=['POST'])
+@super_admin_required
+def update_default_inventory_view():
+    """Update the default inventory view setting"""
+    db_session = db_manager.get_session()
+    try:
+        from models.system_settings import SystemSettings
+
+        inventory_view_value = request.form.get('inventory_view', 'classic')
+
+        # Get or create the setting
+        inventory_view_setting = db_session.query(SystemSettings).filter_by(
+            setting_key='default_inventory_view'
+        ).first()
+
+        if inventory_view_setting:
+            inventory_view_setting.setting_value = inventory_view_value
+        else:
+            inventory_view_setting = SystemSettings(
+                setting_key='default_inventory_view',
+                setting_value=inventory_view_value,
+                setting_type='string',
+                description='Default inventory view for users (classic or sf)'
+            )
+            db_session.add(inventory_view_setting)
+
+        db_session.commit()
+        flash(f'Default inventory view changed to {"Salesforce-Style View" if inventory_view_value == "sf" else "Classic View"}', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating inventory view setting: {str(e)}', 'error')
     finally:
         db_session.close()
 

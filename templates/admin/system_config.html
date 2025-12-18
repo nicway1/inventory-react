@@ -228,6 +228,28 @@
                         </form>
                     </div>
 
+                    <!-- Default Inventory View Setting -->
+                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 mt-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">Default Inventory View</h3>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Current: <span class="font-semibold">{{ 'Salesforce-Style View' if default_inventory_view == 'sf' else 'Classic View' }}</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Choose which inventory view users see by default. When set to Salesforce-Style, all inventory links will redirect to the new view.
+                            </p>
+                        </div>
+                        <form method="POST" action="{{ url_for('admin.update_default_inventory_view') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="inventory_view" value="{{ 'classic' if default_inventory_view == 'sf' else 'sf' }}">
+                            <button type="submit"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white {{ 'bg-green-600 hover:bg-green-700' if default_inventory_view != 'sf' else 'bg-gray-600 hover:bg-gray-700' }}">
+                                <i class="fas {{ 'fa-table-columns' if default_inventory_view != 'sf' else 'fa-list' }} mr-2"></i>
+                                Switch to {{ 'Salesforce-Style View' if default_inventory_view != 'sf' else 'Classic View' }}
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Quick Links -->
                     <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200 mt-4">
                         <div>
@@ -265,6 +287,28 @@
                                 SF-Style View
                             </a>
                             <a href="{{ url_for('tickets.list_tickets') }}?use_classic=1"
+                               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-list mr-2"></i>
+                                Classic View
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Preview Inventory Views -->
+                    <div class="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200 mt-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-green-900">Preview Inventory Views</h3>
+                            <p class="text-sm text-green-700 mt-1">
+                                Try both inventory views without changing the default setting.
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('inventory.view_inventory_sf') }}"
+                               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                                <i class="fas fa-table-columns mr-2"></i>
+                                SF-Style View
+                            </a>
+                            <a href="{{ url_for('inventory.view_inventory') }}?use_classic=1"
                                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                                 <i class="fas fa-list mr-2"></i>
                                 Classic View
