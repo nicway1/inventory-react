@@ -169,6 +169,7 @@ def list_tickets():
     # Check if we should redirect to SF view based on system setting
     # Allow ?use_classic=1 to bypass the redirect for preview purposes
     if not request.args.get('use_classic'):
+        db_session = None
         try:
             db_session = db_manager.get_session()
             from models.system_settings import SystemSettings
@@ -176,12 +177,14 @@ def list_tickets():
                 setting_key='default_ticket_view'
             ).first()
             if ticket_view_setting and ticket_view_setting.get_value() == 'sf':
-                db_session.close()
-                # Preserve any query parameters when redirecting
-                return redirect(url_for('tickets.list_tickets_sf', **request.args))
-            db_session.close()
+                # Preserve any query parameters when redirecting (exclude use_classic)
+                args = {k: v for k, v in request.args.items() if k != 'use_classic'}
+                return redirect(url_for('tickets.list_tickets_sf', **args))
         except Exception as e:
             logger.warning(f"Could not check default_ticket_view setting: {str(e)}")
+        finally:
+            if db_session:
+                db_session.close()
 
     user_id = session['user_id']
     user = db_manager.get_user(user_id)
