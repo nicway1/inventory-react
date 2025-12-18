@@ -206,8 +206,30 @@
                         </form>
                     </div>
 
+                    <!-- Default Ticket View Setting -->
+                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 mt-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">Default Ticket List View</h3>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Current: <span class="font-semibold">{{ 'Salesforce-Style View' if default_ticket_view == 'sf' else 'Classic View' }}</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Choose which ticket list view users see by default. When set to Salesforce-Style, all ticket list links will redirect to the new view.
+                            </p>
+                        </div>
+                        <form method="POST" action="{{ url_for('admin.update_default_ticket_view') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="ticket_view" value="{{ 'classic' if default_ticket_view == 'sf' else 'sf' }}">
+                            <button type="submit"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white {{ 'bg-purple-600 hover:bg-purple-700' if default_ticket_view != 'sf' else 'bg-gray-600 hover:bg-gray-700' }}">
+                                <i class="fas {{ 'fa-table-columns' if default_ticket_view != 'sf' else 'fa-list' }} mr-2"></i>
+                                Switch to {{ 'Salesforce-Style View' if default_ticket_view != 'sf' else 'Classic View' }}
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Quick Links -->
-                    <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200 mt-4">
                         <div>
                             <h3 class="text-lg font-medium text-blue-900">Preview Dashboards</h3>
                             <p class="text-sm text-blue-700 mt-1">
@@ -224,6 +246,28 @@
                                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                                 <i class="fas fa-home mr-2"></i>
                                 Classic Homepage
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Preview Ticket Views -->
+                    <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-200 mt-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-purple-900">Preview Ticket Views</h3>
+                            <p class="text-sm text-purple-700 mt-1">
+                                Try both ticket views without changing the default setting.
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('tickets.list_tickets_sf') }}"
+                               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+                                <i class="fas fa-table-columns mr-2"></i>
+                                SF-Style View
+                            </a>
+                            <a href="{{ url_for('tickets.list_tickets') }}?use_classic=1"
+                               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-list mr-2"></i>
+                                Classic View
                             </a>
                         </div>
                     </div>

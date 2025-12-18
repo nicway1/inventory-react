@@ -2235,6 +2235,18 @@ def system_config():
         except Exception as e:
             logger.warning(f"Could not load default_homepage setting: {str(e)}")
 
+        # Get default ticket view setting
+        default_ticket_view = 'classic'
+        try:
+            from models.system_settings import SystemSettings
+            ticket_view_setting = db_session.query(SystemSettings).filter_by(
+                setting_key='default_ticket_view'
+            ).first()
+            if ticket_view_setting:
+                default_ticket_view = ticket_view_setting.get_value()
+        except Exception as e:
+            logger.warning(f"Could not load default_ticket_view setting: {str(e)}")
+
         return render_template('admin/system_config.html',
                              user=user,
                              firecrawl_keys=firecrawl_keys,
@@ -2242,7 +2254,8 @@ def system_config():
                              current_api_key=current_api_key,
                              version_info=version_info,
                              config=config_with_ms,
-                             default_homepage=default_homepage)
+                             default_homepage=default_homepage,
+                             default_ticket_view=default_ticket_view)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
@@ -2283,6 +2296,44 @@ def update_default_homepage():
     except Exception as e:
         db_session.rollback()
         flash(f'Error updating homepage setting: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.system_config'))
+
+
+@admin_bp.route('/update-default-ticket-view', methods=['POST'])
+@super_admin_required
+def update_default_ticket_view():
+    """Update the default ticket view setting"""
+    db_session = db_manager.get_session()
+    try:
+        from models.system_settings import SystemSettings
+
+        ticket_view_value = request.form.get('ticket_view', 'classic')
+
+        # Get or create the setting
+        ticket_view_setting = db_session.query(SystemSettings).filter_by(
+            setting_key='default_ticket_view'
+        ).first()
+
+        if ticket_view_setting:
+            ticket_view_setting.setting_value = ticket_view_value
+        else:
+            ticket_view_setting = SystemSettings(
+                setting_key='default_ticket_view',
+                setting_value=ticket_view_value,
+                setting_type='string',
+                description='Default ticket list view for users (classic or sf)'
+            )
+            db_session.add(ticket_view_setting)
+
+        db_session.commit()
+        flash(f'Default ticket view changed to {"Salesforce-Style View" if ticket_view_value == "sf" else "Classic View"}', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating ticket view setting: {str(e)}', 'error')
     finally:
         db_session.close()
 

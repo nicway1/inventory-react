@@ -166,6 +166,23 @@ TRACKINGMORE_API_KEY = "7yyp17vj-t0bh-jtg0-xjf0-v9m3335cjbtc"
 @tickets_bp.route('/')
 @login_required
 def list_tickets():
+    # Check if we should redirect to SF view based on system setting
+    # Allow ?use_classic=1 to bypass the redirect for preview purposes
+    if not request.args.get('use_classic'):
+        try:
+            db_session = db_manager.get_session()
+            from models.system_settings import SystemSettings
+            ticket_view_setting = db_session.query(SystemSettings).filter_by(
+                setting_key='default_ticket_view'
+            ).first()
+            if ticket_view_setting and ticket_view_setting.get_value() == 'sf':
+                db_session.close()
+                # Preserve any query parameters when redirecting
+                return redirect(url_for('tickets.list_tickets_sf', **request.args))
+            db_session.close()
+        except Exception as e:
+            logger.warning(f"Could not check default_ticket_view setting: {str(e)}")
+
     user_id = session['user_id']
     user = db_manager.get_user(user_id)
 
