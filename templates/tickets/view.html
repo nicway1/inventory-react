@@ -1112,7 +1112,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                             <h1 class="sf-card-title">{{ ticket.subject }}</h1>
                         </div>
                         <div class="flex items-center gap-2">
-                            <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button">
+                            <a href="{{ url_for('tickets.list_tickets_sf') }}" class="sf-button">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                                 </svg>
@@ -2830,7 +2830,118 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- Retool 3PL Orders Section for Asset Checkout (claw) -->
+                    <div class="sf-card mb-6">
+                        <div class="sf-card-header">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <h2 class="sf-card-title flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                                        </svg>
+                                        3PL Orders (Retool)
+                                    </h2>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="refreshRetoolBtn" class="sf-button" onclick="refreshRetoolIframe()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                        </svg>
+                                        Update Retool
+                                    </button>
+                                    <button class="sf-button" onclick="toggleRetoolFullscreen()">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                        </svg>
+                                        Fullscreen
+                                    </button>
+                                    <a href="https://firstbase.retool.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders" target="_blank" class="sf-button primary-button">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                        </svg>
+                                        Open in New Tab
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sf-card-body p-0">
+                            <div id="retoolContainer" class="relative" style="height: 600px;">
+                                <iframe
+                                    id="retoolIframe"
+                                    src="https://firstbase.retool.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders"
+                                    class="w-full h-full border-0"
+                                    allow="clipboard-write"
+                                    loading="lazy"
+                                ></iframe>
+                                <div id="retoolLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden">
+                                    <div class="flex flex-col items-center">
+                                        <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span class="text-gray-600">Loading Retool...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                    // Retool iframe functions
+                    function refreshRetoolIframe() {
+                        const iframe = document.getElementById('retoolIframe');
+                        const loading = document.getElementById('retoolLoading');
+
+                        if (iframe) {
+                            loading.classList.remove('hidden');
+                            iframe.src = iframe.src;
+
+                            iframe.onload = function() {
+                                loading.classList.add('hidden');
+                            };
+
+                            // Hide loading after 5 seconds even if load event doesn't fire (cross-origin)
+                            setTimeout(function() {
+                                loading.classList.add('hidden');
+                            }, 5000);
+                        }
+                    }
+
+                    function toggleRetoolFullscreen() {
+                        const container = document.getElementById('retoolContainer');
+                        const iframe = document.getElementById('retoolIframe');
+
+                        if (!document.fullscreenElement) {
+                            if (container.requestFullscreen) {
+                                container.requestFullscreen();
+                            } else if (container.webkitRequestFullscreen) {
+                                container.webkitRequestFullscreen();
+                            } else if (container.msRequestFullscreen) {
+                                container.msRequestFullscreen();
+                            }
+                        } else {
+                            if (document.exitFullscreen) {
+                                document.exitFullscreen();
+                            } else if (document.webkitExitFullscreen) {
+                                document.webkitExitFullscreen();
+                            } else if (document.msExitFullscreen) {
+                                document.msExitFullscreen();
+                            }
+                        }
+                    }
+
+                    // Handle fullscreen style changes
+                    document.addEventListener('fullscreenchange', function() {
+                        const container = document.getElementById('retoolContainer');
+                        if (document.fullscreenElement) {
+                            container.style.height = '100vh';
+                        } else {
+                            container.style.height = '600px';
+                        }
+                    });
+                    </script>
+
                     <script>
                     // Define ticket items early for package functionality
                     if (typeof ticketAssets === 'undefined') {
