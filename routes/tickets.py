@@ -9348,37 +9348,71 @@ def get_ticket_items(ticket_id):
             items = []
             
             if item_type == 'asset':
-                # Get assets assigned to this ticket using direct SQL query
+                # Get assets assigned to this ticket - check both:
+                # 1. Direct FK via ticket.asset_id
+                # 2. Many-to-many via ticket_assets table
                 result = db_session.execute(text("""
-                    SELECT a.id, a.asset_tag, a.model 
-                    FROM assets a 
-                    INNER JOIN ticket_assets ta ON a.id = ta.asset_id 
-                    WHERE ta.ticket_id = :ticket_id
+                    SELECT DISTINCT a.id, a.asset_tag, a.serial_num, a.model, a.name
+                    FROM assets a
+                    WHERE a.id IN (
+                        -- Direct FK on ticket
+                        SELECT t.asset_id FROM tickets t WHERE t.id = :ticket_id AND t.asset_id IS NOT NULL
+                        UNION
+                        -- Many-to-many via ticket_assets
+                        SELECT ta.asset_id FROM ticket_assets ta WHERE ta.ticket_id = :ticket_id
+                    )
                 """), {'ticket_id': ticket_id})
-                
+
                 for row in result:
-                    asset_id, asset_tag, model = row
-                    display_name = f"{asset_tag} - {model}" if asset_tag and model else f"Asset ID: {asset_id}"
+                    asset_id, asset_tag, serial_num, model, name = row
+                    # Build display name with available info
+                    if asset_tag and model:
+                        display_name = f"{asset_tag} - {model}"
+                    elif asset_tag:
+                        display_name = f"{asset_tag}"
+                    elif serial_num and model:
+                        display_name = f"{serial_num} - {model}"
+                    elif serial_num:
+                        display_name = f"{serial_num}"
+                    elif name:
+                        display_name = f"{name}"
+                    else:
+                        display_name = f"Asset ID: {asset_id}"
                     items.append({
                         'id': asset_id,
                         'display_name': display_name,
                         'asset_tag': asset_tag or '',
+                        'serial_num': serial_num or '',
                         'model': model or ''
                     })
             
             elif item_type == 'accessory':
-                # Get accessories assigned to this ticket using ticket_accessories table
+                # Get accessories assigned to this ticket - check both:
+                # 1. Direct FK via ticket.accessory_id
+                # 2. Many-to-many via ticket_accessories table
                 result = db_session.execute(text("""
-                    SELECT a.id, a.name, a.model_no 
-                    FROM accessories a 
-                    INNER JOIN ticket_accessories ta ON a.id = ta.original_accessory_id 
-                    WHERE ta.ticket_id = :ticket_id
+                    SELECT DISTINCT a.id, a.name, a.model_no, a.category
+                    FROM accessories a
+                    WHERE a.id IN (
+                        -- Direct FK on ticket
+                        SELECT t.accessory_id FROM tickets t WHERE t.id = :ticket_id AND t.accessory_id IS NOT NULL
+                        UNION
+                        -- Many-to-many via ticket_accessories (original_accessory_id)
+                        SELECT ta.original_accessory_id FROM ticket_accessories ta WHERE ta.ticket_id = :ticket_id AND ta.original_accessory_id IS NOT NULL
+                    )
                 """), {'ticket_id': ticket_id})
-                
+
                 for row in result:
-                    accessory_id, name, model_no = row
-                    model_text = f" ({model_no})" if model_no else " (No Model)"
-                    display_name = f"{name}{model_text}"
+                    accessory_id, name, model_no, category = row
+                    # Build display name with available info
+                    if name and model_no:
+                        display_name = f"{name} ({model_no})"
+                    elif name:
+                        display_name = f"{name}"
+                    elif category:
+                        display_name = f"{category} (ID: {accessory_id})"
+                    else:
+                        display_name = f"Accessory ID: {accessory_id}"
                     items.append({
                         'id': accessory_id,
                         'display_name': display_name,
