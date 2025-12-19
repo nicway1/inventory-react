@@ -3,6 +3,7 @@
 {% block content %}
 <!-- Add Select2 CSS in the head -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="{{ url_for('static', filename='css/queue_manager.css') }}" rel="stylesheet" />
 
 <style>
 /* Custom styles for customer search results */
@@ -370,15 +371,25 @@
                         <label for="pin_queue_id" class="block text-sm font-medium text-gray-700">
                             Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="pin_queue_id"
-                                name="queue_id"
-                                disabled
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select a Queue --</option>
-                            {% for queue in queues %}
-                            <option value="{{ queue.id }}">{{ queue.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="mt-1 flex gap-2">
+                            <select id="pin_queue_id"
+                                    name="queue_id"
+                                    disabled
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">-- Select a Queue --</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if current_user.is_super_admin or current_user.is_developer %}
+                            <button type="button" onclick="QueueManager.open()" class="manage-queues-btn" title="Manage Queues">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
                         <p class="mt-1 text-sm text-gray-500">
                             Select which support queue this PIN request ticket should be assigned to.
                         </p>
@@ -759,15 +770,25 @@
                         <label for="checkout_queue_id" class="block text-sm font-medium text-gray-700">
                             Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="checkout_queue_id"
-                                name="queue_id"
-                                disabled
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select a Queue --</option>
-                            {% for queue in queues %}
-                            <option value="{{ queue.id }}">{{ queue.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="mt-1 flex gap-2">
+                            <select id="checkout_queue_id"
+                                    name="queue_id"
+                                    disabled
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">-- Select a Queue --</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if current_user.is_super_admin or current_user.is_developer %}
+                            <button type="button" onclick="QueueManager.open()" class="manage-queues-btn" title="Manage Queues">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
                         <p class="mt-1 text-sm text-gray-500">
                             Select which support queue this asset checkout ticket should be assigned to.
                         </p>
@@ -928,15 +949,25 @@
                         <label for="intake_queue_id" class="block text-sm font-medium text-gray-700">
                             Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="intake_queue_id"
-                                name="queue_id"
-                                disabled
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select a Queue --</option>
-                            {% for queue in queues %}
-                            <option value="{{ queue.id }}">{{ queue.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="mt-1 flex gap-2">
+                            <select id="intake_queue_id"
+                                    name="queue_id"
+                                    disabled
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">-- Select a Queue --</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if current_user.is_super_admin or current_user.is_developer %}
+                            <button type="button" onclick="QueueManager.open()" class="manage-queues-btn" title="Manage Queues">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
                         <p class="mt-1 text-sm text-gray-500">
                             Select which support queue this asset intake ticket should be assigned to.
                         </p>
@@ -1039,15 +1070,25 @@
                         <label for="queue_id" class="block text-sm font-medium text-gray-700">
                             Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="queue_id"
-                                name="queue_id"
-                                disabled
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select a Queue --</option>
-                            {% for queue in queues %}
-                            <option value="{{ queue.id }}">{{ queue.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="mt-1 flex gap-2">
+                            <select id="queue_id"
+                                    name="queue_id"
+                                    disabled
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">-- Select a Queue --</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if current_user.is_super_admin or current_user.is_developer %}
+                            <button type="button" onclick="QueueManager.open()" class="manage-queues-btn" title="Manage Queues">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
                         <p class="mt-1 text-sm text-gray-500">
                             Select which support queue this return ticket should be assigned to.
                         </p>
@@ -1080,15 +1121,25 @@
                         <label for="internal_transfer_queue_id" class="block text-sm font-medium text-gray-700">
                             Assign to Queue <span class="text-red-500">*</span>
                         </label>
-                        <select id="internal_transfer_queue_id"
-                                name="queue_id"
-                                disabled
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">-- Select a Queue --</option>
-                            {% for queue in queues %}
-                            <option value="{{ queue.id }}">{{ queue.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="mt-1 flex gap-2">
+                            <select id="internal_transfer_queue_id"
+                                    name="queue_id"
+                                    disabled
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">-- Select a Queue --</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if current_user.is_super_admin or current_user.is_developer %}
+                            <button type="button" onclick="QueueManager.open()" class="manage-queues-btn" title="Manage Queues">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
                         <p class="mt-1 text-sm text-gray-500">
                             Select which support queue this internal transfer ticket should be assigned to.
                         </p>
@@ -1414,9 +1465,15 @@
     </div>
 </div>
 
+<!-- Queue Manager Modal (iOS-style) -->
+{% if current_user.is_super_admin or current_user.is_developer %}
+{% include 'tickets/partials/queue_manager.html' %}
+{% endif %}
+
 <!-- Add jQuery and Select2 JS before the closing body tag -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ url_for('static', filename='js/queue_manager.js') }}"></script>
 
 <script>
 // Categories data with sections information
@@ -1449,6 +1506,11 @@ function updateCategoryBadge() {
 
 // Category guide card click handlers
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Queue Manager (for Super Admin/Developer only)
+    if (typeof QueueManager !== 'undefined') {
+        QueueManager.init('{{ csrf_token() }}');
+    }
+
     // Make category guide cards clickable
     document.querySelectorAll('.category-guide-item').forEach(item => {
         item.addEventListener('click', function() {

@@ -3245,6 +3245,299 @@ def edit_queue(queue_id):
         logging.error(f"Error editing queue: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+# ============= Queue Manager API (iOS-style) =============
+
+@tickets_bp.route('/queues/api/list', methods=['GET'])
+@login_required
+def api_list_queues():
+    """Get all queues with folders for iOS-style grid display"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        # Only SUPER_ADMIN and DEVELOPER can manage queues
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = queue_store.get_queues_with_folders()
+        # Combine unfiled_queues into a flat list for the JS
+        all_queues = []
+        for folder in data.get('folders', []):
+            all_queues.extend(folder.get('queues', []))
+        all_queues.extend(data.get('unfiled_queues', []))
+
+        return jsonify({
+            'success': True,
+            'queues': all_queues,
+            'folders': data.get('folders', [])
+        })
+
+    except Exception as e:
+        logging.error(f"Error getting queues with folders: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/api/create', methods=['POST'])
+@login_required
+def api_create_queue():
+    """Create a new queue (inline in grid)"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        name = data.get('name', '').strip()
+
+        if not name:
+            return jsonify({'success': False, 'error': 'Queue name is required'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            # Check if queue with this name already exists
+            existing = db_session.query(Queue).filter(Queue.name == name).first()
+            if existing:
+                return jsonify({'success': False, 'error': f'Queue "{name}" already exists'}), 400
+
+            # Get max display_order
+            max_order = db_session.query(Queue).count()
+            queue = Queue(
+                name=name,
+                description=data.get('description', ''),
+                folder_id=data.get('folder_id'),
+                display_order=max_order
+            )
+            db_session.add(queue)
+            db_session.commit()
+
+            queue_store.load_queues()
+
+            return jsonify({
+                'success': True,
+                'queue': {
+                    'id': queue.id,
+                    'name': queue.name,
+                    'description': queue.description,
+                    'folder_id': queue.folder_id,
+                    'display_order': queue.display_order,
+                    'ticket_count': 0  # New queue has no tickets
+                },
+                'message': f'Queue "{name}" created successfully'
+            })
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logging.error(f"Error creating queue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/api/delete/<int:queue_id>', methods=['DELETE', 'POST'])
+@login_required
+def api_delete_queue(queue_id):
+    """Delete a queue (from jiggle mode)"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        db_session = db_manager.get_session()
+        try:
+            queue = db_session.query(Queue).filter(Queue.id == queue_id).first()
+            if not queue:
+                return jsonify({'success': False, 'error': 'Queue not found'}), 404
+
+            # Check if queue has tickets
+            ticket_count = db_session.query(Ticket).filter(Ticket.queue_id == queue_id).count()
+            if ticket_count > 0:
+                return jsonify({
+                    'success': False,
+                    'error': f'Cannot delete queue with {ticket_count} ticket(s). Move or delete tickets first.'
+                }), 400
+
+            queue_name = queue.name
+            db_session.delete(queue)
+            db_session.commit()
+
+            queue_store.load_queues()
+
+            return jsonify({
+                'success': True,
+                'message': f'Queue "{queue_name}" deleted successfully'
+            })
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logging.error(f"Error deleting queue: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/api/reorder', methods=['POST'])
+@login_required
+def api_reorder_queues():
+    """Update queue display order (drag and drop)"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        queue_orders = data.get('queue_orders', [])
+
+        if queue_store.reorder_queues(queue_orders):
+            return jsonify({'success': True, 'message': 'Queue order updated'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to update queue order'}), 500
+
+    except Exception as e:
+        logging.error(f"Error reordering queues: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/api/move-to-folder', methods=['POST'])
+@login_required
+def api_move_queue_to_folder():
+    """Move queue into/out of folder"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        queue_id = data.get('queue_id')
+        folder_id = data.get('folder_id')  # None to remove from folder
+
+        if not queue_id:
+            return jsonify({'success': False, 'error': 'Queue ID is required'}), 400
+
+        if queue_store.move_queue_to_folder(queue_id, folder_id):
+            return jsonify({'success': True, 'message': 'Queue moved successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to move queue'}), 500
+
+    except Exception as e:
+        logging.error(f"Error moving queue to folder: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============= Queue Folder API =============
+
+@tickets_bp.route('/queues/folders/create', methods=['POST'])
+@login_required
+def api_create_folder():
+    """Create a new queue folder"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        name = data.get('name', '').strip()
+
+        if not name:
+            return jsonify({'success': False, 'error': 'Folder name is required'}), 400
+
+        folder = queue_store.add_folder(
+            name=name,
+            color=data.get('color', 'blue'),
+            icon=data.get('icon', 'folder')
+        )
+
+        return jsonify({
+            'success': True,
+            'folder': {
+                'id': folder.id,
+                'name': folder.name,
+                'color': folder.color,
+                'icon': folder.icon,
+                'display_order': folder.display_order,
+                'queues': [],
+                'queue_count': 0
+            },
+            'message': f'Folder "{name}" created successfully'
+        })
+
+    except Exception as e:
+        logging.error(f"Error creating folder: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/folders/<int:folder_id>/edit', methods=['POST'])
+@login_required
+def api_edit_folder(folder_id):
+    """Edit folder name/color"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+
+        if queue_store.update_folder(
+            folder_id,
+            name=data.get('name'),
+            color=data.get('color'),
+            icon=data.get('icon')
+        ):
+            return jsonify({'success': True, 'message': 'Folder updated successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Folder not found'}), 404
+
+    except Exception as e:
+        logging.error(f"Error editing folder: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/folders/<int:folder_id>/delete', methods=['DELETE', 'POST'])
+@login_required
+def api_delete_folder(folder_id):
+    """Delete folder (moves queues out)"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        if queue_store.delete_folder(folder_id):
+            return jsonify({'success': True, 'message': 'Folder deleted successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Folder not found'}), 404
+
+    except Exception as e:
+        logging.error(f"Error deleting folder: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@tickets_bp.route('/queues/folders/reorder', methods=['POST'])
+@login_required
+def api_reorder_folders():
+    """Update folder display order"""
+    try:
+        user = db_manager.get_user(session['user_id'])
+
+        if not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+        data = request.get_json()
+        folder_orders = data.get('folder_orders', [])
+
+        if queue_store.reorder_folders(folder_orders):
+            return jsonify({'success': True, 'message': 'Folder order updated'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to update folder order'}), 500
+
+    except Exception as e:
+        logging.error(f"Error reordering folders: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @tickets_bp.route('/<int:ticket_id>/update', methods=['POST'])
 @login_required
 def update_ticket(ticket_id):

@@ -4295,10 +4295,15 @@ def edit_asset(asset_id):
 @admin_required
 def delete_asset(asset_id):
     db_session = db_manager.get_session()
+    # Get redirect destination (sf or classic view)
+    redirect_to = request.form.get('redirect_to', 'classic')
+
     try:
         asset = db_session.query(Asset).get(asset_id)
         if not asset:
             flash('Asset not found', 'error')
+            if redirect_to == 'sf':
+                return redirect(url_for('inventory.view_inventory_sf'))
             return redirect(url_for('inventory.view_inventory'))
 
         try:
@@ -4308,13 +4313,13 @@ def delete_asset(asset_id):
                 'asset_tag': asset.asset_tag,
                 'serial_num': asset.serial_num
             }
-            
+
             # First delete all history records for this asset
             db_session.query(AssetHistory).filter(AssetHistory.asset_id == asset_id).delete()
-            
+
             # Then delete the asset
             db_session.delete(asset)
-            
+
             # Add activity tracking
             activity = Activity(
                 user_id=current_user.id,
@@ -4323,15 +4328,17 @@ def delete_asset(asset_id):
                 reference_id=0  # Since the asset is deleted, we use 0 as reference
             )
             db_session.add(activity)
-            
+
             db_session.commit()
             flash('Asset deleted successfully!', 'success')
         except Exception as e:
             db_session.rollback()
             flash(f'Error deleting asset: {str(e)}', 'error')
-            
+
+        if redirect_to == 'sf':
+            return redirect(url_for('inventory.view_inventory_sf'))
         return redirect(url_for('inventory.view_inventory'))
-        
+
     finally:
         db_session.close()
 

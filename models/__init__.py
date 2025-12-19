@@ -9,6 +9,7 @@ from models.accessory_alias import AccessoryAlias
 from models.customer_user import CustomerUser
 from models.activity import Activity
 from models.queue import Queue
+from models.queue_folder import QueueFolder
 from models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority, RMAStatus, RepairStatus
 from models.location import Location
 from models.permission import Permission
@@ -69,6 +70,7 @@ __all__ = [
     "CustomerUser",
     "Activity",
     "Queue",
+    "QueueFolder",
     "Ticket",
     "TicketStatus",
     "TicketCategory",

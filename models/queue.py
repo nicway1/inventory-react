@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from models.base import Base
+
 
 class Queue(Base):
     __tablename__ = 'queues'
@@ -9,6 +10,8 @@ class Queue(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     description = Column(String(500))
+    folder_id = Column(Integer, ForeignKey('queue_folders.id', ondelete='SET NULL'), nullable=True)
+    display_order = Column(Integer, default=0)  # Sort order in grid
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
@@ -17,12 +20,15 @@ class Queue(Base):
     company_permissions = relationship("CompanyQueuePermission", back_populates="queue")
     user_permissions = relationship("UserQueuePermission", back_populates="queue")
     notifications = relationship("QueueNotification", back_populates="queue")
+    folder = relationship("QueueFolder", back_populates="queues")
 
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
             'description': self.description,
+            'folder_id': self.folder_id,
+            'display_order': self.display_order,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         } 

@@ -1,0 +1,420 @@
+/* Queue Manager - iOS Home Screen Style */
+
+/* Grid Layout */
+.queue-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 20px;
+    justify-items: center;
+    padding: 10px;
+}
+
+.expanded-folder-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    justify-items: center;
+    min-height: 120px;
+}
+
+/* Queue Item */
+.queue-item,
+.folder-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.15s ease;
+}
+
+.queue-item:hover,
+.folder-item:hover {
+    transform: scale(1.05);
+}
+
+.queue-item:active,
+.folder-item:active {
+    transform: scale(0.95);
+}
+
+/* Queue Icon */
+.queue-icon-wrapper,
+.folder-icon-wrapper {
+    position: relative;
+    width: 72px;
+    height: 72px;
+}
+
+.queue-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transition: box-shadow 0.2s ease;
+}
+
+.queue-icon:hover {
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* Folder Icon */
+.folder-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    transition: all 0.2s ease;
+}
+
+.folder-icon:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.2));
+}
+
+/* Folder Color Variants */
+.folder-item[data-color="blue"] .folder-icon {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(59, 130, 246, 0.2));
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.folder-item[data-color="green"] .folder-icon {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(34, 197, 94, 0.2));
+    border-color: rgba(34, 197, 94, 0.4);
+}
+
+.folder-item[data-color="purple"] .folder-icon {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(168, 85, 247, 0.2));
+    border-color: rgba(168, 85, 247, 0.4);
+}
+
+.folder-item[data-color="orange"] .folder-icon {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.4), rgba(249, 115, 22, 0.2));
+    border-color: rgba(249, 115, 22, 0.4);
+}
+
+.folder-item[data-color="red"] .folder-icon {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(239, 68, 68, 0.2));
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.folder-item[data-color="gray"] .folder-icon {
+    background: linear-gradient(135deg, rgba(107, 114, 128, 0.4), rgba(107, 114, 128, 0.2));
+    border-color: rgba(107, 114, 128, 0.4);
+}
+
+/* Folder Preview (mini icons inside) */
+.folder-preview {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+}
+
+.folder-preview-item {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+/* Queue/Folder Name */
+.queue-name,
+.folder-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    text-align: center;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Delete Button (hidden by default, shown in edit mode) */
+.delete-btn {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2px solid white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.15s ease;
+    z-index: 10;
+}
+
+.delete-btn:hover {
+    transform: scale(1.1);
+    background: #dc2626;
+}
+
+/* Jiggle Animation (iOS-style) */
+@keyframes jiggle {
+    0%, 100% { transform: rotate(-1.5deg); }
+    50% { transform: rotate(1.5deg); }
+}
+
+@keyframes jiggle-alt {
+    0%, 100% { transform: rotate(1.5deg); }
+    50% { transform: rotate(-1.5deg); }
+}
+
+/* Edit Mode - Jiggle and show delete buttons */
+.edit-mode .queue-item,
+.edit-mode .folder-item {
+    animation: jiggle 0.12s ease-in-out infinite;
+}
+
+.edit-mode .queue-item:nth-child(even),
+.edit-mode .folder-item:nth-child(even) {
+    animation: jiggle-alt 0.12s ease-in-out infinite;
+}
+
+.edit-mode .delete-btn {
+    display: flex;
+}
+
+.edit-mode .queue-item:hover,
+.edit-mode .folder-item:hover {
+    transform: none;
+}
+
+/* Drag and Drop */
+.queue-item.dragging,
+.folder-item.dragging {
+    opacity: 0.5;
+    transform: scale(1.1);
+}
+
+.folder-item.drag-over .folder-icon {
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+/* Drop Zone Indicator */
+.drop-zone-active {
+    background: rgba(59, 130, 246, 0.1);
+    border: 2px dashed #3b82f6;
+    border-radius: 18px;
+}
+
+/* Expanded Folder Styles */
+#expandedFolderOverlay .queue-item .queue-name {
+    color: white;
+}
+
+/* Folder Color Selection */
+.folder-color-option input:checked + span {
+    ring-color: currentColor;
+    box-shadow: 0 0 0 3px white, 0 0 0 5px currentColor;
+}
+
+.folder-color-option:has(input[value="blue"]:checked) span {
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #3b82f6;
+}
+
+.folder-color-option:has(input[value="green"]:checked) span {
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #22c55e;
+}
+
+.folder-color-option:has(input[value="purple"]:checked) span {
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #a855f7;
+}
+
+.folder-color-option:has(input[value="orange"]:checked) span {
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #f97316;
+}
+
+.folder-color-option:has(input[value="red"]:checked) span {
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #ef4444;
+}
+
+.folder-color-option:has(input[value="gray"]:checked) span {
+    box-shadow: 0 0 0 3px white, 0 0 0 5px #6b7280;
+}
+
+/* Modal Transitions */
+#queueManagerModal {
+    transition: opacity 0.2s ease;
+}
+
+#queueManagerModal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.queue-manager-container {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
+#queueManagerModal.hidden .queue-manager-container {
+    transform: scale(0.95);
+    opacity: 0;
+}
+
+/* Expanded Folder Animation */
+#expandedFolderOverlay {
+    transition: opacity 0.2s ease;
+}
+
+#expandedFolderOverlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#expandedFolderContainer {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#expandedFolderOverlay.hidden #expandedFolderContainer {
+    transform: scale(0.9);
+}
+
+/* Edit Mode Button Active State */
+#toggleEditModeBtn.active {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 640px) {
+    .queue-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+
+    .queue-icon-wrapper,
+    .folder-icon-wrapper {
+        width: 60px;
+        height: 60px;
+    }
+
+    .queue-icon,
+    .folder-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+    }
+
+    .queue-name,
+    .folder-name {
+        font-size: 11px;
+        max-width: 65px;
+    }
+
+    .folder-preview-item {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+    }
+
+    .queue-icon svg {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Empty State */
+.queue-grid-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.queue-grid-empty svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.queue-grid-empty p {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.queue-grid-empty span {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+/* Gear Button (for triggering queue manager) */
+.manage-queues-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    background: white;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.manage-queues-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #9ca3af;
+}
+
+.manage-queues-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Toast Notification */
+.queue-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #1f2937;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    z-index: 100;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.queue-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.queue-toast.success {
+    background: #059669;
+}
+
+.queue-toast.error {
+    background: #dc2626;
+}
