@@ -2847,11 +2847,23 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <div id="shippingTabActions" class="flex gap-2">
                                     <!-- SingPost actions (shown by default) -->
                                     <div id="singpostActions" class="flex gap-2">
+                                        <button class="sf-button" onclick="refreshSingpostIframe()">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                            </svg>
+                                            Refresh
+                                        </button>
+                                        <button class="sf-button" onclick="toggleShippingFullscreen('singpost')">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                            </svg>
+                                            Fullscreen
+                                        </button>
                                         <a href="https://www.ezy2ship.net/my-shipment/history" target="_blank" class="sf-button primary-button">
                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                             </svg>
-                                            Open Ezy2Ship
+                                            Open in New Tab
                                         </a>
                                     </div>
                                     <!-- Retool actions (hidden by default) -->
@@ -2899,26 +2911,29 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </nav>
                         </div>
 
+                        <!-- X-Frame-Bypass Scripts for SingPost iframe -->
+                        <script src="https://unpkg.com/@ungap/custom-elements-builtin"></script>
+                        <script type="module" src="https://unpkg.com/x-frame-bypass"></script>
+
                         <div class="sf-card-body p-0">
                             <!-- SingPost Tab Content -->
                             <div id="singpostTabContent" class="shipping-tab-content">
-                                <div id="singpostContainer" class="relative flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50" style="height: 350px;">
-                                    <div class="text-center p-8">
-                                        <div class="mb-6">
-                                            <svg class="w-20 h-20 mx-auto text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                <div id="singpostContainer" class="relative" style="height: 700px;">
+                                    <iframe
+                                        is="x-frame-bypass"
+                                        id="singpostIframe"
+                                        src="https://www.ezy2ship.net/my-shipment/history"
+                                        class="w-full h-full border-0"
+                                        loading="lazy"
+                                    ></iframe>
+                                    <div id="singpostLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+                                        <div class="flex flex-col items-center">
+                                            <svg class="animate-spin h-8 w-8 text-orange-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
+                                            <span class="text-gray-600">Loading Ezy2Ship...</span>
                                         </div>
-                                        <h3 class="text-2xl font-bold text-gray-800 mb-2">SingPost Ezy2Ship</h3>
-                                        <p class="text-gray-600 mb-6 max-w-md">Access your SingPost shipment history, create new shipments, and manage your deliveries through the Ezy2Ship portal.</p>
-                                        <a href="https://www.ezy2ship.net/my-shipment/history" target="_blank"
-                                           class="inline-flex items-center px-6 py-3 text-lg font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors shadow-lg">
-                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                                            </svg>
-                                            Open Ezy2Ship Portal
-                                        </a>
-                                        <p class="text-sm text-gray-500 mt-4">Opens in a new tab</p>
                                     </div>
                                 </div>
                             </div>
@@ -3063,6 +3078,24 @@ body.dark-theme .sf-card-body .sf-field-label {
                         } else {
                             if (singpostContainer) singpostContainer.style.height = '700px';
                             if (retoolContainer) retoolContainer.style.height = '700px';
+                        }
+                    });
+
+                    // Initialize - hide SingPost loading after iframe loads (x-frame-bypass)
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const singpostIframe = document.getElementById('singpostIframe');
+                        const singpostLoading = document.getElementById('singpostLoading');
+
+                        if (singpostIframe && singpostLoading) {
+                            // x-frame-bypass may not fire normal load events, use timeout
+                            setTimeout(function() {
+                                singpostLoading.classList.add('hidden');
+                            }, 3000);
+
+                            // Also try to detect load event
+                            singpostIframe.addEventListener('load', function() {
+                                singpostLoading.classList.add('hidden');
+                            });
                         }
                     });
                     </script>
