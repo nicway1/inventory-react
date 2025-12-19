@@ -6574,15 +6574,20 @@ def add_package(ticket_id):
             ticket.shipping_status_5 = 'Pending'
 
         ticket.updated_at = datetime.datetime.now()
-        
+
+        # Auto-mark items as packed when tracking is added (for case progress)
+        if not ticket.item_packed:
+            ticket.item_packed = True
+            ticket.item_packed_at = datetime.datetime.now()
+
         # Add system note
         ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Package {package_number} tracking added: {tracking_number} (carrier: {carrier})"
-        
+
         # Commit changes
         db_session.commit()
         db_session.close()
-        
-        return jsonify({'success': True, 'message': f'Package {package_number} tracking added successfully'})
+
+        return jsonify({'success': True, 'message': f'Package {package_number} tracking added successfully', 'item_packed': True})
     
     except Exception as e:
         if 'db_session' in locals():
@@ -7540,13 +7545,19 @@ def add_outbound_tracking(ticket_id):
         # Update tracking information
         ticket.shipping_tracking = tracking_number
         ticket.shipping_carrier = carrier
-        
+
+        # Auto-mark items as packed when tracking is added (for case progress)
+        if not ticket.item_packed:
+            ticket.item_packed = True
+            ticket.item_packed_at = datetime.datetime.now()
+
         # Save changes
         db_session.commit()
-        
+
         return jsonify({
             'success': True,
-            'message': 'Outbound tracking information added successfully'
+            'message': 'Outbound tracking information added successfully',
+            'item_packed': True
         })
     except Exception as e:
         db_session.rollback()
