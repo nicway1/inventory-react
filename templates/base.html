@@ -931,7 +931,7 @@
     {% endif %}
     <!-- Navigation -->
     <nav class="bg-white shadow-lg border-b border-gray-200 overflow-visible">
-        <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4{% else %}w-full px-8{% endif %}">
+        <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4{% else %}w-full px-8{% endif %} overflow-visible">
             <div class="flex items-center gap-6 h-20 w-full overflow-visible">
                 <!-- Left side: Logo and primary navigation -->
                 <div class="flex items-center gap-4 flex-wrap min-w-fit">
@@ -1011,7 +1011,7 @@
 
                 {% if session.get('user_id') %}
                 <!-- Enhanced Global Search with Live Suggestions -->
-                <div class="flex-1 w-full max-w-3xl relative" id="globalSearchContainer">
+                <div class="flex-1 w-full max-w-3xl relative overflow-visible" id="globalSearchContainer">
                     <form action="{{ url_for('inventory.search') }}" method="GET" id="globalSearchForm" autocomplete="off">
                         <label for="globalSearch" class="sr-only">Search</label>
                         <div class="relative group">
@@ -1049,7 +1049,7 @@
                     </form>
 
                     <!-- Search Suggestions Dropdown -->
-                    <div id="searchSuggestions" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5">
+                    <div id="searchSuggestions" class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5 min-w-[400px] w-full">
                         <!-- Quick Actions Header -->
                         <div class="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
                             <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Results</p>
