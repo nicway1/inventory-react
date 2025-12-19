@@ -68,6 +68,16 @@ def verify_mobile_token(token):
     except jwt.InvalidTokenError:
         return None
 
+# Helper function to get full image URL
+def get_full_image_url(relative_url):
+    """Convert relative image URL to full URL for mobile clients"""
+    if not relative_url:
+        return None
+    # Get base URL from request
+    base_url = request.host_url.rstrip('/')
+    return f"{base_url}{relative_url}"
+
+
 # Authentication decorator for mobile API
 def mobile_auth_required(f):
     """Decorator to require mobile authentication"""
@@ -454,7 +464,7 @@ def get_ticket_detail(ticket_id):
                     'model': asset.model,
                     'manufacturer': asset.manufacturer,
                     'status': asset.status.value if asset.status else None,
-                    'image_url': asset.image_url
+                    'image_url': get_full_image_url(asset.image_url)
                 } for asset in ticket.assets] if ticket.assets else [],
 
                 # Case Progress - determine based on ticket state
@@ -663,7 +673,7 @@ def get_inventory():
                     'manufacturer': asset.manufacturer,
                     'location': asset.location,
                     'country': asset.country,
-                    'image_url': asset.image_url,
+                    'image_url': get_full_image_url(asset.image_url),
                     'assigned_to': {
                         'id': asset.assigned_to.id,
                         'name': f"{asset.assigned_to.first_name} {asset.assigned_to.last_name}",
@@ -1045,7 +1055,7 @@ def add_tech_asset():
                     'has_charger': new_asset.charger,
                     'receiving_date': new_asset.receiving_date.isoformat() if new_asset.receiving_date else None,
                     'po': new_asset.po,
-                    'image_url': new_asset.image_url,
+                    'image_url': get_full_image_url(new_asset.image_url),
                     'created_at': new_asset.created_at.isoformat() if new_asset.created_at else None
                 }
             }), 201
@@ -1585,7 +1595,7 @@ def get_ticket_assets(ticket_id):
                     'name': asset.name,
                     'model': asset.model,
                     'status': asset.status.value if asset.status else 'UNKNOWN',
-                    'image_url': asset.image_url
+                    'image_url': get_full_image_url(asset.image_url)
                 })
 
             # Build outbound tracking object with events
@@ -1788,7 +1798,7 @@ def search_assets():
                     'name': asset.name,
                     'model': asset.model,
                     'status': asset.status.value if asset.status else 'UNKNOWN',
-                    'image_url': asset.image_url
+                    'image_url': get_full_image_url(asset.image_url)
                 })
 
             return jsonify({
@@ -2336,7 +2346,7 @@ def upload_asset_image(asset_id):
             return jsonify({
                 'success': True,
                 'message': 'Image uploaded successfully',
-                'image_url': image_url,
+                'image_url': get_full_image_url(image_url),
                 'asset_id': asset_id
             })
 
@@ -2385,7 +2395,7 @@ def get_asset_image(asset_id):
 
             return jsonify({
                 'success': True,
-                'image_url': asset.image_url,
+                'image_url': get_full_image_url(asset.image_url),
                 'has_image': bool(asset.image_url),
                 'asset_id': asset_id
             })
@@ -2561,7 +2571,7 @@ def get_accessories():
                     'country': accessory.country,
                     'status': accessory.status,
                     'notes': accessory.notes,
-                    'image_url': accessory.image_url,
+                    'image_url': get_full_image_url(accessory.image_url),
                     'company': {
                         'id': accessory.company.id,
                         'name': accessory.company.name
@@ -2644,7 +2654,7 @@ def get_accessory_detail(accessory_id):
                 'country': accessory.country,
                 'status': accessory.status,
                 'notes': accessory.notes,
-                'image_url': accessory.image_url,
+                'image_url': get_full_image_url(accessory.image_url),
                 'customer_id': accessory.customer_id,
                 'company': {
                     'id': accessory.company.id,
@@ -2720,7 +2730,7 @@ def search_accessories():
                     'model_no': accessory.model_no,
                     'available_quantity': accessory.available_quantity,
                     'status': accessory.status,
-                    'image_url': accessory.image_url
+                    'image_url': get_full_image_url(accessory.image_url)
                 })
 
             return jsonify({
@@ -2871,7 +2881,7 @@ def upload_accessory_image(accessory_id):
             return jsonify({
                 'success': True,
                 'message': 'Image uploaded successfully',
-                'image_url': image_url,
+                'image_url': get_full_image_url(image_url),
                 'accessory_id': accessory_id
             })
 
@@ -2920,7 +2930,7 @@ def get_accessory_image(accessory_id):
 
             return jsonify({
                 'success': True,
-                'image_url': accessory.image_url,
+                'image_url': get_full_image_url(accessory.image_url),
                 'has_image': bool(accessory.image_url),
                 'accessory_id': accessory_id
             })
