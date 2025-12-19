@@ -1652,23 +1652,23 @@ def add_asset_to_ticket(ticket_id):
                     'error': 'Asset not found'
                 }), 404
 
-            # Check if asset is already in this ticket
-            if asset in ticket.assets:
+            # Check if asset is already in this ticket using direct query
+            from models.asset import ticket_assets
+            existing = db_session.query(ticket_assets).filter(
+                ticket_assets.c.ticket_id == ticket_id,
+                ticket_assets.c.asset_id == asset_id
+            ).first()
+
+            if existing:
                 return jsonify({
                     'success': False,
                     'error': 'Asset is already assigned to this ticket'
                 }), 400
 
-            # Check if asset is already assigned to another ticket
-            # Assets use many-to-many relationship via ticket_assets junction table
-            if asset.tickets and any(t.id != ticket_id for t in asset.tickets):
-                return jsonify({
-                    'success': False,
-                    'error': 'Asset is already assigned to another ticket'
-                }), 400
-
-            # Add asset to ticket (many-to-many relationship)
-            ticket.assets.append(asset)
+            # Add asset to ticket using direct insert to avoid relationship conflicts
+            db_session.execute(
+                ticket_assets.insert().values(ticket_id=ticket_id, asset_id=asset_id)
+            )
             ticket.updated_at = datetime.utcnow()
             db_session.commit()
 
