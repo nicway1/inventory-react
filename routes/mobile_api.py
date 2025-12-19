@@ -78,6 +78,41 @@ def get_full_image_url(relative_url):
     return f"{base_url}{relative_url}"
 
 
+# Helper function to get asset image URL with fallback to default product images
+def get_asset_image_url(asset):
+    """Get asset image URL, falling back to default product image if none set"""
+    # If asset has a custom image, use it
+    if asset.image_url:
+        return get_full_image_url(asset.image_url)
+
+    # Auto-detect image based on manufacturer/model
+    model_lower = (asset.model or '').lower()
+    name_lower = (asset.name or '').lower()
+    mfg_lower = (asset.manufacturer or '').lower()
+
+    default_image = None
+
+    if 'macbook' in model_lower or 'macbook' in name_lower or mfg_lower == 'apple':
+        default_image = '/static/images/products/macbook.png'
+    elif 'thinkpad' in model_lower or 'thinkpad' in name_lower or mfg_lower == 'lenovo':
+        default_image = '/static/images/products/laptop_lenovo.png'
+    elif 'latitude' in model_lower or 'xps' in model_lower or mfg_lower == 'dell':
+        default_image = '/static/images/products/laptop_dell.png'
+    elif 'elitebook' in model_lower or 'probook' in model_lower or mfg_lower == 'hp':
+        default_image = '/static/images/products/laptop_hp.png'
+    elif 'surface' in model_lower or mfg_lower == 'microsoft':
+        default_image = '/static/images/products/laptop_surface.png'
+    elif 'iphone' in model_lower or 'iphone' in name_lower:
+        default_image = '/static/images/products/iphone.png'
+    elif 'ipad' in model_lower or 'ipad' in name_lower:
+        default_image = '/static/images/products/ipad.png'
+
+    if default_image:
+        return get_full_image_url(default_image)
+
+    return None
+
+
 # Authentication decorator for mobile API
 def mobile_auth_required(f):
     """Decorator to require mobile authentication"""
@@ -464,7 +499,7 @@ def get_ticket_detail(ticket_id):
                     'model': asset.model,
                     'manufacturer': asset.manufacturer,
                     'status': asset.status.value if asset.status else None,
-                    'image_url': get_full_image_url(asset.image_url)
+                    'image_url': get_asset_image_url(asset)
                 } for asset in ticket.assets] if ticket.assets else [],
 
                 # Case Progress - determine based on ticket state
@@ -673,7 +708,7 @@ def get_inventory():
                     'manufacturer': asset.manufacturer,
                     'location': asset.location,
                     'country': asset.country,
-                    'image_url': get_full_image_url(asset.image_url),
+                    'image_url': get_asset_image_url(asset),
                     'assigned_to': {
                         'id': asset.assigned_to.id,
                         'name': f"{asset.assigned_to.first_name} {asset.assigned_to.last_name}",
@@ -1595,7 +1630,7 @@ def get_ticket_assets(ticket_id):
                     'name': asset.name,
                     'model': asset.model,
                     'status': asset.status.value if asset.status else 'UNKNOWN',
-                    'image_url': get_full_image_url(asset.image_url)
+                    'image_url': get_asset_image_url(asset)
                 })
 
             # Build outbound tracking object with events
@@ -1798,7 +1833,7 @@ def search_assets():
                     'name': asset.name,
                     'model': asset.model,
                     'status': asset.status.value if asset.status else 'UNKNOWN',
-                    'image_url': get_full_image_url(asset.image_url)
+                    'image_url': get_asset_image_url(asset)
                 })
 
             return jsonify({
@@ -2395,8 +2430,8 @@ def get_asset_image(asset_id):
 
             return jsonify({
                 'success': True,
-                'image_url': get_full_image_url(asset.image_url),
-                'has_image': bool(asset.image_url),
+                'image_url': get_asset_image_url(asset),
+                'has_image': bool(asset.image_url or get_asset_image_url(asset)),
                 'asset_id': asset_id
             })
 
