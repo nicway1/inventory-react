@@ -1045,11 +1045,8 @@
                                     <kbd class="inline-flex items-center px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-300 rounded shadow-sm">/</kbd>
                                 </div>
                             </div>
-                        </div>
-                    </form>
-
-                    <!-- Search Suggestions Dropdown -->
-                    <div id="searchSuggestions" class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5 min-w-[400px] w-full">
+                            <!-- Search Suggestions Dropdown - inside form for proper positioning -->
+                            <div id="searchSuggestions" class="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5 w-full">
                         <!-- Quick Actions Header -->
                         <div class="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
                             <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Results</p>
@@ -1064,8 +1061,10 @@
                                 <span class="flex-1 truncate">View all results for <strong id="searchTermDisplay" class="text-blue-600"></strong></span>
                                 <kbd class="flex-shrink-0 px-2 py-0.5 text-xs font-semibold bg-white border border-gray-200 rounded shadow-sm">Enter</kbd>
                             </div>
+                            </div>
                         </div>
-                    </div>
+                        </div>
+                    </form>
                 </div>
                 {% endif %}
 
