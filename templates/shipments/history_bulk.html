@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-4">
+        <a href="{{ url_for('shipments.shipment_history') }}" class="text-blue-500 hover:text-blue-700">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Single Search
+        </a>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="p-6 border-b bg-gradient-to-r from-indigo-500 to-indigo-600">
+            <h1 class="text-2xl font-bold text-white">
+                <i class="fas fa-list-ol mr-2"></i>Bulk Shipment History Lookup
+            </h1>
+            <p class="text-indigo-100 mt-1">Search multiple tracking numbers at once (max 100)</p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="p-6 bg-gray-50 border-b">
+            <form action="{{ url_for('shipments.bulk_shipment_history') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-4">
+                    <label for="tracking_numbers" class="block text-sm font-medium text-gray-700 mb-1">
+                        Tracking Numbers
+                    </label>
+                    <textarea name="tracking_numbers"
+                              id="tracking_numbers"
+                              rows="6"
+                              placeholder="Enter tracking numbers (one per line, or separated by commas)..."
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              required>{% if tracking_numbers %}{{ tracking_numbers|join('\n') }}{% endif %}</textarea>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Enter up to 100 tracking numbers, separated by new lines, commas, or spaces.
+                    </p>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit"
+                            class="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-search mr-2"></i>Search All
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if error %}
+        <!-- Error Message -->
+        <div class="p-6">
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle text-red-500 mr-3"></i>
+                    <div>
+                        <p class="text-red-700 font-medium">Error</p>
+                        <p class="text-red-600 text-sm">{{ error }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results %}
+        <!-- Results Summary -->
+        <div class="p-4 bg-indigo-50 border-b">
+            <p class="text-indigo-800">
+                <i class="fas fa-check-circle mr-2"></i>
+                Found <strong>{{ results|length }}</strong> shipment(s) out of <strong>{{ tracking_numbers|length }}</strong> tracking number(s)
+            </p>
+        </div>
+
+        <!-- Results Cards -->
+        <div class="p-6">
+            <div class="space-y-6">
+                {% for shipment in results %}
+                <div class="border rounded-lg overflow-hidden {% if 'delivered' in shipment.status|lower %}border-green-200{% elif 'transit' in shipment.status|lower %}border-blue-200{% else %}border-gray-200{% endif %}">
+                    <!-- Shipment Header -->
+                    <div class="p-4 {% if 'delivered' in shipment.status|lower %}bg-green-50{% elif 'transit' in shipment.status|lower %}bg-blue-50{% else %}bg-gray-50{% endif %}">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">
+                                    <i class="fas fa-box mr-2"></i>{{ shipment.tracking_number }}
+                                </h3>
+                                <p class="text-sm text-gray-600">
+                                    Carrier: {{ shipment.carrier }}
+                                </p>
+                            </div>
+                            <div class="mt-2 md:mt-0">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                             {% if 'delivered' in shipment.status|lower %}bg-green-100 text-green-800
+                                             {% elif 'transit' in shipment.status|lower %}bg-blue-100 text-blue-800
+                                             {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ shipment.status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Events Table (Collapsible) -->
+                    {% if shipment.events %}
+                    <div class="border-t">
+                        <button type="button"
+                                onclick="toggleEvents('events-{{ loop.index }}')"
+                                class="w-full px-4 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 flex items-center justify-between">
+                            <span><i class="fas fa-history mr-2"></i>{{ shipment.events|length }} tracking events</span>
+                            <i class="fas fa-chevron-down" id="icon-events-{{ loop.index }}"></i>
+                        </button>
+                        <div id="events-{{ loop.index }}" class="hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date/Time</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Signatory</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-100">
+                                        {% for event in shipment.events %}
+                                        <tr class="{% if loop.first %}bg-blue-50{% endif %}">
+                                            <td class="px-4 py-2 whitespace-nowrap">
+                                                {{ event.date }} {{ event.time }}
+                                            </td>
+                                            <td class="px-4 py-2">{{ event.description }}</td>
+                                            <td class="px-4 py-2">
+                                                <span class="px-2 py-0.5 rounded text-xs bg-gray-100">{{ event.code }}</span>
+                                            </td>
+                                            <td class="px-4 py-2 text-gray-500">{{ event.signatory or '-' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% elif not error and tracking_numbers %}
+        <!-- No Results -->
+        <div class="p-12 text-center">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 inline-block">
+                <i class="fas fa-search text-yellow-500 text-4xl mb-3"></i>
+                <p class="text-yellow-800 font-medium">No shipments found</p>
+                <p class="text-yellow-600 text-sm mt-1">Please verify the tracking numbers and try again.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not results and not error and not tracking_numbers %}
+        <!-- Initial State -->
+        <div class="p-12 text-center text-gray-500">
+            <i class="fas fa-list-ol text-6xl mb-4 text-gray-300"></i>
+            <p class="text-lg">Enter multiple tracking numbers to view their history</p>
+            <p class="text-sm mt-2">Powered by SingPost Ezy2ship API</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleEvents(id) {
+    const element = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if (element.classList.contains('hidden')) {
+        element.classList.remove('hidden');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    } else {
+        element.classList.add('hidden');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    }
+}
+</script>
+{% endblock %}

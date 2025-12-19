@@ -214,7 +214,72 @@
         .dark .bg-purple-600:hover {
             background-color: #6d28d9 !important;
         }
-        
+
+        /* Enhanced Search bar dark theme */
+        .dark #globalSearchContainer input {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #f9fafb !important;
+        }
+        .dark #globalSearchContainer input:focus {
+            border-color: #3b82f6 !important;
+        }
+        .dark #globalSearchContainer input::placeholder {
+            color: #6b7280 !important;
+        }
+        .dark #globalSearchContainer kbd {
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #9ca3af !important;
+        }
+        .dark #globalSearchContainer .bg-white {
+            background-color: #1f2937 !important;
+        }
+
+        /* Search suggestions dropdown dark theme */
+        .dark #searchSuggestions {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+        }
+        .dark #searchSuggestions .search-suggestion {
+            color: #f9fafb !important;
+        }
+        .dark #searchSuggestions .search-suggestion:hover {
+            background: linear-gradient(to right, #374151, transparent) !important;
+            border-left-color: #3b82f6 !important;
+        }
+        .dark #searchSuggestions .search-suggestion .bg-gray-100 {
+            background-color: #374151 !important;
+        }
+        .dark #searchSuggestions .bg-gray-50,
+        .dark #searchSuggestions .bg-green-50,
+        .dark #searchSuggestions .bg-blue-50,
+        .dark #searchSuggestions .bg-orange-50,
+        .dark #searchSuggestions .bg-purple-50 {
+            background-color: #111827 !important;
+        }
+        .dark #searchSuggestions .text-green-700 { color: #34d399 !important; }
+        .dark #searchSuggestions .text-blue-700 { color: #60a5fa !important; }
+        .dark #searchSuggestions .text-orange-700 { color: #fb923c !important; }
+        .dark #searchSuggestions .text-purple-700 { color: #a78bfa !important; }
+        .dark #searchAllFooter {
+            background: linear-gradient(to right, #111827, #1e3a5f) !important;
+            border-color: #374151 !important;
+        }
+        .dark #searchAllFooter:hover {
+            background: linear-gradient(to right, #1e3a5f, #312e81) !important;
+        }
+        .dark #searchSuggestions .text-gray-500,
+        .dark #searchSuggestions .text-gray-600 {
+            color: #9ca3af !important;
+        }
+        .dark #searchSuggestions .text-gray-900 {
+            color: #f9fafb !important;
+        }
+        .dark #searchSuggestions .bg-gradient-to-r {
+            background-color: #1f2937 !important;
+        }
+
         /* Flash message dark theme styles */
         .dark .bg-success-100 { background-color: #064e3b !important; }
         .dark .bg-error-100 { background-color: #7f1d1d !important; }
@@ -923,6 +988,15 @@
                         </a>
                         {% endif %}
 
+                        <!-- Shipment History Button -->
+                        <a href="{{ url_for('shipments.shipment_history') }}"
+                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            </svg>
+                            Shipment History
+                        </a>
+
                         <!-- Import Manager Button -->
                         <a href="{{ url_for('import_manager.dashboard') }}"
                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
@@ -940,47 +1014,55 @@
                 <div class="flex-1 w-full max-w-3xl relative" id="globalSearchContainer">
                     <form action="{{ url_for('inventory.search') }}" method="GET" id="globalSearchForm" autocomplete="off">
                         <label for="globalSearch" class="sr-only">Search</label>
-                        <div class="relative">
-                            <!-- Search Icon -->
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                            </div>
-                            <!-- Search Input -->
-                            <input type="search"
-                                   name="q"
-                                   id="globalSearch"
-                                   class="block w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm shadow-sm transition-all duration-200"
-                                   placeholder="Search assets, tickets, tracking numbers..."
-                                   aria-label="Global search"
-                                   aria-haspopup="listbox"
-                                   aria-expanded="false">
-                            <!-- Loading Spinner -->
-                            <div id="searchSpinner" class="absolute inset-y-0 right-8 flex items-center hidden">
-                                <svg class="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </div>
-                            <!-- Keyboard Shortcut Hint -->
-                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                <kbd class="hidden sm:inline-flex items-center px-1.5 py-0.5 text-xs font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded">/</kbd>
+                        <div class="relative group">
+                            <!-- Gradient border effect on focus -->
+                            <div class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-0 group-focus-within:opacity-100 blur transition duration-300"></div>
+                            <div class="relative bg-white rounded-lg">
+                                <!-- Search Icon -->
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                    <svg class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                </div>
+                                <!-- Search Input -->
+                                <input type="search"
+                                       name="q"
+                                       id="globalSearch"
+                                       class="block w-full pl-10 pr-16 py-3 border-2 border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all duration-200 hover:border-gray-300"
+                                       placeholder="Search assets, tickets, accessories, customers..."
+                                       aria-label="Global search"
+                                       aria-haspopup="listbox"
+                                       aria-expanded="false">
+                                <!-- Loading Spinner -->
+                                <div id="searchSpinner" class="absolute inset-y-0 right-10 flex items-center hidden z-10">
+                                    <svg class="animate-spin h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+                                <!-- Keyboard Shortcut Hint -->
+                                <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none z-10">
+                                    <kbd class="inline-flex items-center px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-300 rounded shadow-sm">/</kbd>
+                                </div>
                             </div>
                         </div>
                     </form>
 
                     <!-- Search Suggestions Dropdown -->
-                    <div id="searchSuggestions" class="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 z-50 hidden overflow-hidden max-h-96 overflow-y-auto">
+                    <div id="searchSuggestions" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5">
+                        <!-- Quick Actions Header -->
+                        <div class="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Results</p>
+                        </div>
                         <div id="suggestionsContent"></div>
                         <!-- Search All Footer -->
-                        <div id="searchAllFooter" class="hidden border-t border-gray-100 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
-                            <div class="flex items-center text-sm text-gray-600">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div id="searchAllFooter" class="hidden border-t border-gray-100 px-4 py-3 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-blue-50 hover:to-purple-50 cursor-pointer transition-all duration-200">
+                            <div class="flex items-center text-sm text-gray-700">
+                                <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                 </svg>
-                                <span>Search all for "<strong id="searchTermDisplay"></strong>"</span>
-                                <kbd class="ml-auto px-1.5 py-0.5 text-xs bg-gray-200 rounded">Enter</kbd>
+                                <span>View all results for "<strong id="searchTermDisplay" class="text-blue-600"></strong>"</span>
+                                <kbd class="ml-auto px-2 py-0.5 text-xs font-semibold bg-white border border-gray-200 rounded shadow-sm">Enter</kbd>
                             </div>
                         </div>
                     </div>
@@ -1171,12 +1253,14 @@
 
             if (suggestions.length === 0) {
                 suggestionsContent.innerHTML = `
-                    <div class="px-4 py-6 text-center text-gray-500">
-                        <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <p class="text-sm">No results found</p>
-                        <p class="text-xs text-gray-400 mt-1">Press Enter to search all</p>
+                    <div class="px-6 py-8 text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-medium text-gray-600">No results found</p>
+                        <p class="text-xs text-gray-400 mt-1">Try a different search term or press Enter to view all</p>
                     </div>
                 `;
                 searchAllFooter.classList.remove('hidden');
@@ -1193,25 +1277,37 @@
             let html = '';
             let globalIndex = 0;
 
+            // Type background colors for section headers
+            const typeBgColors = {
+                asset: 'bg-green-50 text-green-700',
+                ticket: 'bg-blue-50 text-blue-700',
+                accessory: 'bg-orange-50 text-orange-700',
+                customer: 'bg-purple-50 text-purple-700'
+            };
+
             Object.keys(grouped).forEach(type => {
-                html += `<div class="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">${typeLabels[type] || type}s</div>`;
+                html += `<div class="px-4 py-2 text-xs font-semibold uppercase tracking-wider ${typeBgColors[type] || 'bg-gray-50 text-gray-600'} flex items-center gap-2">
+                    ${typeIcons[type] ? `<span class="opacity-60">${typeIcons[type].replace('w-5 h-5', 'w-3.5 h-3.5')}</span>` : ''}
+                    ${typeLabels[type] || type}s
+                    <span class="ml-auto text-xs font-normal opacity-70">${grouped[type].length}</span>
+                </div>`;
 
                 grouped[type].forEach(item => {
                     const statusBadge = item.status ?
-                        `<span class="ml-2 px-1.5 py-0.5 text-xs font-medium rounded ${statusColors[item.status_color] || statusColors.gray}">${item.status}</span>` : '';
+                        `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[item.status_color] || statusColors.gray}">${item.status}</span>` : '';
 
                     html += `
-                        <div class="search-suggestion px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-3 transition-colors"
+                        <div class="search-suggestion px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent cursor-pointer flex items-center gap-3 transition-all duration-150 border-l-2 border-transparent hover:border-blue-500"
                              data-index="${globalIndex}" data-url="${item.url}">
-                            <div class="flex-shrink-0">${typeIcons[item.type] || typeIcons.asset}</div>
+                            <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">${typeIcons[item.type] || typeIcons.asset}</div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center">
-                                    <span class="font-medium text-gray-900 truncate">${item.title}</span>
+                                    <span class="font-semibold text-gray-900 truncate">${item.title}</span>
                                     ${statusBadge}
                                 </div>
-                                <p class="text-sm text-gray-500 truncate">${item.subtitle}</p>
+                                <p class="text-sm text-gray-500 truncate mt-0.5">${item.subtitle}</p>
                             </div>
-                            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-gray-300 flex-shrink-0 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                             </svg>
                         </div>

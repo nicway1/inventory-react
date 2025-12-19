@@ -40,3 +40,7 @@ openpyxl==3.1.2
 xlsxwriter==3.1.9
 # For markdown rendering in knowledge base
 markdown==3.10
+# SingPost tracking API
+aiohttp==3.9.1
+zeep==4.2.1
+pycryptodome==3.19.0

@@ -4817,7 +4817,7 @@ def search():
         # This finds tickets where the related asset (via asset_id) matches our search
         asset_linked_tickets = []
         try:
-            # Search for tickets where the linked asset matches our search term
+            # Search for tickets where the linked asset matches our search term (via asset_id FK)
             asset_linked_tickets = db_session.query(Ticket).join(
                 Asset, Ticket.asset_id == Asset.id
             ).filter(
@@ -4828,6 +4828,28 @@ def search():
                     Asset.model.ilike(f'%{search_term}%')
                 )
             ).all()
+
+            # Also search for tickets linked via ticket_assets many-to-many table
+            from models.asset import ticket_assets
+            multi_asset_tickets = db_session.query(Ticket).join(
+                ticket_assets, Ticket.id == ticket_assets.c.ticket_id
+            ).join(
+                Asset, ticket_assets.c.asset_id == Asset.id
+            ).filter(
+                or_(
+                    Asset.serial_num.ilike(f'%{search_term}%'),
+                    Asset.asset_tag.ilike(f'%{search_term}%'),
+                    Asset.name.ilike(f'%{search_term}%'),
+                    Asset.model.ilike(f'%{search_term}%')
+                )
+            ).all()
+
+            # Merge multi_asset_tickets into asset_linked_tickets (avoid duplicates)
+            existing_ids = {t.id for t in asset_linked_tickets}
+            for t in multi_asset_tickets:
+                if t.id not in existing_ids:
+                    asset_linked_tickets.append(t)
+                    existing_ids.add(t.id)
         except Exception as e:
             logger.error(f"Error searching asset-linked tickets: {e}")
 
@@ -4866,6 +4888,25 @@ def search():
             if conditions:
                 related_tickets_query = ticket_query.filter(or_(*conditions))
                 related_tickets = related_tickets_query.all()
+
+            # Also find tickets linked to these assets via ticket_assets many-to-many table
+            if asset_ids:
+                try:
+                    from models.asset import ticket_assets
+                    multi_asset_related = db_session.query(Ticket).join(
+                        ticket_assets, Ticket.id == ticket_assets.c.ticket_id
+                    ).filter(
+                        ticket_assets.c.asset_id.in_(asset_ids)
+                    ).all()
+
+                    # Merge into related_tickets
+                    existing_related_ids = {t.id for t in related_tickets}
+                    for t in multi_asset_related:
+                        if t.id not in existing_related_ids:
+                            related_tickets.append(t)
+                            existing_related_ids.add(t.id)
+                except Exception as e:
+                    logger.error(f"Error searching multi-asset related tickets: {e}")
 
             # Remove duplicates if a ticket appears in both direct search and related search
             related_tickets = [t for t in related_tickets if t.id not in ticket_ids]

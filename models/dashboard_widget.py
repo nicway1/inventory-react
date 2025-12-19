@@ -600,6 +600,24 @@ register_widget(WidgetDefinition(
     screenshot='report_issue.png'
 ))
 
+register_widget(WidgetDefinition(
+    id='shipment_history',
+    name='Shipment History',
+    description='Track shipments via SingPost API',
+    long_description='Look up tracking history for any shipment using the SingPost API. Enter a tracking number to view detailed tracking events, delivery status, and timestamps. Supports both single and bulk tracking lookups.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/shipment_history.html',
+    icon='fas fa-search-location',
+    color='teal',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    data_loader=None,
+    configurable=False,
+    screenshot='shipment_history.png'
+))
+
 
 # Default layout for new users
 DEFAULT_DASHBOARD_LAYOUT = {
