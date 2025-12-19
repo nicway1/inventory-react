@@ -2092,3 +2092,68 @@ def refresh_ticket_tracking(ticket_id):
             'success': False,
             'error': 'Failed to refresh tracking'
         }), 500
+
+
+# ============= Asset Label Generation =============
+
+@mobile_api_bp.route('/assets/<int:asset_id>/label', methods=['GET'])
+@mobile_auth_required
+def get_asset_label(asset_id):
+    """
+    Get asset label as base64 image for printing
+
+    GET /api/mobile/v1/assets/<asset_id>/label
+
+    Returns:
+        {
+            "success": true,
+            "label": "data:image/png;base64,..."
+        }
+    """
+    try:
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+
+            if not asset:
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset not found'
+                }), 404
+
+            if not asset.serial_num:
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset does not have a serial number'
+                }), 400
+
+            # Generate label
+            from utils.barcode_generator import barcode_generator
+            label_base64 = barcode_generator.generate_label_base64(asset)
+
+            if not label_base64:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to generate label'
+                }), 500
+
+            return jsonify({
+                'success': True,
+                'label': label_base64,
+                'asset': {
+                    'id': asset.id,
+                    'serial_num': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'name': asset.name
+                }
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error generating asset label: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate label'
+        }), 500

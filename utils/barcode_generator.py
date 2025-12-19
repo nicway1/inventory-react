@@ -166,6 +166,9 @@ class AssetBarcodeGenerator:
             draw.rectangle([0, 0, self.label_width-1, self.label_height-1],
                           outline='black', width=2)
 
+            # Rotate label 90 degrees clockwise for landscape printing
+            label = label.rotate(-90, expand=True)
+
             return label
 
         except Exception as e:
