@@ -908,11 +908,45 @@ def add_tech_asset():
                 except KeyError:
                     pass
 
-            # Create new asset
+            # Parse receiving_date if provided
+            receiving_date = None
+            if data.get('receiving_date'):
+                try:
+                    from dateutil import parser as date_parser
+                    receiving_date = date_parser.parse(data['receiving_date'])
+                except Exception:
+                    # Try simple format
+                    try:
+                        receiving_date = datetime.strptime(data['receiving_date'], '%Y-%m-%d')
+                    except Exception:
+                        pass
+
+            # Map iOS field names to database column names
+            # iOS sends: is_erased -> erased, has_keyboard -> keyboard, has_charger -> charger
+            # iOS sends: storage -> harddrive, diagnostics_code -> diag
+            erased_value = None
+            if data.get('is_erased') is not None:
+                erased_value = 'Yes' if data.get('is_erased') else 'No'
+            elif data.get('erased'):
+                erased_value = data.get('erased')
+
+            keyboard_value = None
+            if data.get('has_keyboard') is not None:
+                keyboard_value = 'Yes' if data.get('has_keyboard') else 'No'
+            elif data.get('keyboard'):
+                keyboard_value = data.get('keyboard')
+
+            charger_value = None
+            if data.get('has_charger') is not None:
+                charger_value = 'Yes' if data.get('has_charger') else 'No'
+            elif data.get('charger'):
+                charger_value = data.get('charger')
+
+            # Create new asset with all fields
             new_asset = Asset(
                 asset_tag=data['asset_tag'],
                 serial_num=data['serial_num'],
-                name=data.get('name'),
+                name=data.get('name') or data.get('product'),  # Fall back to product if name not provided
                 model=data.get('model'),
                 manufacturer=data.get('manufacturer'),
                 category=data.get('category'),
@@ -923,13 +957,25 @@ def add_tech_asset():
                 customer=data.get('customer'),
                 asset_type=data.get('asset_type'),
                 condition=data.get('condition'),
+                # Additional fields from iOS QR scan
+                cpu_type=data.get('cpu_type'),
+                cpu_cores=data.get('cpu_cores'),
+                gpu_cores=data.get('gpu_cores'),
+                memory=data.get('memory'),
+                harddrive=data.get('storage') or data.get('harddrive'),  # iOS sends 'storage'
+                diag=data.get('diagnostics_code') or data.get('diag'),  # iOS sends 'diagnostics_code'
+                erased=erased_value,
+                keyboard=keyboard_value,
+                charger=charger_value,
+                receiving_date=receiving_date,
+                po=data.get('po'),
                 created_at=datetime.utcnow()
             )
 
             db_session.add(new_asset)
             db_session.commit()
 
-            # Return created asset
+            # Return created asset with all fields
             return jsonify({
                 'success': True,
                 'message': 'Asset created successfully',
@@ -945,6 +991,20 @@ def add_tech_asset():
                     'country': new_asset.country,
                     'status': new_asset.status.value if new_asset.status else None,
                     'notes': new_asset.notes,
+                    'customer': new_asset.customer,
+                    'asset_type': new_asset.asset_type,
+                    'condition': new_asset.condition,
+                    'cpu_type': new_asset.cpu_type,
+                    'cpu_cores': new_asset.cpu_cores,
+                    'gpu_cores': new_asset.gpu_cores,
+                    'memory': new_asset.memory,
+                    'storage': new_asset.harddrive,
+                    'diagnostics_code': new_asset.diag,
+                    'is_erased': new_asset.erased,
+                    'has_keyboard': new_asset.keyboard,
+                    'has_charger': new_asset.charger,
+                    'receiving_date': new_asset.receiving_date.isoformat() if new_asset.receiving_date else None,
+                    'po': new_asset.po,
                     'created_at': new_asset.created_at.isoformat() if new_asset.created_at else None
                 }
             }), 201
@@ -1592,13 +1652,6 @@ def add_asset_to_ticket(ticket_id):
                     'error': 'Asset not found'
                 }), 404
 
-            # Check if asset is already assigned to another ticket
-            if asset.ticket_id and asset.ticket_id != ticket_id:
-                return jsonify({
-                    'success': False,
-                    'error': 'Asset is already assigned to another ticket'
-                }), 400
-
             # Check if asset is already in this ticket
             if asset in ticket.assets:
                 return jsonify({
@@ -1606,9 +1659,16 @@ def add_asset_to_ticket(ticket_id):
                     'error': 'Asset is already assigned to this ticket'
                 }), 400
 
-            # Add asset to ticket
+            # Check if asset is already assigned to another ticket
+            # Assets use many-to-many relationship via ticket_assets junction table
+            if asset.tickets and any(t.id != ticket_id for t in asset.tickets):
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset is already assigned to another ticket'
+                }), 400
+
+            # Add asset to ticket (many-to-many relationship)
             ticket.assets.append(asset)
-            asset.ticket_id = ticket_id
             ticket.updated_at = datetime.utcnow()
             db_session.commit()
 
