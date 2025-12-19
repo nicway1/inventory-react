@@ -2831,56 +2831,126 @@ body.dark-theme .sf-card-body .sf-field-label {
                         </div>
                     </div>
 
-                    <!-- Retool 3PL Orders Section for Asset Checkout (claw) -->
+                    <!-- Shipping Portal Tabs for Asset Checkout (claw) -->
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <div class="flex justify-between items-center">
                                 <div class="flex items-center gap-2">
                                     <h2 class="sf-card-title flex items-center gap-2">
                                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                                         </svg>
-                                        3PL Orders (Retool)
+                                        Shipping Portal
                                     </h2>
                                 </div>
-                                <div class="flex gap-2">
-                                    <button id="refreshRetoolBtn" class="sf-button" onclick="refreshRetoolIframe()">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                        </svg>
-                                        Update Retool
-                                    </button>
-                                    <button class="sf-button" onclick="toggleRetoolFullscreen()">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                                        </svg>
-                                        Fullscreen
-                                    </button>
-                                    <a href="https://firstbase.retool.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders" target="_blank" class="sf-button primary-button">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                                        </svg>
-                                        Open in New Tab
-                                    </a>
+                                <!-- Tab-specific action buttons -->
+                                <div id="shippingTabActions" class="flex gap-2">
+                                    <!-- SingPost actions (shown by default) -->
+                                    <div id="singpostActions" class="flex gap-2">
+                                        <button class="sf-button" onclick="refreshSingpostIframe()">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                            </svg>
+                                            Refresh
+                                        </button>
+                                        <button class="sf-button" onclick="toggleShippingFullscreen('singpost')">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                            </svg>
+                                            Fullscreen
+                                        </button>
+                                        <a href="https://www.ezy2ship.net/my-shipment/history" target="_blank" class="sf-button primary-button">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                            Open in New Tab
+                                        </a>
+                                    </div>
+                                    <!-- Retool actions (hidden by default) -->
+                                    <div id="retoolActions" class="flex gap-2 hidden">
+                                        <button class="sf-button" onclick="refreshRetoolIframe()">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                            </svg>
+                                            Refresh
+                                        </button>
+                                        <button class="sf-button" onclick="toggleShippingFullscreen('retool')">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                            </svg>
+                                            Fullscreen
+                                        </button>
+                                        <a href="https://firstbase.retool.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders" target="_blank" class="sf-button primary-button">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                            Open in New Tab
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Tab Navigation -->
+                        <div class="border-b border-gray-200">
+                            <nav class="flex -mb-px" aria-label="Shipping Tabs">
+                                <button id="tabSingpost" onclick="switchShippingTab('singpost')"
+                                        class="shipping-tab active px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50">
+                                    <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                    </svg>
+                                    SingPost (Ezy2Ship)
+                                </button>
+                                <button id="tabRetool" onclick="switchShippingTab('retool')"
+                                        class="shipping-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                    <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                                    </svg>
+                                    3PL Orders (Retool)
+                                </button>
+                            </nav>
+                        </div>
+
                         <div class="sf-card-body p-0">
-                            <div id="retoolContainer" class="relative" style="height: 600px;">
-                                <iframe
-                                    id="retoolIframe"
-                                    src="https://firstbase.retool.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders"
-                                    class="w-full h-full border-0"
-                                    allow="clipboard-write"
-                                    loading="lazy"
-                                ></iframe>
-                                <div id="retoolLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden">
-                                    <div class="flex flex-col items-center">
-                                        <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span class="text-gray-600">Loading Retool...</span>
+                            <!-- SingPost Tab Content -->
+                            <div id="singpostTabContent" class="shipping-tab-content">
+                                <div id="singpostContainer" class="relative" style="height: 700px;">
+                                    <iframe
+                                        id="singpostIframe"
+                                        src="https://www.ezy2ship.net/my-shipment/history"
+                                        class="w-full h-full border-0"
+                                        allow="clipboard-write"
+                                        loading="lazy"
+                                    ></iframe>
+                                    <div id="singpostLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden">
+                                        <div class="flex flex-col items-center">
+                                            <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span class="text-gray-600">Loading SingPost...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Retool Tab Content -->
+                            <div id="retoolTabContent" class="shipping-tab-content hidden">
+                                <div id="retoolContainer" class="relative" style="height: 700px;">
+                                    <iframe
+                                        id="retoolIframe"
+                                        data-src="https://firstbase.retool.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders"
+                                        class="w-full h-full border-0"
+                                        allow="clipboard-write"
+                                    ></iframe>
+                                    <div id="retoolLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden">
+                                        <div class="flex flex-col items-center">
+                                            <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span class="text-gray-600">Loading Retool...</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2888,10 +2958,54 @@ body.dark-theme .sf-card-body .sf-field-label {
                     </div>
 
                     <script>
-                    // Retool iframe functions
-                    function refreshRetoolIframe() {
-                        const iframe = document.getElementById('retoolIframe');
-                        const loading = document.getElementById('retoolLoading');
+                    // Track which tabs have been loaded
+                    let shippingTabsLoaded = { singpost: true, retool: false };
+
+                    // Switch between shipping tabs
+                    function switchShippingTab(tabName) {
+                        // Update tab buttons
+                        document.querySelectorAll('.shipping-tab').forEach(tab => {
+                            tab.classList.remove('active', 'border-blue-500', 'text-blue-600', 'bg-blue-50');
+                            tab.classList.add('border-transparent', 'text-gray-500');
+                        });
+
+                        const activeTab = document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+                        activeTab.classList.add('active', 'border-blue-500', 'text-blue-600', 'bg-blue-50');
+                        activeTab.classList.remove('border-transparent', 'text-gray-500');
+
+                        // Update tab content
+                        document.querySelectorAll('.shipping-tab-content').forEach(content => {
+                            content.classList.add('hidden');
+                        });
+                        document.getElementById(tabName + 'TabContent').classList.remove('hidden');
+
+                        // Update action buttons
+                        document.getElementById('singpostActions').classList.toggle('hidden', tabName !== 'singpost');
+                        document.getElementById('retoolActions').classList.toggle('hidden', tabName !== 'retool');
+
+                        // Lazy load iframe if not loaded yet
+                        if (!shippingTabsLoaded[tabName]) {
+                            const iframe = document.getElementById(tabName + 'Iframe');
+                            const dataSrc = iframe.getAttribute('data-src');
+                            if (dataSrc) {
+                                const loading = document.getElementById(tabName + 'Loading');
+                                loading.classList.remove('hidden');
+                                iframe.src = dataSrc;
+                                iframe.onload = function() {
+                                    loading.classList.add('hidden');
+                                };
+                                setTimeout(function() {
+                                    loading.classList.add('hidden');
+                                }, 5000);
+                            }
+                            shippingTabsLoaded[tabName] = true;
+                        }
+                    }
+
+                    // Refresh SingPost iframe
+                    function refreshSingpostIframe() {
+                        const iframe = document.getElementById('singpostIframe');
+                        const loading = document.getElementById('singpostLoading');
 
                         if (iframe) {
                             loading.classList.remove('hidden');
@@ -2901,16 +3015,35 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 loading.classList.add('hidden');
                             };
 
-                            // Hide loading after 5 seconds even if load event doesn't fire (cross-origin)
                             setTimeout(function() {
                                 loading.classList.add('hidden');
                             }, 5000);
                         }
                     }
 
-                    function toggleRetoolFullscreen() {
-                        const container = document.getElementById('retoolContainer');
+                    // Refresh Retool iframe
+                    function refreshRetoolIframe() {
                         const iframe = document.getElementById('retoolIframe');
+                        const loading = document.getElementById('retoolLoading');
+
+                        if (iframe) {
+                            loading.classList.remove('hidden');
+                            const src = iframe.src || iframe.getAttribute('data-src');
+                            iframe.src = src;
+
+                            iframe.onload = function() {
+                                loading.classList.add('hidden');
+                            };
+
+                            setTimeout(function() {
+                                loading.classList.add('hidden');
+                            }, 5000);
+                        }
+                    }
+
+                    // Toggle fullscreen for shipping iframes
+                    function toggleShippingFullscreen(tabName) {
+                        const container = document.getElementById(tabName + 'Container');
 
                         if (!document.fullscreenElement) {
                             if (container.requestFullscreen) {
@@ -2933,11 +3066,14 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                     // Handle fullscreen style changes
                     document.addEventListener('fullscreenchange', function() {
-                        const container = document.getElementById('retoolContainer');
+                        const singpostContainer = document.getElementById('singpostContainer');
+                        const retoolContainer = document.getElementById('retoolContainer');
                         if (document.fullscreenElement) {
-                            container.style.height = '100vh';
+                            if (singpostContainer) singpostContainer.style.height = '100vh';
+                            if (retoolContainer) retoolContainer.style.height = '100vh';
                         } else {
-                            container.style.height = '600px';
+                            if (singpostContainer) singpostContainer.style.height = '700px';
+                            if (retoolContainer) retoolContainer.style.height = '700px';
                         }
                     });
                     </script>
