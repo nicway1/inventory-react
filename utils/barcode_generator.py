@@ -18,7 +18,7 @@ class AssetBarcodeGenerator:
     def __init__(self):
         self.barcode_format = 'code128'  # Using Code 128 format for alphanumeric support
         self.label_width = 400
-        self.label_height = 200
+        self.label_height = 250  # Increased height for more info
     
     def generate_barcode_image(self, serial_number):
         """
@@ -56,66 +56,111 @@ class AssetBarcodeGenerator:
     
     def generate_asset_label(self, asset):
         """
-        Generate a complete asset label with barcode, serial number, and company info
-        
+        Generate a complete asset label with barcode, serial number, asset tag, and company info
+
         Args:
             asset: Asset object with serial_num, asset_tag, company, etc.
-            
+
         Returns:
             PIL.Image: Complete label image
         """
         try:
-            # Generate barcode
+            # Generate barcode using serial number
             barcode_image = self.generate_barcode_image(asset.serial_num)
             if not barcode_image:
                 return None
-            
+
             # Create label canvas
             label = Image.new('RGB', (self.label_width, self.label_height), 'white')
             draw = ImageDraw.Draw(label)
-            
+
             # Try to load fonts, fall back to default if not available
             try:
-                title_font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 16)
-                text_font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 12)
-                small_font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 10)
+                # Try different font paths for different systems
+                font_paths = [
+                    "/System/Library/Fonts/Arial.ttf",  # macOS
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Linux alt
+                    "C:/Windows/Fonts/arial.ttf",  # Windows
+                ]
+                title_font = None
+                for font_path in font_paths:
+                    try:
+                        title_font = ImageFont.truetype(font_path, 18)
+                        text_font = ImageFont.truetype(font_path, 14)
+                        label_font = ImageFont.truetype(font_path, 12)
+                        break
+                    except:
+                        continue
+
+                if not title_font:
+                    raise Exception("No font found")
             except:
                 # Fallback to default font
                 title_font = ImageFont.load_default()
                 text_font = ImageFont.load_default()
-                small_font = ImageFont.load_default()
-            
+                label_font = ImageFont.load_default()
+
             # Calculate positions
-            y_offset = 10
-            
+            y_offset = 12
+
             # Add company name at the top
             company_name = "Unknown Company"
             if hasattr(asset, 'company') and asset.company:
                 company_name = asset.company.grouped_display_name
             elif hasattr(asset, 'customer') and asset.customer:
                 company_name = asset.customer
-            
-            # Draw company name
+
+            # Draw company name (centered)
             company_bbox = draw.textbbox((0, 0), company_name, font=title_font)
             company_width = company_bbox[2] - company_bbox[0]
-            draw.text(((self.label_width - company_width) // 2, y_offset), 
+            draw.text(((self.label_width - company_width) // 2, y_offset),
                      company_name, fill='black', font=title_font)
+            y_offset += 28
+
+            # Draw a thin separator line
+            draw.line([(20, y_offset), (self.label_width - 20, y_offset)], fill='gray', width=1)
+            y_offset += 10
+
+            # Add Asset Tag (if exists)
+            if asset.asset_tag:
+                asset_tag_text = f"Asset Tag: {asset.asset_tag}"
+                tag_bbox = draw.textbbox((0, 0), asset_tag_text, font=text_font)
+                tag_width = tag_bbox[2] - tag_bbox[0]
+                draw.text(((self.label_width - tag_width) // 2, y_offset),
+                         asset_tag_text, fill='black', font=text_font)
+                y_offset += 22
+
+            # Add Serial Number text
+            serial_text = f"S/N: {asset.serial_num}"
+            serial_bbox = draw.textbbox((0, 0), serial_text, font=text_font)
+            serial_width = serial_bbox[2] - serial_bbox[0]
+            draw.text(((self.label_width - serial_width) // 2, y_offset),
+                     serial_text, fill='black', font=text_font)
             y_offset += 25
-            
-            # Add barcode
-            barcode_resized = barcode_image.resize((300, 60))
-            barcode_x = (self.label_width - 300) // 2
+
+            # Add barcode (without text since we already show S/N above)
+            barcode_resized = barcode_image.resize((320, 70))
+            barcode_x = (self.label_width - 320) // 2
             label.paste(barcode_resized, (barcode_x, y_offset))
-            y_offset += 70
-            
+            y_offset += 80
+
+            # Add product name at bottom if space allows
+            if hasattr(asset, 'name') and asset.name and y_offset < self.label_height - 25:
+                product_name = asset.name[:40] + "..." if len(asset.name) > 40 else asset.name
+                name_bbox = draw.textbbox((0, 0), product_name, font=label_font)
+                name_width = name_bbox[2] - name_bbox[0]
+                draw.text(((self.label_width - name_width) // 2, y_offset),
+                         product_name, fill='gray', font=label_font)
+
             # Add border
-            draw.rectangle([0, 0, self.label_width-1, self.label_height-1], 
+            draw.rectangle([0, 0, self.label_width-1, self.label_height-1],
                           outline='black', width=2)
-            
+
             return label
-            
+
         except Exception as e:
-            logger.info("Error generating asset label: {str(e)}")
+            print(f"Error generating asset label: {str(e)}")
             return None
     
     def generate_barcode_base64(self, serial_number):
