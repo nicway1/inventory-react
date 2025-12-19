@@ -18,7 +18,7 @@ from models.user import User, UserType
 from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
 from utils.db_manager import DatabaseManager
-from routes.mobile_api import mobile_auth_required, verify_mobile_token
+from routes.mobile_api import mobile_auth_required, verify_mobile_token, get_asset_image_url, get_full_image_url
 from functools import wraps
 
 # Set up logging
@@ -134,11 +134,14 @@ def format_accessory_complete(accessory):
         # Additional information
         "description": safe_str(accessory.notes),
         "notes": safe_str(accessory.notes),
-        
+
+        # Image URL
+        "image_url": get_full_image_url(accessory.image_url),
+
         # Standard timestamps
         "created_at": accessory.created_at.isoformat() if accessory.created_at else None,
         "updated_at": accessory.updated_at.isoformat() if accessory.updated_at else None,
-        
+
         # Type identifier
         "item_type": "accessory"
     }
@@ -261,11 +264,14 @@ def format_asset_complete(asset):
         
         # Category information
         "category": safe_str(asset.category),
-        
+
+        # Image URL (with fallback to default product image)
+        "image_url": get_asset_image_url(asset),
+
         # Standard timestamps
         "created_at": asset.created_at.isoformat() if asset.created_at else None,
         "updated_at": asset.updated_at.isoformat() if asset.updated_at else None,
-        
+
         # Type identifier for API consumers
         "item_type": "asset"
     }
