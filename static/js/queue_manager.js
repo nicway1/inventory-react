@@ -275,7 +275,7 @@ const QueueManager = {
 
     // Expand folder
     expandFolder(folderId) {
-        if (this.isEditMode) return;
+        // Allow opening folder in edit mode to enable drag-drop into it
 
         const folder = this.folders.find(f => f.id == folderId);
         if (!folder) return;
@@ -294,10 +294,13 @@ const QueueManager = {
             const folderQueues = this.queues.filter(q => q.folder_id == folderId);
 
             if (folderQueues.length === 0) {
+                const editModeText = this.isEditMode
+                    ? 'Drag queues here from the grid below'
+                    : 'Click "Edit" then drag queues here';
                 grid.innerHTML = `
-                    <div class="col-span-3 text-center text-white/70 py-8">
+                    <div class="expanded-folder-empty col-span-3 text-center text-white/70 py-8">
                         <p>No queues in this folder</p>
-                        <p class="text-sm mt-1">Drag queues here to add them</p>
+                        <p class="text-sm mt-1">${editModeText}</p>
                     </div>
                 `;
             } else {
@@ -306,9 +309,49 @@ const QueueManager = {
                     grid.appendChild(queueEl);
                 });
             }
+
+            // Setup drag-drop for expanded folder grid
+            this.setupExpandedFolderDragDrop(grid);
         }
 
         overlay?.classList.remove('hidden');
+    },
+
+    // Setup drag-drop handlers for expanded folder grid
+    setupExpandedFolderDragDrop(grid) {
+        // Make the grid a drop zone
+        grid.addEventListener('dragover', (e) => {
+            if (this.draggedItem && this.isEditMode) {
+                e.preventDefault();
+                grid.classList.add('drag-over');
+            }
+        });
+
+        grid.addEventListener('dragleave', (e) => {
+            // Only remove class if leaving the grid entirely
+            if (!grid.contains(e.relatedTarget)) {
+                grid.classList.remove('drag-over');
+            }
+        });
+
+        grid.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            grid.classList.remove('drag-over');
+
+            if (this.draggedItem && this.expandedFolderId) {
+                const queueId = this.draggedItem.dataset.queueId;
+                await this.moveQueueToFolder(queueId, this.expandedFolderId);
+
+                // Refresh the expanded folder view
+                this.expandFolder(this.expandedFolderId);
+            }
+        });
+
+        // Setup drag handlers for queues inside expanded folder
+        grid.querySelectorAll('.queue-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => this.handleDragStart(e));
+            item.addEventListener('dragend', (e) => this.handleDragEnd(e));
+        });
     },
 
     // Close expanded folder

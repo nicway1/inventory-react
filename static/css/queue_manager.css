@@ -224,6 +224,17 @@
     color: white;
 }
 
+/* Expanded Folder Drop Zone */
+.expanded-folder-grid.drag-over {
+    background: rgba(59, 130, 246, 0.3) !important;
+    border: 2px dashed #3b82f6;
+    border-radius: 1rem;
+}
+
+.expanded-folder-grid.drag-over .expanded-folder-empty {
+    pointer-events: none;
+}
+
 /* Folder Color Selection */
 .folder-color-option input:checked + span {
     ring-color: currentColor;
