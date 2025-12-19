@@ -10,6 +10,7 @@ from utils.db_manager import DatabaseManager
 from models.user import User
 from models.ticket import Ticket
 from models.asset import Asset
+from models.accessory import Accessory
 from models.comment import Comment
 from models.audit_session import AuditSession
 from models.user import Country
@@ -21,6 +22,44 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# Helper function to get full image URL for assets
+def get_asset_image_url_simple(asset):
+    """Get asset image URL with fallback to default product images"""
+    base_url = request.host_url.rstrip('/')
+
+    # If asset has a custom image, use it
+    if asset.image_url:
+        return f"{base_url}{asset.image_url}"
+
+    # Auto-detect image based on manufacturer/model
+    model_lower = (asset.model or '').lower()
+    name_lower = (asset.name or '').lower()
+    mfg_lower = (getattr(asset, 'manufacturer', '') or '').lower()
+
+    default_image = None
+
+    if 'macbook' in model_lower or 'macbook' in name_lower or mfg_lower == 'apple':
+        default_image = '/static/images/products/macbook.png'
+    elif 'thinkpad' in model_lower or 'thinkpad' in name_lower or mfg_lower == 'lenovo':
+        default_image = '/static/images/products/laptop_lenovo.png'
+    elif 'latitude' in model_lower or 'xps' in model_lower or mfg_lower == 'dell':
+        default_image = '/static/images/products/laptop_dell.png'
+    elif 'elitebook' in model_lower or 'probook' in model_lower or mfg_lower == 'hp':
+        default_image = '/static/images/products/laptop_hp.png'
+    elif 'surface' in model_lower or mfg_lower == 'microsoft':
+        default_image = '/static/images/products/laptop_surface.png'
+    elif 'iphone' in model_lower or 'iphone' in name_lower:
+        default_image = '/static/images/products/iphone.png'
+    elif 'ipad' in model_lower or 'ipad' in name_lower:
+        default_image = '/static/images/products/ipad.png'
+
+    if default_image:
+        return f"{base_url}{default_image}"
+
+    return None
+
 
 # Create API blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -895,6 +934,7 @@ def list_inventory():
                         'model': asset.model,
                         'status': asset.status.value if hasattr(asset.status, 'value') else str(asset.status) if asset.status else 'Unknown',
                         'location_id': getattr(asset, 'location_id', None),
+                        'image_url': get_asset_image_url_simple(asset),
                         'created_at': asset.created_at.isoformat() if asset.created_at else None
                     }
                     inventory_data.append(item_data)
@@ -988,6 +1028,9 @@ def get_inventory_item(item_id):
                 'company_id': getattr(item, 'company_id', None),
                 'location_id': getattr(item, 'location_id', None),
                 'location_name': item.location.name if item.location else None,
+
+                # Image URL (with fallback to default product image)
+                'image_url': get_asset_image_url_simple(item),
 
                 # Additional Fields
                 'description': getattr(item, 'description', None),
