@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Asset Management">
@@ -11,12 +13,12 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <title>Asset Management System</title>
-    
+
     <!-- Fix for port issues -->
     <script>
         // Override fetch to handle port issues
         const originalFetch = window.fetch;
-        window.fetch = function(url, options) {
+        window.fetch = function (url, options) {
             // Check if it's an absolute URL with port 5000
             if (typeof url === 'string' && url.includes('127.0.0.1:5000')) {
                 // Replace with current origin
@@ -26,10 +28,10 @@
             }
             return originalFetch(url, options);
         };
-        
+
         // Global fix for XMLHttpRequest as well (for older code that might not use fetch)
         const originalXHROpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+        XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
             // Check if it's an absolute URL with port 5000
             if (typeof url === 'string' && url.includes('127.0.0.1:5000')) {
                 // Replace with current origin
@@ -39,7 +41,7 @@
             }
             return originalXHROpen.call(this, method, url, async, user, password);
         };
-        
+
         // Store current origin as a global variable for direct access in templates
         window.CURRENT_ORIGIN = window.location.origin;
         console.log('Set current origin:', window.CURRENT_ORIGIN);
@@ -67,99 +69,99 @@
         .bg-gradient-truelog {
             background: linear-gradient(135deg, #A5C5E9 0%, #7BA7DE 100%);
         }
-        
+
         /* Dark theme styles */
         .dark {
             background-color: #1f2937;
             color: #f9fafb;
         }
-        
+
         /* Background colors */
         .dark .bg-white {
             background-color: #374151 !important;
             color: #f9fafb !important;
         }
-        
+
         .dark .bg-gray-50 {
             background-color: #4b5563 !important;
             color: #f9fafb !important;
         }
-        
+
         .dark .bg-gray-100 {
             background-color: #6b7280 !important;
             color: #f9fafb !important;
         }
-        
+
         .dark .bg-gray-200 {
             background-color: #9ca3af !important;
             color: #111827 !important;
         }
-        
+
         /* Text colors */
         .dark .text-gray-900 {
             color: #f9fafb !important;
         }
-        
+
         .dark .text-gray-800 {
             color: #e5e7eb !important;
         }
-        
+
         .dark .text-gray-700 {
             color: #d1d5db !important;
         }
-        
+
         .dark .text-gray-600 {
             color: #9ca3af !important;
         }
-        
+
         .dark .text-gray-500 {
             color: #6b7280 !important;
         }
-        
+
         .dark .text-gray-400 {
             color: #9ca3af !important;
         }
-        
+
         /* Border colors */
         .dark .border-gray-200 {
             border-color: #4b5563 !important;
         }
-        
+
         .dark .border-gray-300 {
             border-color: #6b7280 !important;
         }
-        
+
         .dark .border-gray-400 {
             border-color: #9ca3af !important;
         }
-        
+
         /* Shadows */
         .dark .shadow-lg {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
         }
-        
+
         .dark .shadow {
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
         }
-        
+
         .dark .shadow-sm {
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
         }
-        
+
         .dark .shadow-md {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
         }
-        
+
         /* Navigation */
         .dark nav {
             background-color: #1f2937 !important;
             border-bottom: 1px solid #374151;
         }
-        
+
         .dark .bg-gradient-to-br {
             background: linear-gradient(to bottom right, #1f2937, #111827) !important;
         }
-        
+
         /* Form inputs */
         .dark input[type="text"],
         .dark input[type="email"],
@@ -171,7 +173,7 @@
             border-color: #6b7280 !important;
             color: #f9fafb !important;
         }
-        
+
         .dark input[type="text"]:focus,
         .dark input[type="email"]:focus,
         .dark input[type="password"]:focus,
@@ -181,36 +183,36 @@
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 1px #3b82f6 !important;
         }
-        
+
         /* Buttons */
         .dark .bg-blue-600 {
             background-color: #2563eb !important;
         }
-        
+
         .dark .bg-blue-600:hover {
             background-color: #1d4ed8 !important;
         }
-        
+
         .dark .bg-green-600 {
             background-color: #059669 !important;
         }
-        
+
         .dark .bg-green-600:hover {
             background-color: #047857 !important;
         }
-        
+
         .dark .bg-red-600 {
             background-color: #dc2626 !important;
         }
-        
+
         .dark .bg-red-600:hover {
             background-color: #b91c1c !important;
         }
-        
+
         .dark .bg-purple-600 {
             background-color: #7c3aed !important;
         }
-        
+
         .dark .bg-purple-600:hover {
             background-color: #6d28d9 !important;
         }
@@ -221,17 +223,21 @@
             border-color: #374151 !important;
             color: #f9fafb !important;
         }
+
         .dark #globalSearchContainer input:focus {
             border-color: #3b82f6 !important;
         }
+
         .dark #globalSearchContainer input::placeholder {
             color: #6b7280 !important;
         }
+
         .dark #globalSearchContainer kbd {
             background-color: #374151 !important;
             border-color: #4b5563 !important;
             color: #9ca3af !important;
         }
+
         .dark #globalSearchContainer .bg-white {
             background-color: #1f2937 !important;
         }
@@ -241,16 +247,20 @@
             background-color: #1f2937 !important;
             border-color: #374151 !important;
         }
+
         .dark #searchSuggestions .search-suggestion {
             color: #f9fafb !important;
         }
+
         .dark #searchSuggestions .search-suggestion:hover {
             background: linear-gradient(to right, #374151, transparent) !important;
             border-left-color: #3b82f6 !important;
         }
+
         .dark #searchSuggestions .search-suggestion .bg-gray-100 {
             background-color: #374151 !important;
         }
+
         .dark #searchSuggestions .bg-gray-50,
         .dark #searchSuggestions .bg-green-50,
         .dark #searchSuggestions .bg-blue-50,
@@ -258,77 +268,127 @@
         .dark #searchSuggestions .bg-purple-50 {
             background-color: #111827 !important;
         }
-        .dark #searchSuggestions .text-green-700 { color: #34d399 !important; }
-        .dark #searchSuggestions .text-blue-700 { color: #60a5fa !important; }
-        .dark #searchSuggestions .text-orange-700 { color: #fb923c !important; }
-        .dark #searchSuggestions .text-purple-700 { color: #a78bfa !important; }
+
+        .dark #searchSuggestions .text-green-700 {
+            color: #34d399 !important;
+        }
+
+        .dark #searchSuggestions .text-blue-700 {
+            color: #60a5fa !important;
+        }
+
+        .dark #searchSuggestions .text-orange-700 {
+            color: #fb923c !important;
+        }
+
+        .dark #searchSuggestions .text-purple-700 {
+            color: #a78bfa !important;
+        }
+
         .dark #searchAllFooter {
             background: linear-gradient(to right, #111827, #1e3a5f) !important;
             border-color: #374151 !important;
         }
+
         .dark #searchAllFooter:hover {
             background: linear-gradient(to right, #1e3a5f, #312e81) !important;
         }
+
         .dark #searchSuggestions .text-gray-500,
         .dark #searchSuggestions .text-gray-600 {
             color: #9ca3af !important;
         }
+
         .dark #searchSuggestions .text-gray-900 {
             color: #f9fafb !important;
         }
+
         .dark #searchSuggestions .bg-gradient-to-r {
             background-color: #1f2937 !important;
         }
 
         /* Flash message dark theme styles */
-        .dark .bg-success-100 { background-color: #064e3b !important; }
-        .dark .bg-error-100 { background-color: #7f1d1d !important; }
-        .dark .bg-warning-100 { background-color: #92400e !important; }
-        .dark .bg-info-100 { background-color: #1e3a8a !important; }
-        
-        .dark .text-success-700 { color: #10b981 !important; }
-        .dark .text-error-700 { color: #f87171 !important; }
-        .dark .text-warning-700 { color: #fbbf24 !important; }
-        .dark .text-info-700 { color: #60a5fa !important; }
-        
-        .dark .border-success-400 { border-color: #047857 !important; }
-        .dark .border-error-400 { border-color: #dc2626 !important; }
-        .dark .border-warning-400 { border-color: #d97706 !important; }
-        .dark .border-info-400 { border-color: #2563eb !important; }
-        
+        .dark .bg-success-100 {
+            background-color: #064e3b !important;
+        }
+
+        .dark .bg-error-100 {
+            background-color: #7f1d1d !important;
+        }
+
+        .dark .bg-warning-100 {
+            background-color: #92400e !important;
+        }
+
+        .dark .bg-info-100 {
+            background-color: #1e3a8a !important;
+        }
+
+        .dark .text-success-700 {
+            color: #10b981 !important;
+        }
+
+        .dark .text-error-700 {
+            color: #f87171 !important;
+        }
+
+        .dark .text-warning-700 {
+            color: #fbbf24 !important;
+        }
+
+        .dark .text-info-700 {
+            color: #60a5fa !important;
+        }
+
+        .dark .border-success-400 {
+            border-color: #047857 !important;
+        }
+
+        .dark .border-error-400 {
+            border-color: #dc2626 !important;
+        }
+
+        .dark .border-warning-400 {
+            border-color: #d97706 !important;
+        }
+
+        .dark .border-info-400 {
+            border-color: #2563eb !important;
+        }
+
         /* Table styling */
         .dark table {
             color: #f9fafb !important;
         }
-        
+
         .dark th {
             background-color: #4b5563 !important;
             color: #f9fafb !important;
         }
-        
+
         .dark td {
             border-color: #4b5563 !important;
         }
-        
+
         .dark tr:hover {
             background-color: #4b5563 !important;
         }
-        
+
         /* Dropdown menus */
         .dark .bg-white .dropdown-menu {
             background-color: #374151 !important;
             border-color: #4b5563 !important;
         }
-        
+
         /* Links */
         .dark a {
             color: #60a5fa;
         }
-        
+
         .dark a:hover {
             color: #93c5fd;
         }
-        
+
         /* Special TrueLog brand colors in dark mode */
         .dark .text-truelog-dark {
             color: #7ba7de !important;
@@ -336,12 +396,10 @@
 
         /* Liquid Glass Theme Styles */
         .liquid-glass {
-            background: linear-gradient(
-                135deg,
+            background: linear-gradient(135deg,
                 rgba(4, 14, 24, 0.85) 0%,
                 rgba(14, 34, 54, 0.75) 50%,
-                rgba(24, 54, 84, 0.65) 100%
-            ),
+                rgba(24, 54, 84, 0.65) 100%),
             url('{{ url_for("static", filename="images/login_bg.jpg") }}') center/cover;
             background-attachment: fixed;
             color: #f8fafc;
@@ -378,7 +436,7 @@
             font-weight: 600 !important;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
         }
-        
+
         .liquid-glass .text-gray-600 {
             color: #e2e8f0 !important;
             font-weight: 500 !important;
@@ -485,23 +543,26 @@
         }
 
         /* Flash messages glass effect */
-        .liquid-glass .bg-success-100 { 
-            background: rgba(34, 197, 94, 0.3) !important; 
+        .liquid-glass .bg-success-100 {
+            background: rgba(34, 197, 94, 0.3) !important;
             backdrop-filter: blur(10px) !important;
             border: 1px solid rgba(34, 197, 94, 0.5) !important;
         }
-        .liquid-glass .bg-error-100 { 
-            background: rgba(239, 68, 68, 0.3) !important; 
+
+        .liquid-glass .bg-error-100 {
+            background: rgba(239, 68, 68, 0.3) !important;
             backdrop-filter: blur(10px) !important;
             border: 1px solid rgba(239, 68, 68, 0.5) !important;
         }
-        .liquid-glass .bg-warning-100 { 
-            background: rgba(245, 158, 11, 0.3) !important; 
+
+        .liquid-glass .bg-warning-100 {
+            background: rgba(245, 158, 11, 0.3) !important;
             backdrop-filter: blur(10px) !important;
             border: 1px solid rgba(245, 158, 11, 0.5) !important;
         }
-        .liquid-glass .bg-info-100 { 
-            background: rgba(59, 130, 246, 0.3) !important; 
+
+        .liquid-glass .bg-info-100 {
+            background: rgba(59, 130, 246, 0.3) !important;
             backdrop-filter: blur(10px) !important;
             border: 1px solid rgba(59, 130, 246, 0.5) !important;
         }
@@ -652,7 +713,7 @@
 
         /* Force white backgrounds and spacing for all card elements */
         .sf-card,
-        .sf-card > div,
+        .sf-card>div,
         .sf-toolbar {
             background-color: white !important;
         }
@@ -696,9 +757,9 @@
         }
 
         /* Ensure proper spacing between all sections */
-        .sf-card + .sf-card,
-        .sf-card + .sf-toolbar,
-        .sf-toolbar + .sf-card {
+        .sf-card+.sf-card,
+        .sf-card+.sf-toolbar,
+        .sf-toolbar+.sf-card {
             margin-top: 1.5rem !important;
         }
 
@@ -794,7 +855,7 @@
             color: #f8fafc !important;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
         }
-        
+
         /* Mention styling */
         .mention {
             background-color: #e0f2fe;
@@ -804,20 +865,20 @@
             font-weight: 500;
             border: 1px solid #b3e5fc;
         }
-        
+
         .dark .mention {
             background-color: #1e3a8a;
             color: #93c5fd;
             border-color: #3b82f6;
         }
-        
+
         .liquid-glass .mention {
             background-color: rgba(224, 242, 254, 0.3);
             color: #0277bd;
             border-color: rgba(179, 229, 252, 0.5);
             backdrop-filter: blur(8px);
         }
-        
+
         /* Toast notification styles - Modern design like the image */
         .toast {
             min-width: 320px;
@@ -832,46 +893,46 @@
             margin-bottom: 12px;
             overflow: hidden;
         }
-        
+
         .toast.show {
             transform: translateX(0);
             opacity: 1;
         }
-        
+
         .toast.hide {
             transform: translateX(100%);
             opacity: 0;
         }
-        
+
         .toast-mention {
             border-left: 4px solid #3b82f6;
         }
-        
+
         .toast-success {
             border-left: 4px solid #10b981;
         }
-        
+
         .toast-error {
             border-left: 4px solid #ef4444;
         }
-        
+
         .toast-warning {
             border-left: 4px solid #f59e0b;
         }
-        
+
         .toast-header {
             font-weight: 600;
             font-size: 16px;
             color: #1f2937;
             margin-bottom: 4px;
         }
-        
+
         .toast-message {
             font-size: 14px;
             color: #6b7280;
             line-height: 1.4;
         }
-        
+
         .toast-close {
             position: absolute;
             top: 12px;
@@ -884,36 +945,36 @@
             border-radius: 4px;
             transition: all 0.2s;
         }
-        
+
         .toast-close:hover {
             background: #f3f4f6;
             color: #6b7280;
         }
-        
+
         /* Dark theme toast styles */
         .dark .toast {
             background: #374151;
             border-color: rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
-        
+
         .dark .toast-header {
             color: #f9fafb;
         }
-        
+
         .dark .toast-message {
             color: #d1d5db;
         }
-        
+
         .dark .toast-close {
             color: #9ca3af;
         }
-        
+
         .dark .toast-close:hover {
             background: #4b5563;
             color: #e5e7eb;
         }
-        
+
         /* Liquid glass theme toast styles */
         .liquid-glass .toast {
             background: rgba(255, 255, 255, 0.85);
@@ -924,22 +985,25 @@
     </style>
     {% block head %}{% endblock %}
 </head>
-<body class="{% if session.get('user_theme') == 'dark' %}dark{% elif session.get('user_theme') == 'liquid-glass' %}liquid-glass{% elif session.get('user_theme') == 'ui-2.0' %}ui-2-0{% endif %} bg-gradient-to-br from-white to-truelog-light/10">
+
+<body
+    class="{% if session.get('user_theme') == 'dark' %}dark{% elif session.get('user_theme') == 'liquid-glass' %}liquid-glass{% elif session.get('user_theme') == 'ui-2.0' %}ui-2-0{% endif %} bg-gradient-to-br from-white to-truelog-light/10">
     {% if session.get('user_theme') == 'liquid-glass' %}
     <!-- Liquid Glass Background -->
     <div class="liquid-glass-bg"></div>
     {% endif %}
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg border-b border-gray-200 overflow-visible">
-        <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4{% else %}w-full px-8{% endif %} overflow-visible">
+    <nav class="bg-white shadow-lg border-b border-gray-200 overflow-visible"
+        style="position: relative; z-index: 2000;">
+        <div
+            class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4{% else %}w-full px-8{% endif %} overflow-visible">
             <div class="flex items-center gap-6 h-20 w-full overflow-visible">
                 <!-- Left side: Logo and primary navigation -->
                 <div class="flex items-center gap-4 flex-wrap min-w-fit">
                     <!-- Logo and Name -->
                     <a href="{{ url_for('main.index') }}" class="flex items-center space-x-3">
-                        <img src="{{ url_for('static', filename='images/truelglogo.png') }}"
-                             alt="TrueLog Logo"
-                             class="h-14 w-auto object-contain">
+                        <img src="{{ url_for('static', filename='images/truelglogo.png') }}" alt="TrueLog Logo"
+                            class="h-14 w-auto object-contain">
                         <span class="text-2xl font-bold text-truelog-dark">Asset Management</span>
                     </a>
 
@@ -950,18 +1014,20 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <!-- Inventory Button -->
                         <a href="{{ url_for('inventory.view_inventory_sf') }}"
-                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                             </svg>
                             Inventory
                         </a>
 
                         <!-- Tickets Button -->
                         <a href="{{ url_for('tickets.list_tickets_sf') }}"
-                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                             </svg>
                             Tickets
                         </a>
@@ -969,9 +1035,10 @@
                         {% if session.get('user_type') == 'SUPER_ADMIN' %}
                         <!-- History Button (Super Admin Only) -->
                         <a href="{{ url_for('admin.view_history') }}"
-                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             System History
                         </a>
@@ -980,9 +1047,10 @@
                         {% if session.get('user_type') == 'DEVELOPER' %}
                         <!-- Parcel Tracking Button (Developer Only) -->
                         <a href="{{ url_for('parcel_tracking.index') }}"
-                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                             Parcel Tracking
                         </a>
@@ -990,18 +1058,20 @@
 
                         <!-- Shipment History Button -->
                         <a href="{{ url_for('shipments.shipment_history') }}"
-                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                             </svg>
                             Shipment History
                         </a>
 
                         <!-- Import Manager Button -->
                         <a href="{{ url_for('import_manager.dashboard') }}"
-                           class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
+                            class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
                             </svg>
                             Import Manager
                         </a>
@@ -1012,57 +1082,71 @@
                 {% if session.get('user_id') %}
                 <!-- Enhanced Global Search with Live Suggestions -->
                 <div class="flex-1 w-full max-w-3xl relative overflow-visible" id="globalSearchContainer">
-                    <form action="{{ url_for('inventory.search') }}" method="GET" id="globalSearchForm" autocomplete="off">
+                    <form action="{{ url_for('inventory.search') }}" method="GET" id="globalSearchForm"
+                        autocomplete="off">
                         <label for="globalSearch" class="sr-only">Search</label>
                         <div class="relative group">
                             <!-- Gradient border effect on focus -->
-                            <div class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-0 group-focus-within:opacity-100 blur transition duration-300"></div>
+                            <div
+                                class="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-0 group-focus-within:opacity-100 blur transition duration-300">
+                            </div>
                             <div class="relative bg-white rounded-lg">
                                 <!-- Search Icon -->
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                    <svg class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    <svg class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                 </div>
                                 <!-- Search Input -->
-                                <input type="search"
-                                       name="q"
-                                       id="globalSearch"
-                                       class="block w-full pl-10 pr-16 py-3 border-2 border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all duration-200 hover:border-gray-300"
-                                       placeholder="Search assets, tickets, accessories, customers..."
-                                       aria-label="Global search"
-                                       aria-haspopup="listbox"
-                                       aria-expanded="false">
+                                <input type="search" name="q" id="globalSearch"
+                                    class="block w-full pl-10 pr-16 py-3 border-2 border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all duration-200 hover:border-gray-300"
+                                    placeholder="Search assets, tickets, accessories, customers..."
+                                    aria-label="Global search" aria-haspopup="listbox" aria-expanded="false">
                                 <!-- Loading Spinner -->
-                                <div id="searchSpinner" class="absolute inset-y-0 right-10 flex items-center hidden z-10">
+                                <div id="searchSpinner"
+                                    class="absolute inset-y-0 right-10 flex items-center hidden z-10">
                                     <svg class="animate-spin h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
                                     </svg>
                                 </div>
                                 <!-- Keyboard Shortcut Hint -->
                                 <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none z-10">
-                                    <kbd class="inline-flex items-center px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-300 rounded shadow-sm">/</kbd>
+                                    <kbd
+                                        class="inline-flex items-center px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-300 rounded shadow-sm">/</kbd>
                                 </div>
                             </div>
                             <!-- Search Suggestions Dropdown - inside form for proper positioning -->
-                            <div id="searchSuggestions" class="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5 w-full">
-                        <!-- Quick Actions Header -->
-                        <div class="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Results</p>
-                        </div>
-                        <div id="suggestionsContent"></div>
-                        <!-- Search All Footer -->
-                        <div id="searchAllFooter" class="hidden border-t border-gray-100 px-4 py-3 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-blue-50 hover:to-purple-50 cursor-pointer transition-all duration-200">
-                            <div class="flex items-center text-sm text-gray-700 min-w-0 gap-2">
-                                <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                                <span class="flex-1 truncate">View all results for <strong id="searchTermDisplay" class="text-blue-600"></strong></span>
-                                <kbd class="flex-shrink-0 px-2 py-0.5 text-xs font-semibold bg-white border border-gray-200 rounded shadow-sm">Enter</kbd>
+                            <div id="searchSuggestions"
+                                class="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 z-[9999] hidden max-h-[400px] overflow-y-auto ring-1 ring-black ring-opacity-5 w-full">
+                                <!-- Quick Actions Header -->
+                                <div
+                                    class="px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
+                                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Results
+                                    </p>
+                                </div>
+                                <div id="suggestionsContent"></div>
+                                <!-- Search All Footer -->
+                                <div id="searchAllFooter"
+                                    class="hidden border-t border-gray-100 px-4 py-3 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-blue-50 hover:to-purple-50 cursor-pointer transition-all duration-200">
+                                    <div class="flex items-center text-sm text-gray-700 min-w-0 gap-2">
+                                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <span class="flex-1 truncate">View all results for <strong
+                                                id="searchTermDisplay" class="text-blue-600"></strong></span>
+                                        <kbd
+                                            class="flex-shrink-0 px-2 py-0.5 text-xs font-semibold bg-white border border-gray-200 rounded shadow-sm">Enter</kbd>
+                                    </div>
+                                </div>
                             </div>
-                            </div>
-                        </div>
                         </div>
                     </form>
                 </div>
@@ -1074,57 +1158,71 @@
                     <!-- Theme Toggle -->
                     <form method="POST" action="{{ url_for('admin.update_user_theme') }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="theme" value="{% if session.get('user_theme') == 'light' %}dark{% elif session.get('user_theme') == 'dark' %}liquid-glass{% elif session.get('user_theme') == 'liquid-glass' %}ui-2.0{% else %}light{% endif %}">
-                        <button type="submit" 
-                                class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md"
-                                title="Switch to {% if session.get('user_theme') == 'light' %}Dark{% elif session.get('user_theme') == 'dark' %}Liquid Glass{% elif session.get('user_theme') == 'liquid-glass' %}UI 2.0{% else %}Light{% endif %} Theme">
+                        <input type="hidden" name="theme"
+                            value="{% if session.get('user_theme') == 'light' %}dark{% elif session.get('user_theme') == 'dark' %}liquid-glass{% elif session.get('user_theme') == 'liquid-glass' %}ui-2.0{% else %}light{% endif %}">
+                        <button type="submit"
+                            class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md"
+                            title="Switch to {% if session.get('user_theme') == 'light' %}Dark{% elif session.get('user_theme') == 'dark' %}Liquid Glass{% elif session.get('user_theme') == 'liquid-glass' %}UI 2.0{% else %}Light{% endif %} Theme">
                             {% if session.get('user_theme') == 'dark' %}
-                                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                                </svg>
-                                💎
+                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                                </path>
+                            </svg>
+                            💎
                             {% elif session.get('user_theme') == 'liquid-glass' %}
-                                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                                ⚡
+                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            ⚡
                             {% elif session.get('user_theme') == 'ui-2.0' %}
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                                </svg>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                                </path>
+                            </svg>
                             {% else %}
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-                                </svg>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                                </path>
+                            </svg>
                             {% endif %}
                         </button>
                     </form>
-                    
+
                     <!-- Notifications Dropdown -->
                     <div class="relative" id="notifications-dropdown" style="position: relative;">
                         <button type="button"
-                                class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md relative"
-                                onclick="toggleNotifications()"
-                                id="notifications-button">
+                            class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md relative"
+                            onclick="toggleNotifications()" id="notifications-button">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                            <span id="notification-badge"
+                                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                         </button>
 
                         <!-- Dropdown Menu -->
-                        <div id="notifications-menu"
-                             class="hidden"
-                             style="position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 320px; background: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid #e5e7eb; z-index: 9999;">
+                        <div id="notifications-menu" class="hidden"
+                            style="position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 320px; background: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid #e5e7eb; z-index: 9999;">
                             <div style="padding: 0.25rem 0;">
-                                <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #111827;">Notifications</h3>
-                                    <button onclick="markAllAsRead()" style="font-size: 0.75rem; color: #2563eb; cursor: pointer; background: none; border: none;">Mark all read</button>
+                                <div
+                                    style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #111827;">Notifications
+                                    </h3>
+                                    <button onclick="markAllAsRead()"
+                                        style="font-size: 0.75rem; color: #2563eb; cursor: pointer; background: none; border: none;">Mark
+                                        all read</button>
                                 </div>
                                 <div id="notifications-list" style="max-height: 384px; overflow-y: auto;">
                                     <div style="padding: 2rem 1rem; text-align: center; color: #6b7280;">
-                                        <svg style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                        <svg style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #9ca3af;"
+                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                         </svg>
                                         Loading notifications...
                                     </div>
@@ -1132,26 +1230,29 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <a href="{{ url_for('auth.profile') }}" 
-                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
+
+                    <a href="{{ url_for('auth.profile') }}"
+                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         {{ session.get('username', '') }}
                     </a>
-                    <a href="{{ url_for('auth.logout') }}" 
-                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-red-600 hover:bg-red-50 rounded-md">
+                    <a href="{{ url_for('auth.logout') }}"
+                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-red-600 hover:bg-red-50 rounded-md">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
                         Logout
                     </a>
                     {% else %}
-                    <a href="{{ url_for('auth.login') }}" 
-                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
+                    <a href="{{ url_for('auth.login') }}"
+                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                         </svg>
                         Login
                     </a>
@@ -1163,27 +1264,29 @@
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4 py-2{% else %}w-full px-8 py-2{% endif %}">
-                <div class="bg-{{ category }}-100 border border-{{ category }}-400 text-{{ category }}-700 px-4 py-3 rounded">
-                    {{ message }}
-                </div>
-            </div>
-            {% endfor %}
-        {% endif %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4 py-2{% else %}w-full px-8 py-2{% endif %}">
+        <div class="bg-{{ category }}-100 border border-{{ category }}-400 text-{{ category }}-700 px-4 py-3 rounded">
+            {{ message }}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     <!-- Toast Notifications Container -->
-    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+    <div id="toast-container" class="fixed top-4 right-4 space-y-2" style="z-index: 2002;">
         <!-- Toast notifications will be inserted here -->
     </div>
 
     <!-- Main Content -->
-    <main class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4 py-8{% else %}w-full{% endif %}">
+    <main
+        class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4 py-8{% else %}w-full{% endif %}">
         {% block content %}{% endblock %}
     </main>
-    
+
     <!-- Common Scripts -->
     <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
@@ -1192,66 +1295,66 @@
     <!-- Global Search Script -->
     {% if session.get('user_id') %}
     <script>
-    (function() {
-        const searchInput = document.getElementById('globalSearch');
-        const searchForm = document.getElementById('globalSearchForm');
-        const suggestionsContainer = document.getElementById('searchSuggestions');
-        const suggestionsContent = document.getElementById('suggestionsContent');
-        const searchAllFooter = document.getElementById('searchAllFooter');
-        const searchTermDisplay = document.getElementById('searchTermDisplay');
-        const searchSpinner = document.getElementById('searchSpinner');
+            (function () {
+                const searchInput = document.getElementById('globalSearch');
+                const searchForm = document.getElementById('globalSearchForm');
+                const suggestionsContainer = document.getElementById('searchSuggestions');
+                const suggestionsContent = document.getElementById('suggestionsContent');
+                const searchAllFooter = document.getElementById('searchAllFooter');
+                const searchTermDisplay = document.getElementById('searchTermDisplay');
+                const searchSpinner = document.getElementById('searchSpinner');
 
-        if (!searchInput) return;
+                if (!searchInput) return;
 
-        let debounceTimer;
-        let selectedIndex = -1;
-        let currentSuggestions = [];
+                let debounceTimer;
+                let selectedIndex = -1;
+                let currentSuggestions = [];
 
-        // Type icons mapping
-        const typeIcons = {
-            asset: '<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>',
-            ticket: '<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>',
-            accessory: '<svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>',
-            customer: '<svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
-        };
+                // Type icons mapping
+                const typeIcons = {
+                    asset: '<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>',
+                    ticket: '<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>',
+                    accessory: '<svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>',
+                    customer: '<svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
+                };
 
-        const typeLabels = {
-            asset: 'Asset',
-            ticket: 'Ticket',
-            accessory: 'Accessory',
-            customer: 'Customer'
-        };
+                const typeLabels = {
+                    asset: 'Asset',
+                    ticket: 'Ticket',
+                    accessory: 'Accessory',
+                    customer: 'Customer'
+                };
 
-        const statusColors = {
-            blue: 'bg-blue-100 text-blue-800',
-            yellow: 'bg-yellow-100 text-yellow-800',
-            orange: 'bg-orange-100 text-orange-800',
-            green: 'bg-green-100 text-green-800',
-            gray: 'bg-gray-100 text-gray-800'
-        };
+                const statusColors = {
+                    blue: 'bg-blue-100 text-blue-800',
+                    yellow: 'bg-yellow-100 text-yellow-800',
+                    orange: 'bg-orange-100 text-orange-800',
+                    green: 'bg-green-100 text-green-800',
+                    gray: 'bg-gray-100 text-gray-800'
+                };
 
-        // Fetch suggestions from API
-        async function fetchSuggestions(query) {
-            searchSpinner.classList.remove('hidden');
-            try {
-                const response = await fetch(`/inventory/search/suggestions?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                return data.suggestions || [];
-            } catch (error) {
-                console.error('Search suggestions error:', error);
-                return [];
-            } finally {
-                searchSpinner.classList.add('hidden');
-            }
-        }
+                // Fetch suggestions from API
+                async function fetchSuggestions(query) {
+                    searchSpinner.classList.remove('hidden');
+                    try {
+                        const response = await fetch(`/inventory/search/suggestions?q=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+                        return data.suggestions || [];
+                    } catch (error) {
+                        console.error('Search suggestions error:', error);
+                        return [];
+                    } finally {
+                        searchSpinner.classList.add('hidden');
+                    }
+                }
 
-        // Render suggestions
-        function renderSuggestions(suggestions) {
-            currentSuggestions = suggestions;
-            selectedIndex = -1;
+                // Render suggestions
+                function renderSuggestions(suggestions) {
+                    currentSuggestions = suggestions;
+                    selectedIndex = -1;
 
-            if (suggestions.length === 0) {
-                suggestionsContent.innerHTML = `
+                    if (suggestions.length === 0) {
+                        suggestionsContent.innerHTML = `
                     <div class="px-6 py-8 text-center">
                         <div class="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
                             <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1262,40 +1365,40 @@
                         <p class="text-xs text-gray-400 mt-1">Try a different search term or press Enter to view all</p>
                     </div>
                 `;
-                searchAllFooter.classList.remove('hidden');
-                return;
-            }
+                        searchAllFooter.classList.remove('hidden');
+                        return;
+                    }
 
-            // Group by type
-            const grouped = {};
-            suggestions.forEach(s => {
-                if (!grouped[s.type]) grouped[s.type] = [];
-                grouped[s.type].push(s);
-            });
+                    // Group by type
+                    const grouped = {};
+                    suggestions.forEach(s => {
+                        if (!grouped[s.type]) grouped[s.type] = [];
+                        grouped[s.type].push(s);
+                    });
 
-            let html = '';
-            let globalIndex = 0;
+                    let html = '';
+                    let globalIndex = 0;
 
-            // Type background colors for section headers
-            const typeBgColors = {
-                asset: 'bg-green-50 text-green-700',
-                ticket: 'bg-blue-50 text-blue-700',
-                accessory: 'bg-orange-50 text-orange-700',
-                customer: 'bg-purple-50 text-purple-700'
-            };
+                    // Type background colors for section headers
+                    const typeBgColors = {
+                        asset: 'bg-green-50 text-green-700',
+                        ticket: 'bg-blue-50 text-blue-700',
+                        accessory: 'bg-orange-50 text-orange-700',
+                        customer: 'bg-purple-50 text-purple-700'
+                    };
 
-            Object.keys(grouped).forEach(type => {
-                html += `<div class="px-4 py-2 text-xs font-semibold uppercase tracking-wider ${typeBgColors[type] || 'bg-gray-50 text-gray-600'} flex items-center gap-2">
+                    Object.keys(grouped).forEach(type => {
+                        html += `<div class="px-4 py-2 text-xs font-semibold uppercase tracking-wider ${typeBgColors[type] || 'bg-gray-50 text-gray-600'} flex items-center gap-2">
                     ${typeIcons[type] ? `<span class="opacity-60">${typeIcons[type].replace('w-5 h-5', 'w-3.5 h-3.5')}</span>` : ''}
                     ${typeLabels[type] || type}s
                     <span class="ml-auto text-xs font-normal opacity-70">${grouped[type].length}</span>
                 </div>`;
 
-                grouped[type].forEach(item => {
-                    const statusBadge = item.status ?
-                        `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[item.status_color] || statusColors.gray}">${item.status}</span>` : '';
+                        grouped[type].forEach(item => {
+                            const statusBadge = item.status ?
+                                `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[item.status_color] || statusColors.gray}">${item.status}</span>` : '';
 
-                    html += `
+                            html += `
                         <div class="search-suggestion px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent cursor-pointer flex items-center gap-3 transition-all duration-150 border-l-2 border-transparent hover:border-blue-500"
                              data-index="${globalIndex}" data-url="${item.url}">
                             <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">${typeIcons[item.type] || typeIcons.asset}</div>
@@ -1311,117 +1414,117 @@
                             </svg>
                         </div>
                     `;
-                    globalIndex++;
-                });
-            });
+                            globalIndex++;
+                        });
+                    });
 
-            suggestionsContent.innerHTML = html;
-            searchAllFooter.classList.remove('hidden');
+                    suggestionsContent.innerHTML = html;
+                    searchAllFooter.classList.remove('hidden');
 
-            // Add click handlers
-            document.querySelectorAll('.search-suggestion').forEach(el => {
-                el.addEventListener('click', () => {
-                    window.location.href = el.dataset.url;
-                });
-            });
-        }
-
-        // Show/hide suggestions
-        function showSuggestions() {
-            suggestionsContainer.classList.remove('hidden');
-            searchInput.setAttribute('aria-expanded', 'true');
-        }
-
-        function hideSuggestions() {
-            suggestionsContainer.classList.add('hidden');
-            searchInput.setAttribute('aria-expanded', 'false');
-            selectedIndex = -1;
-        }
-
-        // Update selection highlight
-        function updateSelection() {
-            document.querySelectorAll('.search-suggestion').forEach((el, i) => {
-                if (i === selectedIndex) {
-                    el.classList.add('bg-blue-50');
-                    el.scrollIntoView({ block: 'nearest' });
-                } else {
-                    el.classList.remove('bg-blue-50');
+                    // Add click handlers
+                    document.querySelectorAll('.search-suggestion').forEach(el => {
+                        el.addEventListener('click', () => {
+                            window.location.href = el.dataset.url;
+                        });
+                    });
                 }
-            });
-        }
 
-        // Input event handler
-        searchInput.addEventListener('input', function() {
-            const query = this.value.trim();
-            searchTermDisplay.textContent = query;
+                // Show/hide suggestions
+                function showSuggestions() {
+                    suggestionsContainer.classList.remove('hidden');
+                    searchInput.setAttribute('aria-expanded', 'true');
+                }
 
-            clearTimeout(debounceTimer);
+                function hideSuggestions() {
+                    suggestionsContainer.classList.add('hidden');
+                    searchInput.setAttribute('aria-expanded', 'false');
+                    selectedIndex = -1;
+                }
 
-            if (query.length < 2) {
-                hideSuggestions();
-                return;
-            }
+                // Update selection highlight
+                function updateSelection() {
+                    document.querySelectorAll('.search-suggestion').forEach((el, i) => {
+                        if (i === selectedIndex) {
+                            el.classList.add('bg-blue-50');
+                            el.scrollIntoView({ block: 'nearest' });
+                        } else {
+                            el.classList.remove('bg-blue-50');
+                        }
+                    });
+                }
 
-            debounceTimer = setTimeout(async () => {
-                const suggestions = await fetchSuggestions(query);
-                renderSuggestions(suggestions);
-                showSuggestions();
-            }, 200);
-        });
+                // Input event handler
+                searchInput.addEventListener('input', function () {
+                    const query = this.value.trim();
+                    searchTermDisplay.textContent = query;
 
-        // Keyboard navigation
-        searchInput.addEventListener('keydown', function(e) {
-            if (!suggestionsContainer.classList.contains('hidden')) {
-                const suggestions = document.querySelectorAll('.search-suggestion');
+                    clearTimeout(debounceTimer);
 
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
-                    updateSelection();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    selectedIndex = Math.max(selectedIndex - 1, -1);
-                    updateSelection();
-                } else if (e.key === 'Enter' && selectedIndex >= 0) {
-                    e.preventDefault();
-                    const selected = suggestions[selectedIndex];
-                    if (selected) {
-                        window.location.href = selected.dataset.url;
+                    if (query.length < 2) {
+                        hideSuggestions();
+                        return;
                     }
-                } else if (e.key === 'Escape') {
-                    hideSuggestions();
-                }
-            }
-        });
 
-        // Focus/blur handlers
-        searchInput.addEventListener('focus', function() {
-            if (this.value.trim().length >= 2 && currentSuggestions.length > 0) {
-                showSuggestions();
-            }
-        });
+                    debounceTimer = setTimeout(async () => {
+                        const suggestions = await fetchSuggestions(query);
+                        renderSuggestions(suggestions);
+                        showSuggestions();
+                    }, 200);
+                });
 
-        // Click outside to close
-        document.addEventListener('click', function(e) {
-            if (!document.getElementById('globalSearchContainer').contains(e.target)) {
-                hideSuggestions();
-            }
-        });
+                // Keyboard navigation
+                searchInput.addEventListener('keydown', function (e) {
+                    if (!suggestionsContainer.classList.contains('hidden')) {
+                        const suggestions = document.querySelectorAll('.search-suggestion');
 
-        // Search all footer click
-        searchAllFooter.addEventListener('click', function() {
-            searchForm.submit();
-        });
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
+                            updateSelection();
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            selectedIndex = Math.max(selectedIndex - 1, -1);
+                            updateSelection();
+                        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                            e.preventDefault();
+                            const selected = suggestions[selectedIndex];
+                            if (selected) {
+                                window.location.href = selected.dataset.url;
+                            }
+                        } else if (e.key === 'Escape') {
+                            hideSuggestions();
+                        }
+                    }
+                });
 
-        // Keyboard shortcut: "/" to focus search
-        document.addEventListener('keydown', function(e) {
-            if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
-                e.preventDefault();
-                searchInput.focus();
-                searchInput.select();
-            }
-        });
-    })();
+                // Focus/blur handlers
+                searchInput.addEventListener('focus', function () {
+                    if (this.value.trim().length >= 2 && currentSuggestions.length > 0) {
+                        showSuggestions();
+                    }
+                });
+
+                // Click outside to close
+                document.addEventListener('click', function (e) {
+                    if (!document.getElementById('globalSearchContainer').contains(e.target)) {
+                        hideSuggestions();
+                    }
+                });
+
+                // Search all footer click
+                searchAllFooter.addEventListener('click', function () {
+                    searchForm.submit();
+                });
+
+                // Keyboard shortcut: "/" to focus search
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                        e.preventDefault();
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                });
+            })();
     </script>
     {% endif %}
 
@@ -1429,12 +1532,12 @@
     {% if session.get('user_id') %}
     <script>
         let notificationsOpen = false;
-        
+
         // Toggle notifications dropdown
         function toggleNotifications() {
             const menu = document.getElementById('notifications-menu');
             notificationsOpen = !notificationsOpen;
-            
+
             if (notificationsOpen) {
                 menu.classList.remove('hidden');
                 loadNotifications();
@@ -1442,16 +1545,16 @@
                 menu.classList.add('hidden');
             }
         }
-        
+
         // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             const dropdown = document.getElementById('notifications-dropdown');
             if (!dropdown.contains(event.target) && notificationsOpen) {
                 document.getElementById('notifications-menu').classList.add('hidden');
                 notificationsOpen = false;
             }
         });
-        
+
         // Load notifications
         async function loadNotifications() {
             console.log('[NOTIFICATION DEBUG] loadNotifications called');
@@ -1469,7 +1572,7 @@
                 console.error('[NOTIFICATION DEBUG] Error loading notifications:', error);
             }
         }
-        
+
         // Display notifications in the dropdown
         function displayNotifications(notifications) {
             console.log('[NOTIFICATION DEBUG] displayNotifications called with', notifications.length, 'notifications');
@@ -1477,7 +1580,7 @@
                 console.log('[NOTIFICATION DEBUG] First notification:', notifications[0]);
             }
             const list = document.getElementById('notifications-list');
-            
+
             if (notifications.length === 0) {
                 list.innerHTML = `
                     <div style="padding: 2rem 1rem; text-align: center; color: #6b7280;">
@@ -1489,7 +1592,7 @@
                 `;
                 return;
             }
-            
+
             list.innerHTML = notifications.map(notification => `
                 <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #f3f4f6; cursor: pointer; ${notification.is_read ? 'opacity: 0.6;' : ''}"
                      onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'"
@@ -1505,7 +1608,7 @@
                 </div>
             `).join('');
         }
-        
+
         // Mark notification as read and navigate to ticket
         async function markAsRead(notificationId, referenceType, referenceId) {
             console.log('[NOTIFICATION DEBUG] markAsRead called:', { notificationId, referenceType, referenceId });
@@ -1514,7 +1617,7 @@
                 const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
                 const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
                 console.log('[NOTIFICATION DEBUG] CSRF token present:', !!csrfToken);
-                
+
                 const response = await fetch(`/tickets/notifications/${notificationId}/mark-read`, {
                     method: 'POST',
                     headers: {
@@ -1523,7 +1626,7 @@
                     },
                     credentials: 'same-origin'
                 });
-                
+
                 console.log('[NOTIFICATION DEBUG] Response status:', response.status, response.ok);
                 if (response.ok) {
                     const data = await response.json();
@@ -1549,7 +1652,7 @@
                 console.error('Error marking notification as read:', error);
             }
         }
-        
+
         // Mark all notifications as read
         async function markAllAsRead() {
             console.log('[NOTIFICATION DEBUG] markAllAsRead called');
@@ -1567,7 +1670,7 @@
                     },
                     credentials: 'same-origin'
                 });
-                
+
                 console.log('[NOTIFICATION DEBUG] mark-all Response status:', response.status, response.ok);
                 if (response.ok) {
                     const data = await response.json();
@@ -1587,13 +1690,13 @@
                 console.error('[NOTIFICATION DEBUG] Error marking all notifications as read:', error);
             }
         }
-        
+
         // Update unread count badge
         async function updateUnreadCount() {
             try {
                 const response = await fetch('/tickets/notifications/unread-count');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const badge = document.getElementById('notification-badge');
                     if (data.count > 0) {
@@ -1607,7 +1710,7 @@
                 console.error('Error updating unread count:', error);
             }
         }
-        
+
         // Format date for display
         function formatDate(dateString) {
             const date = new Date(dateString);
@@ -1616,25 +1719,25 @@
             const diffMins = Math.floor(diffMs / 60000);
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
-            
+
             if (diffMins < 1) return 'Just now';
             if (diffMins < 60) return `${diffMins}m ago`;
             if (diffHours < 24) return `${diffHours}h ago`;
             if (diffDays < 7) return `${diffDays}d ago`;
-            
+
             return date.toLocaleDateString();
         }
-        
+
         // Load unread count on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             updateUnreadCount();
-            
+
             // Update unread count every 30 seconds
             setInterval(updateUnreadCount, 30000);
-            
+
             // Check for new notifications every 3 seconds for more responsiveness
             setInterval(checkForNewNotifications, 3000);
-            
+
             // Check immediately if we just posted a comment (for faster feedback)
             if (window.location.search.includes('comment_posted') || window.location.hash === '#comments') {
                 console.log('🚀 Comment was just posted, checking for notifications immediately...');
@@ -1643,40 +1746,40 @@
                 setTimeout(checkForNewNotifications, 2000);
             }
         });
-        
+
         // Track last notification check time
         let lastNotificationCheck = new Date();
-        
+
         // Check for new notifications and show toast
         async function checkForNewNotifications() {
             try {
                 console.log('🔍 Checking for new notifications...');
                 const response = await fetch('/tickets/notifications');
                 const data = await response.json();
-                
+
                 console.log('📨 Notifications response:', data);
-                
+
                 if (data.success && data.notifications.length > 0) {
                     console.log(`📋 Found ${data.notifications.length} total notifications`);
                     console.log('⏰ Last check time:', lastNotificationCheck);
-                    
+
                     // Get all unread notifications that haven't been shown yet
                     const newNotifications = data.notifications.filter(notification => {
                         const notificationTime = new Date(notification.created_at);
                         const isUnread = !notification.is_read;
                         const notShownYet = !window.shownNotifications || !window.shownNotifications.has(notification.id);
-                        
+
                         console.log(`📝 Notification "${notification.title}": unread=${isUnread}, notShownYet=${notShownYet}, time=${notificationTime}`);
                         return isUnread && notShownYet;
                     });
-                    
+
                     console.log(`🆕 Found ${newNotifications.length} new notifications to show`);
-                    
+
                     // Initialize shown notifications tracker if not exists
                     if (!window.shownNotifications) {
                         window.shownNotifications = new Set();
                     }
-                    
+
                     // Show toast for new notifications
                     newNotifications.forEach(notification => {
                         console.log('🍞 Showing toast for:', notification.title);
@@ -1684,7 +1787,7 @@
                         // Mark as shown so we don't show it again
                         window.shownNotifications.add(notification.id);
                     });
-                    
+
                     // Update last check time
                     lastNotificationCheck = new Date();
                 } else {
@@ -1694,7 +1797,7 @@
                 console.error('❌ Error checking for new notifications:', error);
             }
         }
-        
+
         // Show toast notification
         function showToastNotification(notification) {
             console.log('🍞 showToastNotification called for:', notification);
@@ -1704,7 +1807,7 @@
                 return;
             }
             console.log('✅ Toast container found, creating toast...');
-            
+
             // Create toast element
             const toast = document.createElement('div');
             toast.className = 'toast toast-mention';
@@ -1723,28 +1826,28 @@
                     </button>
                 </div>
             `;
-            
+
             // Add click handler to mark as read and navigate
-            toast.addEventListener('click', function(e) {
+            toast.addEventListener('click', function (e) {
                 if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SVG' && e.target.tagName !== 'PATH') {
                     markAsRead(notification.id, notification.reference_type, notification.reference_id);
                 }
             });
-            
+
             // Add to container
             container.appendChild(toast);
-            
+
             // Show toast with animation
             setTimeout(() => {
                 toast.classList.add('show');
             }, 100);
-            
+
             // Auto-hide after 5 seconds (like modern notification systems)
             setTimeout(() => {
                 closeToast(toast.querySelector('.toast-close'));
             }, 5000);
         }
-        
+
         // Close toast notification
         function closeToast(button) {
             const toast = button.closest('.toast');
@@ -1758,20 +1861,20 @@
                 }, 400); // Match the transition duration
             }
         }
-        
+
         // Global function to trigger immediate notification check
-        window.triggerNotificationCheck = function() {
+        window.triggerNotificationCheck = function () {
             checkForNewNotifications();
         };
-        
+
         // Global function to reset notification check time (for testing)
-        window.resetNotificationCheckTime = function() {
+        window.resetNotificationCheckTime = function () {
             lastNotificationCheck = new Date(0); // Reset to epoch time
             console.log('🔄 Notification check time reset to:', lastNotificationCheck);
         };
-        
+
         // Global function to manually show a test toast (for immediate testing)
-        window.showTestToast = function() {
+        window.showTestToast = function () {
             const testNotification = {
                 id: 999,
                 title: 'Test Notification',
@@ -1792,4 +1895,5 @@
 
     {% block scripts %}{% endblock %}
 </body>
-</html> 
+
+</html>
