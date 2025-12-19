@@ -59,12 +59,13 @@ class AssetBarcodeGenerator:
     def generate_asset_label(self, asset):
         """
         Generate a complete asset label with barcode, serial number, asset tag, and company info
+        Content is rotated 90° for reading when label is held sideways
 
         Args:
             asset: Asset object with serial_num, asset_tag, company, etc.
 
         Returns:
-            PIL.Image: Complete label image
+            PIL.Image: Complete label image (portrait orientation with rotated content)
         """
         try:
             # Generate barcode using serial number
@@ -72,9 +73,13 @@ class AssetBarcodeGenerator:
             if not barcode_image:
                 return None
 
-            # Create label canvas
-            label = Image.new('RGB', (self.label_width, self.label_height), 'white')
-            draw = ImageDraw.Draw(label)
+            # Create content on a landscape canvas first (height x width swapped)
+            # This will be rotated to fit the portrait label
+            content_width = self.label_height  # 531px (will become height after rotation)
+            content_height = self.label_width  # 295px (will become width after rotation)
+
+            content = Image.new('RGB', (content_width, content_height), 'white')
+            draw = ImageDraw.Draw(content)
 
             # Try to load fonts, fall back to default if not available
             try:
@@ -88,9 +93,9 @@ class AssetBarcodeGenerator:
                 title_font = None
                 for font_path in font_paths:
                     try:
-                        title_font = ImageFont.truetype(font_path, 18)
-                        text_font = ImageFont.truetype(font_path, 14)
-                        label_font = ImageFont.truetype(font_path, 12)
+                        title_font = ImageFont.truetype(font_path, 20)
+                        text_font = ImageFont.truetype(font_path, 16)
+                        label_font = ImageFont.truetype(font_path, 14)
                         break
                     except:
                         continue
@@ -103,8 +108,8 @@ class AssetBarcodeGenerator:
                 text_font = ImageFont.load_default()
                 label_font = ImageFont.load_default()
 
-            # Calculate positions
-            y_offset = 12
+            # Calculate positions - content is now wider (531px) and shorter (295px)
+            y_offset = 15
 
             # Add company name at the top
             company_name = "Unknown Company"
@@ -113,61 +118,62 @@ class AssetBarcodeGenerator:
             elif hasattr(asset, 'customer') and asset.customer:
                 company_name = asset.customer
 
-            # Truncate company name if too long for label width
-            max_chars = 25  # Approximate max chars for 295px width
+            # Truncate company name if too long
+            max_chars = 40  # More chars available in landscape
             if len(company_name) > max_chars:
                 company_name = company_name[:max_chars-3] + "..."
 
             # Draw company name (centered)
             company_bbox = draw.textbbox((0, 0), company_name, font=title_font)
             company_width = company_bbox[2] - company_bbox[0]
-            draw.text(((self.label_width - company_width) // 2, y_offset),
+            draw.text(((content_width - company_width) // 2, y_offset),
                      company_name, fill='black', font=title_font)
-            y_offset += 28
+            y_offset += 32
 
             # Draw a thin separator line
-            draw.line([(20, y_offset), (self.label_width - 20, y_offset)], fill='gray', width=1)
-            y_offset += 10
+            draw.line([(30, y_offset), (content_width - 30, y_offset)], fill='gray', width=1)
+            y_offset += 12
 
             # Add Asset Tag (if exists)
             if asset.asset_tag:
                 asset_tag_text = f"Asset Tag: {asset.asset_tag}"
                 tag_bbox = draw.textbbox((0, 0), asset_tag_text, font=text_font)
                 tag_width = tag_bbox[2] - tag_bbox[0]
-                draw.text(((self.label_width - tag_width) // 2, y_offset),
+                draw.text(((content_width - tag_width) // 2, y_offset),
                          asset_tag_text, fill='black', font=text_font)
-                y_offset += 22
+                y_offset += 26
 
             # Add Serial Number text
             serial_text = f"S/N: {asset.serial_num}"
             serial_bbox = draw.textbbox((0, 0), serial_text, font=text_font)
             serial_width = serial_bbox[2] - serial_bbox[0]
-            draw.text(((self.label_width - serial_width) // 2, y_offset),
+            draw.text(((content_width - serial_width) // 2, y_offset),
                      serial_text, fill='black', font=text_font)
-            y_offset += 25
+            y_offset += 28
 
-            # Add barcode (fit within label width with padding)
-            barcode_width = self.label_width - 30  # 15px padding on each side
-            barcode_height = 60
+            # Add barcode (wider now since content is landscape)
+            barcode_width = min(content_width - 60, 450)  # Max 450px wide
+            barcode_height = 70
             barcode_resized = barcode_image.resize((barcode_width, barcode_height))
-            barcode_x = (self.label_width - barcode_width) // 2
-            label.paste(barcode_resized, (barcode_x, y_offset))
-            y_offset += barcode_height + 10
+            barcode_x = (content_width - barcode_width) // 2
+            content.paste(barcode_resized, (barcode_x, y_offset))
+            y_offset += barcode_height + 12
 
             # Add product name at bottom if space allows
-            if hasattr(asset, 'name') and asset.name and y_offset < self.label_height - 25:
-                product_name = asset.name[:28] + "..." if len(asset.name) > 28 else asset.name
+            if hasattr(asset, 'name') and asset.name and y_offset < content_height - 25:
+                product_name = asset.name[:45] + "..." if len(asset.name) > 45 else asset.name
                 name_bbox = draw.textbbox((0, 0), product_name, font=label_font)
                 name_width = name_bbox[2] - name_bbox[0]
-                draw.text(((self.label_width - name_width) // 2, y_offset),
+                draw.text(((content_width - name_width) // 2, y_offset),
                          product_name, fill='gray', font=label_font)
 
             # Add border
-            draw.rectangle([0, 0, self.label_width-1, self.label_height-1],
+            draw.rectangle([0, 0, content_width-1, content_height-1],
                           outline='black', width=2)
 
-            # Rotate label 90 degrees clockwise for landscape printing
-            label = label.rotate(-90, expand=True)
+            # Rotate content 90 degrees counter-clockwise to fit portrait label
+            # This makes text readable when label is rotated 90° clockwise
+            label = content.rotate(90, expand=True)
 
             return label
 
