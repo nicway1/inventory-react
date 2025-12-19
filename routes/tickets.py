@@ -9352,7 +9352,8 @@ def get_ticket_items(ticket_id):
                 # 1. Direct FK via ticket.asset_id
                 # 2. Many-to-many via ticket_assets table
                 result = db_session.execute(text("""
-                    SELECT DISTINCT a.id, a.asset_tag, a.serial_num, a.model, a.name
+                    SELECT DISTINCT a.id, a.asset_tag, a.serial_num, a.model, a.name,
+                           a.hardware_type, a.manufacturer
                     FROM assets a
                     WHERE a.id IN (
                         -- Direct FK on ticket
@@ -9364,26 +9365,40 @@ def get_ticket_items(ticket_id):
                 """), {'ticket_id': ticket_id})
 
                 for row in result:
-                    asset_id, asset_tag, serial_num, model, name = row
-                    # Build display name with available info
-                    if asset_tag and model:
-                        display_name = f"{asset_tag} - {model}"
-                    elif asset_tag:
-                        display_name = f"{asset_tag}"
-                    elif serial_num and model:
-                        display_name = f"{serial_num} - {model}"
+                    asset_id, asset_tag, serial_num, model, name, hardware_type, manufacturer = row
+                    # Build display name with available info - prioritize hardware_type and asset_tag
+                    display_parts = []
+
+                    # Primary identifier
+                    if asset_tag:
+                        display_parts.append(asset_tag)
                     elif serial_num:
-                        display_name = f"{serial_num}"
+                        display_parts.append(serial_num)
+
+                    # Description - prefer hardware_type, then model, then name
+                    if hardware_type:
+                        display_parts.append(hardware_type)
+                    elif model:
+                        display_parts.append(model)
                     elif name:
-                        display_name = f"{name}"
+                        display_parts.append(name)
+
+                    # Add manufacturer if we have it and nothing else
+                    if manufacturer and len(display_parts) < 2:
+                        display_parts.append(manufacturer)
+
+                    if display_parts:
+                        display_name = " - ".join(display_parts)
                     else:
                         display_name = f"Asset ID: {asset_id}"
+
                     items.append({
                         'id': asset_id,
                         'display_name': display_name,
                         'asset_tag': asset_tag or '',
                         'serial_num': serial_num or '',
-                        'model': model or ''
+                        'model': model or '',
+                        'hardware_type': hardware_type or ''
                     })
             
             elif item_type == 'accessory':

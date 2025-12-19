@@ -1,13 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from utils.shipment_store import ShipmentStore
 from utils.shipment_tracker import ShipmentTracker
-from utils.ship24_tracker import Ship24Tracker
-from utils.singpost_ezy2ship import get_ezy2ship_client
+from utils.singpost_tracking import get_singpost_tracking_client
 from utils.auth_decorators import login_required, admin_required
 from models.tracking_history import TrackingHistory
 from database import SessionLocal
 from datetime import datetime, timedelta
-import asyncio
 import json
 import logging
 
@@ -19,21 +17,10 @@ shipments_bp = Blueprint('shipments', __name__, url_prefix='/shipments')
 shipment_store = ShipmentStore()
 shipment_tracker = ShipmentTracker()
 
-# Initialize Ship24Tracker for SingPost API (uses production endpoint)
-ship24_tracker = Ship24Tracker(use_singpost_uat=False)
-
-# Initialize Ezy2ship client for fetching account shipments
-ezy2ship_client = get_ezy2ship_client()
+# Initialize SingPost Tracking API client
+singpost_client = get_singpost_tracking_client()
 
 
-def run_async(coro):
-    """Helper to run async functions in sync context"""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
 
 
 @shipments_bp.route('/')
@@ -99,61 +86,43 @@ def track_shipment(shipment_id):
 @shipments_bp.route('/history')
 @login_required
 def shipment_history():
-    """Display the shipment history page with all Ezy2ship account shipments"""
-    # Get date filter parameters
-    date_from = request.args.get('date_from', '')
-    date_to = request.args.get('date_to', '')
+    """Display the shipment history page - search tracking via SingPost API"""
+    # Check SingPost Tracking API configuration status
+    credentials_status = singpost_client.get_credentials_status()
 
-    # Default: last 30 days if no dates specified
-    if not date_to:
-        date_to = datetime.now().strftime('%Y-%m-%d')
-    if not date_from:
-        date_from = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-
-    # Check Ezy2ship API configuration status
-    credentials_status = ezy2ship_client.get_credentials_status()
-
+    # Get recent tracked shipments from local cache
+    db = SessionLocal()
     shipments_list = []
-    manifests_list = []
     error = None
 
-    if credentials_status['is_configured']:
-        try:
-            # Get manifests for the date range
-            manifests_list = ezy2ship_client.get_manifests(date_from, date_to)
+    try:
+        # Get recently tracked shipments from cache
+        recent_shipments = db.query(TrackingHistory).order_by(
+            TrackingHistory.last_updated.desc()
+        ).limit(50).all()
 
-            # Get all shipments from manifests
-            shipments_list = ezy2ship_client.get_all_shipments(date_from, date_to, limit=200)
+        for shipment in recent_shipments:
+            shipments_list.append({
+                'tracking_number': shipment.tracking_number,
+                'carrier': shipment.carrier or 'SingPost',
+                'status': shipment.status or 'Unknown',
+                'last_updated': shipment.last_updated,
+                'events_count': len(shipment.events) if shipment.events else 0
+            })
 
-        except Exception as e:
-            logger.error(f"Error loading shipment history from Ezy2ship: {str(e)}")
-            error = str(e)
-    else:
-        # Show which credentials are missing
-        missing = []
-        if not credentials_status['customer_id']:
-            missing.append('Customer ID')
-        if not credentials_status['username']:
-            missing.append('Username')
-        if not credentials_status['password']:
-            missing.append('Password')
-        if not credentials_status['aes_key']:
-            missing.append('AES Key')
-        if not credentials_status['crypto_available']:
-            missing.append('Cryptography library (pip install pycryptodome)')
-        if not credentials_status['zeep_available']:
-            missing.append('SOAP library (pip install zeep)')
+    except Exception as e:
+        logger.error(f"Error loading shipment history: {str(e)}")
+        error = str(e)
+    finally:
+        db.close()
 
-        if missing:
-            error = f"Ezy2ship API not configured. Missing: {', '.join(missing)}"
+    if not credentials_status['is_configured']:
+        error = "SingPost Tracking API not configured. Missing API Key."
 
     return render_template(
         'shipments/history.html',
         shipments_list=shipments_list,
-        manifests_list=manifests_list,
         credentials_status=credentials_status,
-        date_from=date_from,
-        date_to=date_to,
         error=error
     )
 
@@ -161,12 +130,15 @@ def shipment_history():
 @shipments_bp.route('/history/search', methods=['GET', 'POST'])
 @login_required
 def search_shipment_history():
-    """Search for shipment tracking history using SingPost API"""
+    """Search for shipment tracking history using SingPost Tracking API"""
     tracking_number = request.form.get('tracking_number') or request.args.get('tracking_number', '').strip()
 
     if not tracking_number:
         flash('Please enter a tracking number', 'warning')
         return redirect(url_for('shipments.shipment_history'))
+
+    # Check API configuration
+    credentials_status = singpost_client.get_credentials_status()
 
     # Check cache first
     db = SessionLocal()
@@ -189,25 +161,15 @@ def search_shipment_history():
             return render_template(
                 'shipments/history.html',
                 tracking_data=tracking_data,
-                tracking_number=tracking_number
+                tracking_number=tracking_number,
+                credentials_status=credentials_status
             )
 
-        # Fetch fresh data from SingPost API via Ship24Tracker
-        tracking_data = run_async(ship24_tracker.track_parcel(tracking_number))
+        # Fetch fresh data from SingPost Tracking API
+        tracking_data = singpost_client.track_single(tracking_number)
 
         if tracking_data and tracking_data.get('success'):
-            # Transform events to expected format
-            events = []
-            for event in tracking_data.get('events', []):
-                events.append({
-                    'code': '',
-                    'description': event.get('description', ''),
-                    'date': event.get('timestamp', '').split('T')[0] if 'T' in event.get('timestamp', '') else event.get('timestamp', ''),
-                    'time': event.get('timestamp', '').split('T')[1] if 'T' in event.get('timestamp', '') else '',
-                    'location': event.get('location', ''),
-                    'signatory': None
-                })
-            tracking_data['events'] = events
+            events = tracking_data.get('events', [])
 
             # Update or create cache entry
             if cached:
@@ -231,7 +193,8 @@ def search_shipment_history():
         return render_template(
             'shipments/history.html',
             tracking_data=tracking_data,
-            tracking_number=tracking_number
+            tracking_number=tracking_number,
+            credentials_status=credentials_status
         )
 
     except Exception as e:
@@ -241,6 +204,7 @@ def search_shipment_history():
         return render_template(
             'shipments/history.html',
             tracking_number=tracking_number,
+            credentials_status=credentials_status,
             error=str(e)
         )
     finally:
@@ -251,8 +215,10 @@ def search_shipment_history():
 @login_required
 def bulk_shipment_history():
     """Search for multiple shipment tracking numbers at once"""
+    credentials_status = singpost_client.get_credentials_status()
+
     if request.method == 'GET':
-        return render_template('shipments/history_bulk.html')
+        return render_template('shipments/history_bulk.html', credentials_status=credentials_status)
 
     tracking_numbers_raw = request.form.get('tracking_numbers', '')
     # Split by newlines, commas, or spaces
@@ -264,44 +230,48 @@ def bulk_shipment_history():
         return redirect(url_for('shipments.bulk_shipment_history'))
 
     if len(tracking_numbers) > 20:
-        flash('Maximum 20 tracking numbers per search (API limit)', 'warning')
+        flash('Maximum 20 tracking numbers per search', 'warning')
         tracking_numbers = tracking_numbers[:20]
 
     try:
+        # Track all numbers at once using the SingPost Tracking API
+        tracking_results = singpost_client.track(tracking_numbers)
+
         results = []
-        for tracking_num in tracking_numbers:
-            tracking_data = run_async(ship24_tracker.track_parcel(tracking_num))
-
-            if tracking_data:
-                events = []
-                for event in tracking_data.get('events', []):
-                    events.append({
-                        'code': '',
-                        'description': event.get('description', ''),
-                        'date': event.get('timestamp', '').split('T')[0] if 'T' in event.get('timestamp', '') else event.get('timestamp', ''),
-                        'time': event.get('timestamp', '').split('T')[1] if 'T' in event.get('timestamp', '') else '',
-                        'signatory': None
-                    })
-
-                results.append({
-                    'tracking_number': tracking_data.get('tracking_number', tracking_num),
-                    'carrier': tracking_data.get('carrier', 'Unknown'),
-                    'status': tracking_data.get('status', 'Unknown'),
-                    'events': events,
-                    'last_updated': tracking_data.get('last_updated', datetime.utcnow().isoformat()),
-                    'tracking_links': tracking_data.get('tracking_links', {})
+        for result in tracking_results:
+            events = []
+            for event in result.events:
+                events.append({
+                    'code': event.status_code,
+                    'description': event.status_description,
+                    'date': event.date,
+                    'time': event.time,
+                    'reason_code': event.reason_code
                 })
+
+            results.append({
+                'tracking_number': result.tracking_number,
+                'found': result.found,
+                'carrier': 'SingPost',
+                'status': result.events[0].status_description if result.events else 'Unknown',
+                'origin_country': result.origin_country,
+                'destination_country': result.destination_country,
+                'events': events,
+                'last_updated': datetime.utcnow().isoformat(),
+                'error': result.error
+            })
 
         return render_template(
             'shipments/history_bulk.html',
             results=results,
-            tracking_numbers=tracking_numbers
+            tracking_numbers=tracking_numbers,
+            credentials_status=credentials_status
         )
 
     except Exception as e:
         logger.error(f"Error in bulk shipment search: {str(e)}")
         flash(f'Error searching shipments: {str(e)}', 'error')
-        return render_template('shipments/history_bulk.html', error=str(e))
+        return render_template('shipments/history_bulk.html', error=str(e), credentials_status=credentials_status)
 
 
 @shipments_bp.route('/api/history/<tracking_number>')
@@ -309,7 +279,7 @@ def bulk_shipment_history():
 def api_shipment_history(tracking_number):
     """API endpoint for shipment tracking history (returns JSON)"""
     try:
-        tracking_data = run_async(ship24_tracker.track_parcel(tracking_number))
+        tracking_data = singpost_client.track_single(tracking_number)
         return jsonify(tracking_data)
 
     except Exception as e:
@@ -346,11 +316,28 @@ def api_bulk_shipment_history():
         }), 400
 
     try:
+        tracking_results = singpost_client.track(tracking_numbers)
+
         results = []
-        for tracking_num in tracking_numbers:
-            tracking_data = run_async(ship24_tracker.track_parcel(tracking_num))
-            if tracking_data:
-                results.append(tracking_data)
+        for result in tracking_results:
+            results.append({
+                'tracking_number': result.tracking_number,
+                'found': result.found,
+                'carrier': 'SingPost',
+                'status': result.events[0].status_description if result.events else 'Unknown',
+                'origin_country': result.origin_country,
+                'destination_country': result.destination_country,
+                'events': [
+                    {
+                        'code': e.status_code,
+                        'description': e.status_description,
+                        'date': e.date,
+                        'time': e.time,
+                        'reason_code': e.reason_code
+                    } for e in result.events
+                ],
+                'error': result.error
+            })
 
         return jsonify({
             'success': True,
