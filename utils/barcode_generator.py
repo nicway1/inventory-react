@@ -17,8 +17,10 @@ class AssetBarcodeGenerator:
     
     def __init__(self):
         self.barcode_format = 'code128'  # Using Code 128 format for alphanumeric support
-        self.label_width = 400
-        self.label_height = 250  # Increased height for more info
+        # Label size: 5cm x 9cm (portrait orientation)
+        # At ~150 DPI: 5cm = 295px, 9cm = 531px
+        self.label_width = 295
+        self.label_height = 531
     
     def generate_barcode_image(self, serial_number):
         """
@@ -111,6 +113,11 @@ class AssetBarcodeGenerator:
             elif hasattr(asset, 'customer') and asset.customer:
                 company_name = asset.customer
 
+            # Truncate company name if too long for label width
+            max_chars = 25  # Approximate max chars for 295px width
+            if len(company_name) > max_chars:
+                company_name = company_name[:max_chars-3] + "..."
+
             # Draw company name (centered)
             company_bbox = draw.textbbox((0, 0), company_name, font=title_font)
             company_width = company_bbox[2] - company_bbox[0]
@@ -139,15 +146,17 @@ class AssetBarcodeGenerator:
                      serial_text, fill='black', font=text_font)
             y_offset += 25
 
-            # Add barcode (without text since we already show S/N above)
-            barcode_resized = barcode_image.resize((320, 70))
-            barcode_x = (self.label_width - 320) // 2
+            # Add barcode (fit within label width with padding)
+            barcode_width = self.label_width - 30  # 15px padding on each side
+            barcode_height = 60
+            barcode_resized = barcode_image.resize((barcode_width, barcode_height))
+            barcode_x = (self.label_width - barcode_width) // 2
             label.paste(barcode_resized, (barcode_x, y_offset))
-            y_offset += 80
+            y_offset += barcode_height + 10
 
             # Add product name at bottom if space allows
             if hasattr(asset, 'name') and asset.name and y_offset < self.label_height - 25:
-                product_name = asset.name[:40] + "..." if len(asset.name) > 40 else asset.name
+                product_name = asset.name[:28] + "..." if len(asset.name) > 28 else asset.name
                 name_bbox = draw.textbbox((0, 0), product_name, font=label_font)
                 name_width = name_bbox[2] - name_bbox[0]
                 draw.text(((self.label_width - name_width) // 2, y_offset),
