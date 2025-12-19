@@ -930,9 +930,9 @@
     <div class="liquid-glass-bg"></div>
     {% endif %}
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg border-b border-gray-200">
+    <nav class="bg-white shadow-lg border-b border-gray-200 overflow-visible">
         <div class="{% if session.get('layout_mode') == 'centered' %}max-w-7xl mx-auto px-4{% else %}w-full px-8{% endif %}">
-            <div class="flex items-center gap-6 h-20 w-full">
+            <div class="flex items-center gap-6 h-20 w-full overflow-visible">
                 <!-- Left side: Logo and primary navigation -->
                 <div class="flex items-center gap-4 flex-wrap min-w-fit">
                     <!-- Logo and Name -->
@@ -1057,12 +1057,12 @@
                         <div id="suggestionsContent"></div>
                         <!-- Search All Footer -->
                         <div id="searchAllFooter" class="hidden border-t border-gray-100 px-4 py-3 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-blue-50 hover:to-purple-50 cursor-pointer transition-all duration-200">
-                            <div class="flex items-center text-sm text-gray-700">
-                                <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="flex items-center text-sm text-gray-700 min-w-0 gap-2">
+                                <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                 </svg>
-                                <span>View all results for <strong id="searchTermDisplay" class="text-blue-600"></strong></span>
-                                <kbd class="ml-auto px-2 py-0.5 text-xs font-semibold bg-white border border-gray-200 rounded shadow-sm">Enter</kbd>
+                                <span class="flex-1 truncate">View all results for <strong id="searchTermDisplay" class="text-blue-600"></strong></span>
+                                <kbd class="flex-shrink-0 px-2 py-0.5 text-xs font-semibold bg-white border border-gray-200 rounded shadow-sm">Enter</kbd>
                             </div>
                         </div>
                     </div>
