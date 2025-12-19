@@ -18,6 +18,7 @@ import logging
 from models.user import User, UserType
 from models.ticket import Ticket, TicketStatus, TicketPriority, TicketCategory
 from models.asset import Asset, AssetStatus
+from models.accessory import Accessory
 from models.queue import Queue
 from utils.db_manager import DatabaseManager
 from utils.auth_decorators import login_required
@@ -2465,6 +2466,541 @@ def delete_asset_image(asset_id):
 
     except Exception as e:
         logger.error(f"Error deleting asset image: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to delete image'
+        }), 500
+
+
+# ============================================================
+# ACCESSORY MANAGEMENT ENDPOINTS
+# ============================================================
+
+@mobile_api_bp.route('/accessories', methods=['GET'])
+@mobile_auth_required
+def get_accessories():
+    """
+    Get accessories list with optional filters
+
+    GET /api/mobile/v1/accessories?page=1&limit=20&search=cable&category=Cable&country=Singapore
+    Headers: Authorization: Bearer <token>
+
+    Query Parameters:
+        page (int): Page number (default: 1)
+        limit (int): Items per page (default: 20, max: 100)
+        search (str): Text search across name, model_no, manufacturer
+        category (str): Filter by category
+        country (str): Filter by country
+        status (str): Filter by status (Available, Checked Out, etc.)
+
+    Response: {
+        "success": true,
+        "accessories": [...],
+        "pagination": {
+            "page": 1,
+            "limit": 20,
+            "total": 100,
+            "pages": 5
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+
+        # Get parameters
+        page = request.args.get('page', 1, type=int)
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        search = request.args.get('search', None)
+        category_filter = request.args.get('category', None)
+        country_filter = request.args.get('country', None)
+        status_filter = request.args.get('status', None)
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(Accessory)
+
+            # Apply search filter
+            if search:
+                search_term = f"%{search}%"
+                query = query.filter(
+                    (Accessory.name.ilike(search_term)) |
+                    (Accessory.model_no.ilike(search_term)) |
+                    (Accessory.manufacturer.ilike(search_term))
+                )
+
+            # Apply category filter
+            if category_filter:
+                query = query.filter(Accessory.category.ilike(f"%{category_filter}%"))
+
+            # Apply country filter
+            if country_filter:
+                query = query.filter(Accessory.country == country_filter)
+
+            # Apply status filter
+            if status_filter:
+                query = query.filter(Accessory.status.ilike(f"%{status_filter}%"))
+
+            # Get total count
+            total = query.count()
+
+            # Apply pagination
+            offset = (page - 1) * limit
+            accessories = query.order_by(Accessory.created_at.desc()).offset(offset).limit(limit).all()
+
+            # Format accessories for mobile
+            accessory_list = []
+            for accessory in accessories:
+                accessory_data = {
+                    'id': accessory.id,
+                    'name': accessory.name,
+                    'category': accessory.category,
+                    'manufacturer': accessory.manufacturer,
+                    'model_no': accessory.model_no,
+                    'total_quantity': accessory.total_quantity,
+                    'available_quantity': accessory.available_quantity,
+                    'country': accessory.country,
+                    'status': accessory.status,
+                    'notes': accessory.notes,
+                    'image_url': accessory.image_url,
+                    'company': {
+                        'id': accessory.company.id,
+                        'name': accessory.company.name
+                    } if accessory.company else None,
+                    'created_at': accessory.created_at.isoformat() if accessory.created_at else None,
+                    'updated_at': accessory.updated_at.isoformat() if accessory.updated_at else None
+                }
+                accessory_list.append(accessory_data)
+
+            pages = (total + limit - 1) // limit
+
+            return jsonify({
+                'success': True,
+                'accessories': accessory_list,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total,
+                    'pages': pages
+                }
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get accessories error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get accessories'
+        }), 500
+
+
+@mobile_api_bp.route('/accessories/<int:accessory_id>', methods=['GET'])
+@mobile_auth_required
+def get_accessory_detail(accessory_id):
+    """
+    Get detailed accessory information
+
+    GET /api/mobile/v1/accessories/<accessory_id>
+    Headers: Authorization: Bearer <token>
+
+    Response: {
+        "success": true,
+        "accessory": {
+            "id": 123,
+            "name": "USB-C Cable",
+            "category": "Cable",
+            "manufacturer": "Apple",
+            "model_no": "MLL82AM/A",
+            "total_quantity": 50,
+            "available_quantity": 35,
+            "country": "Singapore",
+            "status": "Available",
+            "notes": "2m length",
+            "image_url": "/static/uploads/accessories/acc_123.jpg",
+            ...
+        }
+    }
+    """
+    try:
+        db_session = db_manager.get_session()
+        try:
+            accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+
+            if not accessory:
+                return jsonify({
+                    'success': False,
+                    'error': 'Accessory not found'
+                }), 404
+
+            accessory_data = {
+                'id': accessory.id,
+                'name': accessory.name,
+                'category': accessory.category,
+                'manufacturer': accessory.manufacturer,
+                'model_no': accessory.model_no,
+                'total_quantity': accessory.total_quantity,
+                'available_quantity': accessory.available_quantity,
+                'country': accessory.country,
+                'status': accessory.status,
+                'notes': accessory.notes,
+                'image_url': accessory.image_url,
+                'customer_id': accessory.customer_id,
+                'company': {
+                    'id': accessory.company.id,
+                    'name': accessory.company.name
+                } if accessory.company else None,
+                'checkout_date': accessory.checkout_date.isoformat() if accessory.checkout_date else None,
+                'return_date': accessory.return_date.isoformat() if accessory.return_date else None,
+                'created_at': accessory.created_at.isoformat() if accessory.created_at else None,
+                'updated_at': accessory.updated_at.isoformat() if accessory.updated_at else None
+            }
+
+            return jsonify({
+                'success': True,
+                'accessory': accessory_data
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get accessory detail error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get accessory detail'
+        }), 500
+
+
+@mobile_api_bp.route('/accessories/search', methods=['GET'])
+@mobile_auth_required
+def search_accessories():
+    """
+    Search for accessories by name, model number, or manufacturer
+
+    GET /api/mobile/v1/accessories/search?q=USB&limit=20
+    Headers: Authorization: Bearer <token>
+
+    Query Parameters:
+        q (str): Search query
+        limit (int): Max results (default: 20)
+
+    Response: {
+        "success": true,
+        "accessories": [...]
+    }
+    """
+    try:
+        search_query = request.args.get('q', '').strip()
+        limit = min(request.args.get('limit', 20, type=int), 50)
+
+        if not search_query:
+            return jsonify({
+                'success': False,
+                'error': 'Search query (q) is required'
+            }), 400
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(Accessory).filter(
+                (Accessory.name.ilike(f'%{search_query}%')) |
+                (Accessory.model_no.ilike(f'%{search_query}%')) |
+                (Accessory.manufacturer.ilike(f'%{search_query}%'))
+            )
+
+            accessories = query.limit(limit).all()
+
+            accessories_list = []
+            for accessory in accessories:
+                accessories_list.append({
+                    'id': accessory.id,
+                    'name': accessory.name,
+                    'category': accessory.category,
+                    'manufacturer': accessory.manufacturer,
+                    'model_no': accessory.model_no,
+                    'available_quantity': accessory.available_quantity,
+                    'status': accessory.status,
+                    'image_url': accessory.image_url
+                })
+
+            return jsonify({
+                'success': True,
+                'accessories': accessories_list
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Search accessories error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to search accessories'
+        }), 500
+
+
+# ============= Accessory Image Upload =============
+
+@mobile_api_bp.route('/accessories/<int:accessory_id>/image', methods=['POST'])
+@mobile_auth_required
+def upload_accessory_image(accessory_id):
+    """
+    Upload an image for an accessory
+
+    POST /api/mobile/v1/accessories/<accessory_id>/image
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "image": "base64_encoded_image_data",
+        "content_type": "image/jpeg"  // or "image/png"
+    }
+
+    OR multipart/form-data with 'image' file field
+
+    Returns:
+        {
+            "success": true,
+            "image_url": "/static/uploads/accessories/accessory_123_timestamp.jpg",
+            "message": "Image uploaded successfully"
+        }
+    """
+    try:
+        import os
+        import base64
+        import uuid
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+
+            if not accessory:
+                return jsonify({
+                    'success': False,
+                    'error': 'Accessory not found'
+                }), 404
+
+            # Determine upload directory
+            from flask import current_app
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'accessories')
+            os.makedirs(upload_folder, exist_ok=True)
+
+            image_data = None
+            content_type = 'image/jpeg'
+            filename_ext = 'jpg'
+
+            # Check if it's a multipart form upload
+            if request.files and 'image' in request.files:
+                file = request.files['image']
+                if file.filename:
+                    image_data = file.read()
+                    content_type = file.content_type or 'image/jpeg'
+                    if 'png' in content_type.lower():
+                        filename_ext = 'png'
+                    elif 'gif' in content_type.lower():
+                        filename_ext = 'gif'
+            else:
+                # JSON body with base64 image
+                data = request.get_json()
+                if data and data.get('image'):
+                    image_str = data['image']
+                    if image_str.startswith('data:'):
+                        header, image_str = image_str.split(',', 1)
+                        if 'png' in header.lower():
+                            content_type = 'image/png'
+                            filename_ext = 'png'
+                        elif 'gif' in header.lower():
+                            content_type = 'image/gif'
+                            filename_ext = 'gif'
+
+                    try:
+                        image_data = base64.b64decode(image_str)
+                    except Exception:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Invalid base64 image data'
+                        }), 400
+
+                    if data.get('content_type'):
+                        content_type = data['content_type']
+                        if 'png' in content_type.lower():
+                            filename_ext = 'png'
+                        elif 'gif' in content_type.lower():
+                            filename_ext = 'gif'
+
+            if not image_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'No image data provided'
+                }), 400
+
+            # Validate image size (max 10MB)
+            if len(image_data) > 10 * 1024 * 1024:
+                return jsonify({
+                    'success': False,
+                    'error': 'Image too large (max 10MB)'
+                }), 400
+
+            # Generate unique filename
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"accessory_{accessory_id}_{timestamp}_{unique_id}.{filename_ext}"
+            filepath = os.path.join(upload_folder, filename)
+
+            # Delete old image if exists
+            if accessory.image_url:
+                old_path = os.path.join(current_app.root_path, accessory.image_url.lstrip('/'))
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except Exception:
+                        pass
+
+            # Save new image
+            with open(filepath, 'wb') as f:
+                f.write(image_data)
+
+            # Update accessory with image URL
+            image_url = f"/static/uploads/accessories/{filename}"
+            accessory.image_url = image_url
+            accessory.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            logger.info(f"User {user.username} uploaded image for accessory {accessory_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Image uploaded successfully',
+                'image_url': image_url,
+                'accessory_id': accessory_id
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error uploading accessory image: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to upload image'
+        }), 500
+
+
+@mobile_api_bp.route('/accessories/<int:accessory_id>/image', methods=['GET'])
+@mobile_auth_required
+def get_accessory_image(accessory_id):
+    """
+    Get accessory image URL
+
+    GET /api/mobile/v1/accessories/<accessory_id>/image
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        {
+            "success": true,
+            "image_url": "/static/uploads/accessories/accessory_123.jpg",
+            "has_image": true
+        }
+    """
+    try:
+        db_session = db_manager.get_session()
+        try:
+            accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+
+            if not accessory:
+                return jsonify({
+                    'success': False,
+                    'error': 'Accessory not found'
+                }), 404
+
+            return jsonify({
+                'success': True,
+                'image_url': accessory.image_url,
+                'has_image': bool(accessory.image_url),
+                'accessory_id': accessory_id
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting accessory image: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get image'
+        }), 500
+
+
+@mobile_api_bp.route('/accessories/<int:accessory_id>/image', methods=['DELETE'])
+@mobile_auth_required
+def delete_accessory_image(accessory_id):
+    """
+    Delete accessory image
+
+    DELETE /api/mobile/v1/accessories/<accessory_id>/image
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        {
+            "success": true,
+            "message": "Image deleted successfully"
+        }
+    """
+    try:
+        import os
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+
+            if not accessory:
+                return jsonify({
+                    'success': False,
+                    'error': 'Accessory not found'
+                }), 404
+
+            if not accessory.image_url:
+                return jsonify({
+                    'success': False,
+                    'error': 'Accessory has no image'
+                }), 400
+
+            # Delete file from disk
+            from flask import current_app
+            filepath = os.path.join(current_app.root_path, accessory.image_url.lstrip('/'))
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+
+            # Clear image URL in database
+            accessory.image_url = None
+            accessory.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            logger.info(f"User {user.username} deleted image for accessory {accessory_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Image deleted successfully'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error deleting accessory image: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Failed to delete image'
