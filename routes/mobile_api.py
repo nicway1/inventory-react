@@ -452,7 +452,8 @@ def get_ticket_detail(ticket_id):
                     'asset_tag': asset.asset_tag,
                     'model': asset.model,
                     'manufacturer': asset.manufacturer,
-                    'status': asset.status.value if asset.status else None
+                    'status': asset.status.value if asset.status else None,
+                    'image_url': asset.image_url
                 } for asset in ticket.assets] if ticket.assets else [],
 
                 # Case Progress - determine based on ticket state
@@ -661,6 +662,7 @@ def get_inventory():
                     'manufacturer': asset.manufacturer,
                     'location': asset.location,
                     'country': asset.country,
+                    'image_url': asset.image_url,
                     'assigned_to': {
                         'id': asset.assigned_to.id,
                         'name': f"{asset.assigned_to.first_name} {asset.assigned_to.last_name}",
@@ -975,6 +977,43 @@ def add_tech_asset():
             db_session.add(new_asset)
             db_session.commit()
 
+            # Handle image upload if provided
+            image_url = None
+            if data.get('image'):
+                import os
+                import base64
+                import uuid
+                from flask import current_app
+
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'assets')
+                os.makedirs(upload_folder, exist_ok=True)
+
+                image_str = data['image']
+                filename_ext = 'jpg'
+
+                # Handle data URL format
+                if image_str.startswith('data:'):
+                    header, image_str = image_str.split(',', 1)
+                    if 'png' in header.lower():
+                        filename_ext = 'png'
+
+                try:
+                    image_data = base64.b64decode(image_str)
+                    if len(image_data) <= 10 * 1024 * 1024:  # Max 10MB
+                        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                        unique_id = str(uuid.uuid4())[:8]
+                        filename = f"asset_{new_asset.id}_{timestamp}_{unique_id}.{filename_ext}"
+                        filepath = os.path.join(upload_folder, filename)
+
+                        with open(filepath, 'wb') as f:
+                            f.write(image_data)
+
+                        image_url = f"/static/uploads/assets/{filename}"
+                        new_asset.image_url = image_url
+                        db_session.commit()
+                except Exception as img_err:
+                    logger.warning(f"Failed to save asset image: {str(img_err)}")
+
             # Return created asset with all fields
             return jsonify({
                 'success': True,
@@ -1005,6 +1044,7 @@ def add_tech_asset():
                     'has_charger': new_asset.charger,
                     'receiving_date': new_asset.receiving_date.isoformat() if new_asset.receiving_date else None,
                     'po': new_asset.po,
+                    'image_url': new_asset.image_url,
                     'created_at': new_asset.created_at.isoformat() if new_asset.created_at else None
                 }
             }), 201
@@ -1543,7 +1583,8 @@ def get_ticket_assets(ticket_id):
                     'serial_number': asset.serial_num,
                     'name': asset.name,
                     'model': asset.model,
-                    'status': asset.status.value if asset.status else 'UNKNOWN'
+                    'status': asset.status.value if asset.status else 'UNKNOWN',
+                    'image_url': asset.image_url
                 })
 
             # Build outbound tracking object with events
@@ -1745,7 +1786,8 @@ def search_assets():
                     'serial_number': asset.serial_num,
                     'name': asset.name,
                     'model': asset.model,
-                    'status': asset.status.value if asset.status else 'UNKNOWN'
+                    'status': asset.status.value if asset.status else 'UNKNOWN',
+                    'image_url': asset.image_url
                 })
 
             return jsonify({
@@ -2156,4 +2198,274 @@ def get_asset_label(asset_id):
         return jsonify({
             'success': False,
             'error': 'Failed to generate label'
+        }), 500
+
+
+# ============= Asset Image Upload =============
+
+@mobile_api_bp.route('/assets/<int:asset_id>/image', methods=['POST'])
+@mobile_auth_required
+def upload_asset_image(asset_id):
+    """
+    Upload an image for an asset
+
+    POST /api/mobile/v1/assets/<asset_id>/image
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "image": "base64_encoded_image_data",
+        "content_type": "image/jpeg"  // or "image/png"
+    }
+
+    OR multipart/form-data with 'image' file field
+
+    Returns:
+        {
+            "success": true,
+            "image_url": "/static/uploads/assets/asset_123_timestamp.jpg",
+            "message": "Image uploaded successfully"
+        }
+    """
+    try:
+        import os
+        import base64
+        import uuid
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+
+            if not asset:
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset not found'
+                }), 404
+
+            # Determine upload directory
+            from flask import current_app
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'assets')
+            os.makedirs(upload_folder, exist_ok=True)
+
+            image_data = None
+            content_type = 'image/jpeg'
+            filename_ext = 'jpg'
+
+            # Check if it's a multipart form upload
+            if request.files and 'image' in request.files:
+                file = request.files['image']
+                if file.filename:
+                    image_data = file.read()
+                    content_type = file.content_type or 'image/jpeg'
+                    if 'png' in content_type.lower():
+                        filename_ext = 'png'
+                    elif 'gif' in content_type.lower():
+                        filename_ext = 'gif'
+            else:
+                # JSON body with base64 image
+                data = request.get_json()
+                if data and data.get('image'):
+                    # Handle data URL format (data:image/jpeg;base64,...)
+                    image_str = data['image']
+                    if image_str.startswith('data:'):
+                        # Extract content type and base64 data
+                        header, image_str = image_str.split(',', 1)
+                        if 'png' in header.lower():
+                            content_type = 'image/png'
+                            filename_ext = 'png'
+                        elif 'gif' in header.lower():
+                            content_type = 'image/gif'
+                            filename_ext = 'gif'
+
+                    try:
+                        image_data = base64.b64decode(image_str)
+                    except Exception as e:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Invalid base64 image data'
+                        }), 400
+
+                    if data.get('content_type'):
+                        content_type = data['content_type']
+                        if 'png' in content_type.lower():
+                            filename_ext = 'png'
+                        elif 'gif' in content_type.lower():
+                            filename_ext = 'gif'
+
+            if not image_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'No image data provided'
+                }), 400
+
+            # Validate image size (max 10MB)
+            if len(image_data) > 10 * 1024 * 1024:
+                return jsonify({
+                    'success': False,
+                    'error': 'Image too large (max 10MB)'
+                }), 400
+
+            # Generate unique filename
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"asset_{asset_id}_{timestamp}_{unique_id}.{filename_ext}"
+            filepath = os.path.join(upload_folder, filename)
+
+            # Delete old image if exists
+            if asset.image_url:
+                old_path = os.path.join(current_app.root_path, asset.image_url.lstrip('/'))
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except Exception:
+                        pass
+
+            # Save new image
+            with open(filepath, 'wb') as f:
+                f.write(image_data)
+
+            # Update asset with image URL
+            image_url = f"/static/uploads/assets/{filename}"
+            asset.image_url = image_url
+            asset.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            logger.info(f"User {user.username} uploaded image for asset {asset_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Image uploaded successfully',
+                'image_url': image_url,
+                'asset_id': asset_id
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error uploading asset image: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to upload image'
+        }), 500
+
+
+@mobile_api_bp.route('/assets/<int:asset_id>/image', methods=['GET'])
+@mobile_auth_required
+def get_asset_image(asset_id):
+    """
+    Get asset image URL
+
+    GET /api/mobile/v1/assets/<asset_id>/image
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        {
+            "success": true,
+            "image_url": "/static/uploads/assets/asset_123.jpg",
+            "has_image": true
+        }
+    """
+    try:
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+
+            if not asset:
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset not found'
+                }), 404
+
+            return jsonify({
+                'success': True,
+                'image_url': asset.image_url,
+                'has_image': bool(asset.image_url),
+                'asset_id': asset_id
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting asset image: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get image'
+        }), 500
+
+
+@mobile_api_bp.route('/assets/<int:asset_id>/image', methods=['DELETE'])
+@mobile_auth_required
+def delete_asset_image(asset_id):
+    """
+    Delete asset image
+
+    DELETE /api/mobile/v1/assets/<asset_id>/image
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        {
+            "success": true,
+            "message": "Image deleted successfully"
+        }
+    """
+    try:
+        import os
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+
+            if not asset:
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset not found'
+                }), 404
+
+            if not asset.image_url:
+                return jsonify({
+                    'success': False,
+                    'error': 'Asset has no image'
+                }), 400
+
+            # Delete file from disk
+            from flask import current_app
+            filepath = os.path.join(current_app.root_path, asset.image_url.lstrip('/'))
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+
+            # Clear image URL in database
+            asset.image_url = None
+            asset.updated_at = datetime.utcnow()
+            db_session.commit()
+
+            logger.info(f"User {user.username} deleted image for asset {asset_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Image deleted successfully'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error deleting asset image: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to delete image'
         }), 500
