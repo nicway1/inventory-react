@@ -19,10 +19,49 @@ from models.asset import Asset, AssetStatus
 from models.accessory import Accessory
 from utils.db_manager import DatabaseManager
 from routes.mobile_api import mobile_auth_required, verify_mobile_token, get_asset_image_url, get_full_image_url
+from flask import request
 from functools import wraps
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+
+# Helper function to get accessory image URL with fallback
+def get_accessory_image_url(accessory):
+    """Get accessory image URL with fallback to default category images"""
+    base_url = request.host_url.rstrip('/')
+
+    # If accessory has a custom image, use it
+    if accessory.image_url:
+        return f"{base_url}{accessory.image_url}"
+
+    # Auto-detect image based on category
+    category_lower = (getattr(accessory, 'category', '') or '').lower()
+    name_lower = (accessory.name or '').lower()
+
+    default_image = None
+
+    if 'keyboard' in category_lower or 'keyboard' in name_lower:
+        default_image = '/static/images/products/accessories/keyboard.png'
+    elif 'mouse' in category_lower or 'mouse' in name_lower:
+        default_image = '/static/images/products/accessories/mouse.png'
+    elif 'monitor' in category_lower or 'display' in name_lower:
+        default_image = '/static/images/products/accessories/monitor.png'
+    elif 'dock' in category_lower or 'docking' in name_lower:
+        default_image = '/static/images/products/accessories/docking_station.png'
+    elif 'headset' in category_lower or 'headphone' in category_lower or 'headset' in name_lower or 'headphone' in name_lower:
+        default_image = '/static/images/products/accessories/headset.png'
+    elif 'cable' in category_lower or 'cable' in name_lower:
+        default_image = '/static/images/products/accessories/cable.png'
+    elif 'charger' in category_lower or 'power' in category_lower or 'adapter' in category_lower or 'charger' in name_lower:
+        default_image = '/static/images/products/accessories/charger.png'
+    else:
+        default_image = '/static/images/products/accessories/accessory_generic.png'
+
+    if default_image:
+        return f"{base_url}{default_image}"
+
+    return None
 
 # Create Inventory API blueprint
 inventory_api_bp = Blueprint('inventory_api', __name__, url_prefix='/api/v1')
@@ -135,8 +174,8 @@ def format_accessory_complete(accessory):
         "description": safe_str(accessory.notes),
         "notes": safe_str(accessory.notes),
 
-        # Image URL
-        "image_url": get_full_image_url(accessory.image_url),
+        # Image URL (with fallback to default category image)
+        "image_url": get_accessory_image_url(accessory),
 
         # Standard timestamps
         "created_at": accessory.created_at.isoformat() if accessory.created_at else None,

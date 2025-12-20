@@ -61,6 +61,46 @@ def get_asset_image_url_simple(asset):
     return None
 
 
+# Helper function to get full image URL for accessories
+def get_accessory_image_url_simple(accessory):
+    """Get accessory image URL with fallback to default category images"""
+    base_url = request.host_url.rstrip('/')
+
+    # If accessory has a custom image, use it
+    if accessory.image_url:
+        return f"{base_url}{accessory.image_url}"
+
+    # Auto-detect image based on category
+    category_lower = (getattr(accessory, 'category', '') or '').lower()
+    name_lower = (accessory.name or '').lower()
+
+    default_image = None
+
+    # Map categories to default images
+    if 'keyboard' in category_lower or 'keyboard' in name_lower:
+        default_image = '/static/images/products/accessories/keyboard.png'
+    elif 'mouse' in category_lower or 'mouse' in name_lower:
+        default_image = '/static/images/products/accessories/mouse.png'
+    elif 'monitor' in category_lower or 'display' in name_lower:
+        default_image = '/static/images/products/accessories/monitor.png'
+    elif 'dock' in category_lower or 'docking' in name_lower:
+        default_image = '/static/images/products/accessories/docking_station.png'
+    elif 'headset' in category_lower or 'headphone' in category_lower or 'headset' in name_lower or 'headphone' in name_lower:
+        default_image = '/static/images/products/accessories/headset.png'
+    elif 'cable' in category_lower or 'cable' in name_lower:
+        default_image = '/static/images/products/accessories/cable.png'
+    elif 'charger' in category_lower or 'power' in category_lower or 'adapter' in category_lower or 'charger' in name_lower:
+        default_image = '/static/images/products/accessories/charger.png'
+    else:
+        # Generic accessory image for Other/unknown categories
+        default_image = '/static/images/products/accessories/accessory_generic.png'
+
+    if default_image:
+        return f"{base_url}{default_image}"
+
+    return None
+
+
 # Create API blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
@@ -1974,3 +2014,148 @@ def get_companies():
             'success': False,
             'message': f'Error fetching companies: {str(e)}'
         }), 500
+
+
+# ============================================================================
+# ACCESSORY API ENDPOINTS
+# ============================================================================
+
+@api_bp.route('/accessories', methods=['GET'])
+@require_api_key(permissions=['inventory:read'])
+def list_accessories():
+    """List accessories with pagination and image_url"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        search = request.args.get('search', None)
+        category = request.args.get('category', None)
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(Accessory).order_by(Accessory.created_at.desc())
+
+            # Apply search filter
+            if search:
+                search_term = f"%{search}%"
+                query = query.filter(
+                    (Accessory.name.ilike(search_term)) |
+                    (Accessory.model_no.ilike(search_term)) |
+                    (Accessory.manufacturer.ilike(search_term))
+                )
+
+            # Apply category filter
+            if category:
+                query = query.filter(Accessory.category.ilike(f"%{category}%"))
+
+            # Get total count
+            total = query.count()
+
+            # Apply pagination
+            accessories = query.offset((page - 1) * per_page).limit(per_page).all()
+
+            accessories_data = []
+            for accessory in accessories:
+                try:
+                    item_data = {
+                        'id': accessory.id,
+                        'name': accessory.name,
+                        'category': accessory.category,
+                        'manufacturer': accessory.manufacturer,
+                        'model': accessory.model_no,
+                        'total_quantity': accessory.total_quantity,
+                        'available_quantity': accessory.available_quantity,
+                        'status': accessory.status,
+                        'country': accessory.country,
+                        'image_url': get_accessory_image_url_simple(accessory),
+                        'created_at': accessory.created_at.isoformat() if accessory.created_at else None
+                    }
+                    accessories_data.append(item_data)
+                except Exception as e:
+                    logger.error(f"Error serializing accessory {accessory.id}: {e}")
+                    continue
+
+            pagination = {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'has_next': (page * per_page) < total,
+                'has_prev': page > 1
+            }
+        finally:
+            db_session.close()
+
+        return jsonify(create_success_response(
+            accessories_data,
+            f"Retrieved {len(accessories_data)} accessories",
+            {"pagination": pagination}
+        ))
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving accessories: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+@api_bp.route('/accessories/<int:accessory_id>', methods=['GET'])
+@require_api_key(permissions=['inventory:read'])
+def get_accessory_item(accessory_id):
+    """Get detailed information about a specific accessory"""
+    try:
+        db_session = db_manager.get_session()
+        try:
+            accessory = db_session.query(Accessory).get(accessory_id)
+
+            if not accessory:
+                response, status_code = create_error_response(
+                    "RESOURCE_NOT_FOUND",
+                    f"Accessory with ID {accessory_id} not found",
+                    404
+                )
+                return jsonify(response), status_code
+
+            # Get customer name if assigned
+            customer_name = None
+            try:
+                if accessory.customer_user:
+                    customer_name = accessory.customer_user.name
+            except:
+                pass
+
+            item_data = {
+                'id': accessory.id,
+                'name': accessory.name,
+                'category': accessory.category,
+                'manufacturer': accessory.manufacturer,
+                'model': accessory.model_no,
+                'total_quantity': accessory.total_quantity,
+                'available_quantity': accessory.available_quantity,
+                'status': accessory.status,
+                'country': accessory.country,
+                'notes': accessory.notes,
+                'current_customer': customer_name,
+                'company': accessory.company.name if accessory.company else None,
+                'company_id': accessory.company_id,
+                'image_url': get_accessory_image_url_simple(accessory),
+                'checkout_date': accessory.checkout_date.isoformat() if accessory.checkout_date else None,
+                'return_date': accessory.return_date.isoformat() if accessory.return_date else None,
+                'created_at': accessory.created_at.isoformat() if accessory.created_at else None,
+                'updated_at': accessory.updated_at.isoformat() if accessory.updated_at else None
+            }
+        finally:
+            db_session.close()
+
+        return jsonify(create_success_response(
+            item_data,
+            f"Retrieved accessory {accessory_id}"
+        ))
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving accessory: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
