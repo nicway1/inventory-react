@@ -4058,11 +4058,11 @@ def add_asset():
                                 # Get company name (not customer name, not parent company)
                                 if ticket.customer.company:
                                     spec_data['customer'] = ticket.customer.company.name or ''
-                                # Get country from customer
+                                # Get country from customer - normalize to Title Case for dropdown matching
                                 if ticket.customer.country:
-                                    spec_data['country'] = ticket.customer.country
+                                    spec_data['country'] = ticket.customer.country.title() if isinstance(ticket.customer.country, str) else str(ticket.customer.country).title()
                                 elif ticket.country:
-                                    spec_data['country'] = ticket.country
+                                    spec_data['country'] = ticket.country.title() if isinstance(ticket.country, str) else str(ticket.country).title()
                         except Exception as e:
                             logger.error(f"Error loading ticket data for spec import: {e}")
 
