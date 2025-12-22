@@ -6525,27 +6525,117 @@ def track_return(ticket_id):
         tracking_number = ticket.return_tracking  # Return tracking is stored as a string
         logger.info(f"Tracking return number: {tracking_number}")
 
+        # Import TrackingCache for caching
+        from utils.tracking_cache import TrackingCache
+
         # CHECK FOR CACHED DATA FIRST (like working outbound tracking)
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
-        
+
         if not force_refresh:
             # Check for cached tracking data
-            from utils.tracking_cache import TrackingCache
             cached_data = TrackingCache.get_cached_tracking(
-                db_session, 
-                tracking_number, 
-                ticket_id=ticket_id, 
+                db_session,
+                tracking_number,
+                ticket_id=ticket_id,
                 tracking_type='return',
-                max_age_hours=24  # Cache for 24 hours
+                max_age_hours=1  # Cache for 1 hour for SingPost
             )
-            
+
             if cached_data:
                 logger.info(f"Using cached return tracking data for {tracking_number}")
                 return jsonify(cached_data)
         else:
             logger.info(f"Force refresh requested for return tracking {tracking_number}, bypassing cache")
 
-        # Make sure firecrawl_client is available
+        # Check if this is a SingPost tracking number (starts with XZ)
+        if is_singpost_tracking_number(tracking_number):
+            logger.info(f"Using SingPost API for return tracking number: {tracking_number}")
+
+            # Check if SingPost API is configured
+            if not singpost_client.is_configured():
+                logger.warning("SingPost Tracking API not configured")
+                return jsonify({
+                    'success': False,
+                    'error': 'SingPost Tracking API not configured',
+                    'tracking_info': []
+                }), 500
+
+            # Use SingPost Tracking API
+            result = singpost_client.track_single(tracking_number)
+            logger.info(f"SingPost API result for return tracking: {result}")
+
+            if result.get('success'):
+                # Convert events to the format expected by the UI
+                tracking_info = []
+                for event in result.get('events', []):
+                    tracking_info.append({
+                        'date': f"{event.get('date', '')} {event.get('time', '')}".strip(),
+                        'status': event.get('description', ''),
+                        'location': event.get('location', 'Singapore'),
+                        'code': event.get('code', '')
+                    })
+
+                # Get the latest status
+                latest_status = result.get('status', 'Unknown')
+                if not latest_status and tracking_info:
+                    latest_status = tracking_info[0].get('status', 'Unknown')
+
+                # Update ticket return status
+                ticket.return_status = latest_status
+                ticket.updated_at = datetime.datetime.now()
+
+                # Save to tracking cache
+                try:
+                    TrackingCache.save_tracking_data(
+                        db_session,
+                        tracking_number,
+                        tracking_info,
+                        latest_status,
+                        ticket_id=ticket_id,
+                        tracking_type='return',
+                        carrier='singpost'
+                    )
+                except Exception as cache_error:
+                    logger.warning(f"Could not save to tracking cache: {cache_error}")
+
+                db_session.commit()
+
+                return jsonify({
+                    'success': True,
+                    'tracking_info': tracking_info,
+                    'shipping_status': latest_status,
+                    'was_pushed': result.get('was_pushed', False),
+                    'is_real_data': True,
+                    'debug_info': {
+                        'source': 'singpost_api',
+                        'tracking_number': tracking_number,
+                        'event_count': len(tracking_info),
+                        'was_pushed': result.get('was_pushed', False)
+                    }
+                })
+            else:
+                # Tracking number not found
+                error_msg = result.get('error', 'Tracking number not found')
+                logger.info(f"SingPost return tracking failed: {error_msg}")
+                return jsonify({
+                    'success': True,
+                    'tracking_info': [{
+                        'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'status': 'Pending - Tracking Number Not Found',
+                        'location': 'SingPost System'
+                    }],
+                    'shipping_status': 'Pending - Tracking Number Not Found',
+                    'was_pushed': False,
+                    'is_real_data': True,
+                    'debug_info': {
+                        'source': 'singpost_api',
+                        'tracking_number': tracking_number,
+                        'status': 'not_found',
+                        'error': error_msg
+                    }
+                })
+
+        # Make sure firecrawl_client is available (for non-SingPost tracking numbers)
         if not firecrawl_client:
             logger.info("Warning: firecrawl_client not available. Using mock data.")
             # Return a simple mock response

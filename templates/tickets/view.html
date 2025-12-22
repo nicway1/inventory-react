@@ -7832,7 +7832,7 @@ function fetchShippingTrackingFromCache() {
     // First, determine the correct URL to use
     // Get the current location without any query parameters
     var baseUrl = window.location.protocol + '//' + window.location.host;
-    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_claw';
+    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_auto';
     console.log('Fetching cached tracking info from:', apiUrl);
     
     // Call the tracking API with cached data
@@ -7914,7 +7914,7 @@ function fetchShippingTracking() {
     if (category === 'ASSET_CHECKOUT_CLAW') {
         apiUrl = baseUrl + '/tickets/category/checkout_claw/{{ ticket.id }}/track?force_refresh=true';
     } else if (category === 'ASSET_RETURN_CLAW') {
-        apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_claw?force_refresh=true';
+        apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_auto?force_refresh=true';
     } else {
         // Default for other asset checkout categories
         apiUrl = baseUrl + '/tickets/category/checkout_main/{{ ticket.id }}/track?force_refresh=true';
