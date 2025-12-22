@@ -67,20 +67,6 @@
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .carrier-select {
-        padding: 14px 18px;
-        border: 2px solid #e5e7eb;
-        border-radius: 12px;
-        font-size: 15px;
-        min-width: 180px;
-        transition: all 0.3s;
-    }
-
-    .carrier-select:focus {
-        outline: none;
-        border-color: #667eea;
-    }
-
     .track-button {
         padding: 14px 32px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -332,8 +318,8 @@
                 </svg>
             </div>
             <div>
-                <h1 class="tracking-title">Parcel Tracking</h1>
-                <p class="tracking-subtitle">Track parcels from Ship24.com - Developer Only</p>
+                <h1 class="tracking-title">SingPost Parcel Tracking</h1>
+                <p class="tracking-subtitle">Track parcels via SingPost Tracking API - Developer Only</p>
             </div>
         </div>
 
@@ -343,12 +329,9 @@
                 type="text"
                 id="trackingNumber"
                 class="tracking-input"
-                placeholder="Enter tracking number (e.g., 1234567890)"
+                placeholder="Enter SingPost tracking number"
                 autocomplete="off"
             >
-            <select id="carrierSelect" class="carrier-select">
-                <option value="">Auto-detect carrier</option>
-            </select>
             <button id="trackButton" class="track-button" onclick="trackParcel()">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -361,7 +344,7 @@
         <div class="bulk-tracking">
             <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Bulk Tracking</h3>
             <p style="font-size: 13px; color: #78858F; margin-bottom: 12px;">
-                Enter multiple tracking numbers (one per line, max 10)
+                Enter multiple tracking numbers (one per line, max 20)
             </p>
             <textarea
                 id="bulkTrackingNumbers"
@@ -382,35 +365,9 @@
 </div>
 
 <script>
-// Load carriers on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadCarriers();
-});
-
-// Load available carriers
-async function loadCarriers() {
-    try {
-        const response = await fetch('/parcel-tracking/carriers');
-        const data = await response.json();
-
-        if (data.success) {
-            const select = document.getElementById('carrierSelect');
-            data.carriers.forEach(carrier => {
-                const option = document.createElement('option');
-                option.value = carrier.code;
-                option.textContent = carrier.name;
-                select.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading carriers:', error);
-    }
-}
-
 // Track single parcel
 async function trackParcel() {
     const trackingNumber = document.getElementById('trackingNumber').value.trim();
-    const carrier = document.getElementById('carrierSelect').value;
 
     if (!trackingNumber) {
         alert('Please enter a tracking number');
@@ -428,8 +385,7 @@ async function trackParcel() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                tracking_number: trackingNumber,
-                carrier: carrier || null
+                tracking_number: trackingNumber
             })
         });
 
@@ -457,7 +413,7 @@ async function trackBulkParcels() {
         .split('\n')
         .map(tn => tn.trim())
         .filter(tn => tn.length > 0)
-        .slice(0, 10);
+        .slice(0, 20);
 
     if (trackingNumbers.length === 0) {
         alert('Please enter at least one tracking number');
@@ -511,84 +467,64 @@ function displayResults(results) {
         card.className = 'result-card' + (result.success ? '' : ' error');
 
         if (result.success) {
-            // Build tracking links HTML if available
-            let trackingLinksHtml = '';
-            if (result.tracking_links) {
-                const links = Object.entries(result.tracking_links).map(([name, url]) =>
-                    `<a href="${url}" target="_blank" class="tracking-link-btn">${name}</a>`
-                ).join('');
-                trackingLinksHtml = `
-                    <div class="tracking-links">
-                        <div class="info-label" style="margin-bottom: 8px;">Track on:</div>
-                        <div class="tracking-links-grid">${links}</div>
-                    </div>
-                `;
-            } else if (result.tracking_url) {
-                trackingLinksHtml = `
-                    <div class="tracking-links">
-                        <a href="${result.tracking_url}" target="_blank" class="tracking-link-btn primary">
-                            <i class="fas fa-external-link-alt"></i> View on ${result.source || 'Tracking Site'}
-                        </a>
-                    </div>
-                `;
-            }
-
-            // Check if this is a fallback result (no real data)
-            const isFallback = result.source === 'fallback' || result.message;
-
             card.innerHTML = `
                 <div class="result-header">
                     <div>
                         <div class="tracking-number">${result.tracking_number}</div>
                         ${result.source ? `<div style="font-size: 11px; color: #78858F; margin-top: 4px;">Source: ${result.source}</div>` : ''}
                     </div>
-                    <div class="carrier-badge">${result.carrier}</div>
+                    <div class="carrier-badge">${result.carrier || 'SingPost'}</div>
                 </div>
 
-                <div class="status-badge ${isFallback ? 'fallback' : ''}">${result.status}</div>
-
-                ${result.message ? `
-                    <div class="info-message" style="background: #fef3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
-                        <i class="fas fa-info-circle"></i> ${result.message}
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div class="status-badge" style="margin-bottom: 0;">${result.status || 'Unknown'}</div>
+                    <div style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; ${result.was_pushed ? 'background: #dcfce7; color: #166534;' : 'background: #fef3c7; color: #92400e;'}">
+                        ${result.was_pushed ? '✓ Pushed to SingPost' : '⏳ Not Yet Pushed'}
                     </div>
-                ` : ''}
+                </div>
 
-                ${!isFallback ? `
-                    <div class="info-grid">
+                <div class="info-grid">
+                    ${result.origin_country ? `
                         <div class="info-item">
-                            <div class="info-label">Current Location</div>
-                            <div class="info-value">${result.current_location || 'Unknown'}</div>
+                            <div class="info-label">Origin</div>
+                            <div class="info-value">${result.origin_country}</div>
                         </div>
-                        ${result.estimated_delivery ? `
-                            <div class="info-item">
-                                <div class="info-label">Estimated Delivery</div>
-                                <div class="info-value">${result.estimated_delivery}</div>
-                            </div>
-                        ` : ''}
+                    ` : ''}
+                    ${result.destination_country ? `
+                        <div class="info-item">
+                            <div class="info-label">Destination</div>
+                            <div class="info-value">${result.destination_country}</div>
+                        </div>
+                    ` : ''}
+                    ${result.posting_date ? `
+                        <div class="info-item">
+                            <div class="info-label">Posting Date</div>
+                            <div class="info-value">${result.posting_date}</div>
+                        </div>
+                    ` : ''}
+                    ${result.last_updated ? `
                         <div class="info-item">
                             <div class="info-label">Last Updated</div>
                             <div class="info-value">${new Date(result.last_updated).toLocaleString()}</div>
                         </div>
-                    </div>
-                ` : ''}
+                    ` : ''}
+                </div>
 
                 ${result.events && result.events.length > 0 ? `
                     <div class="events-timeline">
-                        <div class="timeline-title">Tracking History</div>
+                        <div class="timeline-title">Tracking History (${result.events.length} events)</div>
                         ${result.events.map(event => `
                             <div class="event-item">
                                 <div class="event-dot"></div>
                                 <div class="event-description">
-                                    ${event.description}
-                                    ${event.location ? `<br><small style="color: #78858F;">${event.location}</small>` : ''}
-                                    ${event.timestamp ? `<br><small style="color: #78858F;">${event.timestamp}</small>` : ''}
+                                    <strong>${event.description}</strong>
+                                    ${event.code ? `<span style="color: #667eea; font-size: 11px; margin-left: 8px;">[${event.code}]</span>` : ''}
+                                    ${event.date || event.time ? `<br><small style="color: #78858F;">${event.date || ''} ${event.time || ''}</small>` : ''}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                ` : ''}
-
-                ${trackingLinksHtml}
+                ` : '<p style="color: #78858F; margin-top: 16px;">No tracking events available yet.</p>'}
             `;
         } else {
             card.innerHTML = `
@@ -596,17 +532,14 @@ function displayResults(results) {
                     <div>
                         <div class="tracking-number">${result.tracking_number}</div>
                     </div>
+                    <div class="carrier-badge">SingPost</div>
                 </div>
                 <div class="error-message">
-                    <strong>Error:</strong> ${result.message || result.error}
+                    <strong>Not Found:</strong> ${result.error || 'Tracking number not found in SingPost system'}
                 </div>
-                ${result.tracking_url ? `
-                    <div class="tracking-links" style="margin-top: 12px;">
-                        <a href="${result.tracking_url}" target="_blank" class="tracking-link-btn primary">
-                            <i class="fas fa-external-link-alt"></i> Try tracking manually
-                        </a>
-                    </div>
-                ` : ''}
+                <p style="color: #78858F; font-size: 13px; margin-top: 12px;">
+                    The tracking number may not exist or the shipment hasn't been registered yet.
+                </p>
             `;
         }
 

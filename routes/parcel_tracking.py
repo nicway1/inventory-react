@@ -1,6 +1,6 @@
 """
 Parcel Tracking Routes
-Provides parcel tracking functionality using Ship24.com
+Provides parcel tracking functionality using SingPost Tracking API
 """
 
 from flask import Blueprint, render_template, request, jsonify
@@ -8,9 +8,12 @@ from flask_login import login_required, current_user
 from functools import wraps
 import logging
 
-from utils.ship24_tracker import get_tracker
+from utils.singpost_tracking import get_singpost_tracking_client
 
 logger = logging.getLogger(__name__)
+
+# Initialize SingPost Tracking client
+singpost_client = get_singpost_tracking_client()
 
 parcel_tracking_bp = Blueprint('parcel_tracking', __name__, url_prefix='/parcel-tracking')
 
@@ -37,12 +40,11 @@ def index():
 @developer_required
 def track_parcel():
     """
-    Track a single parcel
+    Track a single parcel using SingPost Tracking API
 
     Expected JSON:
     {
-        "tracking_number": "1234567890",
-        "carrier": "dhl" (optional)
+        "tracking_number": "1234567890"
     }
     """
     try:
@@ -55,7 +57,6 @@ def track_parcel():
             }), 400
 
         tracking_number = data.get('tracking_number', '').strip() if data.get('tracking_number') else ''
-        carrier = data.get('carrier', '').strip() if data.get('carrier') else None
 
         if not tracking_number:
             return jsonify({
@@ -63,9 +64,15 @@ def track_parcel():
                 'error': 'Tracking number is required'
             }), 400
 
-        # Get tracker instance and track parcel
-        tracker = get_tracker()
-        result = tracker.track_parcel_sync(tracking_number, carrier)
+        # Check if API is configured
+        if not singpost_client.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'SingPost Tracking API not configured'
+            }), 500
+
+        # Track parcel using SingPost API
+        result = singpost_client.track_single(tracking_number)
 
         return jsonify(result)
 
@@ -82,7 +89,7 @@ def track_parcel():
 @developer_required
 def track_multiple_parcels():
     """
-    Track multiple parcels
+    Track multiple parcels using SingPost Tracking API
 
     Expected JSON:
     {
@@ -106,8 +113,8 @@ def track_multiple_parcels():
                 'error': 'tracking_numbers array is required'
             }), 400
 
-        # Filter out empty strings and limit to 10 at a time
-        tracking_numbers = [tn.strip() for tn in tracking_numbers if tn.strip()][:10]
+        # Filter out empty strings and limit to 20 at a time
+        tracking_numbers = [tn.strip() for tn in tracking_numbers if tn.strip()][:20]
 
         if not tracking_numbers:
             return jsonify({
@@ -115,14 +122,39 @@ def track_multiple_parcels():
                 'error': 'No valid tracking numbers provided'
             }), 400
 
-        # Get tracker instance and track parcels
-        tracker = get_tracker()
+        # Check if API is configured
+        if not singpost_client.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'SingPost Tracking API not configured'
+            }), 500
 
-        # Track parcels synchronously (one at a time to avoid browser resource issues)
+        # Track all parcels using SingPost API
+        tracking_results = singpost_client.track(tracking_numbers)
+
         results = []
-        for tn in tracking_numbers:
-            result = tracker.track_parcel_sync(tn)
-            results.append(result)
+        for result in tracking_results:
+            events = []
+            for event in result.events:
+                events.append({
+                    'code': event.status_code,
+                    'description': event.status_description,
+                    'date': event.date,
+                    'time': event.time,
+                    'reason_code': event.reason_code
+                })
+
+            results.append({
+                'success': result.found,
+                'tracking_number': result.tracking_number,
+                'carrier': 'SingPost',
+                'status': result.events[0].status_description if result.events else 'Unknown',
+                'origin_country': result.origin_country,
+                'destination_country': result.destination_country,
+                'events': events,
+                'was_pushed': result.was_pushed,  # True if physically received by SingPost
+                'error': result.error
+            })
 
         return jsonify({
             'success': True,
@@ -144,19 +176,22 @@ def track_multiple_parcels():
 def get_carriers():
     """Get list of supported carriers"""
     carriers = [
-        {'code': 'dhl', 'name': 'DHL Express'},
-        {'code': 'fedex', 'name': 'FedEx'},
-        {'code': 'ups', 'name': 'UPS'},
-        {'code': 'usps', 'name': 'USPS'},
         {'code': 'singpost', 'name': 'Singapore Post'},
-        {'code': 'bluedart', 'name': 'BlueDart'},
-        {'code': 'dtdc', 'name': 'DTDC'},
-        {'code': 'aramex', 'name': 'Aramex'},
-        {'code': 'tnt', 'name': 'TNT'},
-        {'code': 'dpd', 'name': 'DPD'},
     ]
 
     return jsonify({
         'success': True,
         'carriers': carriers
+    })
+
+
+@parcel_tracking_bp.route('/status')
+@developer_required
+def get_status():
+    """Get SingPost Tracking API status"""
+    status = singpost_client.get_credentials_status()
+    return jsonify({
+        'success': True,
+        'configured': status['is_configured'],
+        'api_url': status['base_url']
     })

@@ -42,10 +42,31 @@ class TrackingResult:
     posting_date: Optional[str] = None
     events: List[TrackingEvent] = None
     error: Optional[str] = None
+    was_pushed: bool = False  # True if shipment was physically received by SingPost
 
     def __post_init__(self):
         if self.events is None:
             self.events = []
+
+    def check_was_pushed(self) -> bool:
+        """
+        Check if shipment was physically received/pushed by SingPost.
+
+        Status codes indicating NOT pushed (information only):
+        - IR: Information Received - SingPost has order info but not the item yet
+
+        Any other status code (AC, HQ, AL, DF, RS, etc.) indicates the item
+        was physically received by SingPost.
+        """
+        if not self.events:
+            return False
+
+        # Check if any event has a status code other than 'IR' (Information Received)
+        for event in self.events:
+            if event.status_code and event.status_code.upper() != 'IR':
+                return True
+
+        return False
 
 
 class SingPostTrackingClient:
@@ -172,6 +193,9 @@ class SingPostTrackingClient:
                         )
                         result.events.append(event)
 
+                # Check if shipment was pushed (physically received by SingPost)
+                result.was_pushed = result.check_was_pushed()
+
                 results.append(result)
 
             return results
@@ -215,7 +239,8 @@ class SingPostTrackingClient:
 
             headers = {
                 'Content-Type': 'application/xml',
-                'Authorization': self.api_key
+                'Authorization': self.api_key,
+                'User-Agent': 'TrueLog-Inventory/1.0'
             }
 
             logger.info(f"Tracking {len(tracking_numbers)} shipment(s) via SingPost API")
@@ -328,6 +353,7 @@ class SingPostTrackingClient:
             'destination_country': result.destination_country,
             'posting_date': result.posting_date,
             'events': events,
+            'was_pushed': result.was_pushed,  # True if physically received by SingPost
             'last_updated': datetime.utcnow().isoformat(),
             'source': 'SingPost Tracking API'
         }

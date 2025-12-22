@@ -39,6 +39,10 @@ import uuid
 from utils.tracking_cache import TrackingCache
 import re
 from models.tracking_history import TrackingHistory
+from utils.singpost_tracking import get_singpost_tracking_client
+
+# Initialize SingPost Tracking client
+singpost_client = get_singpost_tracking_client()
 from sqlalchemy.orm import joinedload # Import joinedload
 from sqlalchemy import func, or_, and_, text
 from models.company import Company
@@ -4623,167 +4627,141 @@ def track_debug(ticket_id):
     
     return jsonify(debug_info)
 
+def is_singpost_tracking_number(tracking_number: str) -> bool:
+    """Check if a tracking number is a SingPost tracking number (starts with XZB, XZD, or XZ)"""
+    if not tracking_number:
+        return False
+    upper_tn = tracking_number.upper()
+    return upper_tn.startswith('XZB') or upper_tn.startswith('XZD') or upper_tn.startswith('XZ')
+
+
 @tickets_bp.route('/<int:ticket_id>/track_singpost', methods=['GET'])
 @login_required
 def track_singpost(ticket_id):
-    """Track Singapore Post package and return tracking data"""
+    """Track Singapore Post package using SingPost Tracking API"""
     logger.info(f"==== TRACKING SINGPOST - TICKET {ticket_id} ====")
-    
-    db_session = None # Initialize db_session
+
+    db_session = None
     try:
-        db_session = ticket_store.db_manager.get_session() # Get session
-        ticket = db_session.query(Ticket).get(ticket_id) # Get ticket within this session
-        
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
         if not ticket:
             logger.info("Error: Invalid ticket ID")
             return jsonify({'error': 'Invalid ticket'}), 404
-        
+
         tracking_number = ticket.shipping_tracking
         if not tracking_number:
             logger.info("Error: No tracking number for this ticket")
             return jsonify({'error': 'No tracking number for this ticket'}), 404
-            
+
         logger.info(f"Tracking SingPost number: {tracking_number}")
 
-        # Determine carrier codes based on tracking number format
-        if tracking_number.startswith('XZD'):
-            carrier_codes = ['speedpost', 'singapore-post']
-        elif tracking_number.startswith('XZB'):
-            carrier_codes = ['singapore-post']
-        else:
-            carrier_codes = ['singapore-post', 'speedpost']
+        # Check if SingPost API is configured
+        if not singpost_client.is_configured():
+            logger.warning("SingPost Tracking API not configured")
+            return jsonify({
+                'success': False,
+                'error': 'SingPost Tracking API not configured',
+                'tracking_info': []
+            }), 500
 
-        # Check if trackingmore is available
-        if not trackingmore:
-            logger.info("Error: No TrackingMore module found! Falling back to mock data.")
+        # Use SingPost Tracking API
+        result = singpost_client.track_single(tracking_number)
+        logger.info(f"SingPost API result: {result}")
+
+        if result.get('success'):
+            # Convert events to the format expected by the ticket system
+            tracking_info = []
+            for event in result.get('events', []):
+                tracking_info.append({
+                    'date': f"{event.get('date', '')} {event.get('time', '')}".strip(),
+                    'status': event.get('description', ''),
+                    'location': event.get('location', 'Singapore'),
+                    'code': event.get('code', '')
+                })
+
+            # Get the latest status
+            latest_status = result.get('status', 'Unknown')
+            if not latest_status and tracking_info:
+                latest_status = tracking_info[0].get('status', 'Unknown')
+
+            # Update ticket attributes
+            ticket.shipping_status = latest_status
+            ticket.shipping_history = tracking_info
+            ticket.updated_at = datetime.datetime.now()
+
+            # Save to tracking history
             try:
-                response = generate_mock_singpost_data(ticket, db_session)
-                return response
-            except Exception as mock_err:
-                 logger.info(f"Error during mock data generation fallback: {mock_err}")
-                 return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
-            
-        tracking_success = False
-        last_error = None
-        final_tracking_info = []
-        final_shipping_status = ticket.shipping_status # Default to current
-        final_debug_info = {}
-        is_real_data = False
+                TrackingCache.save_tracking_data(
+                    db_session,
+                    tracking_number,
+                    tracking_info,
+                    latest_status,
+                    ticket_id=ticket_id,
+                    tracking_type='primary',
+                    carrier='singpost'
+                )
+            except Exception as cache_error:
+                logger.warning(f"Could not save to tracking cache: {cache_error}")
 
-        for carrier_code in carrier_codes:
-            try:
-                logger.info(f"Attempting tracking with carrier: {carrier_code}")
-                
-                # Try to create tracking (optional, ignore errors mainly)
-                try: 
-                    create_params = {'tracking_number': tracking_number, 'carrier_code': carrier_code}
-                    trackingmore.create_tracking_item(create_params)
-                except Exception as create_e: 
-                    logger.info(f"Info: Create tracking ({carrier_code}): {create_e}")
-                
-                # Get tracking data
-                realtime_params = {
-                    'tracking_number': tracking_number,
-                    'carrier_code': carrier_code
-                }
-                result = trackingmore.realtime_tracking(realtime_params)
-                logger.info(f"Realtime tracking result ({carrier_code}): {result}")
-
-                # Process tracking data
-                if result and 'items' in result and result['items']:
-                    tracking_data = result['items'][0]
-                    current_tracking_info = []
-                    status = tracking_data.get('status', 'unknown')
-                    substatus = tracking_data.get('substatus', '')
-                    
-                    # Get tracking events
-                    tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
-                    
-                    if not tracking_events or status == 'notfound':
-                        logger.info(f"No tracking events found for {tracking_number} with {carrier_code}. Status: {status}, Substatus: {substatus}")
-                        current_date = datetime.datetime.now()
-                        if substatus == 'notfound001': status_desc = "Pending - Waiting for Carrier Scan"
-                        elif substatus == 'notfound002': status_desc = "Pending - Tracking Number Registered"
-                        elif substatus == 'notfound003': status_desc = "Pending - Invalid Tracking Number"
-                        else: status_desc = "Information Received - Waiting for Update"
-                        
-                        current_tracking_info.append({
-                            'date': current_date.strftime('%Y-%m-%d %H:%M:%S'),
-                            'status': status_desc,
-                            'location': "SingPost System" # Generic location
-                        })
-                        
-                        # Update ticket attributes immediately
-                        ticket.shipping_status = status_desc
-                        ticket.shipping_history = current_tracking_info
-                        ticket.updated_at = datetime.datetime.now()
-                        
-                        final_tracking_info = current_tracking_info
-                        final_shipping_status = status_desc
-                        final_debug_info = {'carrier_code': carrier_code, 'status': status, 'substatus': substatus, 'no_events': True}
-                        is_real_data = True # API responded
-                        tracking_success = True # Mark as success
-                        logger.info(f"Using custom status: {status_desc}")
-                        break # Exit loop, we got a definitive status
-                        
-                    elif tracking_events:
-                        # Parse real tracking events
-                        for event in tracking_events:
-                            current_tracking_info.append({
-                                'date': event.get('Date', event.get('date', '')),
-                                'status': event.get('StatusDescription', event.get('status_description', event.get('status', ''))),
-                                'location': event.get('Details', event.get('details', event.get('location', '')))
-                            })
-                        
-                        latest_event = current_tracking_info[0] if current_tracking_info else None
-                        if latest_event:
-                            # Update ticket attributes
-                            ticket.shipping_status = latest_event['status']
-                            ticket.shipping_history = current_tracking_info
-                            ticket.updated_at = datetime.datetime.now()
-
-                            final_tracking_info = current_tracking_info
-                            final_shipping_status = latest_event['status']
-                            final_debug_info = {'carrier_code': carrier_code, 'has_events': True, 'event_count': len(tracking_events)}
-                            is_real_data = True
-                            tracking_success = True # Mark as success
-                            logger.info(f"Real tracking info retrieved. Latest status: {latest_event['status']}")
-                            break # Exit loop, successful tracking
-                        else:
-                             logger.info("Warning: Tracking events found but couldn't parse latest event.")
-                else:
-                     logger.info(f"No valid tracking data received from API for {carrier_code}.")
-            
-            except Exception as e:
-                logger.info(f"Error during tracking attempt with carrier {carrier_code}: {str(e)}")
-                last_error = str(e)
-                # Continue to the next carrier code
-
-        # After Loop
-        if tracking_success:
-            logger.info("Tracking successful, committing changes to database.")
             db_session.commit()
+            logger.info(f"SingPost tracking successful. Status: {latest_status}, Events: {len(tracking_info)}")
+
             return jsonify({
                 'success': True,
-                'tracking_info': final_tracking_info,
-                'shipping_status': final_shipping_status,
-                'is_real_data': is_real_data,
-                'debug_info': final_debug_info
+                'tracking_info': tracking_info,
+                'shipping_status': latest_status,
+                'was_pushed': result.get('was_pushed', False),  # True if physically received by SingPost
+                'is_real_data': True,
+                'debug_info': {
+                    'source': 'singpost_api',
+                    'tracking_number': tracking_number,
+                    'event_count': len(tracking_info),
+                    'origin_country': result.get('origin_country'),
+                    'destination_country': result.get('destination_country'),
+                    'was_pushed': result.get('was_pushed', False)
+                }
             })
         else:
-            logger.info(f"All tracking attempts failed, falling back to mock data. Last error: {last_error}")
-            try:
-                response = generate_mock_singpost_data(ticket, db_session)
-                return response
-            except Exception as mock_err:
-                 logger.info(f"Error during mock data generation fallback: {mock_err}")
-                 return jsonify({'error': 'Tracking failed and mock data generation also failed.'}), 500
+            # Tracking number not found or API error
+            error_msg = result.get('error', 'Tracking number not found')
+            logger.info(f"SingPost tracking failed: {error_msg}")
+
+            # Return not found status instead of mock data
+            current_date = datetime.datetime.now()
+            status_desc = "Pending - Tracking Number Not Found"
+
+            tracking_info = [{
+                'date': current_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': status_desc,
+                'location': 'SingPost System'
+            }]
+
+            ticket.shipping_status = status_desc
+            ticket.shipping_history = tracking_info
+            ticket.updated_at = current_date
+            db_session.commit()
+
+            return jsonify({
+                'success': True,
+                'tracking_info': tracking_info,
+                'shipping_status': status_desc,
+                'was_pushed': False,  # Not found = not pushed
+                'is_real_data': True,
+                'debug_info': {
+                    'source': 'singpost_api',
+                    'tracking_number': tracking_number,
+                    'status': 'not_found',
+                    'error': error_msg
+                }
+            })
 
     except Exception as e:
-        logger.info(f"General error in track_singpost: {str(e)}")
+        logger.error(f"General error in track_singpost: {str(e)}")
         if db_session and db_session.is_active:
-             logger.info("Rolling back database session due to error.")
-             db_session.rollback()
+            logger.info("Rolling back database session due to error.")
+            db_session.rollback()
         return jsonify({'error': f'An internal error occurred during tracking: {str(e)}'}), 500
     finally:
         if db_session:
@@ -6062,8 +6040,9 @@ def track_auto(ticket_id):
             logger.info("Detected UPS format")
             tracking_carrier = 'ups'
             return redirect(url_for('tickets.track_ups', ticket_id=ticket_id))
-        elif tracking_number.startswith(('XZD', 'XZB')):
-            logger.info("Detected SingPost format")
+        elif is_singpost_tracking_number(tracking_number):
+            # SingPost tracking numbers start with XZB, XZD, or XZ
+            logger.info(f"Detected SingPost format: {tracking_number[:3]}")
             tracking_carrier = 'singpost'
             return redirect(url_for('tickets.track_singpost', ticket_id=ticket_id))
         elif tracking_number.startswith(('JD', 'YD')):
