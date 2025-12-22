@@ -154,28 +154,28 @@ def _safely_assign_asset_to_ticket(ticket, asset, db_session):
     try:
         # Check if asset is already assigned to this ticket
         if asset in ticket.assets:
-            logger.info("Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
+            logger.info(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
             return True
-        
+
         # Check if the relationship already exists in the database
         stmt = text("""
-            SELECT COUNT(*) FROM ticket_assets 
+            SELECT COUNT(*) FROM ticket_assets
             WHERE ticket_id = :ticket_id AND asset_id = :asset_id
         """)
         result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
         count = result.scalar()
-        
+
         if count > 0:
-            logger.info("Asset {asset.id} already linked to ticket {ticket.id} in database")
+            logger.info(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
             return True
-        
+
         # Safe to assign - add the asset to the ticket
         ticket.assets.append(asset)
-        logger.info("Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+        logger.info(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
         return True
-        
+
     except Exception as e:
-        logger.info("Error assigning asset to ticket: {str(e)}")
+        logger.error(f"Error assigning asset to ticket: {str(e)}")
         return False
 
 # Configure upload settings
@@ -3079,23 +3079,21 @@ def confirm_import():
                     db_session.add(new_asset)
                     db_session.commit()
                     
-                    # Link asset to ticket if ticket_id is provided
+                    # Link asset to ticket if ticket_id is provided (via many-to-many relationship)
                     ticket_id = session.get('import_ticket_id')
                     if ticket_id:
                         try:
                             from models.ticket import Ticket  # Import Ticket model
                             ticket = db_session.query(Ticket).get(int(ticket_id))
                             if ticket:
-                                new_asset.intake_ticket_id = ticket.id
-
-                                # Safely add asset to ticket's assets collection if it exists
+                                # Use many-to-many relationship, not intake_ticket_id (which is for IntakeTicket)
                                 if hasattr(ticket, 'assets'):
                                     _safely_assign_asset_to_ticket(ticket, new_asset, db_session)
 
                                 db_session.commit()
-                                logger.info("Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
+                                logger.info(f"Linked asset {new_asset.asset_tag} to ticket {ticket.id}")
                         except Exception as e:
-                            logger.info("Error linking asset to ticket: {str(e)}")
+                            logger.error(f"Error linking asset to ticket: {str(e)}")
                             # Don't fail the import if ticket linking fails
 
                     successful += 1
@@ -3909,23 +3907,22 @@ def add_asset():
                     tech_notes=request.form.get('tech_notes', '') 
                 )
 
-                # Handle ticket linking
-                intake_ticket_id = request.form.get('intake_ticket_id')
-                if intake_ticket_id:
+                # Handle ticket linking (for regular Tickets via many-to-many relationship)
+                # Note: intake_ticket_id is for IntakeTicket, not regular Ticket
+                ticket_id_to_link = request.form.get('intake_ticket_id')
+                if ticket_id_to_link:
                     try:
-                        ticket_id = int(intake_ticket_id)
+                        ticket_id = int(ticket_id_to_link)
                         ticket = db_session.query(Ticket).get(ticket_id)
                         if ticket:
-                            new_asset.intake_ticket_id = ticket.id
-                            
                             # More careful approach to linking - check if already linked first
                             logger.info(f"Linking asset to ticket {ticket.id}")
-                            
+
                             # First add the asset
                             db_session.add(new_asset)
                             db_session.flush()  # Get the new asset ID
-                            
-                            # Safely link asset to ticket
+
+                            # Safely link asset to ticket via many-to-many relationship
                             _safely_assign_asset_to_ticket(ticket, new_asset, db_session)
                             
                             # Log activity
@@ -4004,38 +4001,15 @@ def add_asset():
                 logger.error(traceback.format_exc())
                 
                 # Be more specific about the ticket_assets constraint
-                if "UNIQUE constraint failed: ticket_assets.ticket_id, ticket_assets.asset_id" in error_msg:
-                    logger.debug(f"Ticket-Asset constraint violation detected")
-                    logger.debug(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
-                    logger.debug(f"Asset data: {request.form}")
-                    
-                    # Check if this is really a constraint error or some other SQLite error
-                    ticket_id = request.form.get('intake_ticket_id')
-                    if ticket_id and new_asset and new_asset.id:
-                        # Double check if this is a legitimate constraint violation by querying directly
-                        try:
-                            stmt = text("""
-                                SELECT COUNT(*) FROM ticket_assets 
-                                WHERE ticket_id = :ticket_id AND asset_id = :asset_id
-                            """)
-                            result = db_session.execute(stmt, {"ticket_id": ticket_id, "asset_id": new_asset.id})
-                            count = result.scalar()
-                            
-                            if count > 0:
-                                # This is a legitimate constraint violation
-                                error = "This asset is already linked to this ticket."
-                                logger.info(f"Confirmed: Asset {new_asset.id} already linked to ticket {ticket_id}")
-                            else:
-                                # This might be a different issue or a false positive
-                                error = "An error occurred while linking the asset to the ticket."
-                                logger.warning(f"False positive? Asset {new_asset.id} not found linked to ticket {ticket_id}")
-                        except Exception as e2:
-                            # If we can't query, fall back to the original error
-                            error = "This asset is already linked to this ticket."
-                            logger.error(f"Error checking ticket-asset link: {str(e2)}")
-                    else:
-                        error = "This asset is already linked to this ticket."
-                    
+                if "ticket_assets" in error_msg.lower() and "unique constraint" in error_msg.lower():
+                    logger.warning(f"Ticket-Asset constraint violation detected")
+                    logger.warning(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
+                    logger.warning(f"Serial Number: {request.form.get('serial_num', 'None')}")
+
+                    # This error means the asset-ticket link already exists
+                    # Note: After rollback, we can't verify in DB as transaction was undone
+                    error = "This asset is already linked to this ticket. The asset may have been created in a previous attempt."
+
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error, 'duplicate': True}), 409
                     else:
