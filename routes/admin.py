@@ -7699,15 +7699,10 @@ def mass_create_users():
                 email=email,
                 user_type=source_user.user_type,
                 company_id=source_user.company_id,
-                is_active=True,
-                can_view_all_assets=source_user.can_view_all_assets,
-                can_view_all_tickets=source_user.can_view_all_tickets,
-                can_create_tickets=source_user.can_create_tickets,
-                can_edit_tickets=source_user.can_edit_tickets,
-                can_delete_tickets=source_user.can_delete_tickets,
-                can_manage_assets=source_user.can_manage_assets,
-                can_export_data=source_user.can_export_data,
-                is_admin=False  # Never clone admin status
+                assigned_country=source_user.assigned_country,
+                role=source_user.role,
+                mention_filter_enabled=source_user.mention_filter_enabled,
+                is_deleted=False
             )
             new_user.set_password(password)
             db_session.add(new_user)
