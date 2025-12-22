@@ -256,7 +256,7 @@ RESPONSE=$(curl -s -X POST "${SERVER_URL}/api/specs/submit" \
 
 # Check response
 if echo "$RESPONSE" | grep -q '"success"'; then
-    SUBMISSION_ID=$(echo "$RESPONSE" | grep -o '"id":[0-9]*' | grep -o '[0-9]*')
+    SUBMISSION_ID=$(echo "$RESPONSE" | grep -oE '"id"[[:space:]]*:[[:space:]]*[0-9]+' | grep -oE '[0-9]+')
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║  ✓ Specs submitted successfully!                           ║${NC}"
