@@ -222,29 +222,34 @@ echo ""
 # ============================================
 echo -e "${YELLOW}${BOLD}Sending specs to server...${NC}"
 
-# Build JSON payload
+# Function to escape JSON strings
+json_escape() {
+    echo -n "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr -d '\n\r'
+}
+
+# Build JSON payload with escaped values
 JSON_PAYLOAD=$(cat <<EOF
 {
-    "serial_number": "${SERIAL:-}",
-    "hardware_uuid": "${UUID:-}",
-    "model_name": "${MODEL_NAME:-}",
-    "model_id": "${MODEL_ID:-}",
-    "cpu": "${CPU:-}",
-    "cpu_cores": "${CPU_CORES:-}",
-    "gpu": "${GPU:-}",
-    "gpu_cores": "${GPU_CORES:-}",
-    "ram_gb": "${RAM_GB:-}",
-    "memory_type": "${MEM_TYPE:-}",
-    "storage_gb": "${DISK_GB:-}",
-    "storage_type": "${STORAGE_TYPE:-}",
-    "free_space": "${FREE_SPACE:-}",
-    "os_name": "${OS_NAME:-}",
-    "os_version": "${OS_VERSION:-}",
-    "os_build": "${OS_BUILD:-}",
-    "battery_cycles": "${CYCLE_COUNT:-}",
-    "battery_health": "${BATTERY_HEALTH:-}",
-    "wifi_mac": "${WIFI_MAC:-}",
-    "ethernet_mac": "${ETH_MAC:-}"
+    "serial_number": "$(json_escape "${SERIAL:-}")",
+    "hardware_uuid": "$(json_escape "${UUID:-}")",
+    "model_name": "$(json_escape "${MODEL_NAME:-}")",
+    "model_id": "$(json_escape "${MODEL_ID:-}")",
+    "cpu": "$(json_escape "${CPU:-}")",
+    "cpu_cores": "$(json_escape "${CPU_CORES:-}")",
+    "gpu": "$(json_escape "${GPU:-}")",
+    "gpu_cores": "$(json_escape "${GPU_CORES:-}")",
+    "ram_gb": "$(json_escape "${RAM_GB:-}")",
+    "memory_type": "$(json_escape "${MEM_TYPE:-}")",
+    "storage_gb": "$(json_escape "${DISK_GB:-}")",
+    "storage_type": "$(json_escape "${STORAGE_TYPE:-}")",
+    "free_space": "$(json_escape "${FREE_SPACE:-}")",
+    "os_name": "$(json_escape "${OS_NAME:-}")",
+    "os_version": "$(json_escape "${OS_VERSION:-}")",
+    "os_build": "$(json_escape "${OS_BUILD:-}")",
+    "battery_cycles": "$(json_escape "${CYCLE_COUNT:-}")",
+    "battery_health": "$(json_escape "${BATTERY_HEALTH:-}")",
+    "wifi_mac": "$(json_escape "${WIFI_MAC:-}")",
+    "ethernet_mac": "$(json_escape "${ETH_MAC:-}")"
 }
 EOF
 )
