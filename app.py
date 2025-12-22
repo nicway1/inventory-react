@@ -62,6 +62,7 @@ from routes.parcel_tracking import parcel_tracking_bp
 from routes.dashboard import dashboard_bp
 from routes.chatbot import chatbot_bp
 from routes.import_manager import import_manager_bp
+from routes.specs_api import specs_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -228,6 +229,7 @@ def create_app():
     app.register_blueprint(dashboard_bp)  # New customizable dashboard
     app.register_blueprint(chatbot_bp)  # Help assistant chatbot
     app.register_blueprint(import_manager_bp)  # Import Manager dashboard
+    app.register_blueprint(specs_bp)  # Device specs collector API
 
     # Track user activity on every request
     @app.before_request
