@@ -4657,12 +4657,14 @@ def track_singpost(ticket_id):
 
         logger.info(f"Tracking SingPost number: {tracking_number}")
 
+        # Import TrackingCache for caching
+        from utils.tracking_cache import TrackingCache
+
         # Check for force refresh parameter
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
 
         # Check for cached tracking data if not forcing refresh
         if not force_refresh:
-            from utils.tracking_cache import TrackingCache
             cached_data = TrackingCache.get_cached_tracking(
                 db_session,
                 tracking_number,
