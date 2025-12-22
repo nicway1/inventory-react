@@ -3389,3 +3389,241 @@ def mark_spec_processed_mobile(spec_id):
             'success': False,
             'error': 'Failed to mark spec as processed'
         }), 500
+
+
+@mobile_api_bp.route('/specs/<int:spec_id>/find-tickets', methods=['GET'])
+@mobile_auth_required
+def find_related_tickets_mobile(spec_id):
+    """
+    Find tickets related to a device spec by searching serial number, model, etc.
+    Returns tickets that can be linked when creating an asset.
+    """
+    try:
+        user = request.current_mobile_user
+        db_session = db_manager.get_session()
+
+        try:
+            from models.device_spec import DeviceSpec
+            from models.ticket import Ticket
+            from sqlalchemy import or_
+
+            spec = db_session.query(DeviceSpec).get(spec_id)
+            if not spec:
+                return jsonify({'success': False, 'error': 'Spec not found'}), 404
+
+            # Search for tickets that might be related to this spec
+            search_terms = []
+            if spec.serial_number:
+                search_terms.append(spec.serial_number)
+            if spec.model_id:
+                search_terms.append(spec.model_id)
+            if spec.model_name:
+                search_terms.append(spec.model_name)
+
+            if not search_terms:
+                return jsonify({
+                    'success': True,
+                    'tickets': [],
+                    'search_terms': [],
+                    'message': 'No search terms available for this spec'
+                })
+
+            # Build search filters
+            filters = []
+            for term in search_terms:
+                filters.append(Ticket.title.ilike(f'%{term}%'))
+                filters.append(Ticket.description.ilike(f'%{term}%'))
+
+            # Query tickets
+            tickets = db_session.query(Ticket).filter(
+                or_(*filters)
+            ).order_by(Ticket.created_at.desc()).limit(20).all()
+
+            # Format response
+            tickets_list = []
+            for ticket in tickets:
+                tickets_list.append({
+                    'id': ticket.id,
+                    'display_id': ticket.display_id if hasattr(ticket, 'display_id') else f'#{ticket.id}',
+                    'title': ticket.title,
+                    'status': ticket.status.value if ticket.status else 'Unknown',
+                    'category': ticket.category.value if hasattr(ticket, 'category') and ticket.category else '',
+                    'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                    'customer_name': ticket.customer.name if hasattr(ticket, 'customer') and ticket.customer else ''
+                })
+
+            return jsonify({
+                'success': True,
+                'count': len(tickets_list),
+                'tickets': tickets_list,
+                'search_terms': search_terms
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error finding related tickets: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to find related tickets'
+        }), 500
+
+
+@mobile_api_bp.route('/specs/<int:spec_id>/create-asset-with-ticket', methods=['POST'])
+@mobile_auth_required
+def create_asset_from_spec_with_ticket(spec_id):
+    """
+    Create an asset from a device spec and link it to a ticket.
+
+    Request body:
+    - ticket_id: (required) ID of the ticket to link the asset to
+    - asset_tag: (optional) Asset tag
+    - status: (optional) Asset status (default: IN_STOCK)
+    - condition: (optional) Asset condition
+    - notes: (optional) Additional notes
+    """
+    try:
+        user = request.current_mobile_user
+
+        # Check if user has permission to create assets
+        if not hasattr(user, 'can_create_assets') or not user.can_create_assets:
+            if user.user_type not in [UserType.ADMIN, UserType.COUNTRY_ADMIN]:
+                return jsonify({
+                    'success': False,
+                    'error': 'You do not have permission to create assets'
+                }), 403
+
+        db_session = db_manager.get_session()
+
+        try:
+            from models.device_spec import DeviceSpec
+            from models.ticket import Ticket
+            from utils.mac_models import get_mac_model_name
+            from sqlalchemy import text
+
+            spec = db_session.query(DeviceSpec).get(spec_id)
+            if not spec:
+                return jsonify({'success': False, 'error': 'Spec not found'}), 404
+
+            if spec.processed:
+                return jsonify({
+                    'success': False,
+                    'error': 'This spec has already been processed'
+                }), 400
+
+            # Get request data
+            data = request.get_json() or {}
+            ticket_id = data.get('ticket_id')
+
+            if not ticket_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'ticket_id is required'
+                }), 400
+
+            # Verify ticket exists
+            ticket = db_session.query(Ticket).get(ticket_id)
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'Ticket not found'
+                }), 404
+
+            # Translate model name
+            model_name_translated = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+
+            # Check for duplicate serial number
+            existing_asset = db_session.query(Asset).filter(
+                Asset.serial_num == spec.serial_number
+            ).first()
+
+            if existing_asset:
+                return jsonify({
+                    'success': False,
+                    'error': f'An asset with serial number {spec.serial_number} already exists',
+                    'existing_asset_id': existing_asset.id
+                }), 409
+
+            # Create new asset
+            new_asset = Asset(
+                asset_tag=data.get('asset_tag', ''),
+                serial_num=spec.serial_number or '',
+                model=spec.model_id or '',
+                name=model_name_translated or spec.model_name or '',
+                asset_type='Laptop',
+                manufacturer='Apple',
+                cpu_type=spec.cpu or '',
+                cpu_cores=spec.cpu_cores or '',
+                gpu_cores=spec.gpu_cores or '',
+                memory=f"{spec.ram_gb} GB" if spec.ram_gb else '',
+                harddrive=f"{spec.storage_gb} GB {spec.storage_type or ''}".strip() if spec.storage_gb else '',
+                status=AssetStatus[data.get('status', 'IN_STOCK')],
+                condition=data.get('condition', ''),
+                notes=data.get('notes', ''),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            # Auto-assign image for MacBook
+            if 'macbook' in (model_name_translated or '').lower():
+                new_asset.image_url = '/static/images/products/macbook.png'
+
+            db_session.add(new_asset)
+            db_session.flush()
+
+            # Link asset to ticket using direct SQL
+            try:
+                stmt = text("""
+                    INSERT INTO ticket_assets (ticket_id, asset_id)
+                    VALUES (:ticket_id, :asset_id)
+                """)
+                db_session.execute(stmt, {"ticket_id": ticket_id, "asset_id": new_asset.id})
+            except Exception as link_error:
+                logger.warning(f"Error linking asset to ticket: {link_error}")
+
+            # Mark spec as processed
+            spec.processed = True
+            spec.processed_at = datetime.utcnow()
+            spec.asset_id = new_asset.id
+            spec.notes = f"Asset created and linked to ticket {ticket.display_id if hasattr(ticket, 'display_id') else ticket_id} via mobile API"
+
+            db_session.commit()
+
+            logger.info(f"User {user.username} created asset {new_asset.id} from spec {spec_id} and linked to ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Asset created and linked to ticket successfully',
+                'asset': {
+                    'id': new_asset.id,
+                    'asset_tag': new_asset.asset_tag or '',
+                    'serial_num': new_asset.serial_num or '',
+                    'name': new_asset.name or '',
+                    'model': new_asset.model or '',
+                    'status': new_asset.status.value if new_asset.status else 'Unknown'
+                },
+                'ticket': {
+                    'id': ticket.id,
+                    'display_id': ticket.display_id if hasattr(ticket, 'display_id') else f'#{ticket.id}'
+                }
+            })
+
+        except KeyError as e:
+            db_session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Invalid status value: {str(e)}'
+            }), 400
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error creating asset from spec with ticket: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create asset'
+        }), 500
