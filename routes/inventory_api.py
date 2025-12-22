@@ -95,13 +95,12 @@ def dual_auth_required(f):
                     # Get user from database with eager loading
                     db_session = db_manager.get_session()
                     try:
+                        # Note: permissions is a @property, not a relationship
                         user = db_session.query(User).options(
-                            joinedload(User.permissions),
                             joinedload(User.company)
                         ).filter(User.id == user_id).first()
                         if user:
-                            # Force load relationships before session closes
-                            _ = user.permissions
+                            # Force load company before session closes
                             _ = user.company
                             logger.info(f"JSON API authentication successful for user: {user.username}")
                     finally:

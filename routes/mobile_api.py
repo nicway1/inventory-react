@@ -59,15 +59,14 @@ def verify_mobile_token(token):
 
         db_session = db_manager.get_session()
         try:
-            # Eagerly load permissions and company to avoid DetachedInstanceError
+            # Eagerly load company relationship
+            # Note: permissions is a @property, not a relationship - it queries its own session
             user = db_session.query(User).options(
-                joinedload(User.permissions),
                 joinedload(User.company)
             ).filter(User.id == user_id).first()
 
-            # Force load the relationships before session closes
+            # Force load the company before session closes
             if user:
-                _ = user.permissions
                 _ = user.company
 
             return user
