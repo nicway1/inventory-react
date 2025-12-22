@@ -37,6 +37,9 @@
                 {% if from_spec_id %}
                 <input type="hidden" name="from_spec_id" value="{{ from_spec_id }}">
                 {% endif %}
+                {% if intake_ticket_id %}
+                <input type="hidden" name="intake_ticket_id" value="{{ intake_ticket_id }}">
+                {% endif %}
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <!-- Basic Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
