@@ -132,11 +132,12 @@ fi
 # Battery
 BATTERY_INFO=$(ioreg -r -c AppleSmartBattery 2>/dev/null)
 if [ -n "$BATTERY_INFO" ]; then
-    CYCLE_COUNT=$(echo "$BATTERY_INFO" | grep '"CycleCount"' | awk '{print $NF}')
-    MAX_CAPACITY=$(echo "$BATTERY_INFO" | grep '"MaxCapacity"' | awk '{print $NF}')
-    DESIGN_CAPACITY=$(echo "$BATTERY_INFO" | grep '"DesignCapacity"' | awk '{print $NF}')
+    # Extract just the top-level CycleCount number (not from nested LifetimeData)
+    CYCLE_COUNT=$(echo "$BATTERY_INFO" | grep -E '^\s*"CycleCount"' | head -1 | grep -oE '[0-9]+')
+    MAX_CAPACITY=$(echo "$BATTERY_INFO" | grep -E '^\s*"MaxCapacity"' | head -1 | grep -oE '[0-9]+')
+    DESIGN_CAPACITY=$(echo "$BATTERY_INFO" | grep -E '^\s*"DesignCapacity"' | head -1 | grep -oE '[0-9]+')
 
-    if [ -n "$MAX_CAPACITY" ] && [ -n "$DESIGN_CAPACITY" ]; then
+    if [ -n "$MAX_CAPACITY" ] && [ -n "$DESIGN_CAPACITY" ] && [ "$DESIGN_CAPACITY" -gt 0 ]; then
         BATTERY_HEALTH=$(echo "scale=1; $MAX_CAPACITY * 100 / $DESIGN_CAPACITY" | bc 2>/dev/null)
     fi
 else
