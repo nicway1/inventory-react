@@ -66,7 +66,7 @@
                                    id="model"
                                    name="model"
                                    list="model-list"
-                                   value="{{ spec_data.model_id if spec_data else '' }}"
+                                   value="{{ spec_data.model_number if spec_data and spec_data.model_number else (spec_data.model_id if spec_data else '') }}"
                                    required
                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data %} bg-cyan-50 border-cyan-300{% endif %}"
                                    onchange="handleModelChange(this)">
@@ -108,10 +108,11 @@
 
                     <div>
                         <label for="receiving_date" class="block text-sm font-medium text-gray-700">Receiving Date</label>
-                        <input type="date" 
-                               id="receiving_date" 
-                               name="receiving_date" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="date"
+                               id="receiving_date"
+                               name="receiving_date"
+                               value="{{ spec_data.receiving_date if spec_data else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.receiving_date %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
@@ -213,24 +214,25 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                        <select id="status" 
-                                name="status" 
+                        <select id="status"
+                                name="status"
                                 required
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.status %} bg-cyan-50 border-cyan-300{% endif %}">
                             <option value="">Select a status...</option>
                             {% for status in statuses %}
-                            <option value="{{ status.name }}">{{ status.value }}</option>
+                            <option value="{{ status.name }}" {% if spec_data and spec_data.status == status.name %}selected{% endif %}>{{ status.value }}</option>
                             {% endfor %}
                         </select>
                     </div>
 
                     <div>
                         <label for="customer" class="block text-sm font-medium text-gray-700">Customer</label>
-                        <input type="text" 
-                               id="customer" 
-                               name="customer" 
+                        <input type="text"
+                               id="customer"
+                               name="customer"
+                               value="{{ spec_data.customer if spec_data else '' }}"
                                list="customer-list"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.customer %} bg-cyan-50 border-cyan-300{% endif %}">
                         <datalist id="customer-list">
                             {% for customer in customers %}
                             <option value="{{ customer }}">{{ customer }}</option>
@@ -241,30 +243,31 @@
                     <div>
                         <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
                         {% if user.user_type == 'COUNTRY_ADMIN' %}
-                            <input type="text" 
-                                   id="country" 
-                                   name="country" 
+                            <input type="text"
+                                   id="country"
+                                   name="country"
                                    value="{{ user.assigned_country }}"
                                    readonly
                                    class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm">
                         {% elif user.is_super_admin %}
-                            <input type="text" 
-                                   id="country" 
-                                   name="country" 
+                            <input type="text"
+                                   id="country"
+                                   name="country"
+                                   value="{{ spec_data.country if spec_data else '' }}"
                                    list="country-list"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.country %} bg-cyan-50 border-cyan-300{% endif %}">
                             <datalist id="country-list">
                                 {% for country in countries %}
                                 <option value="{{ country }}">{{ country }}</option>
                                 {% endfor %}
                             </datalist>
                         {% else %}
-                            <select id="country" 
-                                    name="country" 
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <select id="country"
+                                    name="country"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.country %} bg-cyan-50 border-cyan-300{% endif %}">
                                 <option value="">Select a country...</option>
                                 {% for country in countries %}
-                                <option value="{{ country }}">{{ country }}</option>
+                                <option value="{{ country }}" {% if spec_data and spec_data.country == country %}selected{% endif %}>{{ country }}</option>
                                 {% endfor %}
                             </select>
                         {% endif %}
@@ -275,11 +278,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="condition" class="block text-sm font-medium text-gray-700">Condition</label>
-                        <input type="text" 
-                               id="condition" 
-                               name="condition" 
+                        <input type="text"
+                               id="condition"
+                               name="condition"
+                               value="{{ spec_data.condition if spec_data else '' }}"
                                list="condition-list"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.condition %} bg-cyan-50 border-cyan-300{% endif %}">
                         <datalist id="condition-list">
                             {% for condition in conditions %}
                             <option value="{{ condition }}">{{ condition }}</option>

@@ -4019,16 +4019,18 @@ def add_asset():
         if from_spec_id:
             try:
                 from models.device_spec import DeviceSpec
-                from utils.mac_models import get_mac_model_name
+                from utils.mac_models import get_mac_model_name, get_mac_model_number
                 spec = db_session.query(DeviceSpec).get(int(from_spec_id))
                 if spec:
-                    # Translate model ID to human-readable name
+                    # Translate model ID to human-readable name and A-number
                     model_name_translated = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+                    model_number = get_mac_model_number(spec.model_id) if spec.model_id else ''
                     spec_data = {
                         'id': spec.id,
                         'serial_number': spec.serial_number or '',
                         'model_id': spec.model_id or '',
                         'model_name': model_name_translated or spec.model_name or '',
+                        'model_number': model_number,  # A-number (e.g., A2442)
                         'cpu': spec.cpu or '',
                         'cpu_cores': spec.cpu_cores or '',
                         'gpu': spec.gpu or '',
@@ -4037,11 +4039,33 @@ def add_asset():
                         'memory_type': spec.memory_type or '',
                         'storage_gb': spec.storage_gb or '',
                         'storage_type': spec.storage_type or '',
-                        'battery_cycles': spec.battery_cycles or '',
-                        'battery_health': spec.battery_health or '',
                         'os_version': spec.os_version or '',
                         'wifi_mac': spec.wifi_mac or '',
+                        # Default values for import
+                        'status': 'IN_STOCK',
+                        'condition': 'Used',
+                        'receiving_date': datetime.now().strftime('%Y-%m-%d'),
+                        'customer': '',
+                        'country': '',
                     }
+
+                    # If ticket_id is provided, get customer company and country from ticket
+                    if ticket_id_from_query:
+                        try:
+                            from models.ticket import Ticket
+                            ticket = db_session.query(Ticket).get(int(ticket_id_from_query))
+                            if ticket and ticket.customer:
+                                # Get company name (not customer name, not parent company)
+                                if ticket.customer.company:
+                                    spec_data['customer'] = ticket.customer.company.name or ''
+                                # Get country from customer
+                                if ticket.customer.country:
+                                    spec_data['country'] = ticket.customer.country
+                                elif ticket.country:
+                                    spec_data['country'] = ticket.country
+                        except Exception as e:
+                            logger.error(f"Error loading ticket data for spec import: {e}")
+
                     logger.info(f"Importing spec data for asset creation: {spec.serial_number}")
             except Exception as e:
                 logger.error(f"Error loading spec data: {e}")

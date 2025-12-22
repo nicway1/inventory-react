@@ -88,17 +88,6 @@
                     <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-hdd mr-2 w-4"></i>Storage</span>
                     <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.storage_gb or '?' }} GB {{ spec.storage_type or '' }}</span>
                 </div>
-                <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-                    <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-battery-three-quarters mr-2 w-4"></i>Battery</span>
-                    <span class="text-gray-800 dark:text-white text-sm font-medium">
-                        {% if spec.battery_cycles %}
-                        {{ spec.battery_cycles }} cycles
-                        {% if spec.battery_health %}<span class="text-gray-400">({{ spec.battery_health }}%)</span>{% endif %}
-                        {% else %}
-                        N/A
-                        {% endif %}
-                    </span>
-                </div>
                 <div class="flex justify-between py-2">
                     <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-clock mr-2 w-4"></i>Submitted</span>
                     <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.submitted_at.strftime('%b %d, %H:%M') if spec.submitted_at else 'Unknown' }}</span>
@@ -240,11 +229,9 @@ function viewSpec(specId) {
                         </div>
 
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
-                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-battery-three-quarters mr-2"></i>Battery & Network</h6>
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-wifi mr-2"></i>Network</h6>
                             <div class="space-y-2 text-sm">
-                                <div><span class="text-gray-500 dark:text-gray-400">Cycles:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.battery_cycles || 'N/A'}</span></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">Health:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.battery_health ? spec.battery_health + '%' : 'N/A'}</span></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">WiFi:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.wifi_mac || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">WiFi MAC:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.wifi_mac || 'N/A'}</span></div>
                             </div>
                         </div>
                     </div>
