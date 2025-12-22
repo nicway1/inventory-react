@@ -67,6 +67,13 @@ ACTION_PATTERNS = {
         r"(?:what|which)\s+asset\s+(?:has|is|with)\s+(?:serial\s+)?([A-Za-z0-9\-_]+)",
         r"(?:find|search|get|show|lookup)\s+([A-Za-z0-9\-_]{5,})",
     ],
+    "tracking_lookup": [
+        r"(?:track|tracking|check|lookup|look\s+up|where\s+is|status\s+of)\s+(?:parcel|package|shipment|tracking)?\s*(?:number|#|no\.?)?\s*(XZ[A-Za-z0-9]+)",
+        r"(?:track|tracking)\s+(XZ[A-Za-z0-9]+)",
+        r"(XZ[A-Za-z0-9]{6,})\s+(?:track|tracking|status)",
+        r"(?:singpost|sp)\s+(?:track|tracking)\s*(XZ[A-Za-z0-9]+)?",
+        r"(?:where\s+is|status\s+of)\s+(?:my\s+)?(?:parcel|package)\s*(XZ[A-Za-z0-9]+)?",
+    ],
 }
 
 # Status aliases for natural language
@@ -252,6 +259,24 @@ def parse_action(query):
                     "type": "query",
                     "action": "asset_lookup",
                     "serial_number": serial_number,
+                    "original_query": query
+                }
+
+    # Check for SingPost tracking lookup
+    for pattern in ACTION_PATTERNS["tracking_lookup"]:
+        match = re.search(pattern, query, re.IGNORECASE)  # Use original query to preserve case
+        if match:
+            tracking_number = match.group(1).strip().upper() if match.group(1) else None
+            # Also try to find any XZ tracking number in the query if pattern didn't capture it
+            if not tracking_number:
+                xz_match = re.search(r'(XZ[A-Za-z0-9]{6,})', query, re.IGNORECASE)
+                if xz_match:
+                    tracking_number = xz_match.group(1).upper()
+            if tracking_number and tracking_number.startswith('XZ'):
+                return {
+                    "type": "query",
+                    "action": "tracking_lookup",
+                    "tracking_number": tracking_number,
                     "original_query": query
                 }
 
@@ -987,6 +1012,86 @@ def ask():
                     "url": f"/inventory/sf/asset/{asset.id}"
                 })
 
+            elif action["action"] == "tracking_lookup":
+                # Look up SingPost tracking number
+                tracking_number = action["tracking_number"]
+
+                try:
+                    from utils.singpost_tracking import get_singpost_tracking_client
+
+                    singpost_client = get_singpost_tracking_client()
+
+                    if not singpost_client.is_configured():
+                        answer = "SingPost Tracking API is not configured. Please contact an administrator."
+                        log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                        return jsonify({
+                            "success": True,
+                            "type": "error",
+                            "answer": answer
+                        })
+
+                    result = singpost_client.track_single(tracking_number)
+
+                    if result and result.get('success'):
+                        # Build tracking info response
+                        answer = f"**SingPost Tracking: {tracking_number}**\n\n"
+                        answer += f"📦 **Status:** {result.get('status', 'Unknown')}\n"
+
+                        was_pushed = result.get('was_pushed', False)
+                        if was_pushed:
+                            answer += f"✅ **Received by SingPost:** Yes\n"
+                        else:
+                            answer += f"⏳ **Received by SingPost:** Not yet (Information only)\n"
+
+                        if result.get('origin_country'):
+                            answer += f"📍 **Origin:** {result.get('origin_country')}\n"
+                        if result.get('destination_country'):
+                            answer += f"🎯 **Destination:** {result.get('destination_country')}\n"
+                        if result.get('posting_date'):
+                            answer += f"📅 **Posting Date:** {result.get('posting_date')}\n"
+
+                        events = result.get('events', [])
+                        if events:
+                            answer += f"\n**Recent Events:**\n"
+                            for i, event in enumerate(events[:5]):  # Show last 5 events
+                                event_desc = event.get('description', 'Unknown')
+                                event_date = event.get('date', '')
+                                event_time = event.get('time', '')
+                                answer += f"• {event_desc}"
+                                if event_date or event_time:
+                                    answer += f" ({event_date} {event_time})"
+                                answer += "\n"
+                            if len(events) > 5:
+                                answer += f"\n_...and {len(events) - 5} more events_"
+
+                        answer += f"\n\n[View in Parcel Tracking](/parcel-tracking)"
+
+                        log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                        return jsonify({
+                            "success": True,
+                            "type": "answer",
+                            "answer": answer,
+                            "url": "/parcel-tracking"
+                        })
+                    else:
+                        error_msg = result.get('error', 'Tracking number not found') if result else 'Failed to fetch tracking data'
+                        answer = f"Could not find tracking information for **{tracking_number}**.\n\n{error_msg}"
+                        log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                        return jsonify({
+                            "success": True,
+                            "type": "error",
+                            "answer": answer
+                        })
+
+                except Exception as e:
+                    answer = f"Error looking up tracking: {str(e)}"
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
         finally:
             db_session.close()
 
@@ -1631,6 +1736,92 @@ def mobile_ask():
                     }
                 })
 
+            elif action["action"] == "tracking_lookup":
+                # Look up SingPost tracking number
+                tracking_number = action["tracking_number"]
+
+                try:
+                    from utils.singpost_tracking import get_singpost_tracking_client
+
+                    singpost_client = get_singpost_tracking_client()
+
+                    if not singpost_client.is_configured():
+                        answer = "SingPost Tracking API is not configured. Please contact an administrator."
+                        log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                        return jsonify({
+                            "success": True,
+                            "type": "error",
+                            "answer": answer
+                        })
+
+                    result = singpost_client.track_single(tracking_number)
+
+                    if result and result.get('success'):
+                        # Build tracking info response
+                        answer = f"**SingPost Tracking: {tracking_number}**\n\n"
+                        answer += f"📦 **Status:** {result.get('status', 'Unknown')}\n"
+
+                        was_pushed = result.get('was_pushed', False)
+                        if was_pushed:
+                            answer += f"✅ **Received by SingPost:** Yes\n"
+                        else:
+                            answer += f"⏳ **Received by SingPost:** Not yet (Information only)\n"
+
+                        if result.get('origin_country'):
+                            answer += f"📍 **Origin:** {result.get('origin_country')}\n"
+                        if result.get('destination_country'):
+                            answer += f"🎯 **Destination:** {result.get('destination_country')}\n"
+                        if result.get('posting_date'):
+                            answer += f"📅 **Posting Date:** {result.get('posting_date')}\n"
+
+                        events = result.get('events', [])
+                        if events:
+                            answer += f"\n**Recent Events:**\n"
+                            for i, event in enumerate(events[:5]):  # Show last 5 events
+                                event_desc = event.get('description', 'Unknown')
+                                event_date = event.get('date', '')
+                                event_time = event.get('time', '')
+                                answer += f"• {event_desc}"
+                                if event_date or event_time:
+                                    answer += f" ({event_date} {event_time})"
+                                answer += "\n"
+                            if len(events) > 5:
+                                answer += f"\n_...and {len(events) - 5} more events_"
+
+                        log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                        return jsonify({
+                            "success": True,
+                            "type": "answer",
+                            "answer": answer,
+                            "tracking": {
+                                "tracking_number": tracking_number,
+                                "carrier": "SingPost",
+                                "status": result.get('status'),
+                                "was_pushed": was_pushed,
+                                "origin_country": result.get('origin_country'),
+                                "destination_country": result.get('destination_country'),
+                                "events": events
+                            }
+                        })
+                    else:
+                        error_msg = result.get('error', 'Tracking number not found') if result else 'Failed to fetch tracking data'
+                        answer = f"Could not find tracking information for **{tracking_number}**.\n\n{error_msg}"
+                        log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                        return jsonify({
+                            "success": True,
+                            "type": "error",
+                            "answer": answer
+                        })
+
+                except Exception as e:
+                    answer = f"Error looking up tracking: {str(e)}"
+                    log_chat_interaction(user_id, query, answer, "error", action_type=action["action"])
+                    return jsonify({
+                        "success": True,
+                        "type": "error",
+                        "answer": answer
+                    })
+
         finally:
             db_session.close()
 
@@ -1947,7 +2138,8 @@ def mobile_capabilities():
             "ticket_actions": True,
             "asset_lookup": True,
             "bug_reporting": True,
-            "user_lookup": True
+            "user_lookup": True,
+            "tracking_lookup": True
         },
         "action_commands": {
             "update_status": {
@@ -1985,6 +2177,15 @@ def mobile_capabilities():
                     "Find asset serial ABC123",
                     "Lookup SN: XYZ789",
                     "Check asset tag AT001"
+                ]
+            },
+            "tracking_lookup": {
+                "description": "Track a SingPost parcel by tracking number",
+                "examples": [
+                    "Track XZB123456789",
+                    "Where is my parcel XZD987654321",
+                    "Check tracking XZB000111222",
+                    "SingPost tracking XZB999888777"
                 ]
             }
         },

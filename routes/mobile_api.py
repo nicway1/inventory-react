@@ -1382,6 +1382,292 @@ def mark_outbound_received(ticket_id):
         }), 500
 
 
+@mobile_api_bp.route('/tickets/<int:ticket_id>/tracking', methods=['GET'])
+@mobile_auth_required
+def get_ticket_tracking(ticket_id):
+    """
+    Get tracking information for a ticket with optional refresh from SingPost API
+
+    GET /api/mobile/v1/tickets/<ticket_id>/tracking?force_refresh=false
+    Headers: Authorization: Bearer <token>
+
+    Query Parameters:
+        force_refresh (bool): If true, bypass cache and fetch fresh data (default: false)
+        slot (int): Which tracking slot to fetch (1-5, default: 1)
+
+    Response: {
+        "success": true,
+        "tracking": {
+            "tracking_number": "XZB123456",
+            "carrier": "SingPost",
+            "status": "Information Received",
+            "was_pushed": false,
+            "origin_country": "Singapore",
+            "destination_country": "Malaysia",
+            "events": [...],
+            "is_cached": false,
+            "last_updated": "2025-12-22T10:00:00"
+        }
+    }
+    """
+    try:
+        user = request.current_mobile_user
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        slot = request.args.get('slot', 1, type=int)
+
+        db_session = db_manager.get_session()
+        try:
+            # Get ticket with permission check
+            if user.user_type == UserType.SUPER_ADMIN:
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            elif user.permissions and user.permissions.can_view_tickets:
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            else:
+                ticket = db_session.query(Ticket).filter(
+                    Ticket.id == ticket_id,
+                    (Ticket.requester_id == user.id) | (Ticket.assigned_to_id == user.id)
+                ).first()
+
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'Ticket not found or access denied'
+                }), 404
+
+            # Get the appropriate tracking number based on slot
+            if slot == 1:
+                tracking_number = ticket.shipping_tracking
+                current_status = ticket.shipping_status
+            elif slot == 2:
+                tracking_number = getattr(ticket, 'shipping_tracking_2', None)
+                current_status = getattr(ticket, 'shipping_status_2', None)
+            elif slot == 3:
+                tracking_number = getattr(ticket, 'shipping_tracking_3', None)
+                current_status = getattr(ticket, 'shipping_status_3', None)
+            elif slot == 4:
+                tracking_number = getattr(ticket, 'shipping_tracking_4', None)
+                current_status = getattr(ticket, 'shipping_status_4', None)
+            elif slot == 5:
+                tracking_number = getattr(ticket, 'shipping_tracking_5', None)
+                current_status = getattr(ticket, 'shipping_status_5', None)
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid slot number (must be 1-5)'
+                }), 400
+
+            if not tracking_number:
+                return jsonify({
+                    'success': False,
+                    'error': f'No tracking number in slot {slot}'
+                }), 404
+
+            # Import tracking utilities
+            from utils.tracking_cache import TrackingCache
+            from utils.singpost_tracking import get_singpost_tracking_client
+
+            # Check if it's a SingPost tracking number
+            is_singpost = (
+                tracking_number.upper().startswith('XZB') or
+                tracking_number.upper().startswith('XZD') or
+                tracking_number.upper().startswith('XZ')
+            )
+
+            # Try to get cached data first (unless force refresh)
+            if not force_refresh:
+                cached_data = TrackingCache.get_cached_tracking(
+                    db_session,
+                    tracking_number,
+                    ticket_id=ticket_id,
+                    tracking_type='primary',
+                    max_age_hours=1,  # 1 hour cache for mobile
+                    force=False
+                )
+                if cached_data and cached_data.get('success'):
+                    logger.info(f"Mobile returning cached tracking for {tracking_number}")
+                    return jsonify({
+                        'success': True,
+                        'tracking': {
+                            'tracking_number': tracking_number,
+                            'carrier': 'SingPost' if is_singpost else 'Unknown',
+                            'status': cached_data.get('shipping_status', current_status),
+                            'was_pushed': cached_data.get('tracking_info', {}).get('was_pushed', False) if isinstance(cached_data.get('tracking_info'), dict) else False,
+                            'events': cached_data.get('tracking_info', []) if isinstance(cached_data.get('tracking_info'), list) else cached_data.get('tracking_info', {}).get('events', []),
+                            'is_cached': True,
+                            'last_updated': cached_data.get('last_updated')
+                        }
+                    })
+
+            # Fetch fresh data from SingPost API
+            if is_singpost:
+                singpost_client = get_singpost_tracking_client()
+
+                if not singpost_client.is_configured():
+                    return jsonify({
+                        'success': False,
+                        'error': 'SingPost Tracking API not configured'
+                    }), 500
+
+                result = singpost_client.track_single(tracking_number)
+
+                if result and result.get('success'):
+                    # Save to cache
+                    TrackingCache.save_tracking_data(
+                        db_session,
+                        tracking_number,
+                        result.get('events', []),
+                        result.get('status', 'Unknown'),
+                        ticket_id=ticket_id,
+                        tracking_type='primary',
+                        carrier='singpost'
+                    )
+
+                    # Update ticket status
+                    if slot == 1:
+                        ticket.shipping_status = result.get('status')
+                        ticket.shipping_carrier = 'SingPost'
+                    ticket.updated_at = datetime.utcnow()
+                    db_session.commit()
+
+                    return jsonify({
+                        'success': True,
+                        'tracking': {
+                            'tracking_number': tracking_number,
+                            'carrier': 'SingPost',
+                            'status': result.get('status'),
+                            'was_pushed': result.get('was_pushed', False),
+                            'origin_country': result.get('origin_country'),
+                            'destination_country': result.get('destination_country'),
+                            'posting_date': result.get('posting_date'),
+                            'events': result.get('events', []),
+                            'is_cached': False,
+                            'last_updated': result.get('last_updated')
+                        }
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': result.get('error', 'Failed to fetch tracking data'),
+                        'tracking_number': tracking_number
+                    }), 404
+
+            else:
+                # Non-SingPost tracking - return basic info
+                return jsonify({
+                    'success': True,
+                    'tracking': {
+                        'tracking_number': tracking_number,
+                        'carrier': ticket.shipping_carrier or 'Unknown',
+                        'status': current_status or 'Unknown',
+                        'was_pushed': None,
+                        'events': [],
+                        'is_cached': False,
+                        'message': 'Non-SingPost tracking - live tracking not available'
+                    }
+                })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Get ticket tracking error: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get tracking information'
+        }), 500
+
+
+@mobile_api_bp.route('/tracking/lookup', methods=['POST'])
+@mobile_auth_required
+def lookup_tracking():
+    """
+    Look up a tracking number directly without ticket association
+
+    POST /api/mobile/v1/tracking/lookup
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "tracking_number": "XZB123456"
+    }
+
+    Response: {
+        "success": true,
+        "tracking": {
+            "tracking_number": "XZB123456",
+            "carrier": "SingPost",
+            "status": "Information Received",
+            "was_pushed": false,
+            "events": [...]
+        }
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        tracking_number = data.get('tracking_number', '').strip()
+
+        if not tracking_number:
+            return jsonify({
+                'success': False,
+                'error': 'Tracking number is required'
+            }), 400
+
+        # Check if it's a SingPost tracking number
+        is_singpost = (
+            tracking_number.upper().startswith('XZB') or
+            tracking_number.upper().startswith('XZD') or
+            tracking_number.upper().startswith('XZ')
+        )
+
+        if not is_singpost:
+            return jsonify({
+                'success': False,
+                'error': 'Only SingPost tracking numbers (starting with XZ) are supported'
+            }), 400
+
+        from utils.singpost_tracking import get_singpost_tracking_client
+
+        singpost_client = get_singpost_tracking_client()
+
+        if not singpost_client.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'SingPost Tracking API not configured'
+            }), 500
+
+        result = singpost_client.track_single(tracking_number)
+
+        if result and result.get('success'):
+            return jsonify({
+                'success': True,
+                'tracking': {
+                    'tracking_number': tracking_number,
+                    'carrier': 'SingPost',
+                    'status': result.get('status'),
+                    'was_pushed': result.get('was_pushed', False),
+                    'origin_country': result.get('origin_country'),
+                    'destination_country': result.get('destination_country'),
+                    'posting_date': result.get('posting_date'),
+                    'events': result.get('events', []),
+                    'last_updated': result.get('last_updated'),
+                    'source': result.get('source')
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Tracking number not found'),
+                'tracking_number': tracking_number
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Tracking lookup error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to look up tracking'
+        }), 500
+
+
 @mobile_api_bp.route('/tracking/return', methods=['GET'])
 @mobile_auth_required
 def get_return_tracking():
