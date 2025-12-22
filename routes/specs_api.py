@@ -7,6 +7,7 @@ from datetime import datetime
 from database import SessionLocal
 from models.device_spec import DeviceSpec
 from utils.auth_decorators import login_required
+from utils.mac_models import get_mac_model_name
 import logging
 
 logger = logging.getLogger(__name__)
@@ -124,9 +125,13 @@ def get_spec(spec_id):
         if not spec:
             return jsonify({'success': False, 'error': 'Spec not found'}), 404
 
+        spec_dict = spec.to_dict()
+        # Add translated model name
+        spec_dict['model_name_translated'] = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+
         return jsonify({
             'success': True,
-            'spec': spec.to_dict()
+            'spec': spec_dict
         })
 
     except Exception as e:
@@ -211,7 +216,8 @@ def device_specs_page():
 
         return render_template('device_specs.html',
                                specs=specs,
-                               unprocessed_count=unprocessed_count)
+                               unprocessed_count=unprocessed_count,
+                               get_mac_model_name=get_mac_model_name)
 
     except Exception as e:
         logger.error(f"Error loading device specs page: {str(e)}")

@@ -60,7 +60,7 @@
             <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
                 <div>
                     <div class="font-bold text-gray-800 dark:text-white">{{ spec.serial_number or 'Unknown Serial' }}</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ spec.model_name or spec.model_id or 'Unknown Model' }}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ get_mac_model_name(spec.model_id) if spec.model_id else (spec.model_name or 'Unknown Model') }}</div>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-semibold {% if spec.processed %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200{% endif %}">
                     {% if spec.processed %}
@@ -188,8 +188,8 @@ function viewSpec(specId) {
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
                             <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-laptop mr-2"></i>Model</h6>
                             <div class="space-y-2 text-sm">
-                                <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.model_name || 'N/A'}</span></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">ID:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.model_id || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Model:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.model_name_translated || spec.model_name || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Model ID:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.model_id || 'N/A'}</span></div>
                             </div>
                         </div>
 
