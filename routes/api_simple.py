@@ -5,6 +5,7 @@ Simple API Routes for Mobile App Integration
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime, timedelta
 from utils.api_auth import require_api_key, create_success_response, create_error_response
+from routes.inventory_api import dual_auth_required
 from utils.store_instances import ticket_store, user_store, inventory_store
 from utils.db_manager import DatabaseManager
 from models.user import User
@@ -2021,7 +2022,7 @@ def get_companies():
 # ============================================================================
 
 @api_bp.route('/accessories', methods=['GET'])
-@require_api_key(permissions=['inventory:read'])
+@dual_auth_required
 def list_accessories():
     """List accessories with pagination and image_url"""
     try:
@@ -2100,7 +2101,7 @@ def list_accessories():
 
 
 @api_bp.route('/accessories/<int:accessory_id>', methods=['GET'])
-@require_api_key(permissions=['inventory:read'])
+@dual_auth_required
 def get_accessory_item(accessory_id):
     """Get detailed information about a specific accessory"""
     try:
