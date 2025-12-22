@@ -4675,7 +4675,6 @@ def track_singpost(ticket_id):
 
             if cached_data:
                 logger.info(f"Using cached tracking data for SingPost: {tracking_number}")
-                db_session.close()
                 return jsonify(cached_data)
         else:
             logger.info(f"Force refresh requested for SingPost: {tracking_number}, bypassing cache")
