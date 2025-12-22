@@ -231,8 +231,8 @@ def format_asset_complete(asset):
         
         # Hardware specifications - COMPLETE SET
         "cpu_type": safe_str(asset.cpu_type),
-        "cpu_cores": safe_int(asset.cpu_cores),
-        "gpu_cores": safe_int(asset.gpu_cores),
+        "cpu_cores": safe_str(asset.cpu_cores),  # String for iOS compatibility
+        "gpu_cores": safe_str(asset.gpu_cores),  # String for iOS compatibility
         "memory": safe_str(asset.memory),
         "storage": safe_str(asset.harddrive),  # Map harddrive to storage
         "hardware_type": safe_str(asset.hardware_type),
