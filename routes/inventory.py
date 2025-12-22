@@ -141,37 +141,31 @@ def get_filtered_customers(db_session, user):
 
 def _safely_assign_asset_to_ticket(ticket, asset, db_session):
     """
-    Safely assign an asset to a ticket, checking for existing relationships first
-    
+    Safely assign an asset to a ticket, checking for existing relationships first.
+    Uses direct SQL INSERT with ON CONFLICT to avoid race conditions.
+
     Args:
         ticket: Ticket object
         asset: Asset object
         db_session: Database session
-        
+
     Returns:
         bool: True if assignment was successful or already exists, False otherwise
     """
     try:
-        # Check if asset is already assigned to this ticket
-        if asset in ticket.assets:
-            logger.info(f"Asset {asset.id} ({asset.asset_tag}) already assigned to ticket {ticket.id}")
-            return True
-
-        # Check if the relationship already exists in the database
+        # Use INSERT OR IGNORE to handle the race condition properly
+        # This way, if the link already exists, it's silently ignored
         stmt = text("""
-            SELECT COUNT(*) FROM ticket_assets
-            WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+            INSERT OR IGNORE INTO ticket_assets (ticket_id, asset_id)
+            VALUES (:ticket_id, :asset_id)
         """)
         result = db_session.execute(stmt, {"ticket_id": ticket.id, "asset_id": asset.id})
-        count = result.scalar()
 
-        if count > 0:
-            logger.info(f"Asset {asset.id} already linked to ticket {ticket.id} in database")
-            return True
+        if result.rowcount > 0:
+            logger.info(f"Successfully linked asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
+        else:
+            logger.info(f"Asset {asset.id} already linked to ticket {ticket.id} (no action needed)")
 
-        # Safe to assign - add the asset to the ticket
-        ticket.assets.append(asset)
-        logger.info(f"Successfully assigned asset {asset.id} ({asset.asset_tag}) to ticket {ticket.id}")
         return True
 
     except Exception as e:
@@ -3931,14 +3925,14 @@ def add_asset():
                             # Still create the asset, just don't link to a ticket
                             db_session.add(new_asset)
                             db_session.flush()
-                            activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Ticket ID {intake_ticket_id} not found for linking."
-                            logger.warning(f"Ticket ID {intake_ticket_id} not found for linking with new asset")
+                            activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Ticket ID {ticket_id_to_link} not found for linking."
+                            logger.warning(f"Ticket ID {ticket_id_to_link} not found for linking with new asset")
                     except ValueError:
                         # Still create the asset, just don't link to a ticket
                         db_session.add(new_asset)
                         db_session.flush()
-                        activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Invalid ticket ID {intake_ticket_id} provided."
-                        logger.warning(f"Invalid ticket ID format: {intake_ticket_id}")
+                        activity_content = f"Asset {new_asset.asset_tag or new_asset.serial_num} created. Invalid ticket ID {ticket_id_to_link} provided."
+                        logger.warning(f"Invalid ticket ID format: {ticket_id_to_link}")
                 else:
                     # No ticket to link, just create the asset
                     db_session.add(new_asset)
