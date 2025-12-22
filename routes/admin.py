@@ -7582,19 +7582,30 @@ def get_users_for_cloning():
     if not current_user.is_admin:
         return jsonify({'error': 'Unauthorized'}), 403
 
+    from sqlalchemy.orm import joinedload
+
     db_session = db_manager.get_session()
     try:
-        users = db_session.query(User).filter(
+        users = db_session.query(User).options(
+            joinedload(User.company)
+        ).filter(
             User.is_active == True
         ).order_by(User.username).all()
 
         users_list = []
         for user in users:
+            company_name = None
+            if user.company:
+                try:
+                    company_name = user.company.grouped_display_name
+                except:
+                    company_name = user.company.name if hasattr(user.company, 'name') else None
+
             users_list.append({
                 'id': user.id,
                 'username': user.username,
                 'user_type': user.user_type.value if user.user_type else 'Unknown',
-                'company': user.company.grouped_display_name if user.company else None
+                'company': company_name
             })
 
         return jsonify({'success': True, 'users': users_list})
