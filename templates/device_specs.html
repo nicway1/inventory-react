@@ -75,7 +75,10 @@
             <div class="p-4 space-y-2">
                 <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                     <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-microchip mr-2 w-4"></i>CPU</span>
-                    <span class="text-gray-800 dark:text-white text-sm font-medium text-right max-w-[60%] truncate">{{ spec.cpu or 'Unknown' }}</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium text-right max-w-[60%]">
+                        <div class="truncate">{{ spec.cpu or 'Unknown' }}</div>
+                        {% if spec.cpu_cores %}<div class="text-xs text-gray-400">{{ spec.cpu_cores }} cores</div>{% endif %}
+                    </span>
                 </div>
                 <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                     <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-memory mr-2 w-4"></i>RAM</span>
