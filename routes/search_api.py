@@ -260,12 +260,15 @@ def global_search():
             
             # Search Tickets
             if 'tickets' in search_types:
-                ticket_query = db_session.query(Ticket)
-                
+                # Join with CustomerUser to enable customer name search
+                ticket_query = db_session.query(Ticket).outerjoin(
+                    CustomerUser, Ticket.customer_id == CustomerUser.id
+                )
+
                 # Apply user permission filters
                 if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
                     ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
-                
+
                 # Build ticket search filters
                 ticket_filters = [
                     Ticket.subject.ilike(f'%{search_term}%'),
@@ -276,14 +279,20 @@ def global_search():
                     Ticket.return_description.ilike(f'%{search_term}%'),
                     Ticket.shipping_tracking.ilike(f'%{search_term}%'),
                     Ticket.return_tracking.ilike(f'%{search_term}%'),
-                    Ticket.shipping_tracking_2.ilike(f'%{search_term}%')
+                    Ticket.shipping_tracking_2.ilike(f'%{search_term}%'),
+                    # Search by customer name
+                    CustomerUser.name.ilike(f'%{search_term}%'),
+                    CustomerUser.email.ilike(f'%{search_term}%')
                 ]
-                
-                # Search by ticket ID (e.g., "TICK-1001" or just "1001")
-                if search_term.replace('TICK-', '').replace('#', '').isdigit():
-                    ticket_id = int(search_term.replace('TICK-', '').replace('#', ''))
+
+                # Search by ticket ID (e.g., "TICK-1001", "TKT-001", "#1001", or just "1001")
+                # Support multiple display_id formats
+                import re
+                ticket_id_match = re.match(r'^(?:TICK-|TKT-|#)?(\d+)$', search_term.upper())
+                if ticket_id_match:
+                    ticket_id = int(ticket_id_match.group(1))
                     ticket_filters.append(Ticket.id == ticket_id)
-                
+
                 tickets = ticket_query.filter(or_(*ticket_filters)).order_by(Ticket.created_at.desc()).limit(limit).all()
                 
                 results['tickets'] = [format_ticket_complete(ticket) for ticket in tickets]

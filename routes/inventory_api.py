@@ -78,8 +78,9 @@ def dual_auth_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        from sqlalchemy.orm import joinedload
         user = None
-        
+
         # Method 1: Try JSON API key + JWT authentication first
         api_key = request.headers.get('X-API-Key')
         if api_key == JSON_API_KEY:
@@ -89,17 +90,23 @@ def dual_auth_required(f):
                 token = auth_header.split(' ')[1]
                 from routes.json_api import verify_jwt_token
                 user_id = verify_jwt_token(token)
-                
+
                 if user_id:
-                    # Get user from database
+                    # Get user from database with eager loading
                     db_session = db_manager.get_session()
                     try:
-                        user = db_session.query(User).filter(User.id == user_id).first()
+                        user = db_session.query(User).options(
+                            joinedload(User.permissions),
+                            joinedload(User.company)
+                        ).filter(User.id == user_id).first()
                         if user:
+                            # Force load relationships before session closes
+                            _ = user.permissions
+                            _ = user.company
                             logger.info(f"JSON API authentication successful for user: {user.username}")
                     finally:
                         db_session.close()
-        
+
         # Method 2: Try mobile JWT authentication (no API key needed)
         if not user:
             auth_header = request.headers.get('Authorization')
@@ -108,25 +115,25 @@ def dual_auth_required(f):
                 user = verify_mobile_token(token)
                 if user:
                     logger.info(f"Mobile JWT authentication successful for user: {user.username}")
-        
+
         # If no valid authentication found
         if not user:
             return jsonify({
                 'error': 'Authentication required',
                 'message': 'Please provide either: (1) Mobile JWT token in Authorization header, or (2) JSON API key in X-API-Key header plus JWT token in Authorization header'
             }), 401
-        
+
         # Check permissions
         if not user.permissions or not user.permissions.can_view_assets:
             return jsonify({
                 'error': 'Insufficient permissions',
                 'message': 'User does not have permission to view assets and accessories'
             }), 403
-        
+
         # Set current user for the request
         request.current_mobile_user = user
         return f(*args, **kwargs)
-    
+
     return decorated_function
 
 def format_accessory_complete(accessory):

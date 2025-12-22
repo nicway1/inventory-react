@@ -51,18 +51,29 @@ def verify_mobile_token(token):
     """Verify JWT token and return user"""
     try:
         from flask import current_app
+        from sqlalchemy.orm import joinedload
         secret_key = current_app.config.get('SECRET_KEY', 'fallback-secret-key')
-        
+
         payload = jwt.decode(token, secret_key, algorithms=['HS256'])
         user_id = payload['user_id']
-        
+
         db_session = db_manager.get_session()
         try:
-            user = db_session.query(User).filter(User.id == user_id).first()
+            # Eagerly load permissions and company to avoid DetachedInstanceError
+            user = db_session.query(User).options(
+                joinedload(User.permissions),
+                joinedload(User.company)
+            ).filter(User.id == user_id).first()
+
+            # Force load the relationships before session closes
+            if user:
+                _ = user.permissions
+                _ = user.company
+
             return user
         finally:
             db_session.close()
-            
+
     except jwt.ExpiredSignatureError:
         return None
     except jwt.InvalidTokenError:
