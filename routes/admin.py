@@ -7573,3 +7573,213 @@ def widget_preview(widget_id):
                          widget=widget,
                          widget_data=widget_data,
                          category_info=category_info)
+
+
+@admin_bp.route('/api/users-for-cloning', methods=['GET'])
+@login_required
+def get_users_for_cloning():
+    """Get list of users available for cloning settings"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    db_session = db_manager.get_session()
+    try:
+        users = db_session.query(User).filter(
+            User.is_active == True
+        ).order_by(User.username).all()
+
+        users_list = []
+        for user in users:
+            users_list.append({
+                'id': user.id,
+                'username': user.username,
+                'user_type': user.user_type.value if user.user_type else 'Unknown',
+                'company': user.company.grouped_display_name if user.company else None
+            })
+
+        return jsonify({'success': True, 'users': users_list})
+
+    except Exception as e:
+        logger.error(f'Error fetching users for cloning: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/mass-create-users', methods=['POST'])
+@login_required
+def mass_create_users():
+    """Create multiple users by cloning settings from a source user"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    from models.user_permissions import (
+        UserCompanyPermission, UserCountryPermission, UserQueuePermission,
+        UserVisibilityPermission, UserMentionPermission, UserImportPermission
+    )
+    import secrets
+    import string
+
+    db_session = db_manager.get_session()
+    try:
+        source_user_id = request.form.get('source_user_id')
+        user_count = request.form.get('user_count')
+        auto_password = request.form.get('auto_password') == 'on'
+
+        if not source_user_id or not user_count:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        source_user_id = int(source_user_id)
+        user_count = int(user_count)
+
+        # Get source user
+        source_user = db_session.query(User).filter(User.id == source_user_id).first()
+        if not source_user:
+            return jsonify({'success': False, 'error': 'Source user not found'}), 404
+
+        # Get source user's permissions
+        source_company_perms = db_session.query(UserCompanyPermission).filter(
+            UserCompanyPermission.user_id == source_user_id
+        ).all()
+        source_country_perms = db_session.query(UserCountryPermission).filter(
+            UserCountryPermission.user_id == source_user_id
+        ).all()
+        source_queue_perms = db_session.query(UserQueuePermission).filter(
+            UserQueuePermission.user_id == source_user_id
+        ).all()
+        source_visibility_perms = db_session.query(UserVisibilityPermission).filter(
+            UserVisibilityPermission.user_id == source_user_id
+        ).all()
+        source_mention_perms = db_session.query(UserMentionPermission).filter(
+            UserMentionPermission.user_id == source_user_id
+        ).all()
+        source_import_perms = db_session.query(UserImportPermission).filter(
+            UserImportPermission.user_id == source_user_id
+        ).all()
+
+        created_users = []
+        errors = []
+
+        for i in range(1, user_count + 1):
+            username = request.form.get(f'username_{i}', '').strip()
+            email = request.form.get(f'email_{i}', '').strip()
+            password = request.form.get(f'password_{i}', '').strip()
+
+            if not username or not email:
+                continue  # Skip empty entries
+
+            # Check if username or email already exists
+            existing = db_session.query(User).filter(
+                (User.username == username) | (User.email == email)
+            ).first()
+            if existing:
+                errors.append(f"User '{username}' or email '{email}' already exists")
+                continue
+
+            # Generate password if auto_password is enabled and no password provided
+            if auto_password and not password:
+                password = ''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%') for _ in range(12))
+            elif not password:
+                password = 'TempPass123!'  # Default password if none provided
+
+            # Create new user with cloned settings
+            new_user = User(
+                username=username,
+                email=email,
+                user_type=source_user.user_type,
+                company_id=source_user.company_id,
+                is_active=True,
+                can_view_all_assets=source_user.can_view_all_assets,
+                can_view_all_tickets=source_user.can_view_all_tickets,
+                can_create_tickets=source_user.can_create_tickets,
+                can_edit_tickets=source_user.can_edit_tickets,
+                can_delete_tickets=source_user.can_delete_tickets,
+                can_manage_assets=source_user.can_manage_assets,
+                can_export_data=source_user.can_export_data,
+                is_admin=False  # Never clone admin status
+            )
+            new_user.set_password(password)
+            db_session.add(new_user)
+            db_session.flush()  # Get the new user's ID
+
+            # Clone company permissions
+            for perm in source_company_perms:
+                new_perm = UserCompanyPermission(
+                    user_id=new_user.id,
+                    company_id=perm.company_id
+                )
+                db_session.add(new_perm)
+
+            # Clone country permissions
+            for perm in source_country_perms:
+                new_perm = UserCountryPermission(
+                    user_id=new_user.id,
+                    country_code=perm.country_code
+                )
+                db_session.add(new_perm)
+
+            # Clone queue permissions
+            for perm in source_queue_perms:
+                new_perm = UserQueuePermission(
+                    user_id=new_user.id,
+                    queue_id=perm.queue_id
+                )
+                db_session.add(new_perm)
+
+            # Clone visibility permissions
+            for perm in source_visibility_perms:
+                new_perm = UserVisibilityPermission(
+                    user_id=new_user.id,
+                    field_name=perm.field_name,
+                    can_view=perm.can_view
+                )
+                db_session.add(new_perm)
+
+            # Clone mention permissions
+            for perm in source_mention_perms:
+                new_perm = UserMentionPermission(
+                    user_id=new_user.id,
+                    can_be_mentioned=perm.can_be_mentioned
+                )
+                db_session.add(new_perm)
+
+            # Clone import permissions
+            for perm in source_import_perms:
+                new_perm = UserImportPermission(
+                    user_id=new_user.id,
+                    can_import=perm.can_import
+                )
+                db_session.add(new_perm)
+
+            created_users.append({
+                'username': username,
+                'email': email,
+                'password': password if auto_password else '[User provided]'
+            })
+
+        db_session.commit()
+
+        # Build response message
+        message = f"Created {len(created_users)} users cloned from {source_user.username}"
+        if errors:
+            message += f"\n\nErrors:\n" + "\n".join(errors)
+
+        if auto_password and created_users:
+            message += "\n\nGenerated Passwords:\n"
+            for u in created_users:
+                if u['password'] != '[User provided]':
+                    message += f"  {u['username']}: {u['password']}\n"
+
+        return jsonify({
+            'success': True,
+            'created_count': len(created_users),
+            'message': message,
+            'users': created_users
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f'Error mass creating users: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()

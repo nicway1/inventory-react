@@ -478,6 +478,22 @@ register_widget(WidgetDefinition(
 ))
 
 register_widget(WidgetDefinition(
+    id='mass_create_users',
+    name='Mass Create Users',
+    description='Clone settings from existing user and create multiple users at once',
+    category=WidgetCategory.SYSTEM,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/mass_create_users.html',
+    icon='fas fa-users-cog',
+    color='purple',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
+    data_loader=None,
+    screenshot='mass_create_users.png'
+))
+
+register_widget(WidgetDefinition(
     id='view_inventory',
     name='View Inventory',
     description='Quick access to inventory management',
