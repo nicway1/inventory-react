@@ -4867,13 +4867,17 @@ def search():
         if user.user_type != UserType.SUPER_ADMIN and user.company_id:
             # Filter customers by company for non-super admin users
             customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
-        
-        customers = customer_query.filter(
+
+        # Join with Company to search by company name
+        customers = customer_query.outerjoin(
+            Company, CustomerUser.company_id == Company.id
+        ).filter(
             or_(
                 CustomerUser.name.ilike(f'%{search_term}%'),
                 CustomerUser.email.ilike(f'%{search_term}%'),
                 CustomerUser.contact_number.ilike(f'%{search_term}%'),
-                CustomerUser.address.ilike(f'%{search_term}%')
+                CustomerUser.address.ilike(f'%{search_term}%'),
+                Company.name.ilike(f'%{search_term}%')
             )
         ).all()
 
@@ -5101,21 +5105,35 @@ def search_suggestions():
                 'url': url_for('inventory.view_accessory', id=acc.id)
             })
 
-        # Search customers (limit 3) - only for super admin
-        if user.user_type == UserType.SUPER_ADMIN:
-            customers = db_session.query(CustomerUser).filter(
+        # Search customers (limit 5) - for staff users
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+            from models.company import Company
+
+            # Build customer query with company join for company name search
+            customer_query = db_session.query(CustomerUser).outerjoin(
+                Company, CustomerUser.company_id == Company.id
+            ).filter(
                 or_(
                     CustomerUser.name.ilike(f'%{search_term}%'),
-                    CustomerUser.email.ilike(f'%{search_term}%')
+                    CustomerUser.email.ilike(f'%{search_term}%'),
+                    CustomerUser.contact_number.ilike(f'%{search_term}%'),
+                    Company.name.ilike(f'%{search_term}%')
                 )
-            ).limit(3).all()
+            )
+
+            # Filter by company for non-super admin users
+            if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+                customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
+
+            customers = customer_query.limit(5).all()
 
             for cust in customers:
+                company_name = cust.company.name if cust.company else ''
                 suggestions.append({
                     'type': 'customer',
                     'icon': 'user',
                     'title': cust.name,
-                    'subtitle': cust.email or 'No email',
+                    'subtitle': f"{company_name} • {cust.email or 'No email'}",
                     'url': url_for('inventory.view_customer_user', id=cust.id)
                 })
 
