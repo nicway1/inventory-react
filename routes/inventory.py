@@ -4016,15 +4016,8 @@ def add_asset():
                         return jsonify({'error': error}), 409
                     else:
                         flash(error, 'error')
-                elif "ticket_assets.ticket_id" in error_lower and "ticket_assets.asset_id" in error_lower:
-                    # Only match if BOTH column names are in the error - this is the exact constraint
-                    logger.warning(f"Ticket-Asset constraint violation detected")
-                    error = "This asset is already linked to this ticket. The asset may have been created in a previous attempt."
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'error': error, 'duplicate': True}), 409
-                    else:
-                        flash(error, 'error')
                 else:
+                    # Show the actual error message so we can diagnose the real issue
                     error = f"An error occurred while adding the asset: {error_msg}"
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error}), 500
