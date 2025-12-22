@@ -129,40 +129,10 @@ else
     OS_BUILD="Unknown"
 fi
 
-# Battery - Use system_profiler for more reliable extraction
-BATTERY_INFO=$(system_profiler SPPowerDataType 2>/dev/null)
-if [ -n "$BATTERY_INFO" ]; then
-    # Extract Cycle Count from system_profiler output
-    CYCLE_COUNT=$(echo "$BATTERY_INFO" | grep -i "Cycle Count" | awk -F': ' '{print $2}' | tr -d ' ')
-
-    # Extract battery health/condition
-    MAX_CAP=$(echo "$BATTERY_INFO" | grep -i "Maximum Capacity" | awk -F': ' '{print $2}' | tr -d ' %')
-
-    if [ -n "$MAX_CAP" ]; then
-        BATTERY_HEALTH="$MAX_CAP"
-    else
-        # Fallback: try to calculate from ioreg if system_profiler doesn't have it
-        IOREG_BATTERY=$(ioreg -r -c AppleSmartBattery 2>/dev/null)
-        if [ -n "$IOREG_BATTERY" ]; then
-            # Use sed to extract values more reliably
-            MAX_CAPACITY=$(echo "$IOREG_BATTERY" | sed -n 's/.*"MaxCapacity"[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
-            DESIGN_CAPACITY=$(echo "$IOREG_BATTERY" | sed -n 's/.*"DesignCapacity"[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
-
-            if [ -n "$MAX_CAPACITY" ] && [ -n "$DESIGN_CAPACITY" ] && [ "$DESIGN_CAPACITY" -gt 0 ]; then
-                BATTERY_HEALTH=$(echo "scale=1; $MAX_CAPACITY * 100 / $DESIGN_CAPACITY" | bc 2>/dev/null)
-            fi
-        fi
-    fi
-
-    # Fallback for cycle count if not found via system_profiler
-    if [ -z "$CYCLE_COUNT" ]; then
-        IOREG_BATTERY=$(ioreg -r -c AppleSmartBattery 2>/dev/null)
-        CYCLE_COUNT=$(echo "$IOREG_BATTERY" | sed -n 's/.*"CycleCount"[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
-    fi
-else
-    CYCLE_COUNT=""
-    BATTERY_HEALTH=""
-fi
+# Battery - Disabled due to extraction issues on some Mac models
+# Battery info will need to be entered manually if required
+CYCLE_COUNT=""
+BATTERY_HEALTH=""
 
 # Network
 WIFI_MAC=$(networksetup -getmacaddress Wi-Fi 2>/dev/null | awk '{print $3}')

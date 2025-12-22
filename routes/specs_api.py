@@ -238,6 +238,8 @@ def find_related_tickets(spec_id):
                 filters.append(Ticket.description.ilike(f'%{term}%'))
             if hasattr(Ticket, 'serial_number') and Ticket.serial_number is not None:
                 filters.append(Ticket.serial_number.ilike(f'%{term}%'))
+            if hasattr(Ticket, 'return_description') and Ticket.return_description is not None:
+                filters.append(Ticket.return_description.ilike(f'%{term}%'))
 
         # Query tickets
         tickets = db_session.query(Ticket).filter(
