@@ -3,274 +3,143 @@
 {% block title %}Device Specs - Inventory{% endblock %}
 
 {% block content %}
-<style>
-    .spec-card {
-        background: var(--bg-primary);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        transition: all 0.2s ease;
-        overflow: hidden;
-    }
-    .spec-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
-    .spec-card.unprocessed {
-        border-left: 4px solid #ffc107;
-    }
-    .spec-card.processed {
-        border-left: 4px solid #28a745;
-    }
-    .spec-header {
-        padding: 1rem;
-        background: var(--bg-secondary);
-        border-bottom: 1px solid var(--border-color);
-    }
-    .spec-body {
-        padding: 1rem;
-    }
-    .spec-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .spec-row:last-child {
-        border-bottom: none;
-    }
-    .spec-label {
-        color: var(--text-secondary);
-        font-size: 0.85rem;
-    }
-    .spec-value {
-        font-weight: 500;
-        text-align: right;
-    }
-    .stat-card {
-        background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
-    }
-    .stat-number {
-        font-size: 2.5rem;
-        font-weight: 700;
-    }
-    .stat-label {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-    }
-    .command-box {
-        background: #1e1e2e;
-        border-radius: 8px;
-        padding: 1rem;
-        font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-    }
-    .command-box code {
-        color: #50fa7b;
-        font-size: 0.9rem;
-    }
-    .copy-btn {
-        background: rgba(255,255,255,0.1);
-        border: none;
-        color: #fff;
-        padding: 0.25rem 0.75rem;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .copy-btn:hover {
-        background: rgba(255,255,255,0.2);
-    }
-    .badge-new {
-        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-        color: #000;
-    }
-    .badge-done {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: #fff;
-    }
-    .action-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--border-color);
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-    .action-btn:hover {
-        transform: scale(1.1);
-    }
-    .action-btn.view:hover { background: #007bff; color: #fff; border-color: #007bff; }
-    .action-btn.add:hover { background: #28a745; color: #fff; border-color: #28a745; }
-    .action-btn.delete:hover { background: #dc3545; color: #fff; border-color: #dc3545; }
-</style>
-
-<div class="container-fluid py-4">
+<div class="container mx-auto px-4 py-6">
     <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div>
-                    <h2 class="mb-1">
-                        <i class="fas fa-laptop-medical me-2" style="color: #00bcd4;"></i>
-                        MacBook Specs Collector
-                    </h2>
-                    <p class="text-muted mb-0">Collect device specifications remotely from MacBooks</p>
-                </div>
-                <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
-                </a>
-            </div>
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i class="fas fa-laptop-medical text-cyan-500"></i>
+                MacBook Specs Collector
+            </h2>
+            <p class="text-gray-500 dark:text-gray-400 mt-1">Collect device specifications remotely from MacBooks</p>
         </div>
+        <a href="{{ url_for('dashboard.index') }}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+        </a>
     </div>
 
     <!-- Stats Row -->
-    <div class="row mb-4 g-3">
-        <div class="col-md-3 col-6">
-            <div class="stat-card">
-                <div class="stat-number" style="color: #00bcd4;">{{ specs|length }}</div>
-                <div class="stat-label">Total Submissions</div>
-            </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-cyan-500">{{ specs|length }}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Total Submissions</div>
         </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-card">
-                <div class="stat-number" style="color: #ffc107;">{{ unprocessed_count }}</div>
-                <div class="stat-label">Pending Review</div>
-            </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-yellow-500">{{ unprocessed_count }}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Pending Review</div>
         </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-card">
-                <div class="stat-number" style="color: #28a745;">{{ specs|length - unprocessed_count }}</div>
-                <div class="stat-label">Processed</div>
-            </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-green-500">{{ specs|length - unprocessed_count }}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Processed</div>
         </div>
-        <div class="col-md-3 col-6">
-            <div class="stat-card">
-                <div class="stat-number" style="color: #6f42c1;">
-                    {% if specs %}{{ specs[0].submitted_at.strftime('%H:%M') if specs[0].submitted_at else '--' }}{% else %}--{% endif %}
-                </div>
-                <div class="stat-label">Last Submission</div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+            <div class="text-3xl font-bold text-purple-500">
+                {% if specs %}{{ specs[0].submitted_at.strftime('%H:%M') if specs[0].submitted_at else '--' }}{% else %}--{% endif %}
             </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Last Submission</div>
         </div>
     </div>
 
     <!-- Command Box -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="command-box d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <small style="color: #888;">Run this command on any MacBook (works in Recovery Mode too):</small>
-                    <div class="mt-1">
-                        <code id="curlCommand">curl -sL https://inventory.truelog.com.sg/specs | bash</code>
-                    </div>
-                </div>
-                <button class="copy-btn" onclick="copyCommand()">
-                    <i class="fas fa-copy me-1"></i> Copy
-                </button>
-            </div>
+    <div class="bg-gray-900 rounded-xl p-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div>
+            <div class="text-gray-400 text-sm mb-1">Run this command on any MacBook (works in Recovery Mode too):</div>
+            <code id="curlCommand" class="text-green-400 font-mono text-sm md:text-base">curl -sL https://inventory.truelog.com.sg/specs | bash</code>
         </div>
+        <button onclick="copyCommand()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition flex items-center gap-2">
+            <i class="fas fa-copy"></i> Copy
+        </button>
     </div>
 
     <!-- Specs Grid -->
     {% if specs %}
-    <div class="row g-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for spec in specs %}
-        <div class="col-lg-4 col-md-6">
-            <div class="spec-card {% if spec.processed %}processed{% else %}unprocessed{% endif %}">
-                <div class="spec-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0">{{ spec.serial_number or 'Unknown Serial' }}</h5>
-                        <small class="text-muted">{{ spec.model_name or spec.model_id or 'Unknown Model' }}</small>
-                    </div>
-                    <span class="badge {% if spec.processed %}badge-done{% else %}badge-new{% endif %} px-3 py-2">
-                        {% if spec.processed %}
-                        <i class="fas fa-check me-1"></i> Done
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-l-4 {% if spec.processed %}border-l-green-500{% else %}border-l-yellow-500{% endif %} border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition">
+            <!-- Card Header -->
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
+                <div>
+                    <div class="font-bold text-gray-800 dark:text-white">{{ spec.serial_number or 'Unknown Serial' }}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ spec.model_name or spec.model_id or 'Unknown Model' }}</div>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-semibold {% if spec.processed %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200{% endif %}">
+                    {% if spec.processed %}
+                    <i class="fas fa-check mr-1"></i>Done
+                    {% else %}
+                    <i class="fas fa-clock mr-1"></i>New
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Card Body -->
+            <div class="p-4 space-y-2">
+                <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                    <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-microchip mr-2 w-4"></i>CPU</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium text-right max-w-[60%] truncate">{{ spec.cpu or 'Unknown' }}</span>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                    <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-memory mr-2 w-4"></i>RAM</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.ram_gb or '?' }} GB</span>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                    <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-hdd mr-2 w-4"></i>Storage</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.storage_gb or '?' }} GB {{ spec.storage_type or '' }}</span>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                    <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-battery-three-quarters mr-2 w-4"></i>Battery</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium">
+                        {% if spec.battery_cycles %}
+                        {{ spec.battery_cycles }} cycles
+                        {% if spec.battery_health %}<span class="text-gray-400">({{ spec.battery_health }}%)</span>{% endif %}
                         {% else %}
-                        <i class="fas fa-clock me-1"></i> New
+                        N/A
                         {% endif %}
                     </span>
                 </div>
-                <div class="spec-body">
-                    <div class="spec-row">
-                        <span class="spec-label"><i class="fas fa-microchip me-2"></i>CPU</span>
-                        <span class="spec-value">{{ spec.cpu or 'Unknown' }}</span>
-                    </div>
-                    <div class="spec-row">
-                        <span class="spec-label"><i class="fas fa-memory me-2"></i>RAM</span>
-                        <span class="spec-value">{{ spec.ram_gb or '?' }} GB</span>
-                    </div>
-                    <div class="spec-row">
-                        <span class="spec-label"><i class="fas fa-hdd me-2"></i>Storage</span>
-                        <span class="spec-value">{{ spec.storage_gb or '?' }} GB {{ spec.storage_type or '' }}</span>
-                    </div>
-                    <div class="spec-row">
-                        <span class="spec-label"><i class="fas fa-battery-three-quarters me-2"></i>Battery</span>
-                        <span class="spec-value">
-                            {% if spec.battery_cycles %}
-                            {{ spec.battery_cycles }} cycles
-                            {% if spec.battery_health %}<small class="text-muted">({{ spec.battery_health }}%)</small>{% endif %}
-                            {% else %}
-                            N/A
-                            {% endif %}
-                        </span>
-                    </div>
-                    <div class="spec-row">
-                        <span class="spec-label"><i class="fas fa-clock me-2"></i>Submitted</span>
-                        <span class="spec-value">{{ spec.submitted_at.strftime('%b %d, %H:%M') if spec.submitted_at else 'Unknown' }}</span>
-                    </div>
+                <div class="flex justify-between py-2">
+                    <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-clock mr-2 w-4"></i>Submitted</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.submitted_at.strftime('%b %d, %H:%M') if spec.submitted_at else 'Unknown' }}</span>
+                </div>
 
-                    <div class="d-flex gap-2 mt-3 pt-2" style="border-top: 1px solid var(--border-color);">
-                        <button class="action-btn view flex-grow-1" onclick="viewSpec({{ spec.id }})" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        {% if not spec.processed %}
-                        <button class="action-btn add flex-grow-1" onclick="createAsset({{ spec.id }})" title="Add to Inventory">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        {% endif %}
-                        <button class="action-btn delete" onclick="deleteSpec({{ spec.id }})" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
+                <!-- Actions -->
+                <div class="flex gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <button onclick="viewSpec({{ spec.id }})" class="flex-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition text-sm">
+                        <i class="fas fa-eye mr-1"></i> View
+                    </button>
+                    {% if not spec.processed %}
+                    <button onclick="createAsset({{ spec.id }})" class="flex-1 px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 rounded-lg transition text-sm">
+                        <i class="fas fa-plus mr-1"></i> Add
+                    </button>
+                    {% endif %}
+                    <button onclick="deleteSpec({{ spec.id }})" class="px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition text-sm">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="row">
-        <div class="col-12">
-            <div class="text-center py-5">
-                <i class="fas fa-laptop fa-4x mb-4" style="color: var(--text-secondary); opacity: 0.3;"></i>
-                <h4 class="text-muted">No Device Specs Yet</h4>
-                <p class="text-muted mb-4">Run the command above on a MacBook to collect its specifications</p>
-            </div>
-        </div>
+    <div class="text-center py-16">
+        <i class="fas fa-laptop text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+        <h4 class="text-xl text-gray-500 dark:text-gray-400 mb-2">No Device Specs Yet</h4>
+        <p class="text-gray-400 dark:text-gray-500">Run the command above on a MacBook to collect its specifications</p>
     </div>
     {% endif %}
 </div>
 
 <!-- View Spec Modal -->
-<div class="modal fade" id="specModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); color: white; border: none;">
-                <h5 class="modal-title"><i class="fas fa-laptop-medical me-2"></i>Device Specifications</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4" id="specModalBody">
-                <!-- Content loaded dynamically -->
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
+<div id="specModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+        <div class="bg-gradient-to-r from-cyan-500 to-cyan-600 px-6 py-4 flex justify-between items-center">
+            <h5 class="text-white font-semibold text-lg"><i class="fas fa-laptop-medical mr-2"></i>Device Specifications</h5>
+            <button onclick="closeModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div class="p-6 overflow-y-auto max-h-[70vh]" id="specModalBody">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition text-gray-700 dark:text-gray-300">Close</button>
         </div>
     </div>
 </div>
@@ -279,15 +148,22 @@
 function copyCommand() {
     const command = document.getElementById('curlCommand').textContent;
     navigator.clipboard.writeText(command).then(() => {
-        const btn = event.target.closest('.copy-btn');
+        const btn = event.target.closest('button');
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
-        btn.style.background = 'rgba(40, 167, 69, 0.3)';
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.classList.remove('bg-gray-700');
+        btn.classList.add('bg-green-600');
         setTimeout(() => {
             btn.innerHTML = originalHtml;
-            btn.style.background = '';
+            btn.classList.remove('bg-green-600');
+            btn.classList.add('bg-gray-700');
         }, 2000);
     });
+}
+
+function closeModal() {
+    document.getElementById('specModal').classList.add('hidden');
+    document.getElementById('specModal').classList.remove('flex');
 }
 
 function viewSpec(specId) {
@@ -297,68 +173,66 @@ function viewSpec(specId) {
             if (data.success) {
                 const spec = data.spec;
                 document.getElementById('specModalBody').innerHTML = `
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <div class="p-3 rounded" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-fingerprint me-2"></i>Device Identification</h6>
-                                <div class="mb-2"><strong>Serial:</strong> ${spec.serial_number || 'N/A'}</div>
-                                <div class="mb-2"><strong>UUID:</strong> <small class="text-muted">${spec.hardware_uuid || 'N/A'}</small></div>
-                            </div>
-
-                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-laptop me-2"></i>Model</h6>
-                                <div class="mb-2"><strong>Name:</strong> ${spec.model_name || 'N/A'}</div>
-                                <div class="mb-2"><strong>ID:</strong> ${spec.model_id || 'N/A'}</div>
-                            </div>
-
-                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-microchip me-2"></i>Processor</h6>
-                                <div class="mb-2"><strong>CPU:</strong> ${spec.cpu || 'N/A'}</div>
-                                <div class="mb-2"><strong>Cores:</strong> ${spec.cpu_cores || 'N/A'}</div>
-                                <div class="mb-2"><strong>GPU:</strong> ${spec.gpu || 'N/A'}</div>
-                                <div class="mb-2"><strong>GPU Cores:</strong> ${spec.gpu_cores || 'N/A'}</div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-fingerprint mr-2"></i>Device Identification</h6>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-500 dark:text-gray-400">Serial:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.serial_number || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">UUID:</span> <span class="text-gray-600 dark:text-gray-300 text-xs break-all">${spec.hardware_uuid || 'N/A'}</span></div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="p-3 rounded" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-memory me-2"></i>Memory</h6>
-                                <div class="mb-2"><strong>RAM:</strong> ${spec.ram_gb || 'N/A'} GB</div>
-                                <div class="mb-2"><strong>Type:</strong> ${spec.memory_type || 'N/A'}</div>
-                            </div>
 
-                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-hdd me-2"></i>Storage</h6>
-                                <div class="mb-2"><strong>Size:</strong> ${spec.storage_gb || 'N/A'} GB</div>
-                                <div class="mb-2"><strong>Type:</strong> ${spec.storage_type || 'N/A'}</div>
-                                <div class="mb-2"><strong>Free:</strong> ${spec.free_space || 'N/A'}</div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-laptop mr-2"></i>Model</h6>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-500 dark:text-gray-400">Name:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.model_name || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">ID:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.model_id || 'N/A'}</span></div>
                             </div>
+                        </div>
 
-                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fab fa-apple me-2"></i>macOS</h6>
-                                <div class="mb-2"><strong>Version:</strong> ${spec.os_name || 'macOS'} ${spec.os_version || ''}</div>
-                                <div class="mb-2"><strong>Build:</strong> ${spec.os_build || 'N/A'}</div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-microchip mr-2"></i>Processor</h6>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-500 dark:text-gray-400">CPU:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.cpu || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Cores:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.cpu_cores || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">GPU:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.gpu || 'N/A'}</span></div>
                             </div>
+                        </div>
 
-                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-battery-three-quarters me-2"></i>Battery</h6>
-                                <div class="mb-2"><strong>Cycles:</strong> ${spec.battery_cycles || 'N/A'}</div>
-                                <div class="mb-2"><strong>Health:</strong> ${spec.battery_health ? spec.battery_health + '%' : 'N/A'}</div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-memory mr-2"></i>Memory & Storage</h6>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-500 dark:text-gray-400">RAM:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.ram_gb || 'N/A'} GB</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Storage:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.storage_gb || 'N/A'} GB ${spec.storage_type || ''}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Free:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.free_space || 'N/A'}</span></div>
                             </div>
+                        </div>
 
-                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
-                                <h6 class="text-primary mb-3"><i class="fas fa-wifi me-2"></i>Network</h6>
-                                <div class="mb-2"><strong>WiFi:</strong> ${spec.wifi_mac || 'N/A'}</div>
-                                <div class="mb-2"><strong>Ethernet:</strong> ${spec.ethernet_mac || 'N/A'}</div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fab fa-apple mr-2"></i>macOS</h6>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-500 dark:text-gray-400">Version:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.os_name || 'macOS'} ${spec.os_version || ''}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Build:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.os_build || 'N/A'}</span></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                            <h6 class="text-cyan-600 dark:text-cyan-400 font-semibold mb-3"><i class="fas fa-battery-three-quarters mr-2"></i>Battery & Network</h6>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-500 dark:text-gray-400">Cycles:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.battery_cycles || 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">Health:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.battery_health ? spec.battery_health + '%' : 'N/A'}</span></div>
+                                <div><span class="text-gray-500 dark:text-gray-400">WiFi:</span> <span class="text-gray-800 dark:text-white font-medium">${spec.wifi_mac || 'N/A'}</span></div>
                             </div>
                         </div>
                     </div>
-                    <div class="mt-4 pt-3 border-top text-muted small">
-                        <i class="fas fa-clock me-1"></i> Submitted: ${spec.submitted_at || 'Unknown'}
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-sm">
+                        <i class="fas fa-clock mr-1"></i> Submitted: ${spec.submitted_at || 'Unknown'}
                         <span class="mx-2">|</span>
-                        <i class="fas fa-globe me-1"></i> IP: ${spec.ip_address || 'Unknown'}
+                        <i class="fas fa-globe mr-1"></i> IP: ${spec.ip_address || 'Unknown'}
                     </div>
                 `;
-                new bootstrap.Modal(document.getElementById('specModal')).show();
+                document.getElementById('specModal').classList.remove('hidden');
+                document.getElementById('specModal').classList.add('flex');
             } else {
                 alert('Error loading spec: ' + data.error);
             }
