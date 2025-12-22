@@ -272,6 +272,33 @@ def load_widget_data(user, layout):
                 'open_count': open_count
             }
 
+        # Load device specs data
+        if 'device_specs_collector' in widget_ids:
+            from models.device_spec import DeviceSpec
+            total_specs = db.query(DeviceSpec).count()
+            pending_specs = db.query(DeviceSpec).filter(DeviceSpec.processed == False).count()
+            processed_specs = total_specs - pending_specs
+
+            # Get latest unprocessed spec
+            latest_spec = db.query(DeviceSpec).filter(
+                DeviceSpec.processed == False
+            ).order_by(DeviceSpec.submitted_at.desc()).first()
+
+            latest_data = None
+            if latest_spec:
+                latest_data = {
+                    'serial': latest_spec.serial_number or 'Unknown',
+                    'model': latest_spec.model_name or latest_spec.model_id or '',
+                    'time': latest_spec.submitted_at.strftime('%b %d, %H:%M') if latest_spec.submitted_at else ''
+                }
+
+            widget_data['device_specs'] = {
+                'total': total_specs,
+                'pending': pending_specs,
+                'processed': processed_specs,
+                'latest': latest_data
+            }
+
     except Exception as e:
         logger.error(f"Error loading widget data: {str(e)}", exc_info=True)
     finally:
@@ -438,7 +465,8 @@ def get_widget_data(widget_id):
             'weekly_tickets_chart': 'weekly_tickets',
             'asset_status_chart': 'asset_status',
             'shipments_list': 'shipments',
-            'inventory_audit': 'audit'
+            'inventory_audit': 'audit',
+            'device_specs_collector': 'device_specs'
         }
         data_key = data_key_map.get(widget_id, widget_id)
 

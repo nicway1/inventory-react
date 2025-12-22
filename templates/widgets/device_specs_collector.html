@@ -1,0 +1,46 @@
+{% set data = widget_data.get('device_specs', {}) %}
+<div style="display: flex; flex-direction: column; height: 100%; min-height: 200px;">
+    <!-- Header with stats -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+        <div>
+            <div class="stat-value text-cyan" style="font-size: 2rem;">{{ data.get('pending', 0) }}</div>
+            <div class="stat-label">Pending Specs</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                <i class="fas fa-check-circle text-green"></i> {{ data.get('processed', 0) }} processed
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                <i class="fas fa-laptop"></i> {{ data.get('total', 0) }} total
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent submission -->
+    {% if data.get('latest') %}
+    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem;">
+        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Latest submission</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="font-weight: 600; font-size: 0.9rem;">{{ data.get('latest').get('serial', 'Unknown') }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ data.get('latest').get('model', '') }}</div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">{{ data.get('latest').get('time', '') }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Command hint -->
+    <div style="background: #1e1e2e; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; flex-shrink: 0;">
+        <div style="font-size: 0.65rem; color: #888; margin-bottom: 0.25rem;">Run on MacBook:</div>
+        <code style="font-size: 0.7rem; color: #50fa7b; word-break: break-all;">curl -sL https://inventory.truelog.com.sg/specs | bash</code>
+    </div>
+
+    <!-- Actions -->
+    <div style="margin-top: auto;">
+        <a href="{{ url_for('specs.device_specs_page') }}" class="stat-action" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>View All Specs</span>
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+</div>

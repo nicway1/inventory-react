@@ -618,6 +618,24 @@ register_widget(WidgetDefinition(
     screenshot='shipment_history.png'
 ))
 
+register_widget(WidgetDefinition(
+    id='device_specs_collector',
+    name='MacBook Specs Collector',
+    description='Collect and manage MacBook specifications',
+    long_description='Collect MacBook specifications remotely using a simple curl command. Users run a script from Recovery Mode or Terminal that automatically captures serial number, model, CPU, RAM, storage, battery health, and more. View all submitted specs and create assets from them.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.MEDIUM,
+    min_size=WidgetSize.SMALL,
+    template='widgets/device_specs_collector.html',
+    icon='fas fa-laptop-medical',
+    color='cyan',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
+    data_loader='load_device_specs_data',
+    configurable=False,
+    screenshot='device_specs_collector.png'
+))
+
 
 # Default layout for new users
 DEFAULT_DASHBOARD_LAYOUT = {
