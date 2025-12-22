@@ -3,119 +3,272 @@
 {% block title %}Device Specs - Inventory{% endblock %}
 
 {% block content %}
+<style>
+    .spec-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        overflow: hidden;
+    }
+    .spec-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .spec-card.unprocessed {
+        border-left: 4px solid #ffc107;
+    }
+    .spec-card.processed {
+        border-left: 4px solid #28a745;
+    }
+    .spec-header {
+        padding: 1rem;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+    }
+    .spec-body {
+        padding: 1rem;
+    }
+    .spec-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .spec-row:last-child {
+        border-bottom: none;
+    }
+    .spec-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+    .spec-value {
+        font-weight: 500;
+        text-align: right;
+    }
+    .stat-card {
+        background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .command-box {
+        background: #1e1e2e;
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    }
+    .command-box code {
+        color: #50fa7b;
+        font-size: 0.9rem;
+    }
+    .copy-btn {
+        background: rgba(255,255,255,0.1);
+        border: none;
+        color: #fff;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .copy-btn:hover {
+        background: rgba(255,255,255,0.2);
+    }
+    .badge-new {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        color: #000;
+    }
+    .badge-done {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: #fff;
+    }
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+    .action-btn.view:hover { background: #007bff; color: #fff; border-color: #007bff; }
+    .action-btn.add:hover { background: #28a745; color: #fff; border-color: #28a745; }
+    .action-btn.delete:hover { background: #dc3545; color: #fff; border-color: #dc3545; }
+</style>
+
 <div class="container-fluid py-4">
+    <!-- Header -->
     <div class="row mb-4">
-        <div class="col">
-            <h2>
-                <i class="fas fa-laptop-code me-2"></i>
-                Device Specifications
-                {% if unprocessed_count > 0 %}
-                <span class="badge bg-warning text-dark ms-2">{{ unprocessed_count }} New</span>
-                {% endif %}
-            </h2>
-            <p class="text-muted">
-                Specs collected from MacBooks using: <code>curl -sL https://inventory.truelog.com.sg/specs | bash</code>
-            </p>
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-laptop-medical me-2" style="color: #00bcd4;"></i>
+                        MacBook Specs Collector
+                    </h2>
+                    <p class="text-muted mb-0">Collect device specifications remotely from MacBooks</p>
+                </div>
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+            </div>
         </div>
     </div>
 
+    <!-- Stats Row -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #00bcd4;">{{ specs|length }}</div>
+                <div class="stat-label">Total Submissions</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #ffc107;">{{ unprocessed_count }}</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #28a745;">{{ specs|length - unprocessed_count }}</div>
+                <div class="stat-label">Processed</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #6f42c1;">
+                    {% if specs %}{{ specs[0].submitted_at.strftime('%H:%M') if specs[0].submitted_at else '--' }}{% else %}--{% endif %}
+                </div>
+                <div class="stat-label">Last Submission</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Box -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="command-box d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <small style="color: #888;">Run this command on any MacBook (works in Recovery Mode too):</small>
+                    <div class="mt-1">
+                        <code id="curlCommand">curl -sL https://inventory.truelog.com.sg/specs | bash</code>
+                    </div>
+                </div>
+                <button class="copy-btn" onclick="copyCommand()">
+                    <i class="fas fa-copy me-1"></i> Copy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Specs Grid -->
     {% if specs %}
-    <div class="table-responsive">
-        <table class="table table-hover" id="specsTable">
-            <thead class="table-dark">
-                <tr>
-                    <th>Status</th>
-                    <th>Serial Number</th>
-                    <th>Model</th>
-                    <th>CPU</th>
-                    <th>RAM</th>
-                    <th>Storage</th>
-                    <th>Battery</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for spec in specs %}
-                <tr class="{% if not spec.processed %}table-warning{% endif %}">
-                    <td>
+    <div class="row g-3">
+        {% for spec in specs %}
+        <div class="col-lg-4 col-md-6">
+            <div class="spec-card {% if spec.processed %}processed{% else %}unprocessed{% endif %}">
+                <div class="spec-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">{{ spec.serial_number or 'Unknown Serial' }}</h5>
+                        <small class="text-muted">{{ spec.model_name or spec.model_id or 'Unknown Model' }}</small>
+                    </div>
+                    <span class="badge {% if spec.processed %}badge-done{% else %}badge-new{% endif %} px-3 py-2">
                         {% if spec.processed %}
-                        <span class="badge bg-success"><i class="fas fa-check"></i> Processed</span>
+                        <i class="fas fa-check me-1"></i> Done
                         {% else %}
-                        <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> New</span>
+                        <i class="fas fa-clock me-1"></i> New
                         {% endif %}
-                    </td>
-                    <td>
-                        <strong>{{ spec.serial_number or 'Unknown' }}</strong>
-                    </td>
-                    <td>
-                        <div>{{ spec.model_name or 'Unknown' }}</div>
-                        <small class="text-muted">{{ spec.model_id }}</small>
-                    </td>
-                    <td>
-                        <div>{{ spec.cpu or 'Unknown' }}</div>
-                        <small class="text-muted">{{ spec.cpu_cores }} cores</small>
-                    </td>
-                    <td>{{ spec.ram_gb }} GB</td>
-                    <td>
-                        <div>{{ spec.storage_gb }} GB {{ spec.storage_type }}</div>
-                        <small class="text-muted">{{ spec.free_space }} free</small>
-                    </td>
-                    <td>
-                        {% if spec.battery_cycles %}
-                        <div>{{ spec.battery_cycles }} cycles</div>
-                        {% if spec.battery_health %}
-                        <small class="text-muted">{{ spec.battery_health }}% health</small>
-                        {% endif %}
-                        {% else %}
-                        <span class="text-muted">N/A</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div>{{ spec.submitted_at.strftime('%Y-%m-%d %H:%M') if spec.submitted_at else 'Unknown' }}</div>
-                        <small class="text-muted">{{ spec.ip_address }}</small>
-                    </td>
-                    <td>
-                        <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-outline-primary" onclick="viewSpec({{ spec.id }})" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            {% if not spec.processed %}
-                            <button type="button" class="btn btn-outline-success" onclick="createAsset({{ spec.id }})" title="Create Asset">
-                                <i class="fas fa-plus"></i>
-                            </button>
+                    </span>
+                </div>
+                <div class="spec-body">
+                    <div class="spec-row">
+                        <span class="spec-label"><i class="fas fa-microchip me-2"></i>CPU</span>
+                        <span class="spec-value">{{ spec.cpu or 'Unknown' }}</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label"><i class="fas fa-memory me-2"></i>RAM</span>
+                        <span class="spec-value">{{ spec.ram_gb or '?' }} GB</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label"><i class="fas fa-hdd me-2"></i>Storage</span>
+                        <span class="spec-value">{{ spec.storage_gb or '?' }} GB {{ spec.storage_type or '' }}</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label"><i class="fas fa-battery-three-quarters me-2"></i>Battery</span>
+                        <span class="spec-value">
+                            {% if spec.battery_cycles %}
+                            {{ spec.battery_cycles }} cycles
+                            {% if spec.battery_health %}<small class="text-muted">({{ spec.battery_health }}%)</small>{% endif %}
+                            {% else %}
+                            N/A
                             {% endif %}
-                            <button type="button" class="btn btn-outline-danger" onclick="deleteSpec({{ spec.id }})" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label"><i class="fas fa-clock me-2"></i>Submitted</span>
+                        <span class="spec-value">{{ spec.submitted_at.strftime('%b %d, %H:%M') if spec.submitted_at else 'Unknown' }}</span>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3 pt-2" style="border-top: 1px solid var(--border-color);">
+                        <button class="action-btn view flex-grow-1" onclick="viewSpec({{ spec.id }})" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        {% if not spec.processed %}
+                        <button class="action-btn add flex-grow-1" onclick="createAsset({{ spec.id }})" title="Add to Inventory">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        {% endif %}
+                        <button class="action-btn delete" onclick="deleteSpec({{ spec.id }})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% else %}
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        No device specs have been submitted yet. Have users run:
-        <code>curl -sL https://inventory.truelog.com.sg/specs | bash</code>
+    <div class="row">
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-laptop fa-4x mb-4" style="color: var(--text-secondary); opacity: 0.3;"></i>
+                <h4 class="text-muted">No Device Specs Yet</h4>
+                <p class="text-muted mb-4">Run the command above on a MacBook to collect its specifications</p>
+            </div>
+        </div>
     </div>
     {% endif %}
 </div>
 
 <!-- View Spec Modal -->
 <div class="modal fade" id="specModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Device Specifications</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); color: white; border: none;">
+                <h5 class="modal-title"><i class="fas fa-laptop-medical me-2"></i>Device Specifications</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="specModalBody">
+            <div class="modal-body p-4" id="specModalBody">
                 <!-- Content loaded dynamically -->
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer border-0">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
@@ -123,6 +276,20 @@
 </div>
 
 <script>
+function copyCommand() {
+    const command = document.getElementById('curlCommand').textContent;
+    navigator.clipboard.writeText(command).then(() => {
+        const btn = event.target.closest('.copy-btn');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+        btn.style.background = 'rgba(40, 167, 69, 0.3)';
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.style.background = '';
+        }, 2000);
+    });
+}
+
 function viewSpec(specId) {
     fetch(`/api/specs/${specId}`)
         .then(response => response.json())
@@ -130,72 +297,65 @@ function viewSpec(specId) {
             if (data.success) {
                 const spec = data.spec;
                 document.getElementById('specModalBody').innerHTML = `
-                    <div class="row">
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <h6 class="text-primary">Device Identification</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>Serial Number:</strong></td><td>${spec.serial_number || 'N/A'}</td></tr>
-                                <tr><td><strong>Hardware UUID:</strong></td><td><small>${spec.hardware_uuid || 'N/A'}</small></td></tr>
-                            </table>
+                            <div class="p-3 rounded" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-fingerprint me-2"></i>Device Identification</h6>
+                                <div class="mb-2"><strong>Serial:</strong> ${spec.serial_number || 'N/A'}</div>
+                                <div class="mb-2"><strong>UUID:</strong> <small class="text-muted">${spec.hardware_uuid || 'N/A'}</small></div>
+                            </div>
 
-                            <h6 class="text-primary mt-3">Model</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>Model Name:</strong></td><td>${spec.model_name || 'N/A'}</td></tr>
-                                <tr><td><strong>Model ID:</strong></td><td>${spec.model_id || 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-laptop me-2"></i>Model</h6>
+                                <div class="mb-2"><strong>Name:</strong> ${spec.model_name || 'N/A'}</div>
+                                <div class="mb-2"><strong>ID:</strong> ${spec.model_id || 'N/A'}</div>
+                            </div>
 
-                            <h6 class="text-primary mt-3">Processor</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>CPU:</strong></td><td>${spec.cpu || 'N/A'}</td></tr>
-                                <tr><td><strong>Cores:</strong></td><td>${spec.cpu_cores || 'N/A'}</td></tr>
-                            </table>
-
-                            <h6 class="text-primary mt-3">Graphics</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>GPU:</strong></td><td>${spec.gpu || 'N/A'}</td></tr>
-                                <tr><td><strong>GPU Cores:</strong></td><td>${spec.gpu_cores || 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-microchip me-2"></i>Processor</h6>
+                                <div class="mb-2"><strong>CPU:</strong> ${spec.cpu || 'N/A'}</div>
+                                <div class="mb-2"><strong>Cores:</strong> ${spec.cpu_cores || 'N/A'}</div>
+                                <div class="mb-2"><strong>GPU:</strong> ${spec.gpu || 'N/A'}</div>
+                                <div class="mb-2"><strong>GPU Cores:</strong> ${spec.gpu_cores || 'N/A'}</div>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <h6 class="text-primary">Memory</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>RAM:</strong></td><td>${spec.ram_gb || 'N/A'} GB</td></tr>
-                                <tr><td><strong>Type:</strong></td><td>${spec.memory_type || 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-memory me-2"></i>Memory</h6>
+                                <div class="mb-2"><strong>RAM:</strong> ${spec.ram_gb || 'N/A'} GB</div>
+                                <div class="mb-2"><strong>Type:</strong> ${spec.memory_type || 'N/A'}</div>
+                            </div>
 
-                            <h6 class="text-primary mt-3">Storage</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>Size:</strong></td><td>${spec.storage_gb || 'N/A'} GB</td></tr>
-                                <tr><td><strong>Type:</strong></td><td>${spec.storage_type || 'N/A'}</td></tr>
-                                <tr><td><strong>Free Space:</strong></td><td>${spec.free_space || 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-hdd me-2"></i>Storage</h6>
+                                <div class="mb-2"><strong>Size:</strong> ${spec.storage_gb || 'N/A'} GB</div>
+                                <div class="mb-2"><strong>Type:</strong> ${spec.storage_type || 'N/A'}</div>
+                                <div class="mb-2"><strong>Free:</strong> ${spec.free_space || 'N/A'}</div>
+                            </div>
 
-                            <h6 class="text-primary mt-3">Operating System</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>OS:</strong></td><td>${spec.os_name || 'macOS'} ${spec.os_version || ''}</td></tr>
-                                <tr><td><strong>Build:</strong></td><td>${spec.os_build || 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fab fa-apple me-2"></i>macOS</h6>
+                                <div class="mb-2"><strong>Version:</strong> ${spec.os_name || 'macOS'} ${spec.os_version || ''}</div>
+                                <div class="mb-2"><strong>Build:</strong> ${spec.os_build || 'N/A'}</div>
+                            </div>
 
-                            <h6 class="text-primary mt-3">Battery</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>Cycle Count:</strong></td><td>${spec.battery_cycles || 'N/A'}</td></tr>
-                                <tr><td><strong>Health:</strong></td><td>${spec.battery_health ? spec.battery_health + '%' : 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-battery-three-quarters me-2"></i>Battery</h6>
+                                <div class="mb-2"><strong>Cycles:</strong> ${spec.battery_cycles || 'N/A'}</div>
+                                <div class="mb-2"><strong>Health:</strong> ${spec.battery_health ? spec.battery_health + '%' : 'N/A'}</div>
+                            </div>
 
-                            <h6 class="text-primary mt-3">Network</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>WiFi MAC:</strong></td><td>${spec.wifi_mac || 'N/A'}</td></tr>
-                                <tr><td><strong>Ethernet MAC:</strong></td><td>${spec.ethernet_mac || 'N/A'}</td></tr>
-                            </table>
+                            <div class="p-3 rounded mt-3" style="background: var(--bg-secondary);">
+                                <h6 class="text-primary mb-3"><i class="fas fa-wifi me-2"></i>Network</h6>
+                                <div class="mb-2"><strong>WiFi:</strong> ${spec.wifi_mac || 'N/A'}</div>
+                                <div class="mb-2"><strong>Ethernet:</strong> ${spec.ethernet_mac || 'N/A'}</div>
+                            </div>
                         </div>
                     </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-12">
-                            <small class="text-muted">
-                                Submitted: ${spec.submitted_at || 'Unknown'} | IP: ${spec.ip_address || 'Unknown'}
-                            </small>
-                        </div>
+                    <div class="mt-4 pt-3 border-top text-muted small">
+                        <i class="fas fa-clock me-1"></i> Submitted: ${spec.submitted_at || 'Unknown'}
+                        <span class="mx-2">|</span>
+                        <i class="fas fa-globe me-1"></i> IP: ${spec.ip_address || 'Unknown'}
                     </div>
                 `;
                 new bootstrap.Modal(document.getElementById('specModal')).show();
@@ -210,7 +370,6 @@ function viewSpec(specId) {
 }
 
 function createAsset(specId) {
-    // Redirect to asset creation with pre-filled data
     window.location.href = `/inventory/new?from_spec=${specId}`;
 }
 
