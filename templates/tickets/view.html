@@ -2374,6 +2374,19 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             {% endif %}
                                         </div>
                                     </div>
+                                    <div class="sf-field-row">
+                                        <div class="sf-field-label">Country</div>
+                                        <div class="sf-field-value">
+                                            {% if ticket.customer.country %}
+                                            <span class="inline-flex items-center">
+                                                <i class="fas fa-globe text-gray-400 mr-2"></i>
+                                                {{ ticket.customer.country }}
+                                            </span>
+                                            {% else %}
+                                            <span class="text-gray-500">Not provided</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Company Details -->

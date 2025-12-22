@@ -109,6 +109,10 @@
                 <dt class="text-sm font-medium text-gray-500">Address</dt>
                 <dd class="text-sm text-gray-900">{{ asset.customer_user.address or 'N/A' }}</dd>
             </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Country</dt>
+                <dd class="text-sm text-gray-900">{{ asset.customer_user.country or 'N/A' }}</dd>
+            </div>
         </dl>
         {% else %}
         <div class="text-sm text-gray-500">
