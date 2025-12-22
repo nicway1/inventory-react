@@ -1026,9 +1026,36 @@ def search_customers():
             })
         
         return jsonify(results)
-        
+
     except Exception as e:
         logger.error(f"Customer search error: {str(e)}")
         return jsonify([]), 500
     finally:
         db_session.close()
+
+
+@main_bp.route('/specs')
+def mac_specs_script():
+    """
+    Serve the MacBook specification collector script.
+    Usage: curl -sL https://yourserver.com/specs | bash
+    """
+    from flask import Response
+
+    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                               'static', 'scripts', 'mac-specs.sh')
+
+    try:
+        with open(script_path, 'r') as f:
+            script_content = f.read()
+
+        return Response(
+            script_content,
+            mimetype='text/plain',
+            headers={
+                'Content-Disposition': 'inline',
+                'Cache-Control': 'no-cache'
+            }
+        )
+    except FileNotFoundError:
+        return "Script not found", 404
