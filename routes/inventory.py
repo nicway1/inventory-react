@@ -4000,30 +4000,28 @@ def add_asset():
                 # Log full exception for debugging
                 logger.error(traceback.format_exc())
                 
-                # Be more specific about the ticket_assets constraint
-                if "ticket_assets" in error_msg.lower() and "unique constraint" in error_msg.lower():
-                    logger.warning(f"Ticket-Asset constraint violation detected")
-                    logger.warning(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
-                    logger.warning(f"Serial Number: {request.form.get('serial_num', 'None')}")
-
-                    # This error means the asset-ticket link already exists
-                    # Note: After rollback, we can't verify in DB as transaction was undone
-                    error = "This asset is already linked to this ticket. The asset may have been created in a previous attempt."
-
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'error': error, 'duplicate': True}), 409
-                    else:
-                        flash(error, 'error')
-                elif "UNIQUE constraint failed: assets.serial_num" in error_msg:
+                # Check for specific constraint violations - order matters!
+                # Check more specific constraints first before general ones
+                if "UNIQUE constraint failed: assets.serial_num" in error_msg or "assets.serial_num" in error_msg.lower():
                     error = "An asset with this serial number already exists."
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error}), 409
                     else:
                         flash(error, 'error')
-                elif "UNIQUE constraint failed: assets.asset_tag" in error_msg:
+                elif "UNIQUE constraint failed: assets.asset_tag" in error_msg or "assets.asset_tag" in error_msg.lower():
                     error = "An asset with this asset tag already exists."
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error}), 409
+                    else:
+                        flash(error, 'error')
+                elif "ticket_assets" in error_msg.lower() and "unique constraint" in error_msg.lower():
+                    # This error means the asset-ticket link already exists
+                    logger.warning(f"Ticket-Asset constraint violation detected")
+                    logger.warning(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
+                    logger.warning(f"Serial Number: {request.form.get('serial_num', 'None')}")
+                    error = "This asset is already linked to this ticket. The asset may have been created in a previous attempt."
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': error, 'duplicate': True}), 409
                     else:
                         flash(error, 'error')
                 else:
