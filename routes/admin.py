@@ -7624,10 +7624,12 @@ def mass_create_users():
     if not current_user.is_admin:
         return jsonify({'error': 'Unauthorized'}), 403
 
-    from models.user_permissions import (
-        UserCompanyPermission, UserCountryPermission, UserQueuePermission,
-        UserVisibilityPermission, UserMentionPermission, UserImportPermission
-    )
+    from models.user_company_permission import UserCompanyPermission
+    from models.user_country_permission import UserCountryPermission
+    from models.user_queue_permission import UserQueuePermission
+    from models.user_visibility_permission import UserVisibilityPermission
+    from models.user_mention_permission import UserMentionPermission
+    from models.user_import_permission import UserImportPermission
     import secrets
     import string
 
@@ -7712,7 +7714,10 @@ def mass_create_users():
             for perm in source_company_perms:
                 new_perm = UserCompanyPermission(
                     user_id=new_user.id,
-                    company_id=perm.company_id
+                    company_id=perm.company_id,
+                    can_view=perm.can_view,
+                    can_edit=perm.can_edit,
+                    can_delete=perm.can_delete
                 )
                 db_session.add(new_perm)
 
@@ -7720,7 +7725,7 @@ def mass_create_users():
             for perm in source_country_perms:
                 new_perm = UserCountryPermission(
                     user_id=new_user.id,
-                    country_code=perm.country_code
+                    country=perm.country
                 )
                 db_session.add(new_perm)
 
@@ -7728,7 +7733,9 @@ def mass_create_users():
             for perm in source_queue_perms:
                 new_perm = UserQueuePermission(
                     user_id=new_user.id,
-                    queue_id=perm.queue_id
+                    queue_id=perm.queue_id,
+                    can_view=perm.can_view,
+                    can_create=perm.can_create
                 )
                 db_session.add(new_perm)
 
@@ -7736,8 +7743,7 @@ def mass_create_users():
             for perm in source_visibility_perms:
                 new_perm = UserVisibilityPermission(
                     user_id=new_user.id,
-                    field_name=perm.field_name,
-                    can_view=perm.can_view
+                    visible_user_id=perm.visible_user_id
                 )
                 db_session.add(new_perm)
 
@@ -7745,7 +7751,8 @@ def mass_create_users():
             for perm in source_mention_perms:
                 new_perm = UserMentionPermission(
                     user_id=new_user.id,
-                    can_be_mentioned=perm.can_be_mentioned
+                    target_type=perm.target_type,
+                    target_id=perm.target_id
                 )
                 db_session.add(new_perm)
 
@@ -7753,7 +7760,7 @@ def mass_create_users():
             for perm in source_import_perms:
                 new_perm = UserImportPermission(
                     user_id=new_user.id,
-                    can_import=perm.can_import
+                    import_type=perm.import_type
                 )
                 db_session.add(new_perm)
 
