@@ -3428,11 +3428,14 @@ def find_related_tickets_mobile(spec_id):
                     'message': 'No search terms available for this spec'
                 })
 
-            # Build search filters
+            # Build search filters - use 'subject' not 'title' for Ticket model
             filters = []
             for term in search_terms:
-                filters.append(Ticket.title.ilike(f'%{term}%'))
-                filters.append(Ticket.description.ilike(f'%{term}%'))
+                filters.append(Ticket.subject.ilike(f'%{term}%'))
+                if hasattr(Ticket, 'description') and Ticket.description is not None:
+                    filters.append(Ticket.description.ilike(f'%{term}%'))
+                if hasattr(Ticket, 'serial_number') and Ticket.serial_number is not None:
+                    filters.append(Ticket.serial_number.ilike(f'%{term}%'))
 
             # Query tickets
             tickets = db_session.query(Ticket).filter(
@@ -3445,7 +3448,7 @@ def find_related_tickets_mobile(spec_id):
                 tickets_list.append({
                     'id': ticket.id,
                     'display_id': ticket.display_id if hasattr(ticket, 'display_id') else f'#{ticket.id}',
-                    'title': ticket.title,
+                    'title': ticket.subject,  # Use subject as title
                     'status': ticket.status.value if ticket.status else 'Unknown',
                     'category': ticket.category.value if hasattr(ticket, 'category') and ticket.category else '',
                     'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
