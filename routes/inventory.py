@@ -4002,23 +4002,23 @@ def add_asset():
                 
                 # Check for specific constraint violations - order matters!
                 # Check more specific constraints first before general ones
-                if "UNIQUE constraint failed: assets.serial_num" in error_msg or "assets.serial_num" in error_msg.lower():
+                error_lower = error_msg.lower()
+
+                if "assets.serial_num" in error_lower:
                     error = "An asset with this serial number already exists."
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error}), 409
                     else:
                         flash(error, 'error')
-                elif "UNIQUE constraint failed: assets.asset_tag" in error_msg or "assets.asset_tag" in error_msg.lower():
+                elif "assets.asset_tag" in error_lower:
                     error = "An asset with this asset tag already exists."
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error}), 409
                     else:
                         flash(error, 'error')
-                elif "ticket_assets" in error_msg.lower() and "unique constraint" in error_msg.lower():
-                    # This error means the asset-ticket link already exists
+                elif "ticket_assets.ticket_id" in error_lower and "ticket_assets.asset_id" in error_lower:
+                    # Only match if BOTH column names are in the error - this is the exact constraint
                     logger.warning(f"Ticket-Asset constraint violation detected")
-                    logger.warning(f"Ticket ID: {request.form.get('intake_ticket_id', 'None')}")
-                    logger.warning(f"Serial Number: {request.form.get('serial_num', 'None')}")
                     error = "This asset is already linked to this ticket. The asset may have been created in a previous attempt."
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': error, 'duplicate': True}), 409
