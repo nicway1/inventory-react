@@ -260,9 +260,16 @@ def global_search():
             
             # Search Tickets
             if 'tickets' in search_types:
+                from sqlalchemy.orm import joinedload
                 # Join with CustomerUser to enable customer name search
+                # Also eagerly load relationships used by format_ticket_complete
                 ticket_query = db_session.query(Ticket).outerjoin(
                     CustomerUser, Ticket.customer_id == CustomerUser.id
+                ).options(
+                    joinedload(Ticket.requester),
+                    joinedload(Ticket.assigned_to),
+                    joinedload(Ticket.queue),
+                    joinedload(Ticket.asset)
                 )
 
                 # Apply user permission filters
