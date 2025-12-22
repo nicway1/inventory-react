@@ -4657,6 +4657,27 @@ def track_singpost(ticket_id):
 
         logger.info(f"Tracking SingPost number: {tracking_number}")
 
+        # Check for force refresh parameter
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+
+        # Check for cached tracking data if not forcing refresh
+        if not force_refresh:
+            from utils.tracking_cache import TrackingCache
+            cached_data = TrackingCache.get_cached_tracking(
+                db_session,
+                tracking_number,
+                ticket_id=ticket_id,
+                tracking_type='primary',
+                max_age_hours=1  # Cache for 1 hour for SingPost
+            )
+
+            if cached_data:
+                logger.info(f"Using cached tracking data for SingPost: {tracking_number}")
+                db_session.close()
+                return jsonify(cached_data)
+        else:
+            logger.info(f"Force refresh requested for SingPost: {tracking_number}, bypassing cache")
+
         # Check if SingPost API is configured
         if not singpost_client.is_configured():
             logger.warning("SingPost Tracking API not configured")
