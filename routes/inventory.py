@@ -3083,7 +3083,7 @@ def confirm_import():
                     ticket_id = session.get('import_ticket_id')
                     if ticket_id:
                         try:
-                            from routes.tickets import Ticket  # Import Ticket model
+                            from models.ticket import Ticket  # Import Ticket model
                             ticket = db_session.query(Ticket).get(int(ticket_id))
                             if ticket:
                                 new_asset.intake_ticket_id = ticket.id
@@ -4102,7 +4102,6 @@ def add_asset():
                     # If ticket_id is provided, get customer company and country from ticket
                     if ticket_id_from_query:
                         try:
-                            from models.ticket import Ticket
                             ticket = db_session.query(Ticket).get(int(ticket_id_from_query))
                             if ticket and ticket.customer:
                                 # Get company name (not customer name, not parent company)
