@@ -155,10 +155,27 @@ function closeMassCreateModal() {
 
 function loadUsersForCloning() {
     fetch('/admin/api/users-for-cloning')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             const select = document.getElementById('sourceUser');
             select.innerHTML = '<option value="">-- Select a user to clone --</option>';
+
+            if (!data.success || !data.users) {
+                console.error('API error:', data.error || 'Unknown error');
+                select.innerHTML = '<option value="">Error loading users</option>';
+                return;
+            }
+
+            if (data.users.length === 0) {
+                select.innerHTML = '<option value="">No users available</option>';
+                return;
+            }
+
             data.users.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.id;
@@ -168,6 +185,8 @@ function loadUsersForCloning() {
         })
         .catch(error => {
             console.error('Error loading users:', error);
+            const select = document.getElementById('sourceUser');
+            select.innerHTML = '<option value="">Error: ' + error.message + '</option>';
         });
 }
 
