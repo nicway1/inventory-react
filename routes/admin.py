@@ -7589,7 +7589,7 @@ def get_users_for_cloning():
         users = db_session.query(User).options(
             joinedload(User.company)
         ).filter(
-            User.is_active == True
+            User.is_deleted == False
         ).order_by(User.username).all()
 
         users_list = []
