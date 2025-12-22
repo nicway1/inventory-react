@@ -40,33 +40,30 @@
                 </p>
             </div>
 
-            <!-- Step 2: Number of Users -->
+            <!-- Step 2: Paste Emails -->
             <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                    <i class="fas fa-hashtag" style="color: #8B5CF6;"></i> Number of Users to Create
+                    <i class="fas fa-envelope" style="color: #8B5CF6;"></i> Paste Email List
                 </label>
-                <div style="display: flex; gap: 0.75rem;">
-                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; transition: all 0.15s;">
-                        <input type="radio" name="user_count" value="5" onchange="generateUserFields(5)" style="accent-color: #8B5CF6;">
-                        <span style="font-weight: 600;">5 Users</span>
-                    </label>
-                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; transition: all 0.15s;">
-                        <input type="radio" name="user_count" value="7" onchange="generateUserFields(7)" style="accent-color: #8B5CF6;">
-                        <span style="font-weight: 600;">7 Users</span>
-                    </label>
-                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; transition: all 0.15s;">
-                        <input type="radio" name="user_count" value="10" onchange="generateUserFields(10)" style="accent-color: #8B5CF6;">
-                        <span style="font-weight: 600;">10 Users</span>
-                    </label>
-                </div>
+                <textarea id="emailList" placeholder="Paste emails here (one per line or comma-separated)&#10;e.g.&#10;john@company.com&#10;jane@company.com, bob@company.com"
+                    style="width: 100%; height: 120px; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; font-family: monospace; resize: vertical;"
+                    oninput="parseEmails()"></textarea>
+                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                    <i class="fas fa-info-circle"></i> Username will be auto-generated from email (e.g., john@company.com → john)
+                </p>
             </div>
 
-            <!-- Step 3: User Details -->
+            <!-- Step 3: User Details Preview -->
             <div id="userFieldsContainer" style="display: none;">
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem;">
-                    <i class="fas fa-users" style="color: #8B5CF6;"></i> New User Details
-                </label>
-                <div id="userFields" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.875rem; font-weight: 600; color: #374151;">
+                        <i class="fas fa-users" style="color: #8B5CF6;"></i> Users to Create (<span id="userCount">0</span>)
+                    </label>
+                    <button type="button" onclick="addEmptyRow()" style="padding: 0.375rem 0.75rem; background: #e5e7eb; color: #374151; border: none; border-radius: 0.375rem; font-size: 0.75rem; cursor: pointer;">
+                        <i class="fas fa-plus"></i> Add Row
+                    </button>
+                </div>
+                <div id="userFields" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
                     <!-- User fields will be generated here -->
                 </div>
             </div>
@@ -78,7 +75,7 @@
                     <span style="font-size: 0.875rem; color: #374151;">Auto-generate secure passwords</span>
                 </label>
                 <p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 1.5rem;">
-                    Passwords will be sent via welcome email
+                    Passwords will be shown in the confirmation message
                 </p>
             </div>
 
@@ -96,19 +93,12 @@
 </div>
 
 <style>
-    #massCreateModal input[type="radio"]:checked + span {
-        color: #8B5CF6;
-    }
-    #massCreateModal label:has(input[type="radio"]:checked) {
-        border-color: #8B5CF6;
-        background: #f5f3ff;
-    }
     .user-field-row {
         display: grid;
-        grid-template-columns: 40px 1fr 1fr 1fr;
+        grid-template-columns: 30px 1fr 1fr 30px;
         gap: 0.5rem;
         align-items: center;
-        padding: 0.75rem;
+        padding: 0.5rem 0.75rem;
         background: #f9fafb;
         border-radius: 0.5rem;
         border: 1px solid #e5e7eb;
@@ -125,21 +115,38 @@
         box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
     }
     .user-num {
-        width: 28px;
-        height: 28px;
+        width: 24px;
+        height: 24px;
         background: #8B5CF6;
         color: white;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
+    }
+    .remove-row-btn {
+        width: 24px;
+        height: 24px;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+    }
+    .remove-row-btn:hover {
+        background: #fecaca;
     }
 </style>
 
 <script>
 let massCreateUsersLoaded = false;
+let userRowCount = 0;
 
 function openMassCreateModal() {
     document.getElementById('massCreateModal').style.display = 'flex';
@@ -190,33 +197,105 @@ function loadUsersForCloning() {
         });
 }
 
-function generateUserFields(count) {
+function parseEmails() {
+    const emailText = document.getElementById('emailList').value;
     const container = document.getElementById('userFieldsContainer');
     const fields = document.getElementById('userFields');
+
+    // Parse emails - split by newlines, commas, semicolons, or spaces
+    const emails = emailText
+        .split(/[\n,;\s]+/)
+        .map(e => e.trim().toLowerCase())
+        .filter(e => e && e.includes('@'));
+
+    if (emails.length === 0) {
+        container.style.display = 'none';
+        updateCreateButton();
+        return;
+    }
+
     container.style.display = 'block';
     fields.innerHTML = '';
+    userRowCount = 0;
 
-    for (let i = 1; i <= count; i++) {
-        const row = document.createElement('div');
-        row.className = 'user-field-row';
-        row.innerHTML = `
-            <div class="user-num">${i}</div>
-            <input type="text" name="username_${i}" placeholder="Username" required>
-            <input type="email" name="email_${i}" placeholder="Email" required>
-            <input type="password" name="password_${i}" placeholder="Password (auto if empty)">
-        `;
-        fields.appendChild(row);
-    }
+    emails.forEach((email, index) => {
+        addUserRow(email);
+    });
 
     updateCreateButton();
 }
 
+function addUserRow(email = '') {
+    userRowCount++;
+    const fields = document.getElementById('userFields');
+    const container = document.getElementById('userFieldsContainer');
+    container.style.display = 'block';
+
+    // Generate username from email
+    const username = email ? email.split('@')[0].replace(/[^a-z0-9._-]/gi, '') : '';
+
+    const row = document.createElement('div');
+    row.className = 'user-field-row';
+    row.dataset.rowId = userRowCount;
+    row.innerHTML = `
+        <div class="user-num">${userRowCount}</div>
+        <input type="text" name="username_${userRowCount}" placeholder="Username" value="${username}">
+        <input type="email" name="email_${userRowCount}" placeholder="Email" value="${email}">
+        <button type="button" class="remove-row-btn" onclick="removeRow(${userRowCount})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    fields.appendChild(row);
+
+    document.getElementById('userCount').textContent = fields.children.length;
+    updateCreateButton();
+}
+
+function addEmptyRow() {
+    addUserRow('');
+    // Focus the new username field
+    const fields = document.getElementById('userFields');
+    const lastRow = fields.lastElementChild;
+    if (lastRow) {
+        const usernameInput = lastRow.querySelector('input[type="text"]');
+        if (usernameInput) usernameInput.focus();
+    }
+}
+
+function removeRow(rowId) {
+    const row = document.querySelector(`.user-field-row[data-row-id="${rowId}"]`);
+    if (row) {
+        row.remove();
+        renumberRows();
+        updateCreateButton();
+    }
+}
+
+function renumberRows() {
+    const fields = document.getElementById('userFields');
+    const rows = fields.querySelectorAll('.user-field-row');
+    rows.forEach((row, index) => {
+        const num = row.querySelector('.user-num');
+        if (num) num.textContent = index + 1;
+    });
+    document.getElementById('userCount').textContent = rows.length;
+}
+
 function updateCreateButton() {
     const sourceUser = document.getElementById('sourceUser').value;
-    const userCount = document.querySelector('input[name="user_count"]:checked');
+    const fields = document.getElementById('userFields');
+    const rows = fields.querySelectorAll('.user-field-row');
     const btn = document.getElementById('createBtn');
 
-    if (sourceUser && userCount) {
+    // Check if at least one row has both username and email filled
+    let hasValidRow = false;
+    rows.forEach(row => {
+        const username = row.querySelector('input[type="text"]').value.trim();
+        const email = row.querySelector('input[type="email"]').value.trim();
+        if (username && email) hasValidRow = true;
+    });
+
+    if (sourceUser && hasValidRow) {
         btn.disabled = false;
         btn.style.opacity = '1';
     } else {
@@ -229,12 +308,42 @@ document.getElementById('sourceUser').addEventListener('change', updateCreateBut
 
 function submitMassCreate(event) {
     event.preventDefault();
-    const form = document.getElementById('massCreateForm');
-    const formData = new FormData(form);
+
+    const sourceUser = document.getElementById('sourceUser').value;
+    const autoPassword = document.getElementById('autoPassword').checked;
+    const fields = document.getElementById('userFields');
+    const rows = fields.querySelectorAll('.user-field-row');
+
+    // Collect user data
+    const users = [];
+    rows.forEach((row, index) => {
+        const username = row.querySelector('input[type="text"]').value.trim();
+        const email = row.querySelector('input[type="email"]').value.trim();
+        if (username && email) {
+            users.push({ username, email, index: index + 1 });
+        }
+    });
+
+    if (users.length === 0) {
+        alert('Please add at least one user with username and email');
+        return;
+    }
 
     const btn = document.getElementById('createBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+    // Build form data
+    const formData = new FormData();
+    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+    formData.append('source_user_id', sourceUser);
+    formData.append('user_count', users.length);
+    formData.append('auto_password', autoPassword ? 'on' : '');
+
+    users.forEach((user, i) => {
+        formData.append(`username_${i + 1}`, user.username);
+        formData.append(`email_${i + 1}`, user.email);
+    });
 
     fetch('/admin/mass-create-users', {
         method: 'POST',
