@@ -42,11 +42,19 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="asset_tag" class="block text-sm font-medium text-gray-700">Asset Tag</label>
-                        <input type="text" 
-                               id="asset_tag" 
-                               name="asset_tag" 
-                               required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                            <input type="text"
+                                   id="asset_tag"
+                                   name="asset_tag"
+                                   required
+                                   class="flex-1 block w-full rounded-l-md border-gray-300 shadow-sm">
+                            <button type="button"
+                                    onclick="generateAssetTag()"
+                                    class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-medium transition">
+                                <i class="fas fa-magic mr-1"></i> Generate
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Click Generate for next available SG-R### tag</p>
                     </div>
 
                     <div>
@@ -388,6 +396,37 @@
 </div>
 
 <script>
+    function generateAssetTag() {
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating...';
+        btn.disabled = true;
+
+        fetch('/inventory/api/generate-asset-tag')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('asset_tag').value = data.asset_tag;
+                    // Briefly highlight the field
+                    const input = document.getElementById('asset_tag');
+                    input.classList.add('bg-green-50', 'border-green-300');
+                    setTimeout(() => {
+                        input.classList.remove('bg-green-50', 'border-green-300');
+                    }, 2000);
+                } else {
+                    alert('Error generating asset tag: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error generating asset tag');
+            })
+            .finally(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
+    }
+
     function generateHardwareType() {
         const product = document.getElementById('product').value;
         const assetType = document.getElementById('asset_type').value;

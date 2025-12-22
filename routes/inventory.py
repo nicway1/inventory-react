@@ -3662,9 +3662,59 @@ def delete_accessory(id):
             flash(f'Error deleting accessory: {str(e)}', 'error')
             
         return redirect(url_for('inventory.view_accessories'))
-        
+
     finally:
         db_session.close()
+
+
+@inventory_bp.route('/api/generate-asset-tag', methods=['GET'])
+@login_required
+def generate_asset_tag():
+    """Generate the next available asset tag in format SG-R###"""
+    db_session = db_manager.get_session()
+    try:
+        import re
+
+        # Get all existing asset tags matching the pattern SG-R###
+        existing_tags = db_session.query(Asset.asset_tag).filter(
+            Asset.asset_tag.ilike('SG-R%')
+        ).all()
+
+        # Extract numbers from existing tags
+        max_number = 0
+        pattern = re.compile(r'^SG-R(\d+)$', re.IGNORECASE)
+
+        for (tag,) in existing_tags:
+            if tag:
+                match = pattern.match(tag.strip())
+                if match:
+                    num = int(match.group(1))
+                    if num > max_number:
+                        max_number = num
+
+        # Generate next tag
+        next_number = max_number + 1
+        next_tag = f"SG-R{next_number:03d}"
+
+        # Double-check it doesn't exist (case-insensitive)
+        while db_session.query(Asset).filter(
+            func.lower(Asset.asset_tag) == next_tag.lower()
+        ).first():
+            next_number += 1
+            next_tag = f"SG-R{next_number:03d}"
+
+        return jsonify({
+            'success': True,
+            'asset_tag': next_tag,
+            'next_number': next_number
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating asset tag: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
 
 @inventory_bp.route('/assets/add', methods=['GET', 'POST'])
 @login_required
