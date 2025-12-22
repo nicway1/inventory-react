@@ -16,8 +16,27 @@
             <p class="mt-1 text-sm text-gray-600">Enter the details for the new asset.</p>
         </div>
 
+        {% if spec_data %}
+        <!-- Importing from MacBook Specs Collector Banner -->
+        <div class="bg-gradient-to-r from-cyan-500 to-cyan-600 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center text-white">
+                <i class="fas fa-laptop-medical text-2xl mr-3"></i>
+                <div>
+                    <div class="font-semibold">Importing from MacBook Specs Collector</div>
+                    <div class="text-sm text-cyan-100">Serial: {{ spec_data.serial_number }} | Model: {{ spec_data.model_name }}</div>
+                </div>
+            </div>
+            <a href="{{ url_for('specs.device_specs_page') }}" class="text-white hover:text-cyan-100 text-sm">
+                <i class="fas fa-times mr-1"></i> Cancel Import
+            </a>
+        </div>
+        {% endif %}
+
         <div class="p-6">
             <form method="POST" class="space-y-6">
+                {% if from_spec_id %}
+                <input type="hidden" name="from_spec_id" value="{{ from_spec_id }}">
+                {% endif %}
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <!-- Basic Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -32,22 +51,24 @@
 
                     <div>
                         <label for="serial_num" class="block text-sm font-medium text-gray-700">Serial Number</label>
-                        <input type="text" 
-                               id="serial_num" 
-                               name="serial_num" 
+                        <input type="text"
+                               id="serial_num"
+                               name="serial_num"
+                               value="{{ spec_data.serial_number if spec_data else '' }}"
                                required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
                         <label for="model" class="block text-sm font-medium text-gray-700">Model</label>
                         <div class="relative">
-                            <input type="text" 
-                                   id="model" 
-                                   name="model" 
+                            <input type="text"
+                                   id="model"
+                                   name="model"
                                    list="model-list"
+                                   value="{{ spec_data.model_id if spec_data else '' }}"
                                    required
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data %} bg-cyan-50 border-cyan-300{% endif %}"
                                    onchange="handleModelChange(this)">
                             <datalist id="model-list">
                                 {% for model in models %}
@@ -61,21 +82,23 @@
 
                     <div>
                         <label for="product" class="block text-sm font-medium text-gray-700">Product</label>
-                        <input type="text" 
-                               id="product" 
-                               name="product" 
+                        <input type="text"
+                               id="product"
+                               name="product"
+                               value="{{ spec_data.model_name if spec_data else '' }}"
                                required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
                         <label for="asset_type" class="block text-sm font-medium text-gray-700">Asset Type</label>
-                        <input type="text" 
-                               id="asset_type" 
-                               name="asset_type" 
+                        <input type="text"
+                               id="asset_type"
+                               name="asset_type"
                                list="asset-type-list"
+                               value="{{ 'Laptop' if spec_data else '' }}"
                                required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data %} bg-cyan-50 border-cyan-300{% endif %}">
                         <datalist id="asset-type-list">
                             {% for type in asset_types %}
                             <option value="{{ type }}">{{ type }}</option>
@@ -120,42 +143,47 @@
 
                     <div>
                         <label for="cpu_type" class="block text-sm font-medium text-gray-700">CPU Type</label>
-                        <input type="text" 
-                               id="cpu_type" 
-                               name="cpu_type" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text"
+                               id="cpu_type"
+                               name="cpu_type"
+                               value="{{ spec_data.cpu if spec_data else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.cpu %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
                         <label for="cpu_cores" class="block text-sm font-medium text-gray-700">CPU Cores</label>
-                        <input type="text" 
-                               id="cpu_cores" 
-                               name="cpu_cores" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text"
+                               id="cpu_cores"
+                               name="cpu_cores"
+                               value="{{ spec_data.cpu_cores if spec_data else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.cpu_cores %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
                         <label for="gpu_cores" class="block text-sm font-medium text-gray-700">GPU Cores</label>
-                        <input type="text" 
-                               id="gpu_cores" 
-                               name="gpu_cores" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text"
+                               id="gpu_cores"
+                               name="gpu_cores"
+                               value="{{ spec_data.gpu_cores if spec_data else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.gpu_cores %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
                         <label for="memory" class="block text-sm font-medium text-gray-700">Memory</label>
-                        <input type="text" 
-                               id="memory" 
-                               name="memory" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text"
+                               id="memory"
+                               name="memory"
+                               value="{% if spec_data and spec_data.ram_gb %}{{ spec_data.ram_gb }} GB{% endif %}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.ram_gb %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>
                         <label for="harddrive" class="block text-sm font-medium text-gray-700">Hard Drive</label>
-                        <input type="text" 
-                               id="harddrive" 
-                               name="harddrive" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <input type="text"
+                               id="harddrive"
+                               name="harddrive"
+                               value="{% if spec_data and spec_data.storage_gb %}{{ spec_data.storage_gb }} GB {{ spec_data.storage_type }}{% endif %}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm{% if spec_data and spec_data.storage_gb %} bg-cyan-50 border-cyan-300{% endif %}">
                     </div>
 
                     <div>

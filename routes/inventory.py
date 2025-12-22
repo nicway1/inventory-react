@@ -3910,6 +3910,22 @@ def add_asset():
                 # Commit asset and activity
                 db_session.commit()
 
+                # Mark spec as processed if imported from MacBook Specs Collector
+                from_spec_id = request.form.get('from_spec_id')
+                if from_spec_id:
+                    try:
+                        from models.device_spec import DeviceSpec
+                        spec = db_session.query(DeviceSpec).get(int(from_spec_id))
+                        if spec:
+                            spec.processed = True
+                            spec.processed_at = datetime.utcnow()
+                            spec.asset_id = new_asset.id
+                            spec.notes = f"Asset created: {new_asset.asset_tag or new_asset.serial_num}"
+                            db_session.commit()
+                            logger.info(f"Marked spec {from_spec_id} as processed, linked to asset {new_asset.id}")
+                    except Exception as e:
+                        logger.error(f"Error marking spec as processed: {e}")
+
                 # Prepare asset data for JSON response
                 asset_data = {
                     'id': new_asset.id,
@@ -3997,6 +4013,39 @@ def add_asset():
         # Check if intake_ticket_id is passed in query params for GET request
         ticket_id_from_query = request.args.get('ticket_id')
 
+        # Check if importing from MacBook Specs Collector
+        from_spec_id = request.args.get('from_spec')
+        spec_data = None
+        if from_spec_id:
+            try:
+                from models.device_spec import DeviceSpec
+                from utils.mac_models import get_mac_model_name
+                spec = db_session.query(DeviceSpec).get(int(from_spec_id))
+                if spec:
+                    # Translate model ID to human-readable name
+                    model_name_translated = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+                    spec_data = {
+                        'id': spec.id,
+                        'serial_number': spec.serial_number or '',
+                        'model_id': spec.model_id or '',
+                        'model_name': model_name_translated or spec.model_name or '',
+                        'cpu': spec.cpu or '',
+                        'cpu_cores': spec.cpu_cores or '',
+                        'gpu': spec.gpu or '',
+                        'gpu_cores': spec.gpu_cores or '',
+                        'ram_gb': spec.ram_gb or '',
+                        'memory_type': spec.memory_type or '',
+                        'storage_gb': spec.storage_gb or '',
+                        'storage_type': spec.storage_type or '',
+                        'battery_cycles': spec.battery_cycles or '',
+                        'battery_health': spec.battery_health or '',
+                        'os_version': spec.os_version or '',
+                        'wifi_mac': spec.wifi_mac or '',
+                    }
+                    logger.info(f"Importing spec data for asset creation: {spec.serial_number}")
+            except Exception as e:
+                logger.error(f"Error loading spec data: {e}")
+
         # Query out-of-stock accessories
         out_of_stock_accessories = db_session.query(Accessory).filter(
             Accessory.available_quantity <= 0
@@ -4015,7 +4064,9 @@ def add_asset():
                                 asset_types=unique_asset_types,
                                 user=user,
                                 intake_ticket_id=ticket_id_from_query,
-                                out_of_stock_accessories=out_of_stock_accessories)
+                                out_of_stock_accessories=out_of_stock_accessories,
+                                spec_data=spec_data,
+                                from_spec_id=from_spec_id)
 
     except Exception as e:
         # ... existing error handling ...

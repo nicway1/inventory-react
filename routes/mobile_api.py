@@ -3050,3 +3050,342 @@ def delete_accessory_image(accessory_id):
             'success': False,
             'error': 'Failed to delete image'
         }), 500
+
+
+# ============================================================================
+# MacBook Specs Collector Mobile API Endpoints
+# ============================================================================
+
+@mobile_api_bp.route('/specs', methods=['GET'])
+@mobile_auth_required
+def get_device_specs():
+    """
+    Get list of pending device specs for mobile app.
+
+    Query params:
+    - processed: 'true' or 'false' to filter by processed status (default: false)
+    - limit: max number of results (default: 50)
+    """
+    try:
+        user = request.current_mobile_user
+        db_session = db_manager.get_session()
+
+        try:
+            from models.device_spec import DeviceSpec
+            from utils.mac_models import get_mac_model_name
+
+            # Parse query params
+            processed = request.args.get('processed', 'false').lower() == 'true'
+            limit = min(int(request.args.get('limit', 50)), 100)
+
+            # Query specs
+            query = db_session.query(DeviceSpec).filter(
+                DeviceSpec.processed == processed
+            ).order_by(DeviceSpec.submitted_at.desc()).limit(limit)
+
+            specs = query.all()
+
+            # Format response
+            specs_list = []
+            for spec in specs:
+                model_name_translated = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+                specs_list.append({
+                    'id': spec.id,
+                    'serial_number': spec.serial_number,
+                    'model_id': spec.model_id,
+                    'model_name': model_name_translated or spec.model_name,
+                    'cpu': spec.cpu,
+                    'cpu_cores': spec.cpu_cores,
+                    'ram_gb': spec.ram_gb,
+                    'storage_gb': spec.storage_gb,
+                    'storage_type': spec.storage_type,
+                    'battery_cycles': spec.battery_cycles,
+                    'battery_health': spec.battery_health,
+                    'submitted_at': spec.submitted_at.isoformat() if spec.submitted_at else None,
+                    'processed': spec.processed
+                })
+
+            return jsonify({
+                'success': True,
+                'count': len(specs_list),
+                'specs': specs_list
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting device specs: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get device specs'
+        }), 500
+
+
+@mobile_api_bp.route('/specs/<int:spec_id>', methods=['GET'])
+@mobile_auth_required
+def get_device_spec_detail(spec_id):
+    """
+    Get detailed device spec information for mobile app.
+    Returns all spec data for auto-filling asset creation form.
+    """
+    try:
+        user = request.current_mobile_user
+        db_session = db_manager.get_session()
+
+        try:
+            from models.device_spec import DeviceSpec
+            from utils.mac_models import get_mac_model_name
+
+            spec = db_session.query(DeviceSpec).get(spec_id)
+
+            if not spec:
+                return jsonify({
+                    'success': False,
+                    'error': 'Spec not found'
+                }), 404
+
+            model_name_translated = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+
+            return jsonify({
+                'success': True,
+                'spec': {
+                    'id': spec.id,
+                    'serial_number': spec.serial_number,
+                    'hardware_uuid': spec.hardware_uuid,
+                    'model_id': spec.model_id,
+                    'model_name': spec.model_name,
+                    'model_name_translated': model_name_translated,
+                    'cpu': spec.cpu,
+                    'cpu_cores': spec.cpu_cores,
+                    'gpu': spec.gpu,
+                    'gpu_cores': spec.gpu_cores,
+                    'ram_gb': spec.ram_gb,
+                    'memory_type': spec.memory_type,
+                    'storage_gb': spec.storage_gb,
+                    'storage_type': spec.storage_type,
+                    'free_space': spec.free_space,
+                    'os_name': spec.os_name,
+                    'os_version': spec.os_version,
+                    'os_build': spec.os_build,
+                    'battery_cycles': spec.battery_cycles,
+                    'battery_health': spec.battery_health,
+                    'wifi_mac': spec.wifi_mac,
+                    'ethernet_mac': spec.ethernet_mac,
+                    'ip_address': spec.ip_address,
+                    'submitted_at': spec.submitted_at.isoformat() if spec.submitted_at else None,
+                    'processed': spec.processed,
+                    'processed_at': spec.processed_at.isoformat() if spec.processed_at else None,
+                    'asset_id': spec.asset_id,
+                    # Pre-formatted fields for asset creation
+                    'asset_prefill': {
+                        'serial_num': spec.serial_number or '',
+                        'model': spec.model_id or '',
+                        'product': model_name_translated or spec.model_name or '',
+                        'asset_type': 'Laptop',
+                        'cpu_type': spec.cpu or '',
+                        'cpu_cores': spec.cpu_cores or '',
+                        'gpu_cores': spec.gpu_cores or '',
+                        'memory': f"{spec.ram_gb} GB" if spec.ram_gb else '',
+                        'harddrive': f"{spec.storage_gb} GB {spec.storage_type or ''}".strip() if spec.storage_gb else '',
+                        'manufacturer': 'Apple'
+                    }
+                }
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting device spec detail: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get device spec'
+        }), 500
+
+
+@mobile_api_bp.route('/specs/<int:spec_id>/create-asset', methods=['POST'])
+@mobile_auth_required
+def create_asset_from_spec(spec_id):
+    """
+    Create an asset from a device spec.
+    Accepts additional fields to merge with spec data.
+
+    Request body (all optional, will use spec data if not provided):
+    - asset_tag: Asset tag
+    - status: Asset status (default: IN_STOCK)
+    - condition: Asset condition
+    - customer: Customer name
+    - country: Country
+    - notes: Additional notes
+    """
+    try:
+        user = request.current_mobile_user
+
+        # Check if user has permission to create assets
+        if not hasattr(user, 'can_create_assets') or not user.can_create_assets:
+            if user.user_type not in [UserType.ADMIN, UserType.COUNTRY_ADMIN]:
+                return jsonify({
+                    'success': False,
+                    'error': 'You do not have permission to create assets'
+                }), 403
+
+        db_session = db_manager.get_session()
+
+        try:
+            from models.device_spec import DeviceSpec
+            from utils.mac_models import get_mac_model_name
+
+            spec = db_session.query(DeviceSpec).get(spec_id)
+
+            if not spec:
+                return jsonify({
+                    'success': False,
+                    'error': 'Spec not found'
+                }), 404
+
+            if spec.processed:
+                return jsonify({
+                    'success': False,
+                    'error': 'This spec has already been processed'
+                }), 400
+
+            # Get request data
+            data = request.get_json() or {}
+
+            # Translate model name
+            model_name_translated = get_mac_model_name(spec.model_id) if spec.model_id else spec.model_name
+
+            # Check for duplicate serial number
+            existing_asset = db_session.query(Asset).filter(
+                Asset.serial_num == spec.serial_number
+            ).first()
+
+            if existing_asset:
+                return jsonify({
+                    'success': False,
+                    'error': f'An asset with serial number {spec.serial_number} already exists',
+                    'existing_asset_id': existing_asset.id
+                }), 409
+
+            # Create new asset
+            new_asset = Asset(
+                asset_tag=data.get('asset_tag', ''),
+                serial_num=spec.serial_number or '',
+                model=spec.model_id or '',
+                name=model_name_translated or spec.model_name or '',
+                asset_type='Laptop',
+                manufacturer='Apple',
+                cpu_type=spec.cpu or '',
+                cpu_cores=spec.cpu_cores or '',
+                gpu_cores=spec.gpu_cores or '',
+                memory=f"{spec.ram_gb} GB" if spec.ram_gb else '',
+                harddrive=f"{spec.storage_gb} GB {spec.storage_type or ''}".strip() if spec.storage_gb else '',
+                status=AssetStatus[data.get('status', 'IN_STOCK')],
+                condition=data.get('condition', ''),
+                customer=data.get('customer', ''),
+                country=data.get('country', ''),
+                notes=data.get('notes', ''),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+
+            # Auto-assign image for MacBook
+            if 'macbook' in (model_name_translated or '').lower():
+                new_asset.image_url = '/static/images/products/macbook.png'
+
+            db_session.add(new_asset)
+            db_session.flush()
+
+            # Mark spec as processed
+            spec.processed = True
+            spec.processed_at = datetime.utcnow()
+            spec.asset_id = new_asset.id
+            spec.notes = f"Asset created via mobile API: {new_asset.asset_tag or new_asset.serial_num}"
+
+            db_session.commit()
+
+            logger.info(f"User {user.username} created asset {new_asset.id} from spec {spec_id} via mobile API")
+
+            return jsonify({
+                'success': True,
+                'message': 'Asset created successfully',
+                'asset': {
+                    'id': new_asset.id,
+                    'asset_tag': new_asset.asset_tag or '',
+                    'serial_num': new_asset.serial_num or '',
+                    'name': new_asset.name or '',
+                    'model': new_asset.model or '',
+                    'status': new_asset.status.value if new_asset.status else 'Unknown'
+                }
+            })
+
+        except KeyError as e:
+            db_session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Invalid status value: {str(e)}'
+            }), 400
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error creating asset from spec: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create asset'
+        }), 500
+
+
+@mobile_api_bp.route('/specs/<int:spec_id>/mark-processed', methods=['POST'])
+@mobile_auth_required
+def mark_spec_processed_mobile(spec_id):
+    """
+    Mark a spec as processed without creating an asset.
+    Useful for skipping or dismissing a spec.
+
+    Request body (optional):
+    - notes: Reason for marking as processed
+    """
+    try:
+        user = request.current_mobile_user
+        db_session = db_manager.get_session()
+
+        try:
+            from models.device_spec import DeviceSpec
+
+            spec = db_session.query(DeviceSpec).get(spec_id)
+
+            if not spec:
+                return jsonify({
+                    'success': False,
+                    'error': 'Spec not found'
+                }), 404
+
+            data = request.get_json() or {}
+
+            spec.processed = True
+            spec.processed_at = datetime.utcnow()
+            spec.notes = data.get('notes', 'Marked as processed via mobile API')
+
+            db_session.commit()
+
+            logger.info(f"User {user.username} marked spec {spec_id} as processed via mobile API")
+
+            return jsonify({
+                'success': True,
+                'message': 'Spec marked as processed'
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error marking spec as processed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to mark spec as processed'
+        }), 500

@@ -105,13 +105,16 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="flex gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
                     <button onclick="viewSpec({{ spec.id }})" class="flex-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition text-sm">
                         <i class="fas fa-eye mr-1"></i> View
                     </button>
                     {% if not spec.processed %}
                     <button onclick="createAsset({{ spec.id }})" class="flex-1 px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 rounded-lg transition text-sm">
                         <i class="fas fa-plus mr-1"></i> Add
+                    </button>
+                    <button onclick="findTickets({{ spec.id }})" class="flex-1 px-3 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-lg transition text-sm">
+                        <i class="fas fa-ticket-alt mr-1"></i> Tickets
                     </button>
                     {% endif %}
                     <button onclick="deleteSpec({{ spec.id }})" class="px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition text-sm">
@@ -143,6 +146,23 @@
         </div>
         <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
             <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition text-gray-700 dark:text-gray-300">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Find Tickets Modal -->
+<div id="ticketsModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+        <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4 flex justify-between items-center">
+            <h5 class="text-white font-semibold text-lg"><i class="fas fa-ticket-alt mr-2"></i>Related Tickets</h5>
+            <button onclick="closeTicketsModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div class="p-6 overflow-y-auto max-h-[70vh]" id="ticketsModalBody">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <span id="ticketsModalInfo" class="text-sm text-gray-500 dark:text-gray-400"></span>
+            <button onclick="closeTicketsModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition text-gray-700 dark:text-gray-300">Close</button>
         </div>
     </div>
 </div>
@@ -246,8 +266,12 @@ function viewSpec(specId) {
         });
 }
 
-function createAsset(specId) {
-    window.location.href = `/inventory/new?from_spec=${specId}`;
+function createAsset(specId, ticketId = null) {
+    let url = `/inventory/assets/add?from_spec=${specId}`;
+    if (ticketId) {
+        url += `&ticket_id=${ticketId}`;
+    }
+    window.location.href = url;
 }
 
 function deleteSpec(specId) {
@@ -270,6 +294,98 @@ function deleteSpec(specId) {
         console.error('Error:', error);
         alert('Error deleting spec');
     });
+}
+
+// Store current spec ID for ticket linking
+let currentSpecId = null;
+
+function findTickets(specId) {
+    currentSpecId = specId;
+    document.getElementById('ticketsModalBody').innerHTML = `
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+            <span class="ml-3 text-gray-500">Searching for related tickets...</span>
+        </div>
+    `;
+    document.getElementById('ticketsModalInfo').textContent = '';
+    document.getElementById('ticketsModal').classList.remove('hidden');
+    document.getElementById('ticketsModal').classList.add('flex');
+
+    fetch(`/api/specs/${specId}/find-tickets`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.tickets.length === 0) {
+                    document.getElementById('ticketsModalBody').innerHTML = `
+                        <div class="text-center py-8">
+                            <i class="fas fa-search text-4xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                            <h4 class="text-lg text-gray-500 dark:text-gray-400 mb-2">No Related Tickets Found</h4>
+                            <p class="text-gray-400 dark:text-gray-500 text-sm mb-4">No tickets match the serial number or model of this device.</p>
+                            <button onclick="createAsset(${specId})" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition">
+                                <i class="fas fa-plus mr-1"></i> Add Asset Without Ticket
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    let ticketsHtml = `<div class="space-y-3">`;
+                    data.tickets.forEach(ticket => {
+                        const statusColors = {
+                            'Open': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                            'In Progress': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                            'Closed': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+                            'Resolved': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        };
+                        const statusClass = statusColors[ticket.status] || 'bg-gray-100 text-gray-800';
+                        ticketsHtml += `
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <span class="font-semibold text-gray-800 dark:text-white">${ticket.display_id}</span>
+                                        <span class="ml-2 px-2 py-0.5 text-xs rounded-full ${statusClass}">${ticket.status}</span>
+                                    </div>
+                                    <span class="text-xs text-gray-400">${ticket.created_at}</span>
+                                </div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">${ticket.title}</p>
+                                <div class="flex gap-2">
+                                    <a href="/tickets/${ticket.id}" target="_blank" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded text-sm">
+                                        <i class="fas fa-external-link-alt mr-1"></i> View
+                                    </a>
+                                    <button onclick="createAsset(${specId}, ${ticket.id})" class="px-3 py-1.5 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 rounded text-sm">
+                                        <i class="fas fa-plus mr-1"></i> Add to Ticket
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    ticketsHtml += `</div>`;
+                    document.getElementById('ticketsModalBody').innerHTML = ticketsHtml;
+                }
+                document.getElementById('ticketsModalInfo').textContent =
+                    `Found ${data.count} ticket(s) matching: ${data.search_terms.join(', ')}`;
+            } else {
+                document.getElementById('ticketsModalBody').innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <i class="fas fa-exclamation-circle text-4xl mb-4"></i>
+                        <p>Error: ${data.error}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('ticketsModalBody').innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-circle text-4xl mb-4"></i>
+                    <p>Error loading tickets</p>
+                </div>
+            `;
+        });
+}
+
+function closeTicketsModal() {
+    document.getElementById('ticketsModal').classList.add('hidden');
+    document.getElementById('ticketsModal').classList.remove('flex');
+    currentSpecId = null;
 }
 </script>
 {% endblock %}

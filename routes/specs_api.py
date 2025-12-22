@@ -200,6 +200,76 @@ def delete_spec(spec_id):
         db_session.close()
 
 
+@specs_bp.route('/api/specs/<int:spec_id>/find-tickets', methods=['GET'])
+@login_required
+def find_related_tickets(spec_id):
+    """Find tickets related to a device spec by searching serial number, model, etc."""
+    db_session = SessionLocal()
+    try:
+        from models.ticket import Ticket, TicketStatus
+        from sqlalchemy import or_
+
+        spec = db_session.query(DeviceSpec).get(spec_id)
+        if not spec:
+            return jsonify({'success': False, 'error': 'Spec not found'}), 404
+
+        # Search for tickets that might be related to this spec
+        # Search in ticket title, description, and notes
+        search_terms = []
+        if spec.serial_number:
+            search_terms.append(spec.serial_number)
+        if spec.model_id:
+            search_terms.append(spec.model_id)
+        if spec.model_name:
+            search_terms.append(spec.model_name)
+
+        if not search_terms:
+            return jsonify({
+                'success': True,
+                'tickets': [],
+                'message': 'No search terms available for this spec'
+            })
+
+        # Build search filters
+        filters = []
+        for term in search_terms:
+            filters.append(Ticket.title.ilike(f'%{term}%'))
+            filters.append(Ticket.description.ilike(f'%{term}%'))
+            if hasattr(Ticket, 'notes'):
+                filters.append(Ticket.notes.ilike(f'%{term}%'))
+
+        # Query tickets
+        tickets = db_session.query(Ticket).filter(
+            or_(*filters)
+        ).order_by(Ticket.created_at.desc()).limit(20).all()
+
+        # Format response
+        tickets_list = []
+        for ticket in tickets:
+            tickets_list.append({
+                'id': ticket.id,
+                'display_id': ticket.display_id if hasattr(ticket, 'display_id') else f'#{ticket.id}',
+                'title': ticket.title,
+                'status': ticket.status.value if ticket.status else 'Unknown',
+                'category': ticket.category.value if hasattr(ticket, 'category') and ticket.category else '',
+                'created_at': ticket.created_at.strftime('%b %d, %Y') if ticket.created_at else '',
+                'customer': ticket.customer.name if hasattr(ticket, 'customer') and ticket.customer else ''
+            })
+
+        return jsonify({
+            'success': True,
+            'count': len(tickets_list),
+            'tickets': tickets_list,
+            'search_terms': search_terms
+        })
+
+    except Exception as e:
+        logger.error(f"Error finding related tickets: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
 @specs_bp.route('/device-specs')
 @login_required
 def device_specs_page():
