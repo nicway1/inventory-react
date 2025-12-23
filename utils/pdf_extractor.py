@@ -1,12 +1,88 @@
 """
 PDF Asset Extractor
 Extracts asset information from packing list PDFs for automatic asset creation
+Supports both text-based PDFs and scanned images (via OCR)
 """
 import re
 import logging
+import io
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def extract_text_with_ocr(pdf_path):
+    """
+    Extract text from a PDF using OCR (for scanned documents)
+    Falls back to regular text extraction if OCR fails or isn't needed
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.error("PyMuPDF (fitz) not installed")
+        return None
+
+    all_text = ""
+
+    try:
+        doc = fitz.open(pdf_path)
+
+        for page_num, page in enumerate(doc):
+            # First try regular text extraction
+            text = page.get_text()
+
+            # If no text found, try OCR
+            if not text.strip():
+                logger.info(f"Page {page_num + 1}: No text found, attempting OCR...")
+                ocr_text = ocr_page(page)
+                if ocr_text:
+                    text = ocr_text
+                    logger.info(f"Page {page_num + 1}: OCR extracted {len(ocr_text)} characters")
+
+            all_text += text + "\n"
+
+        doc.close()
+        return all_text
+
+    except Exception as e:
+        logger.error(f"Error extracting text from PDF: {e}")
+        return None
+
+
+def ocr_page(page):
+    """
+    Perform OCR on a PDF page using pytesseract
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        logger.error("pytesseract or Pillow not installed")
+        return None
+
+    try:
+        # Render page to image at high resolution for better OCR
+        zoom = 2  # 2x zoom for better quality
+        mat = page.parent.__class__.Matrix(zoom, zoom) if hasattr(page.parent, 'Matrix') else None
+
+        # Get pixmap (image) of the page
+        if mat:
+            pix = page.get_pixmap(matrix=mat)
+        else:
+            pix = page.get_pixmap(dpi=300)
+
+        # Convert to PIL Image
+        img_data = pix.tobytes("png")
+        img = Image.open(io.BytesIO(img_data))
+
+        # Perform OCR
+        text = pytesseract.image_to_string(img, lang='eng')
+
+        return text
+
+    except Exception as e:
+        logger.error(f"OCR error: {e}")
+        return None
 
 
 def extract_shipping_info_from_pdf(pdf_path):
@@ -29,7 +105,14 @@ def extract_shipping_info_from_pdf(pdf_path):
         if len(doc) == 0:
             return None
 
-        first_page_text = doc[0].get_text()
+        first_page = doc[0]
+        first_page_text = first_page.get_text()
+
+        # If no text found, try OCR on first page
+        if not first_page_text.strip():
+            logger.info("First page has no text, attempting OCR...")
+            first_page_text = ocr_page(first_page) or ""
+
         doc.close()
 
         return parse_shipping_label_text(first_page_text)
@@ -215,20 +298,12 @@ def extract_assets_from_pdf(pdf_path):
             - assets: List of extracted assets with serial numbers and details
     """
     try:
-        import fitz  # PyMuPDF
-    except ImportError:
-        logger.error("PyMuPDF (fitz) not installed")
-        return None
+        # Use OCR-enabled extraction (handles both text PDFs and scanned images)
+        all_text = extract_text_with_ocr(pdf_path)
 
-    try:
-        doc = fitz.open(pdf_path)
-        all_text = ""
-
-        # Extract text from all pages
-        for page in doc:
-            all_text += page.get_text() + "\n"
-
-        doc.close()
+        if not all_text:
+            logger.error("Failed to extract text from PDF")
+            return None
 
         # Parse the extracted text
         return parse_packing_list_text(all_text)
