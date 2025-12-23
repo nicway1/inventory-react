@@ -3928,3 +3928,387 @@ def create_asset_from_spec_with_ticket(spec_id):
             'success': False,
             'error': 'Failed to create asset'
         }), 500
+
+
+# ============================================================================
+# TICKET ATTACHMENTS API
+# ============================================================================
+
+ALLOWED_ATTACHMENT_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv'}
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def allowed_attachment_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_ATTACHMENT_EXTENSIONS
+
+
+def get_attachment_url(attachment):
+    """Get full URL for an attachment"""
+    from flask import request as flask_request
+    if not attachment.file_path:
+        return None
+
+    # Extract filename from path
+    filename = os.path.basename(attachment.file_path)
+
+    # Build URL
+    base_url = flask_request.host_url.rstrip('/')
+    return f"{base_url}/tickets/{attachment.ticket_id}/attachments/{attachment.id}/download"
+
+
+def generate_thumbnail(image_path, thumbnail_path, size=(200, 200)):
+    """Generate a thumbnail for an image"""
+    try:
+        from PIL import Image
+
+        with Image.open(image_path) as img:
+            # Convert to RGB if necessary (for PNG with transparency)
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+
+            img.thumbnail(size, Image.Resampling.LANCZOS)
+            img.save(thumbnail_path, 'JPEG', quality=85)
+            return True
+    except Exception as e:
+        logger.warning(f"Failed to generate thumbnail: {e}")
+        return False
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/attachments', methods=['POST'])
+@mobile_auth_required
+def upload_ticket_attachment(ticket_id):
+    """
+    Upload an attachment to a ticket
+
+    POST /api/mobile/v1/tickets/<ticket_id>/attachments
+    Headers: Authorization: Bearer <token>
+    Body: multipart/form-data with 'file' field
+
+    Returns:
+        {
+            "success": true,
+            "message": "Document uploaded successfully",
+            "attachment_id": 456,
+            "attachment": {
+                "id": 456,
+                "filename": "scanned_document.jpg",
+                "content_type": "image/jpeg",
+                "size": 245678,
+                "url": "...",
+                "thumbnail_url": "...",
+                "created_at": "2025-12-23T10:30:00Z"
+            }
+        }
+    """
+    try:
+        import os
+        import uuid
+        from werkzeug.utils import secure_filename
+        from models.ticket_attachment import TicketAttachment
+        from models.ticket import Ticket
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            # Verify ticket exists
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'Ticket not found'
+                }), 404
+
+            # Check if file was provided
+            if 'file' not in request.files:
+                return jsonify({
+                    'success': False,
+                    'error': 'No file provided'
+                }), 400
+
+            file = request.files['file']
+            if not file or not file.filename:
+                return jsonify({
+                    'success': False,
+                    'error': 'No file provided'
+                }), 400
+
+            # Validate file extension
+            if not allowed_attachment_file(file.filename):
+                return jsonify({
+                    'success': False,
+                    'error': f'Unsupported file type. Allowed: {", ".join(ALLOWED_ATTACHMENT_EXTENSIONS).upper()}'
+                }), 415
+
+            # Read file data and check size
+            file_data = file.read()
+            if len(file_data) > MAX_ATTACHMENT_SIZE:
+                return jsonify({
+                    'success': False,
+                    'error': 'File too large. Maximum size is 10MB.'
+                }), 413
+
+            # Determine file extension and content type
+            original_filename = secure_filename(file.filename)
+            file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'bin'
+            content_type = file.content_type or 'application/octet-stream'
+
+            # Create upload directory
+            from flask import current_app
+            upload_folder = os.path.join(current_app.root_path, 'uploads', 'tickets', str(ticket_id))
+            os.makedirs(upload_folder, exist_ok=True)
+
+            # Generate unique filename
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"{ticket_id}_{timestamp}_{unique_id}.{file_extension}"
+            file_path = os.path.join(upload_folder, filename)
+
+            # Save file
+            with open(file_path, 'wb') as f:
+                f.write(file_data)
+
+            # Generate thumbnail for images
+            thumbnail_path = None
+            thumbnail_url = None
+            if file_extension.lower() in ('jpg', 'jpeg', 'png', 'gif'):
+                thumb_filename = f"thumb_{filename}"
+                thumbnail_path = os.path.join(upload_folder, thumb_filename)
+                if generate_thumbnail(file_path, thumbnail_path):
+                    thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
+
+            # Create attachment record
+            attachment = TicketAttachment(
+                ticket_id=ticket_id,
+                filename=original_filename,
+                file_path=file_path,
+                file_type=file_extension,
+                file_size=len(file_data),
+                uploaded_by=user.id
+            )
+            db_session.add(attachment)
+            db_session.commit()
+
+            # Build response
+            attachment_url = f"/uploads/tickets/{ticket_id}/{filename}"
+            base_url = request.host_url.rstrip('/')
+
+            logger.info(f"User {user.username} uploaded attachment {attachment.id} to ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Document uploaded successfully',
+                'attachment_id': attachment.id,
+                'attachment': {
+                    'id': attachment.id,
+                    'filename': attachment.filename,
+                    'content_type': content_type,
+                    'size': attachment.file_size,
+                    'url': f"{base_url}{attachment_url}",
+                    'thumbnail_url': f"{base_url}{thumbnail_url}" if thumbnail_url else None,
+                    'created_at': attachment.created_at.isoformat() + 'Z' if attachment.created_at else None
+                }
+            }), 201
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error uploading ticket attachment: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to upload document'
+        }), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/attachments', methods=['GET'])
+@mobile_auth_required
+def get_ticket_attachments(ticket_id):
+    """
+    Get all attachments for a ticket
+
+    GET /api/mobile/v1/tickets/<ticket_id>/attachments
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        {
+            "success": true,
+            "attachments": [...],
+            "total": 5
+        }
+    """
+    try:
+        from models.ticket_attachment import TicketAttachment
+        from models.ticket import Ticket
+        from sqlalchemy.orm import joinedload
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            # Verify ticket exists
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'Ticket not found'
+                }), 404
+
+            # Get attachments with uploader info
+            attachments = db_session.query(TicketAttachment).options(
+                joinedload(TicketAttachment.uploader)
+            ).filter(
+                TicketAttachment.ticket_id == ticket_id
+            ).order_by(TicketAttachment.created_at.desc()).all()
+
+            base_url = request.host_url.rstrip('/')
+
+            attachments_list = []
+            for att in attachments:
+                # Build URLs
+                filename = os.path.basename(att.file_path) if att.file_path else None
+                attachment_url = f"/uploads/tickets/{ticket_id}/{filename}" if filename else None
+
+                # Check for thumbnail
+                thumbnail_url = None
+                if att.file_type and att.file_type.lower() in ('jpg', 'jpeg', 'png', 'gif') and filename:
+                    thumb_filename = f"thumb_{filename}"
+                    thumb_path = os.path.join(os.path.dirname(att.file_path), thumb_filename) if att.file_path else None
+                    if thumb_path and os.path.exists(thumb_path):
+                        thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
+
+                # Determine content type
+                content_type_map = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'pdf': 'application/pdf',
+                    'doc': 'application/msword',
+                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'xls': 'application/vnd.ms-excel',
+                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'txt': 'text/plain',
+                    'csv': 'text/csv'
+                }
+                content_type = content_type_map.get(att.file_type, 'application/octet-stream') if att.file_type else 'application/octet-stream'
+
+                attachment_data = {
+                    'id': att.id,
+                    'filename': att.filename,
+                    'content_type': content_type,
+                    'size': att.file_size,
+                    'url': f"{base_url}{attachment_url}" if attachment_url else None,
+                    'thumbnail_url': f"{base_url}{thumbnail_url}" if thumbnail_url else None,
+                    'created_at': att.created_at.isoformat() + 'Z' if att.created_at else None,
+                    'uploaded_by': {
+                        'id': att.uploader.id,
+                        'name': att.uploader.username
+                    } if att.uploader else None
+                }
+                attachments_list.append(attachment_data)
+
+            return jsonify({
+                'success': True,
+                'attachments': attachments_list,
+                'total': len(attachments_list)
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting ticket attachments: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get attachments'
+        }), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/attachments/<int:attachment_id>', methods=['DELETE'])
+@mobile_auth_required
+def delete_ticket_attachment(ticket_id, attachment_id):
+    """
+    Delete an attachment from a ticket
+
+    DELETE /api/mobile/v1/tickets/<ticket_id>/attachments/<attachment_id>
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        {
+            "success": true,
+            "message": "Attachment deleted successfully"
+        }
+    """
+    try:
+        from models.ticket_attachment import TicketAttachment
+        from models.ticket import Ticket
+
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            # Verify ticket exists
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({
+                    'success': False,
+                    'error': 'Ticket not found'
+                }), 404
+
+            # Get attachment
+            attachment = db_session.query(TicketAttachment).filter(
+                TicketAttachment.id == attachment_id,
+                TicketAttachment.ticket_id == ticket_id
+            ).first()
+
+            if not attachment:
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment not found'
+                }), 404
+
+            # Delete files from disk
+            if attachment.file_path and os.path.exists(attachment.file_path):
+                try:
+                    os.remove(attachment.file_path)
+
+                    # Also try to remove thumbnail if exists
+                    thumb_path = os.path.join(
+                        os.path.dirname(attachment.file_path),
+                        f"thumb_{os.path.basename(attachment.file_path)}"
+                    )
+                    if os.path.exists(thumb_path):
+                        os.remove(thumb_path)
+                except Exception as e:
+                    logger.warning(f"Failed to delete attachment files: {e}")
+
+            # Delete from database
+            db_session.delete(attachment)
+            db_session.commit()
+
+            logger.info(f"User {user.username} deleted attachment {attachment_id} from ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Attachment deleted successfully'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error deleting ticket attachment: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to delete attachment'
+        }), 500
