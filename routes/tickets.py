@@ -12141,6 +12141,8 @@ def import_from_retool():
 @login_required
 def extract_assets_page(ticket_id):
     """Show the PDF asset extraction page for a ticket"""
+    from models.company import Company
+
     db_session = db_manager.get_session()
     try:
         ticket = db_session.query(Ticket).get(ticket_id)
@@ -12154,9 +12156,13 @@ def extract_assets_page(ticket_id):
             Attachment.file_type == 'pdf'
         ).all()
 
+        # Get all companies for dropdown
+        companies = db_session.query(Company).order_by(Company.name).all()
+
         return render_template('tickets/extract_assets.html',
                              ticket=ticket,
-                             attachments=pdf_attachments)
+                             attachments=pdf_attachments,
+                             companies=companies)
 
     finally:
         db_session.close()

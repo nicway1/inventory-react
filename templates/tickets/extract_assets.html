@@ -300,7 +300,16 @@
         </div>
 
         <!-- Global Settings for All Assets -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f0f9ff; border-radius: 0.5rem; border: 1px solid #bae6fd;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 0.5rem; border: 1px solid #bae6fd;">
+            <div>
+                <label style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Customer/Company (for all)</label>
+                <select id="globalCompany" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; margin-top: 0.25rem;">
+                    <option value="">-- Select Company --</option>
+                    {% for company in companies %}
+                    <option value="{{ company.id }}">{{ company.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div>
                 <label style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Country (for all)</label>
                 <select id="globalCountry" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; margin-top: 0.25rem;">
@@ -325,11 +334,15 @@
                     <input type="number" id="assetTagStart" value="1124" style="flex: 1; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
                 </div>
             </div>
-            <div style="display: flex; align-items: flex-end;">
-                <button class="btn btn-primary" onclick="generateAllAssetTags()" style="width: 100%;">
-                    <i class="fas fa-magic"></i> Generate All Tags
-                </button>
-            </div>
+        </div>
+        <!-- Generate Buttons Row -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+            <button class="btn btn-primary" onclick="generateAllAssetTags()" style="flex: 1;">
+                <i class="fas fa-magic"></i> Generate All Asset Tags
+            </button>
+            <button class="btn btn-primary" onclick="generateAllHardwareTypes()" style="flex: 1;">
+                <i class="fas fa-cogs"></i> Generate All Hardware Types
+            </button>
         </div>
 
         <!-- Assets Table -->
@@ -348,7 +361,7 @@
                         <th>CPU Cores</th>
                         <th>Memory</th>
                         <th>Storage</th>
-                        <th>Customer</th>
+                        <th>Hardware Type</th>
                     </tr>
                 </thead>
                 <tbody id="assetsTableBody">
@@ -631,7 +644,7 @@ function showPreview(data) {
             <td>${asset.cpu_cores || '-'}</td>
             <td>${asset.memory || '-'}</td>
             <td>${asset.harddrive || '-'}</td>
-            <td>${data.receiver || data.customer || '-'}</td>
+            <td><input type="text" class="hardware-type-input" data-index="${index}" value="" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
         `;
         tbody.appendChild(row);
     });
@@ -662,6 +675,25 @@ function generateAllAssetTags() {
     });
 }
 
+function generateAllHardwareTypes() {
+    // Generate hardware type for each asset based on extracted data
+    // Format: [Product] [AssetType] [CPU Type] [CPU Cores]-Core [Storage]GB
+    if (!extractedData || !extractedData.assets) return;
+
+    document.querySelectorAll('.hardware-type-input').forEach((input, index) => {
+        const asset = extractedData.assets[index];
+        let hardwareType = '';
+
+        // Build hardware type string similar to add_asset page
+        if (asset.name) hardwareType += asset.name + ' ';
+        if (asset.cpu_type) hardwareType += asset.cpu_type + ' ';
+        if (asset.cpu_cores) hardwareType += asset.cpu_cores + '-Core ';
+        if (asset.harddrive) hardwareType += asset.harddrive;
+
+        input.value = hardwareType.trim();
+    });
+}
+
 function createAssets() {
     const selectedIndices = [];
     document.querySelectorAll('.asset-checkbox:checked').forEach(cb => {
@@ -674,6 +706,7 @@ function createAssets() {
     }
 
     // Get global settings
+    const globalCompanyId = document.getElementById('globalCompany').value;
     const globalCountry = document.getElementById('globalCountry').value;
 
     // Get asset tags from inputs
@@ -682,10 +715,17 @@ function createAssets() {
         assetTags[input.dataset.index] = input.value;
     });
 
+    // Get hardware types from inputs
+    const hardwareTypes = {};
+    document.querySelectorAll('.hardware-type-input').forEach(input => {
+        hardwareTypes[input.dataset.index] = input.value;
+    });
+
     // Build assets with asset tags and defaults
     const selectedAssets = selectedIndices.map(i => {
         const asset = {...extractedData.assets[i]};
         asset.asset_tag = assetTags[i] || '';
+        asset.hardware_type = hardwareTypes[i] || '';
         asset.country = globalCountry;
         asset.status = 'In Stock';
         asset.manufacturer = 'Apple';
@@ -709,7 +749,8 @@ function createAssets() {
         },
         body: JSON.stringify({
             assets: selectedAssets,
-            po_number: extractedData.po_number
+            po_number: extractedData.po_number,
+            company_id: globalCompanyId || null
         })
     })
     .then(response => response.json())
