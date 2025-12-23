@@ -12243,7 +12243,25 @@ def create_extracted_assets(ticket_id):
 
         assets_data = data['assets']
         po_number = data.get('po_number', '')
-        company_id = data.get('company_id')
+        company_id_raw = data.get('company_id')
+        # Convert company_id to int or None
+        company_id = int(company_id_raw) if company_id_raw and str(company_id_raw).strip() else None
+
+        # Country code to full name mapping
+        country_names = {
+            'SG': 'Singapore',
+            'MY': 'Malaysia',
+            'ID': 'Indonesia',
+            'TH': 'Thailand',
+            'VN': 'Vietnam',
+            'PH': 'Philippines',
+            'HK': 'Hong Kong',
+            'TW': 'Taiwan',
+            'JP': 'Japan',
+            'KR': 'South Korea',
+            'AU': 'Australia',
+            'US': 'United States'
+        }
 
         created_assets = []
         errors = []
@@ -12273,8 +12291,9 @@ def create_extracted_assets(ticket_id):
                     errors.append(f"Asset tag {asset_tag} already exists (Asset #{existing_tag.id})")
                     continue
 
-                # Get country from frontend
-                country = asset_data.get('country', 'SG')
+                # Get country from frontend and convert to full name
+                country_code = asset_data.get('country', 'SG')
+                country = country_names.get(country_code, country_code)
 
                 # Create asset
                 new_asset = Asset(
@@ -12283,7 +12302,7 @@ def create_extracted_assets(ticket_id):
                     name=asset_data.get('name', ''),
                     model=asset_data.get('model', ''),
                     manufacturer=asset_data.get('manufacturer', 'Apple'),
-                    category=asset_data.get('category', 'Laptop'),
+                    category=asset_data.get('category', 'APPLE'),
                     status=AssetStatus.IN_STOCK,
                     po=po_number,
                     cpu_type=asset_data.get('cpu_type', ''),
