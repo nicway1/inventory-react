@@ -695,10 +695,14 @@ function generateAllHardwareTypes() {
 }
 
 function createAssets() {
+    console.log('createAssets called');
+
     const selectedIndices = [];
     document.querySelectorAll('.asset-checkbox:checked').forEach(cb => {
         selectedIndices.push(parseInt(cb.dataset.index));
     });
+
+    console.log('Selected indices:', selectedIndices);
 
     if (selectedIndices.length === 0) {
         alert('Please select at least one asset');
@@ -708,6 +712,8 @@ function createAssets() {
     // Get global settings
     const globalCompanyId = document.getElementById('globalCompany').value;
     const globalCountry = document.getElementById('globalCountry').value;
+
+    console.log('Company ID:', globalCompanyId, 'Country:', globalCountry);
 
     // Get asset tags from inputs
     const assetTags = {};
@@ -721,6 +727,9 @@ function createAssets() {
         hardwareTypes[input.dataset.index] = input.value;
     });
 
+    console.log('Asset tags:', assetTags);
+    console.log('Hardware types:', hardwareTypes);
+
     // Build assets with asset tags and defaults
     const selectedAssets = selectedIndices.map(i => {
         const asset = {...extractedData.assets[i]};
@@ -732,6 +741,8 @@ function createAssets() {
         return asset;
     });
 
+    console.log('Selected assets:', selectedAssets);
+
     // Validate asset tags
     const missingTags = selectedAssets.filter(a => !a.asset_tag);
     if (missingTags.length > 0) {
@@ -741,11 +752,16 @@ function createAssets() {
 
     showLoading(`Creating ${selectedAssets.length} assets...`);
 
+    // Get CSRF token
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.content : '';
+    console.log('CSRF token found:', !!csrfToken);
+
     fetch(`{{ url_for('tickets.create_extracted_assets', ticket_id=ticket.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({
             assets: selectedAssets,
@@ -765,7 +781,7 @@ function createAssets() {
     .catch(error => {
         hideLoading();
         console.error('Error:', error);
-        alert('Failed to create assets');
+        alert('Failed to create assets: ' + error.message);
     });
 }
 
