@@ -1,0 +1,539 @@
+{% extends "base.html" %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    .extract-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #111827;
+    }
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border: none;
+    }
+    .btn-primary:hover {
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+    .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+    }
+    .attachment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .attachment-item:hover {
+        background: #f3f4f6;
+    }
+    .attachment-item.selected {
+        border-color: #6366f1;
+        background: #eef2ff;
+    }
+    .attachment-icon {
+        width: 48px;
+        height: 48px;
+        background: #fee2e2;
+        color: #dc2626;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .attachment-info h4 {
+        font-weight: 600;
+        color: #111827;
+    }
+    .attachment-info p {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    .extraction-info {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .info-card {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    .info-card label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .info-card .value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #111827;
+        margin-top: 0.25rem;
+    }
+    .assets-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .assets-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background: #f9fafb;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .assets-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+    }
+    .assets-table tr:hover {
+        background: #f9fafb;
+    }
+    .checkbox-cell {
+        width: 40px;
+    }
+    .serial-cell {
+        font-family: monospace;
+        font-weight: 600;
+        color: #4f46e5;
+    }
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    .loading-spinner {
+        text-align: center;
+    }
+    .loading-spinner i {
+        font-size: 3rem;
+        color: #6366f1;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="extract-container">
+    <!-- Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+        <div>
+            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" style="color: #6b7280; text-decoration: none; font-size: 0.875rem;">
+                <i class="fas fa-arrow-left"></i> Back to Ticket #{{ ticket.id }}
+            </a>
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: #111827; margin-top: 0.5rem;">
+                <i class="fas fa-file-pdf" style="color: #dc2626;"></i> Extract Assets from PDF
+            </h1>
+            <p style="color: #6b7280;">Automatically extract asset information from packing list documents</p>
+        </div>
+    </div>
+
+    <!-- Step 1: Select PDF -->
+    <div class="card" id="step1">
+        <div class="card-header">
+            <h2 class="card-title"><span class="badge badge-info">1</span> Select PDF Attachment</h2>
+        </div>
+
+        {% if attachments %}
+        <div class="attachment-list">
+            {% for att in attachments %}
+            <div class="attachment-item" data-id="{{ att.id }}" onclick="selectAttachment({{ att.id }}, this)">
+                <div class="attachment-icon">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="attachment-info" style="flex: 1;">
+                    <h4>{{ att.filename }}</h4>
+                    <p>Uploaded {{ att.created_at.strftime('%Y-%m-%d %H:%M') if att.created_at else 'Unknown' }}</p>
+                </div>
+                <button class="btn btn-primary" onclick="event.stopPropagation(); extractFromPDF({{ att.id }})">
+                    <i class="fas fa-magic"></i> Extract
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-pdf"></i>
+            <h3>No PDF attachments found</h3>
+            <p>Upload a packing list PDF to this ticket first</p>
+            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="btn btn-secondary" style="margin-top: 1rem;">
+                <i class="fas fa-upload"></i> Go to Ticket
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Step 2: Preview Extracted Data -->
+    <div class="card" id="step2" style="display: none;">
+        <div class="card-header">
+            <h2 class="card-title"><span class="badge badge-info">2</span> Preview Extracted Assets</h2>
+            <div>
+                <button class="btn btn-secondary" onclick="resetExtraction()">
+                    <i class="fas fa-redo"></i> Start Over
+                </button>
+            </div>
+        </div>
+
+        <!-- Extraction Info -->
+        <div class="extraction-info">
+            <div class="info-card">
+                <label>PO Number</label>
+                <div class="value" id="poNumber">-</div>
+            </div>
+            <div class="info-card">
+                <label>Reference</label>
+                <div class="value" id="reference">-</div>
+            </div>
+            <div class="info-card">
+                <label>Ship Date</label>
+                <div class="value" id="shipDate">-</div>
+            </div>
+            <div class="info-card">
+                <label>Assets Found</label>
+                <div class="value" id="assetCount">0</div>
+            </div>
+        </div>
+
+        <!-- Assets Table -->
+        <div style="overflow-x: auto;">
+            <table class="assets-table">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" checked>
+                        </th>
+                        <th>#</th>
+                        <th>Serial Number</th>
+                        <th>Name</th>
+                        <th>Model</th>
+                        <th>CPU</th>
+                        <th>Memory</th>
+                        <th>Storage</th>
+                    </tr>
+                </thead>
+                <tbody id="assetsTableBody">
+                    <!-- Assets will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Actions -->
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span id="selectedCount">0</span> assets selected
+            </div>
+            <button class="btn btn-success" id="createAssetsBtn" onclick="createAssets()">
+                <i class="fas fa-plus-circle"></i> Create Selected Assets
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 3: Results -->
+    <div class="card" id="step3" style="display: none;">
+        <div class="card-header">
+            <h2 class="card-title"><span class="badge badge-success">3</span> Assets Created</h2>
+        </div>
+        <div id="resultsContent">
+            <!-- Results will be populated here -->
+        </div>
+        <div style="margin-top: 1.5rem;">
+            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Ticket
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p style="margin-top: 1rem; font-weight: 600;" id="loadingText">Extracting data from PDF...</p>
+    </div>
+</div>
+
+<script>
+let extractedData = null;
+let selectedAttachmentId = null;
+
+function selectAttachment(id, element) {
+    document.querySelectorAll('.attachment-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    element.classList.add('selected');
+    selectedAttachmentId = id;
+}
+
+function extractFromPDF(attachmentId) {
+    showLoading('Extracting data from PDF...');
+
+    fetch(`{{ url_for('tickets.process_pdf_extraction', ticket_id=ticket.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ attachment_id: attachmentId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            extractedData = data;
+            showPreview(data);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to extract data from PDF');
+    });
+}
+
+function showPreview(data) {
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+
+    // Update info cards
+    document.getElementById('poNumber').textContent = data.po_number || '-';
+    document.getElementById('reference').textContent = data.reference || '-';
+    document.getElementById('shipDate').textContent = data.ship_date || '-';
+    document.getElementById('assetCount').textContent = data.extracted_count || 0;
+
+    // Populate table
+    const tbody = document.getElementById('assetsTableBody');
+    tbody.innerHTML = '';
+
+    data.assets.forEach((asset, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="checkbox-cell">
+                <input type="checkbox" class="asset-checkbox" data-index="${index}" checked onchange="updateSelectedCount()">
+            </td>
+            <td>${index + 1}</td>
+            <td class="serial-cell">${asset.serial_num}</td>
+            <td>${asset.name || '-'}</td>
+            <td>${asset.model || '-'}</td>
+            <td>${asset.cpu_type ? asset.cpu_type + (asset.cpu_cores ? ' (' + asset.cpu_cores + ' cores)' : '') : '-'}</td>
+            <td>${asset.memory || '-'}</td>
+            <td>${asset.harddrive || '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    updateSelectedCount();
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.asset-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const selected = document.querySelectorAll('.asset-checkbox:checked').length;
+    const total = document.querySelectorAll('.asset-checkbox').length;
+    document.getElementById('selectedCount').textContent = selected;
+    document.getElementById('selectAll').checked = selected === total;
+}
+
+function createAssets() {
+    const selectedIndices = [];
+    document.querySelectorAll('.asset-checkbox:checked').forEach(cb => {
+        selectedIndices.push(parseInt(cb.dataset.index));
+    });
+
+    if (selectedIndices.length === 0) {
+        alert('Please select at least one asset');
+        return;
+    }
+
+    const selectedAssets = selectedIndices.map(i => extractedData.assets[i]);
+
+    showLoading(`Creating ${selectedAssets.length} assets...`);
+
+    fetch(`{{ url_for('tickets.create_extracted_assets', ticket_id=ticket.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            assets: selectedAssets,
+            po_number: extractedData.po_number
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showResults(data);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to create assets');
+    });
+}
+
+function showResults(data) {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'block';
+
+    let html = `
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="info-card" style="background: #d1fae5;">
+                <label style="color: #065f46;">Created Successfully</label>
+                <div class="value" style="color: #065f46;">${data.created_count}</div>
+            </div>
+            <div class="info-card" style="background: ${data.error_count > 0 ? '#fee2e2' : '#f3f4f6'};">
+                <label style="color: ${data.error_count > 0 ? '#dc2626' : '#6b7280'};">Errors</label>
+                <div class="value" style="color: ${data.error_count > 0 ? '#dc2626' : '#6b7280'};">${data.error_count}</div>
+            </div>
+        </div>
+    `;
+
+    if (data.assets && data.assets.length > 0) {
+        html += '<h4 style="font-weight: 600; margin-bottom: 0.75rem;">Created Assets:</h4>';
+        html += '<table class="assets-table"><thead><tr><th>Asset Tag</th><th>Serial Number</th><th>Name</th></tr></thead><tbody>';
+        data.assets.forEach(asset => {
+            html += `<tr>
+                <td><a href="/inventory/assets/${asset.id}" style="color: #4f46e5; font-weight: 600;">${asset.asset_tag}</a></td>
+                <td class="serial-cell">${asset.serial_num}</td>
+                <td>${asset.name}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    if (data.errors && data.errors.length > 0) {
+        html += '<h4 style="font-weight: 600; margin: 1.5rem 0 0.75rem; color: #dc2626;">Errors:</h4>';
+        html += '<ul style="color: #dc2626; font-size: 0.875rem;">';
+        data.errors.forEach(err => {
+            html += `<li>${err}</li>`;
+        });
+        html += '</ul>';
+    }
+
+    document.getElementById('resultsContent').innerHTML = html;
+}
+
+function resetExtraction() {
+    document.getElementById('step1').style.display = 'block';
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'none';
+    extractedData = null;
+}
+
+function showLoading(text) {
+    document.getElementById('loadingText').textContent = text;
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+</script>
+{% endblock %}

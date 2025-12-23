@@ -12131,3 +12131,193 @@ def import_from_retool():
         logger.error(f"Error in Retool import: {str(e)}")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('tickets.list_tickets'))
+
+
+# ============================================================================
+# PDF ASSET EXTRACTION
+# ============================================================================
+
+@tickets_bp.route('/<int:ticket_id>/extract-assets', methods=['GET'])
+@login_required
+def extract_assets_page(ticket_id):
+    """Show the PDF asset extraction page for a ticket"""
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        # Get PDF attachments for this ticket
+        pdf_attachments = db_session.query(Attachment).filter(
+            Attachment.ticket_id == ticket_id,
+            Attachment.file_type == 'pdf'
+        ).all()
+
+        return render_template('tickets/extract_assets.html',
+                             ticket=ticket,
+                             attachments=pdf_attachments)
+
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/extract-assets/process', methods=['POST'])
+@login_required
+def process_pdf_extraction(ticket_id):
+    """Process PDF and extract asset information"""
+    from utils.pdf_extractor import extract_from_attachment
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        attachment_id = request.form.get('attachment_id') or request.json.get('attachment_id')
+        if not attachment_id:
+            return jsonify({'success': False, 'error': 'No attachment specified'}), 400
+
+        # Get the attachment
+        attachment = db_session.query(Attachment).filter(
+            Attachment.id == attachment_id,
+            Attachment.ticket_id == ticket_id
+        ).first()
+
+        if not attachment:
+            return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+
+        if attachment.file_type != 'pdf':
+            return jsonify({'success': False, 'error': 'Attachment is not a PDF'}), 400
+
+        # Extract assets from PDF
+        result = extract_from_attachment(attachment.file_path)
+
+        if not result:
+            return jsonify({'success': False, 'error': 'Failed to extract data from PDF'}), 500
+
+        return jsonify({
+            'success': True,
+            'po_number': result.get('po_number'),
+            'reference': result.get('reference'),
+            'ship_date': result.get('ship_date'),
+            'total_quantity': result.get('total_quantity'),
+            'extracted_count': len(result.get('assets', [])),
+            'assets': result.get('assets', [])
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting assets from PDF: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/extract-assets/create', methods=['POST'])
+@login_required
+def create_extracted_assets(ticket_id):
+    """Create assets from extracted PDF data"""
+    from models.asset import Asset, AssetStatus
+    from sqlalchemy import text
+    import uuid
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        data = request.get_json()
+        if not data or 'assets' not in data:
+            return jsonify({'success': False, 'error': 'No asset data provided'}), 400
+
+        assets_data = data['assets']
+        po_number = data.get('po_number', '')
+        company_id = data.get('company_id')
+
+        created_assets = []
+        errors = []
+
+        for asset_data in assets_data:
+            try:
+                serial_num = asset_data.get('serial_num', '').strip()
+
+                if not serial_num:
+                    continue
+
+                # Check if serial already exists
+                existing = db_session.query(Asset).filter(Asset.serial_num == serial_num).first()
+                if existing:
+                    errors.append(f"Serial {serial_num} already exists (Asset #{existing.id})")
+                    continue
+
+                # Generate asset tag
+                asset_tag = f"AST-{uuid.uuid4().hex[:8].upper()}"
+
+                # Check asset tag uniqueness
+                while db_session.query(Asset).filter(Asset.asset_tag == asset_tag).first():
+                    asset_tag = f"AST-{uuid.uuid4().hex[:8].upper()}"
+
+                # Create asset
+                new_asset = Asset(
+                    asset_tag=asset_tag,
+                    serial_num=serial_num,
+                    name=asset_data.get('name', ''),
+                    model=asset_data.get('model', ''),
+                    manufacturer=asset_data.get('manufacturer', 'Apple'),
+                    category=asset_data.get('category', 'Laptop'),
+                    status=AssetStatus.IN_STOCK,
+                    po=po_number,
+                    cpu_type=asset_data.get('cpu_type', ''),
+                    cpu_cores=asset_data.get('cpu_cores', ''),
+                    gpu_cores=asset_data.get('gpu_cores', ''),
+                    memory=asset_data.get('memory', ''),
+                    harddrive=asset_data.get('harddrive', ''),
+                    hardware_type=asset_data.get('hardware_type', 'Laptop'),
+                    condition=asset_data.get('condition', 'New'),
+                    company_id=company_id,
+                    receiving_date=datetime.datetime.utcnow(),
+                    notes=f"Imported from packing list PDF - Ticket #{ticket_id}"
+                )
+
+                db_session.add(new_asset)
+                db_session.flush()
+
+                # Link asset to ticket
+                try:
+                    stmt = text("""
+                        INSERT INTO ticket_assets (ticket_id, asset_id)
+                        VALUES (:ticket_id, :asset_id)
+                    """)
+                    db_session.execute(stmt, {"ticket_id": ticket_id, "asset_id": new_asset.id})
+                except Exception as link_error:
+                    logger.warning(f"Error linking asset to ticket: {link_error}")
+
+                created_assets.append({
+                    'id': new_asset.id,
+                    'asset_tag': new_asset.asset_tag,
+                    'serial_num': new_asset.serial_num,
+                    'name': new_asset.name
+                })
+
+            except Exception as e:
+                errors.append(f"Error creating asset {asset_data.get('serial_num', 'unknown')}: {str(e)}")
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'created_count': len(created_assets),
+            'error_count': len(errors),
+            'assets': created_assets,
+            'errors': errors
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error creating extracted assets: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
