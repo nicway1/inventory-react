@@ -12321,3 +12321,92 @@ def create_extracted_assets(ticket_id):
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/extract-shipping-info', methods=['POST'])
+@login_required
+def extract_shipping_info(ticket_id):
+    """Extract shipping info from PDF and update ticket description"""
+    from utils.pdf_extractor import extract_shipping_info_from_pdf, format_shipping_info_for_description
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        attachment_id = request.json.get('attachment_id')
+        if not attachment_id:
+            return jsonify({'success': False, 'error': 'No attachment specified'}), 400
+
+        # Get the attachment
+        attachment = db_session.query(Attachment).filter(
+            Attachment.id == attachment_id,
+            Attachment.ticket_id == ticket_id
+        ).first()
+
+        if not attachment:
+            return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+
+        if attachment.file_type != 'pdf':
+            return jsonify({'success': False, 'error': 'Attachment is not a PDF'}), 400
+
+        # Extract shipping info from first page
+        info = extract_shipping_info_from_pdf(attachment.file_path)
+
+        if not info:
+            return jsonify({'success': False, 'error': 'Failed to extract shipping info from PDF'}), 500
+
+        # Format for description
+        formatted_description = format_shipping_info_for_description(info)
+
+        # Return the extracted info and formatted description
+        return jsonify({
+            'success': True,
+            'shipping_info': info,
+            'formatted_description': formatted_description
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting shipping info: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/update-description', methods=['POST'])
+@login_required
+def update_ticket_description(ticket_id):
+    """Update ticket description with extracted shipping info"""
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        new_description = request.json.get('description')
+        append_mode = request.json.get('append', False)
+
+        if not new_description:
+            return jsonify({'success': False, 'error': 'No description provided'}), 400
+
+        if append_mode and ticket.description:
+            ticket.description = ticket.description + '\n\n' + new_description
+        else:
+            ticket.description = new_description
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket description updated successfully'
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error updating ticket description: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()

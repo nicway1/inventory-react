@@ -241,9 +241,14 @@
                     <h4>{{ att.filename }}</h4>
                     <p>Uploaded {{ att.created_at.strftime('%Y-%m-%d %H:%M') if att.created_at else 'Unknown' }}</p>
                 </div>
-                <button class="btn btn-primary" onclick="event.stopPropagation(); extractFromPDF({{ att.id }})">
-                    <i class="fas fa-magic"></i> Extract
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); extractShippingInfo({{ att.id }})" title="Extract shipping/PO info to update ticket description">
+                        <i class="fas fa-file-alt"></i> Shipping Info
+                    </button>
+                    <button class="btn btn-primary" onclick="event.stopPropagation(); extractFromPDF({{ att.id }})">
+                        <i class="fas fa-magic"></i> Extract Assets
+                    </button>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -348,9 +353,174 @@
     </div>
 </div>
 
+<!-- Shipping Info Modal -->
+<div id="shippingInfoModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #111827;">
+                <i class="fas fa-file-alt" style="color: #6366f1;"></i> Extracted Shipping Information
+            </h3>
+            <button onclick="closeShippingModal()" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer;">&times;</button>
+        </div>
+        <div style="padding: 1.5rem;">
+            <!-- Info Cards Grid -->
+            <div id="shippingInfoCards" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                <!-- Cards will be populated dynamically -->
+            </div>
+
+            <!-- Preview Description -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="font-weight: 600; color: #374151; display: block; margin-bottom: 0.5rem;">
+                    <i class="fas fa-eye"></i> Preview Description (will be added to ticket)
+                </label>
+                <textarea id="shippingDescriptionPreview" readonly style="width: 100%; min-height: 200px; padding: 1rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-family: monospace; font-size: 0.875rem; background: #f9fafb; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeShippingModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-success" onclick="updateTicketDescription()">
+                    <i class="fas fa-check"></i> Update Ticket Description
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let extractedData = null;
 let selectedAttachmentId = null;
+let shippingData = null;
+
+// Shipping Info Functions
+function extractShippingInfo(attachmentId) {
+    showLoading('Extracting shipping information...');
+
+    fetch(`/tickets/{{ ticket.id }}/extract-shipping-info`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ attachment_id: attachmentId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            shippingData = data;
+            showShippingModal(data);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to extract shipping information');
+    });
+}
+
+function showShippingModal(data) {
+    const modal = document.getElementById('shippingInfoModal');
+    const cardsContainer = document.getElementById('shippingInfoCards');
+    const previewArea = document.getElementById('shippingDescriptionPreview');
+
+    // Build info cards
+    let cardsHtml = '';
+    const info = data.shipping_info || {};
+
+    const fields = [
+        { key: 'reference', label: 'Reference/AWB', icon: 'fa-hashtag' },
+        { key: 'date', label: 'Ship Date', icon: 'fa-calendar' },
+        { key: 'shipper_name', label: 'Shipper', icon: 'fa-building' },
+        { key: 'receiver_name', label: 'Receiver', icon: 'fa-user' },
+        { key: 'contact_name', label: 'Contact', icon: 'fa-user-tie' },
+        { key: 'contact_phone', label: 'Phone', icon: 'fa-phone' },
+        { key: 'pieces', label: 'Pieces', icon: 'fa-boxes' },
+        { key: 'weight', label: 'Weight', icon: 'fa-weight-hanging' },
+        { key: 'tracking_number', label: 'Tracking', icon: 'fa-truck' },
+        { key: 'description', label: 'Description', icon: 'fa-file-alt' }
+    ];
+
+    fields.forEach(field => {
+        const value = info[field.key];
+        if (value) {
+            cardsHtml += `
+                <div class="info-card">
+                    <label><i class="fas ${field.icon}" style="margin-right: 0.25rem;"></i> ${field.label}</label>
+                    <div class="value" style="font-size: 0.95rem; word-break: break-word;">${value}</div>
+                </div>
+            `;
+        }
+    });
+
+    // Add addresses if present
+    if (info.shipper_address) {
+        cardsHtml += `
+            <div class="info-card" style="grid-column: span 2;">
+                <label><i class="fas fa-map-marker-alt" style="margin-right: 0.25rem;"></i> Shipper Address</label>
+                <div class="value" style="font-size: 0.875rem; white-space: pre-line;">${info.shipper_address}</div>
+            </div>
+        `;
+    }
+
+    if (info.receiver_address) {
+        cardsHtml += `
+            <div class="info-card" style="grid-column: span 2;">
+                <label><i class="fas fa-map-marker-alt" style="margin-right: 0.25rem;"></i> Receiver Address</label>
+                <div class="value" style="font-size: 0.875rem; white-space: pre-line;">${info.receiver_address}</div>
+            </div>
+        `;
+    }
+
+    cardsContainer.innerHTML = cardsHtml || '<p style="color: #6b7280; grid-column: span 2;">No shipping information found in the PDF.</p>';
+    previewArea.value = data.formatted_description || 'No description generated.';
+
+    modal.style.display = 'flex';
+}
+
+function closeShippingModal() {
+    document.getElementById('shippingInfoModal').style.display = 'none';
+    shippingData = null;
+}
+
+function updateTicketDescription() {
+    if (!shippingData || !shippingData.formatted_description) {
+        alert('No shipping information to update');
+        return;
+    }
+
+    showLoading('Updating ticket description...');
+    closeShippingModal();
+
+    fetch(`/tickets/{{ ticket.id }}/update-description`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ description: shippingData.formatted_description })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            alert('Ticket description updated successfully!');
+            // Optionally redirect to ticket view
+            window.location.href = `{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}`;
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to update ticket description');
+    });
+}
 
 function selectAttachment(id, element) {
     document.querySelectorAll('.attachment-item').forEach(item => {

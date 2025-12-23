@@ -4994,13 +4994,24 @@ body.dark-theme .sf-card-body .sf-field-label {
             </h2>
                 <div id="documents" class="mb-8">
                     <div class="sf-card mb-6">
-                        <div class="sf-card-header">
+                        <div class="sf-card-header flex justify-between items-center">
                             <h2 class="sf-card-title flex items-center gap-2">
                             <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                             </svg>
                             Attachments & Documents
                         </h2>
+                        {% if ticket.attachments %}
+                        {% set has_pdf = ticket.attachments|selectattr('file_type', 'equalto', 'pdf')|list|length > 0 %}
+                        {% if has_pdf %}
+                        <a href="{{ url_for('tickets.extract_assets_page', ticket_id=ticket.id) }}" class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-100 rounded-md hover:bg-purple-200 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Extract from PDF
+                        </a>
+                        {% endif %}
+                        {% endif %}
                         </div>
                         <div class="sf-card-body">
                             <!-- Document Upload Form -->

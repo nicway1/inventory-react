@@ -9,6 +9,197 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+def extract_shipping_info_from_pdf(pdf_path):
+    """
+    Extract shipping/PO information from the first page of a PDF (waybill/shipping label)
+
+    Returns:
+        dict with shipping details for ticket description
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.error("PyMuPDF (fitz) not installed")
+        return None
+
+    try:
+        doc = fitz.open(pdf_path)
+
+        # Get text from first page only
+        if len(doc) == 0:
+            return None
+
+        first_page_text = doc[0].get_text()
+        doc.close()
+
+        return parse_shipping_label_text(first_page_text)
+
+    except Exception as e:
+        logger.error(f"Error extracting shipping info: {e}")
+        return None
+
+
+def parse_shipping_label_text(text):
+    """
+    Parse shipping label/waybill text to extract PO info
+    """
+    result = {
+        'reference': None,
+        'date': None,
+        'shipper_name': None,
+        'shipper_address': None,
+        'receiver_name': None,
+        'receiver_address': None,
+        'contact_name': None,
+        'contact_phone': None,
+        'description': None,
+        'pieces': None,
+        'special_instructions': None,
+        'tracking_number': None,
+        'weight': None,
+    }
+
+    lines = text.split('\n')
+    lines = [l.strip() for l in lines if l.strip()]
+
+    # Extract Reference number
+    ref_match = re.search(r'REFERENCE[#:\s]*(\d+)', text, re.IGNORECASE)
+    if ref_match:
+        result['reference'] = ref_match.group(1)
+
+    # Extract Date
+    date_patterns = [
+        r'DATE[:\s]*(\d{1,2}[-/]\w{3}[-/]\d{2,4})',
+        r'DATE[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})',
+    ]
+    for pattern in date_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result['date'] = match.group(1)
+            break
+
+    # Extract tracking/barcode number (usually a long number)
+    barcode_match = re.search(r'\b(656\d{9,})\b', text)
+    if barcode_match:
+        result['tracking_number'] = barcode_match.group(1)
+
+    # Extract FROM (SHIPPER) section
+    shipper_match = re.search(r'FROM\s*\(SHIPPER\)[:\s]*(.+?)(?=TO\s*\(RECEIVER\)|REFERENCE|$)', text, re.DOTALL | re.IGNORECASE)
+    if shipper_match:
+        shipper_text = shipper_match.group(1).strip()
+        shipper_lines = [l.strip() for l in shipper_text.split('\n') if l.strip()]
+        if shipper_lines:
+            result['shipper_name'] = shipper_lines[0] if shipper_lines else None
+            result['shipper_address'] = ', '.join(shipper_lines[1:]) if len(shipper_lines) > 1 else None
+
+    # Extract TO (RECEIVER) section
+    receiver_match = re.search(r'TO\s*\(RECEIVER\)[:\s]*(.+?)(?=CONTACT|TELEPHONE|DESCRIPTION|$)', text, re.DOTALL | re.IGNORECASE)
+    if receiver_match:
+        receiver_text = receiver_match.group(1).strip()
+        receiver_lines = [l.strip() for l in receiver_text.split('\n') if l.strip()]
+        if receiver_lines:
+            result['receiver_name'] = receiver_lines[0] if receiver_lines else None
+            # Filter out non-address lines
+            addr_lines = [l for l in receiver_lines[1:] if not re.match(r'^(CONTACT|TELEPHONE|DESCRIPTION)', l, re.IGNORECASE)]
+            result['receiver_address'] = ', '.join(addr_lines) if addr_lines else None
+
+    # Extract Contact Name
+    contact_match = re.search(r'CONTACT\s*NAME[:\s]*([^\n]+)', text, re.IGNORECASE)
+    if contact_match:
+        result['contact_name'] = contact_match.group(1).strip()
+
+    # Extract Telephone
+    phone_match = re.search(r'TELEPHONE[:\s]*(\d[\d\s-]+)', text, re.IGNORECASE)
+    if phone_match:
+        result['contact_phone'] = phone_match.group(1).strip()
+
+    # Extract Description
+    desc_match = re.search(r'DESCRIPTION[:\s]*([A-Z][A-Z\s]+?)(?=\d|RECEIVED|TIME|$)', text, re.IGNORECASE)
+    if desc_match:
+        result['description'] = desc_match.group(1).strip()
+
+    # Extract Pieces
+    pieces_match = re.search(r'PIECES[:\s]*(\d+)', text, re.IGNORECASE)
+    if pieces_match:
+        result['pieces'] = pieces_match.group(1)
+
+    # Extract Special Instructions (like "1 PALLET - 56 PCS")
+    special_match = re.search(r'SPECIAL\s*INSTRUCTIONS[:\s]*(.+?)(?=FROM|$)', text, re.DOTALL | re.IGNORECASE)
+    if special_match:
+        result['special_instructions'] = special_match.group(1).strip().replace('\n', ' ')
+    else:
+        # Try to find pallet info
+        pallet_match = re.search(r'(\d+\s*PALLET[S]?\s*[-–]\s*\d+\s*PCS)', text, re.IGNORECASE)
+        if pallet_match:
+            result['special_instructions'] = pallet_match.group(1)
+
+    # Extract Weight
+    weight_match = re.search(r'WEIGHT[:\s]*\(?KG\)?[:\s]*([\d.]+)', text, re.IGNORECASE)
+    if weight_match:
+        result['weight'] = weight_match.group(1) + ' kg'
+
+    return result
+
+
+def format_shipping_info_for_description(info):
+    """
+    Format extracted shipping info into a nice ticket description
+    """
+    if not info:
+        return None
+
+    lines = []
+    lines.append("=" * 50)
+    lines.append("SHIPMENT INFORMATION (Extracted from PDF)")
+    lines.append("=" * 50)
+
+    if info.get('reference'):
+        lines.append(f"Reference #: {info['reference']}")
+
+    if info.get('date'):
+        lines.append(f"Date: {info['date']}")
+
+    if info.get('tracking_number'):
+        lines.append(f"Tracking #: {info['tracking_number']}")
+
+    lines.append("")
+    lines.append("FROM (Shipper):")
+    if info.get('shipper_name'):
+        lines.append(f"  {info['shipper_name']}")
+    if info.get('shipper_address'):
+        lines.append(f"  {info['shipper_address']}")
+
+    lines.append("")
+    lines.append("TO (Receiver):")
+    if info.get('receiver_name'):
+        lines.append(f"  {info['receiver_name']}")
+    if info.get('receiver_address'):
+        lines.append(f"  {info['receiver_address']}")
+
+    if info.get('contact_name') or info.get('contact_phone'):
+        lines.append("")
+        lines.append("Contact:")
+        if info.get('contact_name'):
+            lines.append(f"  Name: {info['contact_name']}")
+        if info.get('contact_phone'):
+            lines.append(f"  Phone: {info['contact_phone']}")
+
+    lines.append("")
+    lines.append("Shipment Details:")
+    if info.get('description'):
+        lines.append(f"  Description: {info['description']}")
+    if info.get('special_instructions'):
+        lines.append(f"  Quantity: {info['special_instructions']}")
+    if info.get('pieces'):
+        lines.append(f"  Pieces: {info['pieces']}")
+    if info.get('weight'):
+        lines.append(f"  Weight: {info['weight']}")
+
+    lines.append("=" * 50)
+
+    return '\n'.join(lines)
+
+
 def extract_assets_from_pdf(pdf_path):
     """
     Extract asset information from a packing list PDF
