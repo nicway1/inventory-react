@@ -63,6 +63,11 @@ class User(Base, UserMixin):
         return check_password_hash(self.password_hash, password)
 
     @property
+    def full_name(self):
+        """Return username as full name (model doesn't have first/last name fields)"""
+        return self.username
+
+    @property
     def assigned_countries(self):
         """Get list of assigned countries for this user"""
         from sqlalchemy.orm import object_session
