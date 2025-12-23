@@ -401,8 +401,10 @@ def extract_assets_from_text(text):
     # Pattern: MWW03ZP/A-SG0001 or similar Apple part numbers
     part_number_pattern = r'\b([A-Z]{2,4}\d{2,3}[A-Z]{2}/[A-Z]-[A-Z]{2}\d{4})\b'
 
-    # Look for product descriptions
+    # Look for product descriptions (may span multiple lines)
     product_patterns = [
+        r'APPLE\s+\d+["\']?\s*MACBOOK\s+AIR[^\n]*[\n\s]*\d+GB\s+\d+GB[^\n]*',
+        r'APPLE\s+\d+["\']?\s*MACBOOK\s+PRO[^\n]*[\n\s]*\d+GB\s+\d+GB[^\n]*',
         r'APPLE\s+\d+["\']?\s*MACBOOK\s+AIR[^,\n]*',
         r'APPLE\s+\d+["\']?\s*MACBOOK\s+PRO[^,\n]*',
         r'MACBOOK\s+AIR[^,\n]*M\d+[^,\n]*',
@@ -420,13 +422,33 @@ def extract_assets_from_text(text):
 
     # Find product description
     for pattern in product_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
+        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
         if match:
             product_name = match.group(0).strip()
             break
 
+    # Also try to find RAM and storage directly from text if not in product name
+    # Pattern like "16GB 256GB" or "16GB 512GB" or "32GB 1TB"
+    ram_storage_match = re.search(r'(\d+)GB\s+(\d+)(?:GB|TB)', text, re.IGNORECASE)
+    ram_value = None
+    storage_value = None
+    if ram_storage_match:
+        ram_value = ram_storage_match.group(1) + "GB"
+        storage_num = int(ram_storage_match.group(2))
+        # Determine if it's GB or TB based on the number
+        if storage_num <= 4:
+            storage_value = str(storage_num) + "TB"
+        else:
+            storage_value = str(storage_num) + "GB"
+
     # Parse product details from description
     product_details = parse_product_description(product_name or "")
+
+    # Override with directly extracted RAM/storage if not found in product description
+    if ram_value and not product_details.get('memory'):
+        product_details['memory'] = ram_value
+    if storage_value and not product_details.get('storage'):
+        product_details['storage'] = storage_value
 
     # Find all serial numbers
     # Filter out common non-serial patterns
