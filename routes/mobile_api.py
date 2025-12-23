@@ -3975,6 +3975,45 @@ def generate_thumbnail(image_path, thumbnail_path, size=(200, 200)):
         return False
 
 
+def generate_pdf_thumbnail(pdf_path, thumbnail_path, size=(200, 200)):
+    """Generate a thumbnail from the first page of a PDF"""
+    try:
+        from PIL import Image
+        import fitz  # PyMuPDF
+
+        # Open PDF and get first page
+        doc = fitz.open(pdf_path)
+        if len(doc) == 0:
+            return False
+
+        page = doc[0]
+
+        # Render page to image (72 dpi is default, use higher for better quality)
+        mat = fitz.Matrix(2, 2)  # 2x zoom for better quality
+        pix = page.get_pixmap(matrix=mat)
+
+        # Convert to PIL Image
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+        # Create thumbnail
+        img.thumbnail(size, Image.Resampling.LANCZOS)
+        img.save(thumbnail_path, 'JPEG', quality=85)
+
+        doc.close()
+        return True
+    except ImportError:
+        logger.warning("PyMuPDF (fitz) not installed, skipping PDF thumbnail generation")
+        return False
+    except Exception as e:
+        logger.warning(f"Failed to generate PDF thumbnail: {e}")
+        return False
+
+
+def validate_pdf_magic_bytes(file_data):
+    """Validate that file data starts with PDF magic bytes"""
+    return file_data[:5] == b'%PDF-'
+
+
 @mobile_api_bp.route('/tickets/<int:ticket_id>/attachments', methods=['POST'])
 @mobile_auth_required
 def upload_ticket_attachment(ticket_id):
@@ -4054,6 +4093,16 @@ def upload_ticket_attachment(ticket_id):
             file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'bin'
             content_type = file.content_type or 'application/octet-stream'
 
+            # Validate PDF magic bytes if file claims to be PDF
+            if file_extension == 'pdf' or content_type == 'application/pdf':
+                if not validate_pdf_magic_bytes(file_data):
+                    return jsonify({
+                        'success': False,
+                        'error': 'Invalid or corrupted PDF file'
+                    }), 400
+                file_extension = 'pdf'
+                content_type = 'application/pdf'
+
             # Create upload directory
             from flask import current_app
             upload_folder = os.path.join(current_app.root_path, 'uploads', 'tickets', str(ticket_id))
@@ -4069,13 +4118,17 @@ def upload_ticket_attachment(ticket_id):
             with open(file_path, 'wb') as f:
                 f.write(file_data)
 
-            # Generate thumbnail for images
+            # Generate thumbnail for images and PDFs
             thumbnail_path = None
             thumbnail_url = None
+            thumb_filename = f"thumb_{filename.rsplit('.', 1)[0]}.jpg"  # Always save as jpg
+            thumbnail_path = os.path.join(upload_folder, thumb_filename)
+
             if file_extension.lower() in ('jpg', 'jpeg', 'png', 'gif'):
-                thumb_filename = f"thumb_{filename}"
-                thumbnail_path = os.path.join(upload_folder, thumb_filename)
                 if generate_thumbnail(file_path, thumbnail_path):
+                    thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
+            elif file_extension.lower() == 'pdf':
+                if generate_pdf_thumbnail(file_path, thumbnail_path):
                     thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
 
             # Create attachment record
@@ -4175,10 +4228,12 @@ def get_ticket_attachments(ticket_id):
                 filename = os.path.basename(att.file_path) if att.file_path else None
                 attachment_url = f"/uploads/tickets/{ticket_id}/{filename}" if filename else None
 
-                # Check for thumbnail
+                # Check for thumbnail (images and PDFs)
                 thumbnail_url = None
-                if att.file_type and att.file_type.lower() in ('jpg', 'jpeg', 'png', 'gif') and filename:
-                    thumb_filename = f"thumb_{filename}"
+                if att.file_type and att.file_type.lower() in ('jpg', 'jpeg', 'png', 'gif', 'pdf') and filename:
+                    # Thumbnail is always .jpg
+                    base_filename = filename.rsplit('.', 1)[0] if '.' in filename else filename
+                    thumb_filename = f"thumb_{base_filename}.jpg"
                     thumb_path = os.path.join(os.path.dirname(att.file_path), thumb_filename) if att.file_path else None
                     if thumb_path and os.path.exists(thumb_path):
                         thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
