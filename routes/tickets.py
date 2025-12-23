@@ -12253,12 +12253,20 @@ def create_extracted_assets(ticket_id):
                     errors.append(f"Serial {serial_num} already exists (Asset #{existing.id})")
                     continue
 
-                # Generate asset tag
-                asset_tag = f"AST-{uuid.uuid4().hex[:8].upper()}"
+                # Get asset tag from frontend (user-provided) or generate one
+                asset_tag = asset_data.get('asset_tag', '').strip()
+                if not asset_tag:
+                    # Generate asset tag if not provided
+                    asset_tag = f"AST-{uuid.uuid4().hex[:8].upper()}"
 
                 # Check asset tag uniqueness
-                while db_session.query(Asset).filter(Asset.asset_tag == asset_tag).first():
-                    asset_tag = f"AST-{uuid.uuid4().hex[:8].upper()}"
+                existing_tag = db_session.query(Asset).filter(Asset.asset_tag == asset_tag).first()
+                if existing_tag:
+                    errors.append(f"Asset tag {asset_tag} already exists (Asset #{existing_tag.id})")
+                    continue
+
+                # Get country from frontend
+                country = asset_data.get('country', 'SG')
 
                 # Create asset
                 new_asset = Asset(
@@ -12278,6 +12286,7 @@ def create_extracted_assets(ticket_id):
                     hardware_type=asset_data.get('hardware_type', 'Laptop'),
                     condition=asset_data.get('condition', 'New'),
                     company_id=company_id,
+                    country=country,
                     receiving_date=datetime.datetime.utcnow(),
                     notes=f"Imported from packing list PDF - Ticket #{ticket_id}"
                 )
