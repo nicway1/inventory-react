@@ -162,23 +162,75 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(255,255,255,0.8);
+        background: rgba(255,255,255,0.95);
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         z-index: 1000;
     }
-    .loading-spinner {
-        text-align: center;
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
     }
-    .loading-spinner i {
-        font-size: 3rem;
-        color: #6366f1;
-        animation: spin 1s linear infinite;
+    /* Bar Loader */
+    .loader {
+        position: relative;
+        width: 150px;
+        height: 75px;
+        perspective: 1000px;
+        transform-style: preserve-3d;
     }
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    .loader--reflect {
+        margin-top: 0;
+        transform: scaleY(-1);
+        opacity: 0.3;
+    }
+    .loader--reflect:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -25%;
+        width: 150%;
+        height: 110%;
+        background: linear-gradient(0deg, rgba(255,255,255,1), rgba(255,255,255,1) 20%, rgba(255,255,255,0.3));
+    }
+    .bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 15px;
+        height: 75px;
+        background-color: #1e3f57;
+        transform: scaleY(0);
+        transform-style: preserve-3d;
+        animation: bar 3s cubic-bezier(.81,.04,.4,.7) infinite;
+    }
+    .bar:nth-child(2) { left: 15px; background-color: #264a63; animation-delay: 50ms; }
+    .bar:nth-child(3) { left: 30px; background-color: #2d566f; animation-delay: 100ms; }
+    .bar:nth-child(4) { left: 45px; background-color: #35617a; animation-delay: 150ms; }
+    .bar:nth-child(5) { left: 60px; background-color: #3d6d86; animation-delay: 200ms; }
+    .bar:nth-child(6) { left: 75px; background-color: #447892; animation-delay: 250ms; }
+    .bar:nth-child(7) { left: 90px; background-color: #4c849e; animation-delay: 300ms; }
+    .bar:nth-child(8) { left: 105px; background-color: #548fa9; animation-delay: 350ms; }
+    .bar:nth-child(9) { left: 120px; background-color: #5c9bb5; animation-delay: 400ms; }
+    .bar:nth-child(10) { left: 135px; background-color: #63a6c1; animation-delay: 450ms; }
+    .loader--reflect .bar { animation-name: bar-reflect; }
+    @keyframes bar {
+        0% { transform: rotateZ(-180deg) rotateX(-360deg); }
+        75%, 100% { transform: rotateZ(0) rotateX(0); }
+    }
+    @keyframes bar-reflect {
+        0% { transform: rotateZ(180deg) rotateX(360deg); }
+        75%, 100% { transform: rotateZ(0) rotateX(0); }
+    }
+    .loading-text {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e3f57;
+        margin-top: 1rem;
     }
     .empty-state {
         text-align: center;
@@ -372,13 +424,16 @@
 
         <!-- Default Values Info -->
         <div style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.375rem; font-size: 0.875rem; color: #6b7280;">
-            <i class="fas fa-info-circle"></i> Default values: <strong>Manufacturer:</strong> Apple | <strong>Status:</strong> In Stock | <strong>Category:</strong> Laptop
+            <i class="fas fa-info-circle"></i> Default values: <strong>Manufacturer:</strong> Apple | <strong>Status:</strong> In Stock | <strong>Category:</strong> APPLE
         </div>
 
         <!-- Actions -->
         <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-            <div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
                 <span id="selectedCount">0</span> assets selected
+                <button class="btn btn-secondary" onclick="removeSerialPrefix()" title="Remove leading 'S' from all serial numbers">
+                    <i class="fas fa-cut"></i> Remove S Prefix
+                </button>
             </div>
             <button class="btn btn-success" id="createAssetsBtn" onclick="createAssets()">
                 <i class="fas fa-plus-circle"></i> Create Selected Assets
@@ -404,9 +459,32 @@
 
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loadingOverlay" style="display: none;">
-    <div class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p style="margin-top: 1rem; font-weight: 600;" id="loadingText">Extracting data from PDF...</p>
+    <div class="loading-content">
+        <div class="loader">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <div class="loader loader--reflect">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+        <p class="loading-text" id="loadingText">Extracting data from PDF...</p>
     </div>
 </div>
 
@@ -638,7 +716,7 @@ function showPreview(data) {
             </td>
             <td>${index + 1}</td>
             <td><input type="text" class="asset-tag-input" data-index="${index}" value="" style="width: 100px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-family: monospace;"></td>
-            <td class="serial-cell">${asset.serial_num}</td>
+            <td class="serial-cell"><span class="serial-number-display">${asset.serial_num}</span></td>
             <td>${asset.model || asset.name || '-'}</td>
             <td>${asset.cpu_type || '-'}</td>
             <td>${asset.cpu_cores || '-'}</td>
@@ -664,6 +742,40 @@ function updateSelectedCount() {
     const total = document.querySelectorAll('.asset-checkbox').length;
     document.getElementById('selectedCount').textContent = selected;
     document.getElementById('selectAll').checked = selected === total;
+}
+
+function removeSerialPrefix() {
+    // Remove leading 'S' from all serial numbers in table display and extractedData
+    var count = 0;
+    var totalChecked = 0;
+
+    // Update the display in the table
+    var spans = document.querySelectorAll('.serial-number-display');
+    totalChecked = spans.length;
+
+    for (var i = 0; i < spans.length; i++) {
+        var serial = spans[i].textContent.trim();
+        if (serial.charAt(0) === 'S') {
+            spans[i].textContent = serial.substring(1);
+            count++;
+        }
+    }
+
+    // Update the extractedData object
+    if (extractedData && extractedData.assets) {
+        for (var j = 0; j < extractedData.assets.length; j++) {
+            var asset = extractedData.assets[j];
+            if (asset.serial_num && asset.serial_num.charAt(0) === 'S') {
+                asset.serial_num = asset.serial_num.substring(1);
+            }
+        }
+    }
+
+    if (count > 0) {
+        alert('Removed S prefix from ' + count + ' serial number(s)');
+    } else {
+        alert('No serial numbers with leading S found. Checked ' + totalChecked + ' serials.');
+    }
 }
 
 function generateAllAssetTags() {
@@ -738,6 +850,7 @@ function createAssets() {
         asset.country = globalCountry;
         asset.status = 'In Stock';
         asset.manufacturer = 'Apple';
+        asset.category = 'APPLE';  // Always set category to APPLE
         return asset;
     });
 

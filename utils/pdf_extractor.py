@@ -10,6 +10,90 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Apple part number prefix to model identifier mapping
+# Format: Part number prefix (first 5-6 chars) -> Model identifier (e.g., A3113)
+# Scraped from Apple Support and EveryMac.com
+APPLE_PART_TO_MODEL = {
+    # MacBook Air 13" M4 (2025) - A3240
+    'MC6T4': 'A3240',  # Sky Blue
+    'MW123': 'A3240',  # Midnight
+    'MW0Y3': 'A3240',  # Starlight
+    'MW0W3': 'A3240',  # Silver
+    'MWW03': 'A3240',  # Possible OCR variant of MW0W3
+    # MacBook Air 15" M4 (2025) - A3241
+    'MC7A4': 'A3241', 'MC7C4': 'A3241', 'MC7D4': 'A3241',  # Sky Blue configs
+    'MW1L3': 'A3241', 'MW1M3': 'A3241', 'MC6L4': 'A3241',  # Midnight configs
+    'MC6K4': 'A3241', 'MW1J3': 'A3241', 'MW1K3': 'A3241',  # Starlight configs
+    'MW1G3': 'A3241', 'MW1H3': 'A3241', 'MC6J4': 'A3241',  # Silver configs
+    # MacBook Air 13" M3 (2024) - A3113
+    'MRXN3': 'A3113', 'MRXQ3': 'A3113', 'MRXT3': 'A3113', 'MRXV3': 'A3113',
+    'MRXP3': 'A3113', 'MRXR3': 'A3113', 'MRXU3': 'A3113', 'MRXW3': 'A3113',
+    'MXCR3': 'A3113', 'MXCT3': 'A3113', 'MXCU3': 'A3113', 'MXCV3': 'A3113',
+    'MC8M4': 'A3113', 'MC8N4': 'A3113', 'MC8P4': 'A3113', 'MC8Q4': 'A3113',  # 24GB configs
+    # MacBook Air 15" M3 (2024) - A3114
+    'MRYM3': 'A3114', 'MRYN3': 'A3114', 'MRYP3': 'A3114', 'MRYQ3': 'A3114',
+    'MRYR3': 'A3114', 'MRYT3': 'A3114', 'MRYU3': 'A3114', 'MRYV3': 'A3114',
+    'MXD13': 'A3114', 'MXD23': 'A3114', 'MXD33': 'A3114', 'MXD43': 'A3114',
+    # MacBook Air 13" M2 (2022) - A2681
+    'MLXW3': 'A2681', 'MLXX3': 'A2681', 'MLXY3': 'A2681', 'MLY03': 'A2681',
+    'MLY13': 'A2681', 'MLY23': 'A2681', 'MLY33': 'A2681', 'MLY43': 'A2681',
+    'MNEQ3': 'A2681', 'MNER3': 'A2681', 'MNES3': 'A2681', 'MNET3': 'A2681',
+    # MacBook Air 15" M2 (2023) - A2941
+    'MQKP3': 'A2941', 'MQKQ3': 'A2941', 'MQKR3': 'A2941', 'MQKT3': 'A2941',
+    'MQKU3': 'A2941', 'MQKV3': 'A2941', 'MQKW3': 'A2941', 'MQKX3': 'A2941',
+    # MacBook Air 13" M1 (2020) - A2337
+    'MGN63': 'A2337', 'MGN73': 'A2337', 'MGN93': 'A2337', 'MGNA3': 'A2337',
+    'MGND3': 'A2337', 'MGNE3': 'A2337',
+    # MacBook Pro 14" M3 Base (2023) - A2918
+    'MR7J3': 'A2918', 'MR7K3': 'A2918', 'MRX23': 'A2918',
+    'MTL73': 'A2918', 'MTL83': 'A2918', 'MTLC3': 'A2918',
+    'MXE03': 'A2918', 'MXE13': 'A2918',
+    # MacBook Pro 14" M3 Pro/Max (2023) - A2992
+    'MRX33': 'A2992', 'MRX43': 'A2992', 'MRX53': 'A2992', 'MRX63': 'A2992',
+    'MRX73': 'A2992', 'MRX83': 'A2992',
+    # MacBook Pro 16" M3 Pro/Max (2023) - A2991
+    'MRW13': 'A2991', 'MRW23': 'A2991', 'MRW33': 'A2991', 'MRW43': 'A2991',
+    'MRW53': 'A2991', 'MRW63': 'A2991', 'MRW73': 'A2991', 'MUW63': 'A2991',
+    # MacBook Pro 13" M2 (2022) - A2338
+    'MNEH3': 'A2338', 'MNEJ3': 'A2338', 'MNEP3': 'A2338', 'MNEQ3': 'A2338',
+    # MacBook Pro 14" M2 Pro/Max (2023) - A2779
+    'MPHE3': 'A2779', 'MPHF3': 'A2779', 'MPHG3': 'A2779', 'MPHH3': 'A2779',
+    'MPHJ3': 'A2779', 'MPHK3': 'A2779',
+    # MacBook Pro 16" M2 Pro/Max (2023) - A2780
+    'MNW83': 'A2780', 'MNW93': 'A2780', 'MNWA3': 'A2780', 'MNWC3': 'A2780',
+    'MNWD3': 'A2780', 'MNWE3': 'A2780', 'MNWF3': 'A2780', 'MNWG3': 'A2780',
+    # MacBook Pro 14" M1 Pro/Max (2021) - A2442
+    'MKGP3': 'A2442', 'MKGQ3': 'A2442', 'MKGR3': 'A2442', 'MKGT3': 'A2442',
+    # MacBook Pro 16" M1 Pro/Max (2021) - A2485
+    'MK183': 'A2485', 'MK193': 'A2485', 'MK1A3': 'A2485', 'MK1E3': 'A2485',
+    'MK1F3': 'A2485', 'MK1H3': 'A2485',
+    # MacBook Pro 13" M1 (2020) - A2338
+    'MYD83': 'A2338', 'MYD92': 'A2338', 'MYDA2': 'A2338', 'MYDC2': 'A2338',
+}
+
+
+def get_apple_model_identifier(part_number):
+    """
+    Convert Apple part number to model identifier
+    e.g., "MWW03ZP/A-SG0001" -> "A3114"
+    """
+    if not part_number:
+        return None
+
+    # Extract the first 5 characters (the unique part number prefix)
+    # Part numbers look like: MWW03ZP/A-SG0001 or MWW03ZP/A
+    prefix = part_number[:5].upper()
+
+    # Look up in mapping
+    model_id = APPLE_PART_TO_MODEL.get(prefix)
+
+    if model_id:
+        logger.info(f"Converted part number {part_number} -> {model_id}")
+        return model_id
+
+    logger.warning(f"Unknown Apple part number prefix: {prefix}")
+    return None
+
 
 def extract_text_with_ocr(pdf_path):
     """
@@ -332,9 +416,10 @@ def parse_packing_list_text(text):
 
     # Extract PO number (look for patterns like "PO nr" or "100010948 WISE")
     po_patterns = [
-        r'PO\s*n[ro]?[:\s]*(\d+\s*\w*)',
-        r'PO\s*Number[:\s]*(\d+\s*\w*)',
-        r'(\d{9,}\s*WISE)',  # Pattern like "100010948 WISE"
+        r'PO\s*n[ro]?[:\s]*(\d+)',  # PO nr: 100010948
+        r'PO\s*Number[:\s]*(\d+)',  # PO Number: 100010948
+        r'(\d{9,})\s*WISE',  # 100010948 WISE -> capture only number
+        r'(\d{9,})\s+[A-Z]+',  # 100010948 followed by any word -> capture only number
     ]
     for pattern in po_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
@@ -398,8 +483,18 @@ def extract_assets_from_text(text):
     serial_pattern = r'\b([A-Z0-9]{10,14})\b'
 
     # Find product description patterns
-    # Pattern: MWW03ZP/A-SG0001 or similar Apple part numbers
-    part_number_pattern = r'\b([A-Z]{2,4}\d{2,3}[A-Z]{2}/[A-Z]-[A-Z]{2}\d{4})\b'
+    # Multiple patterns for Apple part numbers:
+    # Full: MWW03ZP/A-SG0001 | Short: MWW03ZP/A | Minimal: MWW03
+    part_number_patterns = [
+        r'\b([A-Z]{2,4}\d{2,3}[A-Z]{2}/[A-Z]-[A-Z]{2}\d{4})\b',  # Full: MWW03ZP/A-SG0001
+        r'\b([A-Z]{2,4}\d{2,3}[A-Z]{2}/[A-Z])\b',  # Short: MWW03ZP/A
+        r'\b([A-Z]{3}\d{2})[A-Z]{2}/[A-Z]',  # Extract just MWW03 from MWW03ZP/A
+        r'\b([A-Z]{3}\d{2}[A-Z]{2})/[A-Z]',  # Capture MXWM2 from MXWM2ZP/A
+        r'\b([A-Z]{2,3}\d{2,3})\b',  # Direct 5-char codes like MWW03, MLY13
+    ]
+
+    # Also try to find known part number prefixes directly from our mapping
+    known_prefixes = list(APPLE_PART_TO_MODEL.keys())
 
     # Look for product descriptions (may span multiple lines)
     product_patterns = [
@@ -415,10 +510,22 @@ def extract_assets_from_text(text):
     product_name = None
     part_number = None
 
-    # Find part number
-    part_match = re.search(part_number_pattern, text)
-    if part_match:
-        part_number = part_match.group(1)
+    # First, try to find known part number prefixes directly from the text
+    text_upper = text.upper()
+    for prefix in known_prefixes:
+        if prefix in text_upper:
+            part_number = prefix
+            logger.info(f"Found known part number prefix directly: {part_number}")
+            break
+
+    # If not found, try regex patterns
+    if not part_number:
+        for pattern in part_number_patterns:
+            part_match = re.search(pattern, text, re.IGNORECASE)
+            if part_match:
+                part_number = part_match.group(1).upper()
+                logger.info(f"Found part number: {part_number} using pattern: {pattern}")
+                break
 
     # Find product description
     for pattern in product_patterns:
@@ -504,12 +611,16 @@ def extract_assets_from_text(text):
             # All-letter serial starting with S - likely OCR misread some digits
             serial_numbers.append(serial)
 
+    # Convert part number to Apple model identifier (e.g., MWW03ZP/A -> A3114)
+    model_identifier = get_apple_model_identifier(part_number) if part_number else None
+    logger.info(f"Part number detected: {part_number}, Model identifier: {model_identifier}")
+
     # Create asset entries for each serial
     for serial in serial_numbers:
         asset = {
             'serial_num': serial,
             'name': product_details.get('name', 'MacBook'),
-            'model': part_number or product_details.get('model', ''),
+            'model': model_identifier or '',  # Only use Apple model identifier (e.g., A3113), not "MacBook Air"
             'manufacturer': 'Apple',
             'category': 'Laptop',
             'cpu_type': product_details.get('cpu_type', ''),

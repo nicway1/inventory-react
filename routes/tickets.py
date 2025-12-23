@@ -12247,6 +12247,14 @@ def create_extracted_assets(ticket_id):
         # Convert company_id to int or None
         company_id = int(company_id_raw) if company_id_raw and str(company_id_raw).strip() else None
 
+        # Look up company name for the customer field
+        customer_name = None
+        if company_id:
+            from models.company import Company
+            company = db_session.query(Company).get(company_id)
+            if company:
+                customer_name = company.name
+
         # Country code to full name mapping
         country_names = {
             'SG': 'Singapore',
@@ -12295,6 +12303,10 @@ def create_extracted_assets(ticket_id):
                 country_code = asset_data.get('country', 'SG')
                 country = country_names.get(country_code, country_code)
 
+                # Remove leading 'S' from serial number if present
+                if serial_num and serial_num.startswith('S'):
+                    serial_num = serial_num[1:]
+
                 # Create asset
                 new_asset = Asset(
                     asset_tag=asset_tag,
@@ -12302,7 +12314,8 @@ def create_extracted_assets(ticket_id):
                     name=asset_data.get('name', ''),
                     model=asset_data.get('model', ''),
                     manufacturer=asset_data.get('manufacturer', 'Apple'),
-                    category=asset_data.get('category', 'APPLE'),
+                    category='APPLE',
+                    asset_type='APPLE',  # Set asset_type for UI display
                     status=AssetStatus.IN_STOCK,
                     po=po_number,
                     cpu_type=asset_data.get('cpu_type', ''),
@@ -12313,6 +12326,7 @@ def create_extracted_assets(ticket_id):
                     hardware_type=asset_data.get('hardware_type', 'Laptop'),
                     condition=asset_data.get('condition', 'New'),
                     company_id=company_id,
+                    customer=customer_name,  # Set customer string field for display
                     country=country,
                     receiving_date=datetime.datetime.utcnow(),
                     notes=f"Imported from packing list PDF - Ticket #{ticket_id}"
