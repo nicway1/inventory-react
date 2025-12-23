@@ -4419,10 +4419,23 @@ def mobile_checkin_asset(ticket_id):
             if not serial_number:
                 return jsonify({'success': False, 'error': 'Serial number is required'}), 400
 
-            # Find asset by serial number
+            # Find asset by serial number - try multiple variations
+            # Some PDFs have leading 'S' prefix on serial numbers
             asset = db_session.query(Asset).filter(
                 func.upper(Asset.serial_num) == serial_number
             ).first()
+
+            # If not found, try with 'S' prefix (PDF extraction sometimes includes it)
+            if not asset and not serial_number.startswith('S'):
+                asset = db_session.query(Asset).filter(
+                    func.upper(Asset.serial_num) == 'S' + serial_number
+                ).first()
+
+            # If not found, try without 'S' prefix (user might scan with S but DB has it without)
+            if not asset and serial_number.startswith('S'):
+                asset = db_session.query(Asset).filter(
+                    func.upper(Asset.serial_num) == serial_number[1:]
+                ).first()
 
             if not asset:
                 return jsonify({'success': False, 'error': f'Asset not found with serial number: {serial_number}'}), 404
