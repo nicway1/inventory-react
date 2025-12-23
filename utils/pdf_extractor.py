@@ -435,6 +435,12 @@ def extract_assets_from_text(text):
         r'^100\d{7}',  # PO numbers
         r'^847\d{5}',  # Commodity codes
         r'^656\d{8}',  # Tracking numbers
+        r'^\d{9}[A-Z]$',  # Singapore UEN numbers (e.g., 201422384R)
+        r'^\d{8}[A-Z]$',  # Singapore UEN numbers (older format)
+        r'^[A-Z]\d{8}[A-Z]$',  # Singapore UEN (e.g., T12AB1234C)
+        r'^SINGAPORE\d*$',  # SINGAPORE text
+        r'^[A-Z]{2}\d{6}$',  # Short codes
+        r'^\d{6}[A-Z]{2}\d{4}$',  # Date-like patterns
     ]
 
     # Get all potential serials
