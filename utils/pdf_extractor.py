@@ -469,10 +469,17 @@ def extract_assets_from_text(text):
         if len(serial) < 10 or serial.isdigit():
             continue
 
-        # Must have mix of letters and numbers for Apple serials
+        # Apple serials typically have mix of letters and numbers
+        # But OCR may sometimes read digits as letters, so allow all-letter serials
+        # that start with 'S' (Apple serial pattern)
         has_letters = any(c.isalpha() for c in serial)
         has_numbers = any(c.isdigit() for c in serial)
+
+        # Accept if: has both letters and numbers, OR starts with S and is all letters (OCR edge case)
         if has_letters and has_numbers:
+            serial_numbers.append(serial)
+        elif serial.startswith('S') and has_letters and len(serial) >= 10 and len(serial) <= 12:
+            # All-letter serial starting with S - likely OCR misread some digits
             serial_numbers.append(serial)
 
     # Create asset entries for each serial
