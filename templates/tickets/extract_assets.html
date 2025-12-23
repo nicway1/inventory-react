@@ -148,8 +148,43 @@
     .assets-table tr:hover {
         background: #f9fafb;
     }
+    .assets-table tr.row-selected {
+        background: #ecfdf5;
+    }
+    .assets-table tr.row-deselected {
+        background: #fef2f2;
+        opacity: 0.6;
+    }
+    .assets-table tr.row-deselected td {
+        text-decoration: line-through;
+        color: #9ca3af;
+    }
+    .assets-table tr.row-deselected .checkbox-cell,
+    .assets-table tr.row-deselected .checkbox-cell * {
+        text-decoration: none;
+        opacity: 1;
+    }
     .checkbox-cell {
         width: 40px;
+    }
+    .selection-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+    }
+    .selection-toolbar .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+    }
+    .selection-count {
+        font-weight: 600;
+        color: #059669;
+        margin-left: auto;
     }
     .serial-cell {
         font-family: monospace;
@@ -395,6 +430,24 @@
             <button class="btn btn-primary" onclick="generateAllHardwareTypes()" style="flex: 1;">
                 <i class="fas fa-cogs"></i> Generate All Hardware Types
             </button>
+        </div>
+
+        <!-- Selection Toolbar -->
+        <div class="selection-toolbar">
+            <span style="font-size: 0.875rem; color: #64748b; margin-right: 0.5rem;">Selection:</span>
+            <button class="btn btn-secondary btn-sm" onclick="selectAllAssets()">
+                <i class="fas fa-check-double"></i> All
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="deselectAllAssets()">
+                <i class="fas fa-times"></i> None
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="invertSelection()">
+                <i class="fas fa-exchange-alt"></i> Invert
+            </button>
+            <span class="selection-count">
+                <i class="fas fa-check-circle"></i>
+                <span id="selectionDisplay">0 of 0</span> selected
+            </span>
         </div>
 
         <!-- Assets Table -->
@@ -710,9 +763,11 @@ function showPreview(data) {
 
     data.assets.forEach((asset, index) => {
         const row = document.createElement('tr');
+        row.id = 'assetRow' + index;
+        row.className = 'row-selected';  // Start selected
         row.innerHTML = `
             <td class="checkbox-cell">
-                <input type="checkbox" class="asset-checkbox" data-index="${index}" checked onchange="updateSelectedCount()">
+                <input type="checkbox" class="asset-checkbox" data-index="${index}" checked onchange="updateRowSelection(this)">
             </td>
             <td>${index + 1}</td>
             <td><input type="text" class="asset-tag-input" data-index="${index}" value="" style="width: 100px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-family: monospace;"></td>
@@ -733,15 +788,59 @@ function showPreview(data) {
 function toggleSelectAll(checkbox) {
     document.querySelectorAll('.asset-checkbox').forEach(cb => {
         cb.checked = checkbox.checked;
+        updateRowStyle(cb);
     });
     updateSelectedCount();
+}
+
+function updateRowSelection(checkbox) {
+    updateRowStyle(checkbox);
+    updateSelectedCount();
+}
+
+function updateRowStyle(checkbox) {
+    const row = document.getElementById('assetRow' + checkbox.dataset.index);
+    if (row) {
+        if (checkbox.checked) {
+            row.className = 'row-selected';
+        } else {
+            row.className = 'row-deselected';
+        }
+    }
 }
 
 function updateSelectedCount() {
     const selected = document.querySelectorAll('.asset-checkbox:checked').length;
     const total = document.querySelectorAll('.asset-checkbox').length;
     document.getElementById('selectedCount').textContent = selected;
+    document.getElementById('selectionDisplay').textContent = selected + ' of ' + total;
     document.getElementById('selectAll').checked = selected === total;
+}
+
+function selectAllAssets() {
+    document.querySelectorAll('.asset-checkbox').forEach(cb => {
+        cb.checked = true;
+        updateRowStyle(cb);
+    });
+    document.getElementById('selectAll').checked = true;
+    updateSelectedCount();
+}
+
+function deselectAllAssets() {
+    document.querySelectorAll('.asset-checkbox').forEach(cb => {
+        cb.checked = false;
+        updateRowStyle(cb);
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelectedCount();
+}
+
+function invertSelection() {
+    document.querySelectorAll('.asset-checkbox').forEach(cb => {
+        cb.checked = !cb.checked;
+        updateRowStyle(cb);
+    });
+    updateSelectedCount();
 }
 
 function removeSerialPrefix() {
