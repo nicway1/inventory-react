@@ -12202,6 +12202,8 @@ def process_pdf_extraction(ticket_id):
             'reference': result.get('reference'),
             'ship_date': result.get('ship_date'),
             'total_quantity': result.get('total_quantity'),
+            'receiver': result.get('receiver'),
+            'supplier': result.get('supplier'),
             'extracted_count': len(result.get('assets', [])),
             'assets': result.get('assets', [])
         })

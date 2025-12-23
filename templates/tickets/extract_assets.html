@@ -276,7 +276,7 @@
         </div>
 
         <!-- Extraction Info -->
-        <div class="extraction-info">
+        <div class="extraction-info" style="grid-template-columns: repeat(5, 1fr);">
             <div class="info-card">
                 <label>PO Number</label>
                 <div class="value" id="poNumber">-</div>
@@ -288,6 +288,10 @@
             <div class="info-card">
                 <label>Ship Date</label>
                 <div class="value" id="shipDate">-</div>
+            </div>
+            <div class="info-card">
+                <label>Customer</label>
+                <div class="value" id="customerName">-</div>
             </div>
             <div class="info-card">
                 <label>Assets Found</label>
@@ -344,6 +348,7 @@
                         <th>CPU Cores</th>
                         <th>Memory</th>
                         <th>Storage</th>
+                        <th>Customer</th>
                     </tr>
                 </thead>
                 <tbody id="assetsTableBody">
@@ -605,6 +610,7 @@ function showPreview(data) {
     document.getElementById('poNumber').textContent = data.po_number || '-';
     document.getElementById('reference').textContent = data.reference || '-';
     document.getElementById('shipDate').textContent = data.ship_date || '-';
+    document.getElementById('customerName').textContent = data.receiver || '-';
     document.getElementById('assetCount').textContent = data.extracted_count || 0;
 
     // Populate table
@@ -625,6 +631,7 @@ function showPreview(data) {
             <td>${asset.cpu_cores || '-'}</td>
             <td>${asset.memory || '-'}</td>
             <td>${asset.harddrive || '-'}</td>
+            <td>${data.receiver || data.customer || '-'}</td>
         `;
         tbody.appendChild(row);
     });
