@@ -12746,3 +12746,124 @@ def undo_checkin(ticket_id, asset_id):
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/fix-serial-preview', methods=['GET'])
+@login_required
+def fix_serial_preview(ticket_id):
+    """Preview O→0 serial number fixes for assets in this ticket"""
+    import re
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).options(
+            joinedload(Ticket.assets)
+        ).get(ticket_id)
+
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        if ticket.category != TicketCategory.ASSET_INTAKE:
+            return jsonify({'success': False, 'error': 'Serial fix is only available for Asset Intake tickets'}), 400
+
+        # Find assets with 'O' (letter) that should be '0' (zero)
+        # Look for O that appears where a digit would be expected (surrounded by digits)
+        fixes = []
+        for asset in ticket.assets:
+            if not asset.serial_num:
+                continue
+
+            original = asset.serial_num
+            # Replace letter O with zero 0 - OCR often misreads these
+            # Pattern: O that appears next to digits or in alphanumeric serial patterns
+            fixed = re.sub(r'O', '0', original)
+
+            if fixed != original:
+                fixes.append({
+                    'asset_id': asset.id,
+                    'asset_tag': asset.asset_tag,
+                    'model': asset.model or '-',
+                    'original': original,
+                    'fixed': fixed
+                })
+
+        return jsonify({
+            'success': True,
+            'fixes': fixes,
+            'count': len(fixes)
+        })
+
+    except Exception as e:
+        logger.error(f"Error previewing serial fixes: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/fix-serial-apply', methods=['POST'])
+@login_required
+def fix_serial_apply(ticket_id):
+    """Apply O→0 serial number fixes for assets in this ticket"""
+    import re
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).options(
+            joinedload(Ticket.assets)
+        ).get(ticket_id)
+
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        if ticket.category != TicketCategory.ASSET_INTAKE:
+            return jsonify({'success': False, 'error': 'Serial fix is only available for Asset Intake tickets'}), 400
+
+        data = request.get_json() or {}
+        asset_ids_to_fix = data.get('asset_ids', [])
+
+        # If no specific assets provided, fix all
+        if not asset_ids_to_fix:
+            assets_to_fix = ticket.assets
+        else:
+            assets_to_fix = [a for a in ticket.assets if a.id in asset_ids_to_fix]
+
+        fixed_count = 0
+        fixed_assets = []
+
+        for asset in assets_to_fix:
+            if not asset.serial_num:
+                continue
+
+            original = asset.serial_num
+            # Replace letter O with zero 0
+            fixed = re.sub(r'O', '0', original)
+
+            if fixed != original:
+                # Track the change
+                asset.serial_num = fixed
+                fixed_count += 1
+                fixed_assets.append({
+                    'asset_id': asset.id,
+                    'original': original,
+                    'fixed': fixed
+                })
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Fixed {fixed_count} serial number(s)',
+            'fixed_count': fixed_count,
+            'fixed_assets': fixed_assets
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error applying serial fixes: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
