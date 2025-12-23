@@ -4367,3 +4367,406 @@ def delete_ticket_attachment(ticket_id, attachment_id):
             'success': False,
             'error': 'Failed to delete attachment'
         }), 500
+
+
+# =============================================================================
+# Asset Intake Check-in Endpoints
+# =============================================================================
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/checkin', methods=['POST'])
+@mobile_auth_required
+def mobile_checkin_asset(ticket_id):
+    """
+    Check in an asset by serial number for Asset Intake tickets
+
+    Request body:
+        {
+            "serial_number": "SN123456789"
+        }
+
+    Response:
+        {
+            "success": true,
+            "message": "Asset SN123 checked in successfully",
+            "asset": {"id": 1, "serial_number": "SN123", "asset_tag": "ASSET-001", "model": "MacBook Pro"},
+            "progress": {"total": 10, "checked_in": 5, "pending": 5, "progress_percent": 50, "step": 2},
+            "ticket_closed": false
+        }
+    """
+    from models.ticket_asset_checkin import TicketAssetCheckin
+    from sqlalchemy import func
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).options(
+                joinedload(Ticket.assets)
+            ).filter(Ticket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            # Validate ticket is Asset Intake category
+            if ticket.category != TicketCategory.ASSET_INTAKE:
+                return jsonify({'success': False, 'error': 'Check-in is only available for Asset Intake tickets'}), 400
+
+            data = request.get_json() or {}
+            serial_number = data.get('serial_number', '').strip().upper()
+
+            if not serial_number:
+                return jsonify({'success': False, 'error': 'Serial number is required'}), 400
+
+            # Find asset by serial number
+            asset = db_session.query(Asset).filter(
+                func.upper(Asset.serial_num) == serial_number
+            ).first()
+
+            if not asset:
+                return jsonify({'success': False, 'error': f'Asset not found with serial number: {serial_number}'}), 404
+
+            # Check if asset is assigned to this ticket
+            ticket_asset_ids = [a.id for a in ticket.assets]
+            if asset.id not in ticket_asset_ids:
+                return jsonify({'success': False, 'error': f'Asset {serial_number} is not assigned to this ticket'}), 400
+
+            # Check if already checked in
+            existing_checkin = db_session.query(TicketAssetCheckin).filter_by(
+                ticket_id=ticket_id,
+                asset_id=asset.id
+            ).first()
+
+            if existing_checkin and existing_checkin.checked_in:
+                return jsonify({'success': False, 'error': f'Asset {serial_number} is already checked in'}), 400
+
+            # Create or update check-in record
+            if existing_checkin:
+                existing_checkin.checked_in = True
+                existing_checkin.checked_in_at = datetime.utcnow()
+                existing_checkin.checked_in_by_id = user.id
+            else:
+                checkin = TicketAssetCheckin(
+                    ticket_id=ticket_id,
+                    asset_id=asset.id,
+                    checked_in=True,
+                    checked_in_at=datetime.utcnow(),
+                    checked_in_by_id=user.id
+                )
+                db_session.add(checkin)
+
+            db_session.commit()
+
+            # Get updated progress
+            progress = ticket.get_checkin_progress(db_session)
+            ticket_closed = False
+
+            # Auto-close ticket if all assets are checked in
+            if progress['pending'] == 0 and progress['total'] > 0:
+                ticket.status = TicketStatus.RESOLVED
+                db_session.commit()
+                ticket_closed = True
+
+            logger.info(f"User {user.username} checked in asset {serial_number} for ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': f'Asset {serial_number} checked in successfully',
+                'asset': {
+                    'id': asset.id,
+                    'serial_number': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'model': asset.model
+                },
+                'progress': {
+                    'total': progress['total'],
+                    'checked_in': progress['checked_in'],
+                    'pending': progress['pending'],
+                    'progress_percent': progress['progress_percent'],
+                    'step': ticket.get_intake_step(db_session)
+                },
+                'ticket_closed': ticket_closed
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error checking in asset via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/checkin-status', methods=['GET'])
+@mobile_auth_required
+def mobile_get_checkin_status(ticket_id):
+    """
+    Get check-in status for an Asset Intake ticket
+
+    Response:
+        {
+            "success": true,
+            "ticket": {"id": 123, "display_id": "TICK-0123", "subject": "...", "status": "In Progress"},
+            "progress": {
+                "step": 2,
+                "step_label": "Assets Added",
+                "total": 10,
+                "checked_in": 5,
+                "pending": 5,
+                "steps": [
+                    {"number": 1, "label": "Case Created", "completed": true},
+                    {"number": 2, "label": "Assets Added", "completed": true},
+                    {"number": 3, "label": "All Checked In", "completed": false}
+                ]
+            },
+            "assets": [
+                {"id": 1, "serial_number": "SN001", "checked_in": true, "checked_in_at": "2025-12-23T10:30:00Z"},
+                {"id": 2, "serial_number": "SN002", "checked_in": false}
+            ]
+        }
+    """
+    from models.ticket_asset_checkin import TicketAssetCheckin
+    from sqlalchemy.orm import joinedload
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).options(
+                joinedload(Ticket.assets)
+            ).filter(Ticket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            if ticket.category != TicketCategory.ASSET_INTAKE:
+                return jsonify({'success': False, 'error': 'Check-in status is only available for Asset Intake tickets'}), 400
+
+            # Get all check-in records for this ticket
+            checkins = db_session.query(TicketAssetCheckin).options(
+                joinedload(TicketAssetCheckin.checked_in_by)
+            ).filter_by(ticket_id=ticket_id).all()
+            checkin_map = {c.asset_id: c for c in checkins}
+
+            # Build asset list with check-in status
+            assets_data = []
+            for asset in ticket.assets:
+                checkin = checkin_map.get(asset.id)
+                assets_data.append({
+                    'id': asset.id,
+                    'serial_number': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'model': asset.model,
+                    'type': asset.type if hasattr(asset, 'type') else None,
+                    'checked_in': checkin.checked_in if checkin else False,
+                    'checked_in_at': checkin.checked_in_at.isoformat() if checkin and checkin.checked_in_at else None,
+                    'checked_in_by': checkin.checked_in_by.full_name if checkin and checkin.checked_in_by else None
+                })
+
+            # Get progress and steps
+            intake_detail = ticket.get_intake_steps_detail(db_session)
+
+            # Add step label
+            step_labels = {1: 'Case Created', 2: 'Assets Added', 3: 'All Checked In'}
+            current_step = intake_detail['current_step']
+
+            return jsonify({
+                'success': True,
+                'ticket': {
+                    'id': ticket.id,
+                    'display_id': ticket.display_id,
+                    'subject': ticket.subject,
+                    'status': ticket.status.value if ticket.status else None
+                },
+                'progress': {
+                    'step': current_step,
+                    'step_label': step_labels.get(current_step, 'Unknown'),
+                    'total': intake_detail['progress']['total'],
+                    'checked_in': intake_detail['progress']['checked_in'],
+                    'pending': intake_detail['progress']['pending'],
+                    'progress_percent': intake_detail['progress']['progress_percent']
+                },
+                'steps': intake_detail['steps'],
+                'assets': assets_data
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting check-in status via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/intake-assets', methods=['GET'])
+@mobile_auth_required
+def mobile_get_intake_assets(ticket_id):
+    """
+    Get list of assets for an Asset Intake ticket with check-in status
+    Optimized endpoint for mobile asset list view
+
+    Response:
+        {
+            "success": true,
+            "assets": [
+                {
+                    "id": 1,
+                    "serial_number": "SN001",
+                    "asset_tag": "ASSET-001",
+                    "model": "MacBook Pro",
+                    "checked_in": true,
+                    "checked_in_at": "2025-12-23T10:30:00Z"
+                }
+            ],
+            "summary": {"total": 10, "checked_in": 5, "pending": 5}
+        }
+    """
+    from models.ticket_asset_checkin import TicketAssetCheckin
+    from sqlalchemy.orm import joinedload
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).options(
+                joinedload(Ticket.assets)
+            ).filter(Ticket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            if ticket.category != TicketCategory.ASSET_INTAKE:
+                return jsonify({'success': False, 'error': 'This endpoint is only for Asset Intake tickets'}), 400
+
+            # Get all check-in records
+            checkins = db_session.query(TicketAssetCheckin).filter_by(
+                ticket_id=ticket_id
+            ).all()
+            checkin_map = {c.asset_id: c for c in checkins}
+
+            # Build asset list
+            assets_data = []
+            checked_in_count = 0
+            for asset in ticket.assets:
+                checkin = checkin_map.get(asset.id)
+                is_checked_in = checkin.checked_in if checkin else False
+                if is_checked_in:
+                    checked_in_count += 1
+
+                assets_data.append({
+                    'id': asset.id,
+                    'serial_number': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'model': asset.model,
+                    'type': asset.type if hasattr(asset, 'type') else None,
+                    'image_url': get_asset_image_url(asset),
+                    'checked_in': is_checked_in,
+                    'checked_in_at': checkin.checked_in_at.isoformat() if checkin and checkin.checked_in_at else None
+                })
+
+            total = len(assets_data)
+
+            return jsonify({
+                'success': True,
+                'assets': assets_data,
+                'summary': {
+                    'total': total,
+                    'checked_in': checked_in_count,
+                    'pending': total - checked_in_count
+                }
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting intake assets via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/undo-checkin/<int:asset_id>', methods=['POST'])
+@mobile_auth_required
+def mobile_undo_checkin(ticket_id, asset_id):
+    """
+    Undo a check-in for an asset
+
+    Response:
+        {
+            "success": true,
+            "message": "Check-in undone successfully",
+            "progress": {"total": 10, "checked_in": 4, "pending": 6, "progress_percent": 40, "step": 2}
+        }
+    """
+    from models.ticket_asset_checkin import TicketAssetCheckin
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).options(
+                joinedload(Ticket.assets)
+            ).filter(Ticket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            if ticket.category != TicketCategory.ASSET_INTAKE:
+                return jsonify({'success': False, 'error': 'Undo check-in is only available for Asset Intake tickets'}), 400
+
+            # Find the check-in record
+            checkin = db_session.query(TicketAssetCheckin).filter_by(
+                ticket_id=ticket_id,
+                asset_id=asset_id
+            ).first()
+
+            if not checkin or not checkin.checked_in:
+                return jsonify({'success': False, 'error': 'Asset is not checked in'}), 400
+
+            # Undo the check-in
+            checkin.checked_in = False
+            checkin.checked_in_at = None
+            checkin.checked_in_by_id = None
+
+            # If ticket was resolved, reopen it
+            if ticket.status == TicketStatus.RESOLVED:
+                ticket.status = TicketStatus.IN_PROGRESS
+
+            db_session.commit()
+
+            # Get updated progress
+            progress = ticket.get_checkin_progress(db_session)
+
+            logger.info(f"User {user.username} undid check-in for asset {asset_id} on ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Check-in undone successfully',
+                'progress': {
+                    'total': progress['total'],
+                    'checked_in': progress['checked_in'],
+                    'pending': progress['pending'],
+                    'progress_percent': progress['progress_percent'],
+                    'step': ticket.get_intake_step(db_session)
+                }
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error undoing check-in via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500

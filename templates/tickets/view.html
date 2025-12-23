@@ -1286,7 +1286,7 @@ body.dark-theme .sf-card-body .sf-field-label {
             </div>
 
             <!-- Case Progression Bar -->
-            {% if ticket and ticket.category and ticket.category.name != 'ASSET_RETURN_CLAW' %}
+            {% if ticket and ticket.category and ticket.category.name not in ['ASSET_RETURN_CLAW', 'ASSET_INTAKE'] %}
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
                     <div class="flex items-center justify-between">
@@ -1685,6 +1685,208 @@ body.dark-theme .sf-card-body .sf-field-label {
                     </div>
                 </div>
             </div>
+            {% endif %}
+
+            <!-- Asset Intake Check-in Progress -->
+            {% if ticket.category and ticket.category.name == 'ASSET_INTAKE' and checkin_data %}
+            <div class="sf-card mb-6" id="checkinCard">
+                <div class="sf-card-header">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <h2 class="sf-card-title flex items-center gap-2">
+                                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                                </svg>
+                                Asset Check-in
+                            </h2>
+                        </div>
+                        <div id="checkinProgress" class="text-sm">
+                            <span class="font-medium" id="checkinCount">{{ checkin_data.progress.checked_in }}</span>
+                            <span class="text-gray-500">of</span>
+                            <span class="font-medium" id="checkinTotal">{{ checkin_data.progress.total }}</span>
+                            <span class="text-gray-500">checked in</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="sf-card-body">
+                    <!-- Progress Stepper -->
+                    <div class="flex items-center justify-center mb-6" id="progressStepper">
+                        {% for step in checkin_data.steps %}
+                        <div class="flex items-center">
+                            <div class="flex flex-col items-center">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold
+                                    {% if step.completed %}bg-green-500 text-white{% elif step.number == checkin_data.current_step %}bg-blue-500 text-white{% else %}bg-gray-200 text-gray-500{% endif %}"
+                                    id="step{{ step.number }}Circle">
+                                    {% if step.completed %}
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    {% else %}
+                                    {{ step.number }}
+                                    {% endif %}
+                                </div>
+                                <span class="text-xs mt-1 text-center {% if step.completed %}text-green-600 font-medium{% elif step.number == checkin_data.current_step %}text-blue-600 font-medium{% else %}text-gray-400{% endif %}"
+                                    id="step{{ step.number }}Label">{{ step.label }}</span>
+                            </div>
+                            {% if not loop.last %}
+                            <div class="w-16 h-1 mx-2 rounded {% if step.completed %}bg-green-500{% else %}bg-gray-200{% endif %}" id="step{{ step.number }}Line"></div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                        <div class="bg-green-500 h-2.5 rounded-full transition-all duration-300"
+                            style="width: {{ checkin_data.progress.progress_percent }}%"
+                            id="checkinProgressBar"></div>
+                    </div>
+
+                    <!-- Serial Number Scan Input -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Scan Serial Number to Check-in</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="serialScanInput"
+                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Scan or enter serial number..."
+                                autocomplete="off"
+                                autofocus>
+                            <button onclick="checkInAsset()" class="sf-button primary-button">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Check In
+                            </button>
+                        </div>
+                        <div id="checkinMessage" class="mt-2 hidden"></div>
+                    </div>
+
+                    <!-- Assets Table with Check-in Status -->
+                    <div class="overflow-x-auto">
+                        <table class="sf-data-table" id="checkinAssetsTable">
+                            <thead>
+                                <tr>
+                                    <th>STATUS</th>
+                                    <th>SERIAL NUMBER</th>
+                                    <th>ASSET TAG</th>
+                                    <th>MODEL</th>
+                                    <th>CHECKED IN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for asset in checkin_data.assets %}
+                                <tr id="checkinRow{{ asset.id }}" class="{% if asset.checked_in %}bg-green-50{% endif %}">
+                                    <td>
+                                        {% if asset.checked_in %}
+                                        <span class="sf-badge sf-badge-success">
+                                            <svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                            Checked In
+                                        </span>
+                                        {% else %}
+                                        <span class="sf-badge sf-badge-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="font-mono">{{ asset.serial_number }}</td>
+                                    <td>{{ asset.asset_tag or '-' }}</td>
+                                    <td>{{ asset.model or '-' }}</td>
+                                    <td class="text-sm text-gray-500">
+                                        {% if asset.checked_in_at %}
+                                        {{ asset.checked_in_at }}
+                                        {% if asset.checked_in_by %}
+                                        <br><small>by {{ asset.checked_in_by }}</small>
+                                        {% endif %}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-gray-500 py-4">No assets assigned to this ticket yet</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            // Asset Check-in Functions
+            (function() {
+                var ticketId = {{ ticket.id }};
+                var serialInput = document.getElementById('serialScanInput');
+
+                // Handle Enter key on serial input
+                if (serialInput) {
+                    serialInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            checkInAsset();
+                        }
+                    });
+                }
+
+                // Make functions globally available
+                window.checkInAsset = function() {
+                    var serialNumber = document.getElementById('serialScanInput').value.trim();
+                    if (!serialNumber) {
+                        showCheckinMessage('Please enter a serial number', 'error');
+                        return;
+                    }
+
+                    fetch('/tickets/' + ticketId + '/checkin', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ serial_number: serialNumber })
+                    })
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            showCheckinMessage(data.message, 'success');
+                            document.getElementById('serialScanInput').value = '';
+
+                            // Reload page to update UI
+                            if (data.ticket_closed) {
+                                showCheckinMessage('All assets checked in! Ticket has been resolved.', 'success');
+                                setTimeout(function() { location.reload(); }, 1500);
+                            } else {
+                                setTimeout(function() { location.reload(); }, 1000);
+                            }
+                        } else {
+                            showCheckinMessage(data.error, 'error');
+                        }
+                    })
+                    .catch(function(error) {
+                        showCheckinMessage('Error checking in asset: ' + error, 'error');
+                    });
+                };
+
+                function showCheckinMessage(message, type) {
+                    var msgDiv = document.getElementById('checkinMessage');
+                    msgDiv.textContent = message;
+                    msgDiv.className = 'mt-2 p-2 rounded text-sm ';
+                    if (type === 'success') {
+                        msgDiv.className += 'bg-green-100 text-green-800';
+                    } else if (type === 'error') {
+                        msgDiv.className += 'bg-red-100 text-red-800';
+                    } else {
+                        msgDiv.className += 'bg-blue-100 text-blue-800';
+                    }
+                    msgDiv.classList.remove('hidden');
+
+                    // Auto-hide after 5 seconds
+                    setTimeout(function() {
+                        msgDiv.classList.add('hidden');
+                    }, 5000);
+                }
+            })();
+            </script>
             {% endif %}
 
             <!-- Case Progression Bar for Asset Return (claw) -->

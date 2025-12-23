@@ -161,6 +161,7 @@ class Ticket(Base):
     attachments = relationship('TicketAttachment', back_populates='ticket', cascade='all, delete-orphan')
     tracking_histories = relationship('TrackingHistory', back_populates='ticket', cascade='all, delete-orphan')
     accessories = relationship('TicketAccessory', back_populates='ticket', cascade='all, delete-orphan')
+    asset_checkins = relationship('TicketAssetCheckin', back_populates='ticket', cascade='all, delete-orphan')
     # Remove non-existent relationships
     # shipments, rma_pickups, and rma_replacements are not defined in the model
 
@@ -430,6 +431,103 @@ class Ticket(Base):
             return 5
         else:
             return None  # All 5 packages are used
+
+    def get_checkin_progress(self, db_session=None):
+        """Get check-in progress for Asset Intake tickets
+
+        Returns:
+            dict: {total, checked_in, pending, progress_percent}
+        """
+        from database import SessionLocal
+        from models.ticket_asset_checkin import TicketAssetCheckin
+
+        managed_session = db_session is None
+        db = db_session or SessionLocal()
+        try:
+            # Get all assets associated with this ticket
+            total_assets = len(self.assets) if self.assets else 0
+
+            if total_assets == 0:
+                return {
+                    'total': 0,
+                    'checked_in': 0,
+                    'pending': 0,
+                    'progress_percent': 0
+                }
+
+            # Count checked-in assets
+            checked_in_count = db.query(TicketAssetCheckin).filter(
+                TicketAssetCheckin.ticket_id == self.id,
+                TicketAssetCheckin.checked_in == True
+            ).count()
+
+            pending = total_assets - checked_in_count
+            progress_percent = int((checked_in_count / total_assets) * 100) if total_assets > 0 else 0
+
+            return {
+                'total': total_assets,
+                'checked_in': checked_in_count,
+                'pending': pending,
+                'progress_percent': progress_percent
+            }
+        finally:
+            if managed_session:
+                db.close()
+
+    def get_intake_step(self, db_session=None):
+        """Get current intake step for Asset Intake tickets
+
+        Step 1: Case Created (ticket exists)
+        Step 2: Assets Added (has assets assigned)
+        Step 3: All Checked In (all assets checked in, case can be closed)
+
+        Returns:
+            int: 1, 2, or 3
+        """
+        total_assets = len(self.assets) if self.assets else 0
+
+        if total_assets == 0:
+            return 1  # Step 1: Case Created, no assets yet
+
+        progress = self.get_checkin_progress(db_session)
+
+        if progress['pending'] == 0 and progress['total'] > 0:
+            return 3  # Step 3: All assets checked in
+
+        return 2  # Step 2: Assets added, check-in in progress
+
+    def get_intake_steps_detail(self, db_session=None):
+        """Get detailed intake steps with completion status
+
+        Returns:
+            list: [{'number': 1, 'label': 'Case Created', 'completed': True}, ...]
+        """
+        current_step = self.get_intake_step(db_session)
+        progress = self.get_checkin_progress(db_session)
+
+        steps = [
+            {
+                'number': 1,
+                'label': 'Case Created',
+                'completed': True  # Always completed if ticket exists
+            },
+            {
+                'number': 2,
+                'label': 'Assets Added',
+                'completed': progress['total'] > 0
+            },
+            {
+                'number': 3,
+                'label': 'All Checked In',
+                'completed': progress['total'] > 0 and progress['pending'] == 0
+            }
+        ]
+
+        return {
+            'current_step': current_step,
+            'steps': steps,
+            'progress': progress
+        }
 
 class TicketAccessory(Base):
     """Model for accessories received with Asset Return (Claw) tickets"""

@@ -76,6 +76,7 @@ class Asset(Base):
     intake_ticket = relationship("IntakeTicket", back_populates="assets")
     history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
     transactions = relationship("AssetTransaction", back_populates="asset", order_by="desc(AssetTransaction.transaction_date)")
+    checkins = relationship("TicketAssetCheckin", back_populates="asset", cascade="all, delete-orphan")
     
     def track_change(self, user_id, action, changes, notes=None):
         """Create a history entry for asset changes

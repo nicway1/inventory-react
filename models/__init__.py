@@ -56,6 +56,7 @@ from models.action_item import ActionItem, ActionItemStatus, ActionItemPriority,
 from models.dev_blog_entry import DevBlogEntry
 from models.user_session import UserSession, parse_user_agent
 from models.notification_user_group import NotificationUserGroup, notification_user_group_members
+from models.ticket_asset_checkin import TicketAssetCheckin
 
 __all__ = [
     "Base",
@@ -139,5 +140,6 @@ __all__ = [
     "UserSession",
     "parse_user_agent",
     "NotificationUserGroup",
-    "notification_user_group_members"
+    "notification_user_group_members",
+    "TicketAssetCheckin"
 ]
