@@ -159,14 +159,16 @@ def extract_text_with_ocr(pdf_path):
         return None
 
 
-def ocr_page(page, dpi=300):
+def ocr_page(page, dpi=200):
     """
     Perform OCR on a PDF page using pytesseract
 
     Args:
         page: PyMuPDF page object
-        dpi: Resolution for rendering (higher = more accurate)
-             Default 300 for good quality OCR on packing lists with tables
+        dpi: Resolution for rendering (200 balances speed vs accuracy)
+             - 150: Too fast, garbage output on tables
+             - 200: Good balance for shared hosting like PythonAnywhere
+             - 300: Best quality but causes timeout on shared hosting
     """
     import time
     try:
