@@ -113,6 +113,7 @@ def extract_text_with_ocr(pdf_path):
     Extract text from a PDF using OCR (for scanned documents)
     Falls back to regular text extraction if OCR fails or isn't needed
     """
+    import time
     try:
         import fitz  # PyMuPDF
     except ImportError:
@@ -120,25 +121,36 @@ def extract_text_with_ocr(pdf_path):
         return None
 
     all_text = ""
+    start_time = time.time()
 
     try:
         doc = fitz.open(pdf_path)
+        total_pages = len(doc)
+        logger.info(f"PDF has {total_pages} pages, starting extraction...")
 
         for page_num, page in enumerate(doc):
-            # First try regular text extraction
+            page_start = time.time()
+
+            # First try regular text extraction (fast)
             text = page.get_text()
 
-            # If no text found, try OCR
+            # If no text found, try OCR (slow)
             if not text.strip():
-                logger.info(f"Page {page_num + 1}: No text found, attempting OCR...")
+                logger.info(f"Page {page_num + 1}/{total_pages}: No text found, attempting OCR...")
                 ocr_text = ocr_page(page)
                 if ocr_text:
                     text = ocr_text
-                    logger.info(f"Page {page_num + 1}: OCR extracted {len(ocr_text)} characters")
+                    page_time = time.time() - page_start
+                    logger.info(f"Page {page_num + 1}/{total_pages}: OCR extracted {len(ocr_text)} chars in {page_time:.1f}s")
+            else:
+                page_time = time.time() - page_start
+                logger.info(f"Page {page_num + 1}/{total_pages}: Text extracted ({len(text)} chars) in {page_time:.1f}s")
 
             all_text += text + "\n"
 
         doc.close()
+        total_time = time.time() - start_time
+        logger.info(f"PDF extraction complete: {len(all_text)} chars in {total_time:.1f}s")
         return all_text
 
     except Exception as e:
@@ -146,10 +158,16 @@ def extract_text_with_ocr(pdf_path):
         return None
 
 
-def ocr_page(page):
+def ocr_page(page, dpi=150):
     """
     Perform OCR on a PDF page using pytesseract
+
+    Args:
+        page: PyMuPDF page object
+        dpi: Resolution for rendering (lower = faster, higher = more accurate)
+             Default 150 is a good balance for speed on shared hosting
     """
+    import time
     try:
         import pytesseract
         from PIL import Image
@@ -158,22 +176,27 @@ def ocr_page(page):
         return None
 
     try:
-        # Render page to image at high resolution for better OCR
-        zoom = 2  # 2x zoom for better quality
-        mat = page.parent.__class__.Matrix(zoom, zoom) if hasattr(page.parent, 'Matrix') else None
+        ocr_start = time.time()
 
-        # Get pixmap (image) of the page
-        if mat:
-            pix = page.get_pixmap(matrix=mat)
-        else:
-            pix = page.get_pixmap(dpi=300)
+        # Render page to image - use lower DPI for speed (150 instead of 300)
+        # This is 4x faster than 300 DPI with minimal quality loss for text
+        pix = page.get_pixmap(dpi=dpi)
+        render_time = time.time() - ocr_start
 
         # Convert to PIL Image
         img_data = pix.tobytes("png")
         img = Image.open(io.BytesIO(img_data))
+        logger.info(f"  Rendered page at {dpi} DPI ({pix.width}x{pix.height}) in {render_time:.1f}s")
 
-        # Perform OCR
-        text = pytesseract.image_to_string(img, lang='eng')
+        # Perform OCR with optimized settings for speed
+        ocr_start2 = time.time()
+        text = pytesseract.image_to_string(
+            img,
+            lang='eng',
+            config='--psm 6'  # Assume uniform block of text - faster
+        )
+        ocr_time = time.time() - ocr_start2
+        logger.info(f"  Tesseract OCR completed in {ocr_time:.1f}s")
 
         return text
 
