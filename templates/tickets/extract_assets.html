@@ -539,7 +539,7 @@
                 <select id="globalCompany" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; margin-top: 0.25rem;">
                     <option value="">-- Select Company --</option>
                     {% for company in companies %}
-                    <option value="{{ company.id }}">{{ company.name }}</option>
+                    <option value="{{ company.id }}" {% if ticket.customer and ticket.customer.company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
                     {% endfor %}
                 </select>
             </div>
