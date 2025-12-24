@@ -4783,3 +4783,259 @@ def mobile_undo_checkin(ticket_id, asset_id):
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# PDF/OCR Text Processing for Mobile
+# =============================================================================
+
+@mobile_api_bp.route('/extract-assets-from-text', methods=['POST'])
+def mobile_extract_assets_from_text():
+    """
+    Extract asset information from pre-extracted OCR text.
+
+    This endpoint allows the mobile app to perform OCR locally (using iOS Vision framework)
+    and send the extracted text to the server for asset parsing. This is much faster than
+    uploading PDF files for server-side OCR processing.
+
+    Request Body:
+        {
+            "text": "The OCR-extracted text from the packing list PDF",
+            "ticket_id": 123  // Optional - if provided, will associate assets with ticket
+        }
+
+    Response:
+        {
+            "success": true,
+            "assets": [
+                {
+                    "serial_num": "ABC123...",
+                    "name": "MacBook Air",
+                    "model": "A3113",
+                    "manufacturer": "Apple",
+                    "category": "Laptop",
+                    "cpu_type": "M3",
+                    "cpu_cores": "8",
+                    "gpu_cores": "10",
+                    "memory": "16GB",
+                    "harddrive": "256GB",
+                    "hardware_type": "Laptop",
+                    "condition": "New"
+                },
+                ...
+            ],
+            "count": 10,
+            "message": "Successfully extracted 10 assets"
+        }
+
+    iOS Implementation Notes:
+        - Use VNRecognizeTextRequest with .accurate recognition level
+        - Set recognitionLanguages to ["en-US"]
+        - Combine text from all recognized blocks in reading order
+        - For multi-page PDFs, process each page and concatenate text
+    """
+    try:
+        # Get auth token from header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Missing or invalid authorization token'}), 401
+
+        token = auth_header.split(' ')[1]
+        user = verify_mobile_token(token)
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Missing request body'}), 400
+
+        text = data.get('text', '')
+        if not text or not text.strip():
+            return jsonify({'success': False, 'error': 'No text provided for extraction'}), 400
+
+        ticket_id = data.get('ticket_id')
+
+        # Log the extraction request
+        logger.info(f"Mobile OCR extraction request from user {user.username}, text length: {len(text)}, ticket_id: {ticket_id}")
+
+        # Use the existing extraction function
+        from utils.pdf_extractor import extract_assets_from_text
+
+        assets = extract_assets_from_text(text)
+
+        logger.info(f"Extracted {len(assets)} assets from mobile OCR text")
+
+        return jsonify({
+            'success': True,
+            'assets': assets,
+            'count': len(assets),
+            'message': f'Successfully extracted {len(assets)} asset{"s" if len(assets) != 1 else ""}'
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting assets from mobile OCR text: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/create-assets-from-text', methods=['POST'])
+def mobile_create_assets_from_text(ticket_id):
+    """
+    Create assets from pre-extracted OCR text and link them to a ticket.
+
+    This is a combined endpoint that:
+    1. Extracts asset information from the provided OCR text
+    2. Creates the assets in the database
+    3. Links them to the specified ticket
+
+    Request Body:
+        {
+            "text": "The OCR-extracted text from the packing list PDF",
+            "asset_tags": ["SG-1180", "SG-1181", ...],  // Optional - auto-generated if not provided
+            "company_id": 1  // Optional - defaults to ticket's company
+        }
+
+    Response:
+        {
+            "success": true,
+            "created_assets": [...],
+            "count": 10,
+            "ticket_id": 123,
+            "message": "Successfully created 10 assets and linked to ticket TICK-0123"
+        }
+    """
+    try:
+        # Get auth token from header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Missing or invalid authorization token'}), 401
+
+        token = auth_header.split(' ')[1]
+        user = verify_mobile_token(token)
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Missing request body'}), 400
+
+        text = data.get('text', '')
+        if not text or not text.strip():
+            return jsonify({'success': False, 'error': 'No text provided for extraction'}), 400
+
+        provided_tags = data.get('asset_tags', [])
+        company_id = data.get('company_id')
+
+        db_session = db_manager.get_session()
+        try:
+            # Get the ticket
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            # Use ticket's company if not provided
+            if not company_id:
+                company_id = ticket.company_id
+
+            # Extract assets from text
+            from utils.pdf_extractor import extract_assets_from_text
+            assets_data = extract_assets_from_text(text)
+
+            if not assets_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'No assets could be extracted from the provided text'
+                }), 400
+
+            # Generate asset tags if not provided
+            import re
+            if not provided_tags or len(provided_tags) < len(assets_data):
+                # Find highest existing SG-XXXX tag
+                existing_tags = db_session.query(Asset.asset_tag).filter(
+                    Asset.asset_tag.like('SG-%')
+                ).all()
+
+                max_num = 0
+                for (tag,) in existing_tags:
+                    if tag:
+                        match = re.match(r'SG-(\d+)', tag)
+                        if match:
+                            num = int(match.group(1))
+                            if num > max_num:
+                                max_num = num
+
+                # Generate sequential tags starting from max + 1
+                generated_tags = []
+                current_num = max_num + 1
+                for i in range(len(assets_data)):
+                    if i < len(provided_tags):
+                        generated_tags.append(provided_tags[i])
+                    else:
+                        generated_tags.append(f"SG-{current_num}")
+                        current_num += 1
+                provided_tags = generated_tags
+
+            # Create assets
+            created_assets = []
+            for i, asset_data in enumerate(assets_data):
+                asset = Asset(
+                    name=asset_data.get('name', 'MacBook'),
+                    model=asset_data.get('model', ''),
+                    manufacturer=asset_data.get('manufacturer', 'Apple'),
+                    serial_num=asset_data.get('serial_num', ''),
+                    asset_tag=provided_tags[i] if i < len(provided_tags) else f"SG-{max_num + i + 1}",
+                    category=asset_data.get('category', 'Laptop'),
+                    cpu_type=asset_data.get('cpu_type', ''),
+                    cpu_cores=asset_data.get('cpu_cores', ''),
+                    gpu_cores=asset_data.get('gpu_cores', ''),
+                    memory=asset_data.get('memory', ''),
+                    harddrive=asset_data.get('harddrive', ''),
+                    hardware_type=asset_data.get('hardware_type', 'Laptop'),
+                    condition=asset_data.get('condition', 'New'),
+                    company_id=company_id,
+                    status=AssetStatus.AVAILABLE,
+                    created_by_id=user.id
+                )
+                db_session.add(asset)
+                db_session.flush()  # Get the asset ID
+
+                # Link asset to ticket
+                ticket.assets.append(asset)
+
+                created_assets.append({
+                    'id': asset.id,
+                    'serial_num': asset.serial_num,
+                    'name': asset.name,
+                    'model': asset.model,
+                    'asset_tag': asset.asset_tag
+                })
+
+            db_session.commit()
+
+            logger.info(f"Mobile API: User {user.username} created {len(created_assets)} assets from OCR text for ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'created_assets': created_assets,
+                'count': len(created_assets),
+                'ticket_id': ticket_id,
+                'ticket_display_id': ticket.display_id,
+                'message': f'Successfully created {len(created_assets)} asset{"s" if len(created_assets) != 1 else ""} and linked to ticket {ticket.display_id}'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error creating assets from mobile OCR text: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
