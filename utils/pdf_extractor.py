@@ -22,6 +22,7 @@ APPLE_PART_TO_MODEL = {
     'MWW03': 'A3240',  # Possible OCR variant of MW0W3
     'MWOW3': 'A3240',  # OCR misread: 0->O in MWW03
     'MWOW0': 'A3240',  # OCR misread variant
+    'MWO0W': 'A3240',  # OCR misread: W->0 (MWO0W3ZP/A)
     # MacBook Air 15" M4 (2025) - A3241
     'MC7A4': 'A3241', 'MC7C4': 'A3241', 'MC7D4': 'A3241',  # Sky Blue configs
     'MW1L3': 'A3241', 'MW1M3': 'A3241', 'MC6L4': 'A3241',  # Midnight configs
@@ -158,14 +159,14 @@ def extract_text_with_ocr(pdf_path):
         return None
 
 
-def ocr_page(page, dpi=150):
+def ocr_page(page, dpi=300):
     """
     Perform OCR on a PDF page using pytesseract
 
     Args:
         page: PyMuPDF page object
-        dpi: Resolution for rendering (lower = faster, higher = more accurate)
-             Default 150 is a good balance for speed on shared hosting
+        dpi: Resolution for rendering (higher = more accurate)
+             Default 300 for good quality OCR on packing lists with tables
     """
     import time
     try:
@@ -178,8 +179,8 @@ def ocr_page(page, dpi=150):
     try:
         ocr_start = time.time()
 
-        # Render page to image - use lower DPI for speed (150 instead of 300)
-        # This is 4x faster than 300 DPI with minimal quality loss for text
+        # Render page to image at 300 DPI for accurate OCR
+        # Lower DPI causes garbage output on table-formatted documents
         pix = page.get_pixmap(dpi=dpi)
         render_time = time.time() - ocr_start
 
@@ -188,13 +189,10 @@ def ocr_page(page, dpi=150):
         img = Image.open(io.BytesIO(img_data))
         logger.info(f"  Rendered page at {dpi} DPI ({pix.width}x{pix.height}) in {render_time:.1f}s")
 
-        # Perform OCR with optimized settings for speed
+        # Perform OCR with default settings (PSM 3 = fully automatic page segmentation)
+        # PSM 6 doesn't work well with table layouts
         ocr_start2 = time.time()
-        text = pytesseract.image_to_string(
-            img,
-            lang='eng',
-            config='--psm 6'  # Assume uniform block of text - faster
-        )
+        text = pytesseract.image_to_string(img, lang='eng')
         ocr_time = time.time() - ocr_start2
         logger.info(f"  Tesseract OCR completed in {ocr_time:.1f}s")
 
