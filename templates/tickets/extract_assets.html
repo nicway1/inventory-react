@@ -293,6 +293,152 @@
         background: #dbeafe;
         color: #1e40af;
     }
+    /* Asset Detail Modal */
+    .asset-detail-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1001;
+        align-items: center;
+        justify-content: center;
+    }
+    .asset-detail-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow: auto;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+    }
+    .asset-detail-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        border-radius: 12px 12px 0 0;
+    }
+    .asset-detail-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: white;
+        margin: 0;
+    }
+    .asset-detail-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        font-size: 1.25rem;
+        color: white;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+    }
+    .asset-detail-close:hover {
+        background: rgba(255,255,255,0.3);
+    }
+    .asset-detail-body {
+        padding: 1.5rem;
+    }
+    .asset-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .asset-detail-item {
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+        border-left: 3px solid #6366f1;
+    }
+    .asset-detail-item.full-width {
+        grid-column: span 2;
+    }
+    .asset-detail-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }
+    .asset-detail-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #111827;
+        word-break: break-word;
+    }
+    .asset-detail-value.serial {
+        font-family: monospace;
+        color: #4f46e5;
+        font-size: 1.1rem;
+    }
+    .asset-detail-value.empty {
+        color: #9ca3af;
+        font-style: italic;
+        font-weight: 400;
+    }
+    .asset-row-clickable {
+        cursor: pointer;
+    }
+    .asset-row-clickable td:not(.checkbox-cell):not(.input-cell) {
+        cursor: pointer;
+    }
+    .asset-row-clickable:hover td:not(.checkbox-cell):not(.input-cell) {
+        background: #eef2ff;
+    }
+    /* Editable inputs in modal */
+    .asset-detail-input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #111827;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .asset-detail-input:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    .asset-detail-input.serial-input {
+        font-family: monospace;
+        font-size: 1rem;
+        color: #4f46e5;
+        font-weight: 600;
+    }
+    .asset-detail-input:disabled {
+        background: #f3f4f6;
+        color: #6b7280;
+        cursor: not-allowed;
+    }
+    .asset-detail-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #111827;
+        background: white;
+    }
+    .asset-detail-select:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
 </style>
 {% endblock %}
 
@@ -541,6 +687,30 @@
     </div>
 </div>
 
+<!-- Asset Detail Modal -->
+<div id="assetDetailModal" class="asset-detail-modal" onclick="if(event.target === this) closeAssetDetail()">
+    <div class="asset-detail-content">
+        <div class="asset-detail-header">
+            <h3><i class="fas fa-edit"></i> Edit Asset - Row <span id="assetDetailRowNum">1</span></h3>
+            <button class="asset-detail-close" onclick="closeAssetDetail()">&times;</button>
+        </div>
+        <div class="asset-detail-body">
+            <input type="hidden" id="editingAssetIndex" value="">
+            <div class="asset-detail-grid" id="assetDetailGrid">
+                <!-- Details will be populated dynamically -->
+            </div>
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeAssetDetail()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-success" onclick="saveAssetDetail()">
+                    <i class="fas fa-check"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Shipping Info Modal -->
 <div id="shippingInfoModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
@@ -746,7 +916,7 @@ function extractFromPDF(attachmentId) {
     });
 }
 
-function showPreview(data) {
+async function showPreview(data) {
     document.getElementById('step1').style.display = 'none';
     document.getElementById('step2').style.display = 'block';
 
@@ -757,27 +927,44 @@ function showPreview(data) {
     document.getElementById('customerName').textContent = data.receiver || '-';
     document.getElementById('assetCount').textContent = data.extracted_count || 0;
 
+    // Fetch next available asset tags
+    let assetTags = [];
+    try {
+        const tagResponse = await fetch(`/tickets/next-asset-tag?count=${data.assets.length}`, {
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            }
+        });
+        const tagData = await tagResponse.json();
+        if (tagData.success && tagData.tags) {
+            assetTags = tagData.tags;
+        }
+    } catch (error) {
+        console.error('Error fetching next asset tags:', error);
+    }
+
     // Populate table
     const tbody = document.getElementById('assetsTableBody');
     tbody.innerHTML = '';
 
     data.assets.forEach((asset, index) => {
+        const assetTag = assetTags[index] || '';
         const row = document.createElement('tr');
         row.id = 'assetRow' + index;
-        row.className = 'row-selected';  // Start selected
+        row.className = 'row-selected asset-row-clickable';  // Start selected + clickable
         row.innerHTML = `
             <td class="checkbox-cell">
                 <input type="checkbox" class="asset-checkbox" data-index="${index}" checked onchange="updateRowSelection(this)">
             </td>
-            <td>${index + 1}</td>
-            <td><input type="text" class="asset-tag-input" data-index="${index}" value="" style="width: 100px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-family: monospace;"></td>
-            <td class="serial-cell"><span class="serial-number-display">${asset.serial_num}</span></td>
-            <td>${asset.model || asset.name || '-'}</td>
-            <td>${asset.cpu_type || '-'}</td>
-            <td>${asset.cpu_cores || '-'}</td>
-            <td>${asset.memory || '-'}</td>
-            <td>${asset.harddrive || '-'}</td>
-            <td><input type="text" class="hardware-type-input" data-index="${index}" value="" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
+            <td onclick="showAssetDetail(${index})">${index + 1}</td>
+            <td class="input-cell"><input type="text" class="asset-tag-input" data-index="${index}" value="${assetTag}" style="width: 100px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-family: monospace;"></td>
+            <td class="serial-cell" onclick="showAssetDetail(${index})"><span class="serial-number-display">${asset.serial_num}</span></td>
+            <td onclick="showAssetDetail(${index})">${asset.model || asset.name || '-'}</td>
+            <td onclick="showAssetDetail(${index})">${asset.cpu_type || '-'}</td>
+            <td onclick="showAssetDetail(${index})">${asset.cpu_cores || '-'}</td>
+            <td onclick="showAssetDetail(${index})">${asset.memory || '-'}</td>
+            <td onclick="showAssetDetail(${index})">${asset.harddrive || '-'}</td>
+            <td class="input-cell"><input type="text" class="hardware-type-input" data-index="${index}" value="" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
         `;
         tbody.appendChild(row);
     });
@@ -1054,5 +1241,180 @@ function showLoading(text) {
 function hideLoading() {
     document.getElementById('loadingOverlay').style.display = 'none';
 }
+
+// Asset Detail Modal Functions
+function showAssetDetail(index) {
+    if (!extractedData || !extractedData.assets || !extractedData.assets[index]) {
+        return;
+    }
+
+    const asset = extractedData.assets[index];
+    const assetTagInput = document.querySelector(`.asset-tag-input[data-index="${index}"]`);
+    const hardwareTypeInput = document.querySelector(`.hardware-type-input[data-index="${index}"]`);
+
+    // Store the index we're editing
+    document.getElementById('editingAssetIndex').value = index;
+
+    // Build editable form
+    let html = `
+        <!-- Serial Number -->
+        <div class="asset-detail-item full-width">
+            <div class="asset-detail-label">Serial Number</div>
+            <input type="text" id="edit_serial_num" class="asset-detail-input serial-input" value="${asset.serial_num || ''}">
+        </div>
+
+        <!-- Asset Tag -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">Asset Tag</div>
+            <input type="text" id="edit_asset_tag" class="asset-detail-input" value="${assetTagInput ? assetTagInput.value : ''}" placeholder="e.g., SG-1234">
+        </div>
+
+        <!-- Model Identifier -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">Model Identifier</div>
+            <input type="text" id="edit_model" class="asset-detail-input" value="${asset.model || ''}" placeholder="e.g., A3240">
+        </div>
+
+        <!-- Product Name -->
+        <div class="asset-detail-item full-width">
+            <div class="asset-detail-label">Product Name</div>
+            <input type="text" id="edit_name" class="asset-detail-input" value="${asset.name || ''}" placeholder="e.g., 13&quot; MacBook Air">
+        </div>
+
+        <!-- Hardware Type -->
+        <div class="asset-detail-item full-width">
+            <div class="asset-detail-label">Hardware Type</div>
+            <input type="text" id="edit_hardware_type" class="asset-detail-input" value="${hardwareTypeInput ? hardwareTypeInput.value : ''}" placeholder="e.g., MacBook Air M4 10-Core 256GB">
+        </div>
+
+        <!-- CPU Type -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">CPU Type</div>
+            <input type="text" id="edit_cpu_type" class="asset-detail-input" value="${asset.cpu_type || ''}" placeholder="e.g., M4, M4 Pro">
+        </div>
+
+        <!-- CPU Cores -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">CPU Cores</div>
+            <input type="text" id="edit_cpu_cores" class="asset-detail-input" value="${asset.cpu_cores || ''}" placeholder="e.g., 10, 14">
+        </div>
+
+        <!-- GPU Cores -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">GPU Cores</div>
+            <input type="text" id="edit_gpu_cores" class="asset-detail-input" value="${asset.gpu_cores || ''}" placeholder="e.g., 8, 20">
+        </div>
+
+        <!-- Memory -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">Memory (RAM)</div>
+            <input type="text" id="edit_memory" class="asset-detail-input" value="${asset.memory || ''}" placeholder="e.g., 16GB, 48GB">
+        </div>
+
+        <!-- Storage -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">Storage</div>
+            <input type="text" id="edit_harddrive" class="asset-detail-input" value="${asset.harddrive || ''}" placeholder="e.g., 256GB, 512GB">
+        </div>
+
+        <!-- Condition -->
+        <div class="asset-detail-item">
+            <div class="asset-detail-label">Condition</div>
+            <select id="edit_condition" class="asset-detail-select">
+                <option value="New" ${(asset.condition || 'New') === 'New' ? 'selected' : ''}>New</option>
+                <option value="Good" ${asset.condition === 'Good' ? 'selected' : ''}>Good</option>
+                <option value="Fair" ${asset.condition === 'Fair' ? 'selected' : ''}>Fair</option>
+                <option value="Poor" ${asset.condition === 'Poor' ? 'selected' : ''}>Poor</option>
+            </select>
+        </div>
+
+        <!-- Defaults (read-only info) -->
+        <div class="asset-detail-item full-width" style="background: #f0f9ff; border-left-color: #0ea5e9;">
+            <div class="asset-detail-label" style="color: #0369a1;">Default Values (Applied to All)</div>
+            <div style="font-size: 0.85rem; color: #374151; margin-top: 0.25rem;">
+                <strong>Manufacturer:</strong> Apple &nbsp;|&nbsp;
+                <strong>Category:</strong> APPLE &nbsp;|&nbsp;
+                <strong>Status:</strong> In Stock
+            </div>
+        </div>
+    `;
+
+    document.getElementById('assetDetailRowNum').textContent = index + 1;
+    document.getElementById('assetDetailGrid').innerHTML = html;
+    document.getElementById('assetDetailModal').style.display = 'flex';
+
+    // Focus on first editable field
+    setTimeout(() => document.getElementById('edit_serial_num').focus(), 100);
+}
+
+function saveAssetDetail() {
+    const index = parseInt(document.getElementById('editingAssetIndex').value);
+    if (isNaN(index) || !extractedData || !extractedData.assets || !extractedData.assets[index]) {
+        closeAssetDetail();
+        return;
+    }
+
+    const asset = extractedData.assets[index];
+
+    // Update asset data from form
+    asset.serial_num = document.getElementById('edit_serial_num').value.trim();
+    asset.model = document.getElementById('edit_model').value.trim();
+    asset.name = document.getElementById('edit_name').value.trim();
+    asset.cpu_type = document.getElementById('edit_cpu_type').value.trim();
+    asset.cpu_cores = document.getElementById('edit_cpu_cores').value.trim();
+    asset.gpu_cores = document.getElementById('edit_gpu_cores').value.trim();
+    asset.memory = document.getElementById('edit_memory').value.trim();
+    asset.harddrive = document.getElementById('edit_harddrive').value.trim();
+    asset.condition = document.getElementById('edit_condition').value;
+
+    // Update the table row inputs
+    const assetTagInput = document.querySelector(`.asset-tag-input[data-index="${index}"]`);
+    const hardwareTypeInput = document.querySelector(`.hardware-type-input[data-index="${index}"]`);
+    if (assetTagInput) {
+        assetTagInput.value = document.getElementById('edit_asset_tag').value.trim();
+    }
+    if (hardwareTypeInput) {
+        hardwareTypeInput.value = document.getElementById('edit_hardware_type').value.trim();
+    }
+
+    // Update the table row display
+    const row = document.getElementById('assetRow' + index);
+    if (row) {
+        const cells = row.querySelectorAll('td');
+        // Update serial number display
+        const serialSpan = cells[3].querySelector('.serial-number-display');
+        if (serialSpan) serialSpan.textContent = asset.serial_num;
+        // Update model
+        cells[4].innerHTML = cells[4].innerHTML.replace(cells[4].textContent.trim(), asset.model || asset.name || '-');
+        cells[4].onclick = () => showAssetDetail(index);
+        // Update CPU type
+        cells[5].textContent = asset.cpu_type || '-';
+        cells[5].onclick = () => showAssetDetail(index);
+        // Update CPU cores
+        cells[6].textContent = asset.cpu_cores || '-';
+        cells[6].onclick = () => showAssetDetail(index);
+        // Update memory
+        cells[7].textContent = asset.memory || '-';
+        cells[7].onclick = () => showAssetDetail(index);
+        // Update storage
+        cells[8].textContent = asset.harddrive || '-';
+        cells[8].onclick = () => showAssetDetail(index);
+    }
+
+    closeAssetDetail();
+}
+
+function closeAssetDetail() {
+    document.getElementById('assetDetailModal').style.display = 'none';
+    document.getElementById('editingAssetIndex').value = '';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAssetDetail();
+        closeShippingModal();
+    }
+});
 </script>
 {% endblock %}

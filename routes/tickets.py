@@ -12260,6 +12260,77 @@ def process_pdf_extraction(ticket_id):
         db_session.close()
 
 
+@tickets_bp.route('/next-asset-tag', methods=['GET'])
+@login_required
+def get_next_asset_tag():
+    """Get the next available asset tag number
+
+    Finds the highest SG-XXXX numeric asset tag and returns the next number.
+    Also accepts a 'count' parameter to reserve multiple sequential numbers.
+    """
+    from models.asset import Asset
+    import re
+
+    db_session = db_manager.get_session()
+    try:
+        count = request.args.get('count', 1, type=int)
+        if count < 1:
+            count = 1
+        if count > 1000:
+            count = 1000  # Safety limit
+
+        # Find all SG-XXXX asset tags and extract the numeric portion
+        # Pattern: SG- followed by digits
+        assets = db_session.query(Asset.asset_tag).filter(
+            Asset.asset_tag.like('SG-%')
+        ).all()
+
+        max_num = 0
+        for (tag,) in assets:
+            if tag:
+                # Extract numeric portion after SG-
+                match = re.match(r'SG-(\d+)$', tag)
+                if match:
+                    num = int(match.group(1))
+                    if num > max_num:
+                        max_num = num
+
+        # Generate the next available numbers
+        next_tags = []
+        for i in range(count):
+            next_num = max_num + 1 + i
+            next_tags.append(f"SG-{next_num}")
+
+        # Verify these tags don't already exist (in case of non-sequential tags)
+        existing = db_session.query(Asset.asset_tag).filter(
+            Asset.asset_tag.in_(next_tags)
+        ).all()
+        existing_set = {t[0] for t in existing}
+
+        # If any exist, find alternatives
+        final_tags = []
+        current_num = max_num + 1
+        while len(final_tags) < count:
+            tag = f"SG-{current_num}"
+            if tag not in existing_set:
+                final_tags.append(tag)
+            current_num += 1
+
+        return jsonify({
+            'success': True,
+            'next_number': max_num + 1,
+            'next_tag': final_tags[0] if final_tags else f"SG-{max_num + 1}",
+            'tags': final_tags,
+            'count': len(final_tags)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting next asset tag: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
 @tickets_bp.route('/<int:ticket_id>/extract-assets/create', methods=['POST'])
 @login_required
 def create_extracted_assets(ticket_id):
@@ -12862,6 +12933,250 @@ def fix_serial_apply(ticket_id):
     except Exception as e:
         db_session.rollback()
         logger.error(f"Error applying serial fixes: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+# ============================================================================
+# ASSET REMEDIATION - Fix existing assets by re-scanning PDF
+# ============================================================================
+
+@tickets_bp.route('/<int:ticket_id>/remediate-assets', methods=['GET'])
+@login_required
+def remediate_assets_page(ticket_id):
+    """Show the asset remediation page for fixing existing assets"""
+    from models.company import Company
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).options(
+            joinedload(Ticket.assets)
+        ).get(ticket_id)
+
+        if not ticket:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        # Get PDF attachments for this ticket
+        pdf_attachments = db_session.query(Attachment).filter(
+            Attachment.ticket_id == ticket_id,
+            Attachment.file_type == 'pdf'
+        ).all()
+
+        # Get existing assets linked to this ticket
+        existing_assets = ticket.assets if ticket.assets else []
+
+        return render_template('tickets/remediate_assets.html',
+                             ticket=ticket,
+                             attachments=pdf_attachments,
+                             existing_assets=existing_assets)
+
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/remediate-assets/match', methods=['POST'])
+@login_required
+def remediate_assets_match(ticket_id):
+    """Extract from PDF and match to existing assets by serial number"""
+    from utils.pdf_extractor import extract_from_attachment
+    from models.asset import Asset
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).options(
+            joinedload(Ticket.assets)
+        ).get(ticket_id)
+
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        attachment_id = request.json.get('attachment_id')
+        if not attachment_id:
+            return jsonify({'success': False, 'error': 'No attachment specified'}), 400
+
+        # Get the attachment
+        attachment = db_session.query(Attachment).filter(
+            Attachment.id == attachment_id,
+            Attachment.ticket_id == ticket_id
+        ).first()
+
+        if not attachment:
+            return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+
+        if attachment.file_type != 'pdf':
+            return jsonify({'success': False, 'error': 'Attachment is not a PDF'}), 400
+
+        # Extract assets from PDF using the corrected logic
+        result = extract_from_attachment(attachment.file_path)
+
+        if not result:
+            return jsonify({'success': False, 'error': 'Failed to extract data from PDF'}), 500
+
+        extracted_assets = result.get('assets', [])
+
+        # Build a lookup by serial number from extracted data
+        extracted_by_serial = {}
+        for asset in extracted_assets:
+            serial = asset.get('serial_num', '').strip()
+            # Handle leading 'S' in serial numbers
+            if serial.startswith('S'):
+                serial = serial[1:]
+            if serial:
+                extracted_by_serial[serial] = asset
+
+        # Match existing assets to extracted data
+        matches = []
+        unmatched_existing = []
+        unmatched_extracted = list(extracted_by_serial.keys())
+
+        for existing_asset in ticket.assets:
+            serial = existing_asset.serial_num or ''
+            if serial in extracted_by_serial:
+                extracted = extracted_by_serial[serial]
+                unmatched_extracted.remove(serial)
+
+                # Compare fields and identify differences
+                changes = []
+                fields_to_check = [
+                    ('name', 'Name'),
+                    ('model', 'Model'),
+                    ('cpu_type', 'CPU Type'),
+                    ('cpu_cores', 'CPU Cores'),
+                    ('gpu_cores', 'GPU Cores'),
+                    ('memory', 'RAM'),
+                    ('harddrive', 'Storage'),
+                ]
+
+                for field, label in fields_to_check:
+                    old_val = getattr(existing_asset, field, '') or ''
+                    new_val = extracted.get(field, '') or ''
+                    if str(old_val).strip() != str(new_val).strip():
+                        changes.append({
+                            'field': field,
+                            'label': label,
+                            'old': str(old_val),
+                            'new': str(new_val)
+                        })
+
+                matches.append({
+                    'asset_id': existing_asset.id,
+                    'serial_num': serial,
+                    'asset_tag': existing_asset.asset_tag,
+                    'current': {
+                        'name': existing_asset.name or '',
+                        'model': existing_asset.model or '',
+                        'cpu_type': existing_asset.cpu_type or '',
+                        'cpu_cores': existing_asset.cpu_cores or '',
+                        'gpu_cores': existing_asset.gpu_cores or '',
+                        'memory': existing_asset.memory or '',
+                        'harddrive': existing_asset.harddrive or '',
+                    },
+                    'extracted': extracted,
+                    'changes': changes,
+                    'has_changes': len(changes) > 0
+                })
+            else:
+                unmatched_existing.append({
+                    'asset_id': existing_asset.id,
+                    'serial_num': serial,
+                    'asset_tag': existing_asset.asset_tag,
+                    'name': existing_asset.name or ''
+                })
+
+        # Count assets with actual changes
+        assets_with_changes = [m for m in matches if m['has_changes']]
+
+        return jsonify({
+            'success': True,
+            'total_extracted': len(extracted_assets),
+            'total_existing': len(ticket.assets),
+            'matched_count': len(matches),
+            'changes_count': len(assets_with_changes),
+            'matches': matches,
+            'unmatched_existing': unmatched_existing,
+            'unmatched_extracted': unmatched_extracted
+        })
+
+    except Exception as e:
+        logger.error(f"Error matching assets for remediation: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/remediate-assets/update', methods=['POST'])
+@login_required
+def remediate_assets_update(ticket_id):
+    """Apply remediation updates to existing assets"""
+    from models.asset import Asset
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        data = request.get_json()
+        if not data or 'updates' not in data:
+            return jsonify({'success': False, 'error': 'No update data provided'}), 400
+
+        updates = data['updates']
+        updated_count = 0
+        errors = []
+        updated_assets = []
+
+        for update in updates:
+            try:
+                asset_id = update.get('asset_id')
+                new_values = update.get('new_values', {})
+
+                asset = db_session.query(Asset).get(asset_id)
+                if not asset:
+                    errors.append(f"Asset #{asset_id} not found")
+                    continue
+
+                # Apply updates
+                changes_made = []
+                for field, value in new_values.items():
+                    if hasattr(asset, field):
+                        old_val = getattr(asset, field)
+                        setattr(asset, field, value)
+                        changes_made.append({
+                            'field': field,
+                            'old': old_val,
+                            'new': value
+                        })
+
+                if changes_made:
+                    updated_count += 1
+                    updated_assets.append({
+                        'asset_id': asset_id,
+                        'serial_num': asset.serial_num,
+                        'changes': changes_made
+                    })
+
+            except Exception as e:
+                errors.append(f"Error updating asset #{update.get('asset_id', 'unknown')}: {str(e)}")
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'updated_count': updated_count,
+            'error_count': len(errors),
+            'updated_assets': updated_assets,
+            'errors': errors
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error applying remediation updates: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500

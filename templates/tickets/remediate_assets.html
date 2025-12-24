@@ -1,0 +1,735 @@
+{% extends "base.html" %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    .remediate-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #111827;
+    }
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border: none;
+    }
+    .btn-primary:hover {
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+    .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+    }
+    .btn-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        border: none;
+    }
+    .attachment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 0.5rem;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .attachment-item:hover {
+        background: #f3f4f6;
+    }
+    .attachment-item.selected {
+        border-color: #6366f1;
+        background: #eef2ff;
+    }
+    .attachment-icon {
+        width: 48px;
+        height: 48px;
+        background: #fee2e2;
+        color: #dc2626;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .attachment-info h4 {
+        font-weight: 600;
+        color: #111827;
+    }
+    .attachment-info p {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+    }
+    .stat-card.highlight {
+        background: #fef3c7;
+        border: 2px solid #f59e0b;
+    }
+    .stat-card .number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #111827;
+    }
+    .stat-card .label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .comparison-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background: #f9fafb;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .comparison-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+        vertical-align: top;
+    }
+    .comparison-table tr:hover {
+        background: #f9fafb;
+    }
+    .comparison-table tr.no-changes {
+        opacity: 0.6;
+    }
+    .serial-cell {
+        font-family: monospace;
+        font-weight: 600;
+        color: #4f46e5;
+    }
+    .changes-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .change-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.5rem;
+        background: #fef3c7;
+        border-radius: 0.375rem;
+        border-left: 3px solid #f59e0b;
+    }
+    .change-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #92400e;
+        text-transform: uppercase;
+    }
+    .change-values {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+    .old-value {
+        text-decoration: line-through;
+        color: #dc2626;
+        background: #fee2e2;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+    }
+    .new-value {
+        color: #059669;
+        background: #d1fae5;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+    }
+    .arrow-icon {
+        color: #9ca3af;
+    }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .badge-muted {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #e5e7eb;
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .loading-text {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #374151;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    .checkbox-cell {
+        width: 40px;
+        text-align: center;
+    }
+    .action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+    }
+    .action-bar-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .action-bar-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .result-summary {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .result-summary.success {
+        background: #d1fae5;
+        border: 1px solid #059669;
+    }
+    .result-summary.error {
+        background: #fee2e2;
+        border: 1px solid #dc2626;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="remediate-container">
+    <!-- Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+        <div>
+            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" style="color: #6b7280; text-decoration: none; font-size: 0.875rem;">
+                <i class="fas fa-arrow-left"></i> Back to Ticket #{{ ticket.id }}
+            </a>
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: #111827; margin-top: 0.5rem;">
+                <i class="fas fa-wrench" style="color: #f59e0b;"></i> Remediate Assets
+            </h1>
+            <p style="color: #6b7280;">Fix existing assets by re-scanning PDF and applying corrected data</p>
+        </div>
+    </div>
+
+    <!-- Step 1: Select PDF -->
+    <div class="card" id="step1">
+        <div class="card-header">
+            <h2 class="card-title"><span class="badge badge-info">1</span> Select PDF to Re-scan</h2>
+        </div>
+
+        {% if attachments %}
+        <div class="attachment-list">
+            {% for att in attachments %}
+            <div class="attachment-item" data-id="{{ att.id }}" onclick="selectAttachment({{ att.id }}, this)">
+                <div class="attachment-icon">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="attachment-info" style="flex: 1;">
+                    <h4>{{ att.filename }}</h4>
+                    <p>Uploaded {{ att.created_at.strftime('%Y-%m-%d %H:%M') if att.created_at else 'Unknown' }}</p>
+                </div>
+                <button class="btn btn-warning" onclick="event.stopPropagation(); scanAndMatch({{ att.id }})">
+                    <i class="fas fa-sync-alt"></i> Scan & Match
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-pdf"></i>
+            <h3>No PDF attachments found</h3>
+            <p>Upload a packing list PDF to this ticket first</p>
+            <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="btn btn-secondary" style="margin-top: 1rem;">
+                <i class="fas fa-upload"></i> Go to Ticket
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Current Assets Info -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-database"></i> Current Assets in Ticket</h2>
+            <span class="badge badge-info">{{ existing_assets|length }} assets</span>
+        </div>
+        {% if existing_assets %}
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Serial Number</th>
+                    <th>Asset Tag</th>
+                    <th>Name</th>
+                    <th>Model</th>
+                    <th>CPU</th>
+                    <th>RAM</th>
+                    <th>Storage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asset in existing_assets %}
+                <tr>
+                    <td class="serial-cell">{{ asset.serial_num }}</td>
+                    <td>{{ asset.asset_tag }}</td>
+                    <td>{{ asset.name or '-' }}</td>
+                    <td>{{ asset.model or '-' }}</td>
+                    <td>{{ asset.cpu_type or '-' }} {{ asset.cpu_cores or '' }}</td>
+                    <td>{{ asset.memory or '-' }}</td>
+                    <td>{{ asset.harddrive or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-box-open"></i>
+            <h3>No assets linked to this ticket</h3>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Step 2: Review Changes (hidden until scan) -->
+    <div class="card" id="step2" style="display: none;">
+        <div class="card-header">
+            <h2 class="card-title"><span class="badge badge-warning">2</span> Review Changes</h2>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="number" id="statExtracted">0</div>
+                <div class="label">Extracted from PDF</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statMatched">0</div>
+                <div class="label">Matched to Existing</div>
+            </div>
+            <div class="stat-card highlight">
+                <div class="number" id="statChanges">0</div>
+                <div class="label">Assets with Changes</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statUnmatched">0</div>
+                <div class="label">Unmatched</div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <div class="action-bar-left">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" checked>
+                    <span style="font-weight: 600;">Select All Changes</span>
+                </label>
+                <span id="selectedCount" style="color: #6b7280;">0 selected</span>
+            </div>
+            <div class="action-bar-right">
+                <button class="btn btn-secondary" onclick="resetScan()">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+                <button class="btn btn-success" id="applyBtn" onclick="applyChanges()" disabled>
+                    <i class="fas fa-check"></i> Apply Selected Changes
+                </button>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <table class="comparison-table" id="changesTable">
+            <thead>
+                <tr>
+                    <th class="checkbox-cell"><input type="checkbox" checked disabled></th>
+                    <th>Serial Number</th>
+                    <th>Asset Tag</th>
+                    <th>Changes</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="changesTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Result Summary (hidden until applied) -->
+    <div id="resultSection" style="display: none;">
+        <div class="result-summary success" id="resultSummary">
+            <h3 style="margin: 0 0 0.5rem 0;"><i class="fas fa-check-circle"></i> Changes Applied Successfully</h3>
+            <p id="resultMessage" style="margin: 0;"></p>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">Processing...</div>
+    </div>
+</div>
+
+<script>
+    const ticketId = {{ ticket.id }};
+    let matchedData = [];
+    let selectedAssets = new Set();
+
+    function selectAttachment(id, element) {
+        document.querySelectorAll('.attachment-item').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+    }
+
+    function showLoading(text) {
+        document.getElementById('loadingText').textContent = text || 'Processing...';
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    async function scanAndMatch(attachmentId) {
+        showLoading('Scanning PDF and matching assets...');
+
+        try {
+            const response = await fetch(`/tickets/${ticketId}/remediate-assets/match`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ attachment_id: attachmentId })
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to scan PDF');
+            }
+
+            // Update stats
+            document.getElementById('statExtracted').textContent = result.total_extracted;
+            document.getElementById('statMatched').textContent = result.matched_count;
+            document.getElementById('statChanges').textContent = result.changes_count;
+            document.getElementById('statUnmatched').textContent = result.unmatched_existing.length + result.unmatched_extracted.length;
+
+            // Store matched data
+            matchedData = result.matches;
+            selectedAssets = new Set();
+
+            // Build comparison table
+            const tbody = document.getElementById('changesTableBody');
+            tbody.innerHTML = '';
+
+            matchedData.forEach((match, index) => {
+                const row = document.createElement('tr');
+                if (!match.has_changes) {
+                    row.classList.add('no-changes');
+                }
+
+                // Checkbox
+                const checkCell = document.createElement('td');
+                checkCell.className = 'checkbox-cell';
+                if (match.has_changes) {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = true;
+                    checkbox.dataset.index = index;
+                    checkbox.onchange = () => updateSelection(index, checkbox.checked);
+                    checkCell.appendChild(checkbox);
+                    selectedAssets.add(index);
+                }
+                row.appendChild(checkCell);
+
+                // Serial
+                const serialCell = document.createElement('td');
+                serialCell.className = 'serial-cell';
+                serialCell.textContent = match.serial_num;
+                row.appendChild(serialCell);
+
+                // Asset Tag
+                const tagCell = document.createElement('td');
+                tagCell.textContent = match.asset_tag;
+                row.appendChild(tagCell);
+
+                // Changes
+                const changesCell = document.createElement('td');
+                if (match.has_changes) {
+                    const changesList = document.createElement('div');
+                    changesList.className = 'changes-list';
+
+                    match.changes.forEach(change => {
+                        const changeItem = document.createElement('div');
+                        changeItem.className = 'change-item';
+                        changeItem.innerHTML = `
+                            <div class="change-label">${change.label}</div>
+                            <div class="change-values">
+                                <span class="old-value">${change.old || '(empty)'}</span>
+                                <i class="fas fa-arrow-right arrow-icon"></i>
+                                <span class="new-value">${change.new || '(empty)'}</span>
+                            </div>
+                        `;
+                        changesList.appendChild(changeItem);
+                    });
+
+                    changesCell.appendChild(changesList);
+                } else {
+                    changesCell.innerHTML = '<span style="color: #9ca3af;">No changes needed</span>';
+                }
+                row.appendChild(changesCell);
+
+                // Status
+                const statusCell = document.createElement('td');
+                if (match.has_changes) {
+                    statusCell.innerHTML = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Needs Update</span>';
+                } else {
+                    statusCell.innerHTML = '<span class="badge badge-success"><i class="fas fa-check"></i> Correct</span>';
+                }
+                row.appendChild(statusCell);
+
+                tbody.appendChild(row);
+            });
+
+            // Show step 2
+            document.getElementById('step2').style.display = 'block';
+            updateSelectedCount();
+
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function updateSelection(index, checked) {
+        if (checked) {
+            selectedAssets.add(index);
+        } else {
+            selectedAssets.delete(index);
+        }
+        updateSelectedCount();
+    }
+
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll').checked;
+        document.querySelectorAll('#changesTableBody input[type="checkbox"]').forEach(cb => {
+            cb.checked = selectAll;
+            const index = parseInt(cb.dataset.index);
+            if (selectAll) {
+                selectedAssets.add(index);
+            } else {
+                selectedAssets.delete(index);
+            }
+        });
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        document.getElementById('selectedCount').textContent = selectedAssets.size + ' selected';
+        document.getElementById('applyBtn').disabled = selectedAssets.size === 0;
+    }
+
+    function resetScan() {
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('resultSection').style.display = 'none';
+        matchedData = [];
+        selectedAssets = new Set();
+    }
+
+    async function applyChanges() {
+        if (selectedAssets.size === 0) {
+            alert('No assets selected for update');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to update ${selectedAssets.size} asset(s)?`)) {
+            return;
+        }
+
+        showLoading('Applying changes...');
+
+        try {
+            // Build updates from selected assets
+            const updates = [];
+            selectedAssets.forEach(index => {
+                const match = matchedData[index];
+                if (match && match.has_changes) {
+                    const newValues = {};
+                    match.changes.forEach(change => {
+                        newValues[change.field] = change.new;
+                    });
+                    updates.push({
+                        asset_id: match.asset_id,
+                        new_values: newValues
+                    });
+                }
+            });
+
+            const response = await fetch(`/tickets/${ticketId}/remediate-assets/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ updates: updates })
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to apply changes');
+            }
+
+            // Show success message
+            document.getElementById('resultMessage').textContent =
+                `Updated ${result.updated_count} asset(s) successfully.` +
+                (result.error_count > 0 ? ` ${result.error_count} error(s) occurred.` : '');
+            document.getElementById('resultSection').style.display = 'block';
+
+            // Mark applied rows
+            selectedAssets.forEach(index => {
+                const rows = document.querySelectorAll('#changesTableBody tr');
+                if (rows[index]) {
+                    rows[index].style.background = '#d1fae5';
+                    const statusCell = rows[index].querySelector('td:last-child');
+                    if (statusCell) {
+                        statusCell.innerHTML = '<span class="badge badge-success"><i class="fas fa-check"></i> Updated</span>';
+                    }
+                    // Disable checkbox
+                    const checkbox = rows[index].querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        checkbox.disabled = true;
+                        checkbox.checked = false;
+                    }
+                }
+            });
+
+            selectedAssets = new Set();
+            updateSelectedCount();
+
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+</script>
+{% endblock %}

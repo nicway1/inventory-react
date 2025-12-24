@@ -517,6 +517,7 @@ def extract_assets_from_text(text):
     ]
 
     # Find all part numbers with their positions (try multiple patterns)
+    # Each occurrence represents ONE asset, so we keep all occurrences in order
     part_matches = []
     seen_positions = set()
     for pattern in part_number_patterns:
@@ -527,15 +528,17 @@ def extract_assets_from_text(text):
             seen_positions.add(match.start())
 
             part_prefix = match.group(1).upper()
+            # Normalize OCR variations
+            normalized_prefix = part_prefix[:5]  # First 5 chars for lookup
             part_matches.append({
-                'prefix': part_prefix,
+                'prefix': normalized_prefix,
                 'full': match.group(0).upper(),
                 'start': match.start(),
                 'end': match.end()
             })
-    # Sort by position in text
+    # Sort by position in text - ORDER MATTERS for matching with serials
     part_matches.sort(key=lambda x: x['start'])
-    logger.info(f"Found {len(part_matches)} part numbers: {[p['prefix'] for p in part_matches]}")
+    logger.info(f"Found {len(part_matches)} part number occurrences: {[p['prefix'] for p in part_matches]}")
 
     # Find all potential serials with positions
     serial_matches = []
@@ -574,81 +577,109 @@ def extract_assets_from_text(text):
 
     logger.info(f"Found {len(serial_matches)} potential serial numbers")
 
-    # For each serial, find the nearest part number that comes BEFORE it
+    # Match serials to part numbers in order
+    # Each part number occurrence represents ONE asset
+    # So if we have 19 MacBook Air part numbers + 8 MacBook Pro part numbers = 27 part numbers
+    # And 27 serial numbers, they should match 1:1 in order
+
+    # Remove duplicate serials while preserving order
     seen_serials = set()
+    unique_serials = []
     for serial_info in serial_matches:
+        if serial_info['serial'] not in seen_serials:
+            seen_serials.add(serial_info['serial'])
+            unique_serials.append(serial_info)
+
+    logger.info(f"Unique serials: {len(unique_serials)}, Part numbers: {len(part_matches)}")
+
+    # Match serials to part numbers by index (1:1 in order of appearance)
+    for idx, serial_info in enumerate(unique_serials):
         serial = serial_info['serial']
-        if serial in seen_serials:
-            continue
-        seen_serials.add(serial)
 
-        serial_pos = serial_info['start']
-
-        # Find the closest part number that appears before this serial
-        best_part = None
-        best_distance = float('inf')
-        for part in part_matches:
-            if part['end'] < serial_pos:  # Part must be before serial
-                distance = serial_pos - part['end']
-                if distance < best_distance:
-                    best_distance = distance
-                    best_part = part
-
-        # If no part found before, use the first one (fallback)
-        if not best_part and part_matches:
-            best_part = part_matches[0]
+        # Get the corresponding part number by index
+        if idx < len(part_matches):
+            best_part = part_matches[idx]
+        else:
+            # More serials than part numbers - use the last part number
+            best_part = part_matches[-1] if part_matches else None
 
         # Get part number prefix and look up model
-        part_prefix = best_part['prefix'][:5] if best_part else None
+        part_prefix = best_part['prefix'] if best_part else None
         model_identifier = get_apple_model_identifier(part_prefix) if part_prefix else None
 
-        # Extract product description from text near the part number
+        # Extract product description from text near the PART NUMBER (not serial)
+        # Since we're matching by index, use the part number's position to find specs
         product_details = {'name': 'MacBook', 'cpu_type': '', 'cpu_cores': '', 'gpu_cores': '', 'memory': '', 'storage': ''}
 
+        # Build context around the part number occurrence
+        # The description is usually right AFTER the part number (not before)
+        # Use minimal before context to avoid picking up previous product's specs
         if best_part:
-            # Look for product description in text around the part number (up to 500 chars after)
-            context_start = best_part['start']
-            context_end = min(best_part['start'] + 500, serial_pos)
+            part_pos = best_part['start']
+            context_start = max(0, best_part['end'])  # Start FROM the end of part number
+            context_end = min(len(text), best_part['end'] + 150)
+            context = text[context_start:context_end]
+        else:
+            # Fallback: use serial position
+            serial_pos = serial_info['start']
+            context_start = max(0, serial_pos - 500)
+            context_end = min(len(text), serial_info['end'] + 300)
             context = text[context_start:context_end]
 
-            # Determine if MacBook Air or Pro from context
-            context_upper = context.upper()
-            if 'MACBOOK PRO' in context_upper:
-                product_details['name'] = 'MacBook Pro'
-            elif 'MACBOOK AIR' in context_upper:
-                product_details['name'] = 'MacBook Air'
+        context_upper = context.upper()
 
-            # Extract screen size
-            size_match = re.search(r'(\d+)["\']?\s*(?:IN|INCH|MACBOOK)', context, re.IGNORECASE)
-            if size_match:
-                size = size_match.group(1)
-                if size in ['13', '14', '15', '16']:
-                    product_details['name'] = f'{size}" {product_details["name"]}'
+        # Determine if MacBook Air or Pro from MODEL IDENTIFIER (more reliable than context)
+        # A3240/A3241 = MacBook Air, A3283/A3284/A3287 = MacBook Pro
+        if model_identifier in ['A3240', 'A3241', 'A3113', 'A3114', 'A2681', 'A2941', 'A2337']:
+            product_details['name'] = 'MacBook Air'
+        elif model_identifier in ['A3283', 'A3284', 'A3287', 'A2918', 'A2992', 'A2991', 'A2338', 'A2779', 'A2780', 'A2442', 'A2485']:
+            product_details['name'] = 'MacBook Pro'
+        elif 'MACBOOK PRO' in context_upper:
+            product_details['name'] = 'MacBook Pro'
+        elif 'MACBOOK AIR' in context_upper:
+            product_details['name'] = 'MacBook Air'
 
-            # Extract CPU type (M1, M2, M3, M4)
-            cpu_match = re.search(r'\b(M\d+)\b', context_upper)
-            if cpu_match:
-                product_details['cpu_type'] = cpu_match.group(1)
+        # Extract screen size
+        size_match = re.search(r'(\d+)["\']?\s*(?:IN|INCH|MACBOOK)', context, re.IGNORECASE)
+        if size_match:
+            size = size_match.group(1)
+            if size in ['13', '14', '15', '16']:
+                product_details['name'] = f'{size}" {product_details["name"]}'
 
-            # Extract CPU cores
-            cpu_cores_match = re.search(r'(\d+)C?\s*CPU', context_upper)
-            if cpu_cores_match:
-                product_details['cpu_cores'] = cpu_cores_match.group(1)
+        # Extract CPU type (M1, M2, M3, M4)
+        cpu_match = re.search(r'\b(M\d+)\b', context_upper)
+        if cpu_match:
+            product_details['cpu_type'] = cpu_match.group(1)
 
-            # Extract GPU cores
-            gpu_cores_match = re.search(r'(\d+)C?\s*GPU', context_upper)
-            if gpu_cores_match:
-                product_details['gpu_cores'] = gpu_cores_match.group(1)
+        # Extract CPU cores
+        cpu_cores_match = re.search(r'(\d+)C?\s*CPU', context_upper)
+        if cpu_cores_match:
+            product_details['cpu_cores'] = cpu_cores_match.group(1)
 
-            # Extract RAM and storage - look for patterns like "16GB 256GB" or "48GB 512GB"
-            ram_storage = re.search(r'(\d+)GB\s+(\d+)(?:GB|TB)', context, re.IGNORECASE)
-            if ram_storage:
-                product_details['memory'] = ram_storage.group(1) + "GB"
-                storage_num = int(ram_storage.group(2))
-                if storage_num <= 4:
-                    product_details['storage'] = str(storage_num) + "TB"
-                else:
-                    product_details['storage'] = str(storage_num) + "GB"
+        # Extract GPU cores
+        gpu_cores_match = re.search(r'(\d+)C?\s*GPU', context_upper)
+        if gpu_cores_match:
+            product_details['gpu_cores'] = gpu_cores_match.group(1)
+
+        # Extract RAM and storage - look for patterns like "16GB 256GB" or "48GB 512GB"
+        ram_storage = re.search(r'(\d+)GB\s+(\d+)(?:GB|TB)', context, re.IGNORECASE)
+        if ram_storage:
+            ram_value = ram_storage.group(1)
+            # OCR correction: 46GB is not a valid Apple RAM config, likely OCR misread of 16GB (1→4)
+            if ram_value == '46':
+                ram_value = '16'
+            product_details['memory'] = ram_value + "GB"
+            storage_num = int(ram_storage.group(2))
+            if storage_num <= 4:
+                product_details['storage'] = str(storage_num) + "TB"
+            else:
+                product_details['storage'] = str(storage_num) + "GB"
+
+        # Detect M4 Pro/Max based on CPU cores (M4 Pro has 12-14 cores, M4 Max has 14-16)
+        if product_details['cpu_type'] == 'M4' and product_details['cpu_cores']:
+            cores = int(product_details['cpu_cores'])
+            if cores >= 12:
+                product_details['cpu_type'] = 'M4 Pro'
 
         logger.info(f"Serial {serial} -> Part: {part_prefix}, Model: {model_identifier}, Name: {product_details['name']}")
 
