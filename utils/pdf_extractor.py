@@ -20,6 +20,8 @@ APPLE_PART_TO_MODEL = {
     'MW0Y3': 'A3240',  # Starlight
     'MW0W3': 'A3240',  # Silver
     'MWW03': 'A3240',  # Possible OCR variant of MW0W3
+    'MWOW3': 'A3240',  # OCR misread: 0->O in MWW03
+    'MWOW0': 'A3240',  # OCR misread variant
     # MacBook Air 15" M4 (2025) - A3241
     'MC7A4': 'A3241', 'MC7C4': 'A3241', 'MC7D4': 'A3241',  # Sky Blue configs
     'MW1L3': 'A3241', 'MW1M3': 'A3241', 'MC6L4': 'A3241',  # Midnight configs
@@ -69,6 +71,17 @@ APPLE_PART_TO_MODEL = {
     'MK1F3': 'A2485', 'MK1H3': 'A2485',
     # MacBook Pro 13" M1 (2020) - A2338
     'MYD83': 'A2338', 'MYD92': 'A2338', 'MYDA2': 'A2338', 'MYDC2': 'A2338',
+    # MacBook Pro 14" M4 Base (2024) - A3283
+    'MWV73': 'A3283', 'MWV83': 'A3283', 'MWV93': 'A3283', 'MWVA3': 'A3283',
+    # MacBook Pro 14" M4 Pro/Max (2024) - A3284
+    'MWX33': 'A3284', 'MWX43': 'A3284', 'MWX53': 'A3284', 'MWX63': 'A3284',
+    'MWX73': 'A3284', 'MWX83': 'A3284', 'MWX93': 'A3284', 'MWXA3': 'A3284',
+    'MXY23': 'A3284', 'MXY33': 'A3284', 'MXY43': 'A3284', 'MXY53': 'A3284',
+    # MacBook Pro 16" M4 Pro/Max (2024) - A3287
+    'MWX13': 'A3287', 'MWX23': 'A3287', 'MWW73': 'A3287', 'MWW83': 'A3287',
+    'MWW93': 'A3287', 'MWWA3': 'A3287', 'MXY12': 'A3287', 'MXY22': 'A3287',
+    'MXY32': 'A3287', 'MXY42': 'A3287', 'MXY52': 'A3287', 'MXY62': 'A3287',
+    'MX2Y3': 'A3287',  # OCR misread: MXY32 -> MX2Y3 (char swap)
 }
 
 
@@ -474,153 +487,175 @@ def parse_packing_list_text(text):
 
 def extract_assets_from_text(text):
     """
-    Extract individual assets with serial numbers from text
+    Extract individual assets with serial numbers from text.
+    Handles multiple product types by associating each serial with its nearby part number.
     """
     assets = []
 
     # Common Apple serial number patterns (alphanumeric, 10-12 chars)
-    # Looking for patterns like: SF54Y0MR211, SK12L1QP79D, etc.
     serial_pattern = r'\b([A-Z0-9]{10,14})\b'
 
-    # Find product description patterns
-    # Multiple patterns for Apple part numbers:
-    # Full: MWW03ZP/A-SG0001 | Short: MWW03ZP/A | Minimal: MWW03
+    # Part number patterns - captures Apple part numbers like MWW03ZP/A or MXY32P/A
+    # Need multiple patterns due to OCR variations
     part_number_patterns = [
-        r'\b([A-Z]{2,4}\d{2,3}[A-Z]{2}/[A-Z]-[A-Z]{2}\d{4})\b',  # Full: MWW03ZP/A-SG0001
-        r'\b([A-Z]{2,4}\d{2,3}[A-Z]{2}/[A-Z])\b',  # Short: MWW03ZP/A
-        r'\b([A-Z]{3}\d{2})[A-Z]{2}/[A-Z]',  # Extract just MWW03 from MWW03ZP/A
-        r'\b([A-Z]{3}\d{2}[A-Z]{2})/[A-Z]',  # Capture MXWM2 from MXWM2ZP/A
-        r'\b([A-Z]{2,3}\d{2,3})\b',  # Direct 5-char codes like MWW03, MLY13
+        r'\b([A-Z]{2,4}[A-Z0-9]{2,4})[PZ]/[A-Z]',  # General: MWW03ZP/A, MXY32P/A, MX2Y3ZP/A
+        r'\b(M[A-Z0-9]{4,5})[PZ]/[A-Z]',  # M-prefix: MWOW3ZP/A, MX2Y3ZP/A
     ]
 
-    # Also try to find known part number prefixes directly from our mapping
-    known_prefixes = list(APPLE_PART_TO_MODEL.keys())
-
-    # Look for product descriptions (may span multiple lines)
-    product_patterns = [
-        r'APPLE\s+\d+["\']?\s*MACBOOK\s+AIR[^\n]*[\n\s]*\d+GB\s+\d+GB[^\n]*',
-        r'APPLE\s+\d+["\']?\s*MACBOOK\s+PRO[^\n]*[\n\s]*\d+GB\s+\d+GB[^\n]*',
-        r'APPLE\s+\d+["\']?\s*MACBOOK\s+AIR[^,\n]*',
-        r'APPLE\s+\d+["\']?\s*MACBOOK\s+PRO[^,\n]*',
-        r'MACBOOK\s+AIR[^,\n]*M\d+[^,\n]*',
-        r'MACBOOK\s+PRO[^,\n]*M\d+[^,\n]*',
-    ]
-
-    # Extract product info
-    product_name = None
-    part_number = None
-
-    # First, try to find known part number prefixes directly from the text
-    text_upper = text.upper()
-    for prefix in known_prefixes:
-        if prefix in text_upper:
-            part_number = prefix
-            logger.info(f"Found known part number prefix directly: {part_number}")
-            break
-
-    # If not found, try regex patterns
-    if not part_number:
-        for pattern in part_number_patterns:
-            part_match = re.search(pattern, text, re.IGNORECASE)
-            if part_match:
-                part_number = part_match.group(1).upper()
-                logger.info(f"Found part number: {part_number} using pattern: {pattern}")
-                break
-
-    # Find product description
-    for pattern in product_patterns:
-        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-        if match:
-            product_name = match.group(0).strip()
-            break
-
-    # Also try to find RAM and storage directly from text if not in product name
-    # Pattern like "16GB 256GB" or "16GB 512GB" or "32GB 1TB"
-    ram_storage_match = re.search(r'(\d+)GB\s+(\d+)(?:GB|TB)', text, re.IGNORECASE)
-    ram_value = None
-    storage_value = None
-    if ram_storage_match:
-        ram_value = ram_storage_match.group(1) + "GB"
-        storage_num = int(ram_storage_match.group(2))
-        # Determine if it's GB or TB based on the number
-        if storage_num <= 4:
-            storage_value = str(storage_num) + "TB"
-        else:
-            storage_value = str(storage_num) + "GB"
-
-    # Parse product details from description
-    product_details = parse_product_description(product_name or "")
-
-    # Override with directly extracted RAM/storage if not found in product description
-    if ram_value and not product_details.get('memory'):
-        product_details['memory'] = ram_value
-    if storage_value and not product_details.get('storage'):
-        product_details['storage'] = storage_value
-
-    # Find all serial numbers
-    # Filter out common non-serial patterns
+    # Filter patterns for non-serial strings
     exclude_patterns = [
         r'^\d+$',  # Pure numbers
         r'^100\d{7}',  # PO numbers
         r'^847\d{5}',  # Commodity codes
         r'^656\d{8}',  # Tracking numbers
-        r'^\d{9}[A-Z]$',  # Singapore UEN numbers (e.g., 201422384R)
+        r'^\d{9}[A-Z]$',  # Singapore UEN numbers
         r'^\d{8}[A-Z]$',  # Singapore UEN numbers (older format)
-        r'^[A-Z]\d{8}[A-Z]$',  # Singapore UEN (e.g., T12AB1234C)
-        r'^SINGAPORE\d*$',  # SINGAPORE text
-        r'^[A-Z]{2}\d{6}$',  # Short codes
-        r'^\d{6}[A-Z]{2}\d{4}$',  # Date-like patterns
+        r'^[A-Z]\d{8}[A-Z]$',  # Singapore UEN
+        r'^SINGAPORE\d*$',
+        r'^[A-Z]{2}\d{6}$',
+        r'^\d{6}[A-Z]{2}\d{4}$',
     ]
 
-    # Get all potential serials
-    potential_serials = re.findall(serial_pattern, text)
+    # Find all part numbers with their positions (try multiple patterns)
+    part_matches = []
+    seen_positions = set()
+    for pattern in part_number_patterns:
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            # Avoid duplicate matches at same position
+            if match.start() in seen_positions:
+                continue
+            seen_positions.add(match.start())
 
-    # Filter serials
-    serial_numbers = []
-    seen = set()
-    for serial in potential_serials:
+            part_prefix = match.group(1).upper()
+            part_matches.append({
+                'prefix': part_prefix,
+                'full': match.group(0).upper(),
+                'start': match.start(),
+                'end': match.end()
+            })
+    # Sort by position in text
+    part_matches.sort(key=lambda x: x['start'])
+    logger.info(f"Found {len(part_matches)} part numbers: {[p['prefix'] for p in part_matches]}")
+
+    # Find all potential serials with positions
+    serial_matches = []
+    for match in re.finditer(serial_pattern, text):
+        serial = match.group(1)
+
         # Skip if matches exclude patterns
         skip = False
         for exc_pattern in exclude_patterns:
             if re.match(exc_pattern, serial):
                 skip = True
                 break
-
         if skip:
             continue
-
-        # Skip duplicates
-        if serial in seen:
-            continue
-        seen.add(serial)
 
         # Skip if too short or all numbers
         if len(serial) < 10 or serial.isdigit():
             continue
 
-        # Apple serials typically have mix of letters and numbers
-        # But OCR may sometimes read digits as letters, so allow all-letter serials
-        # that start with 'S' (Apple serial pattern)
+        # Apple serials need mix of letters and numbers (or start with S)
         has_letters = any(c.isalpha() for c in serial)
         has_numbers = any(c.isdigit() for c in serial)
 
-        # Accept if: has both letters and numbers, OR starts with S and is all letters (OCR edge case)
         if has_letters and has_numbers:
-            serial_numbers.append(serial)
-        elif serial.startswith('S') and has_letters and len(serial) >= 10 and len(serial) <= 12:
-            # All-letter serial starting with S - likely OCR misread some digits
-            serial_numbers.append(serial)
+            serial_matches.append({
+                'serial': serial,
+                'start': match.start(),
+                'end': match.end()
+            })
+        elif serial.startswith('S') and has_letters and 10 <= len(serial) <= 12:
+            serial_matches.append({
+                'serial': serial,
+                'start': match.start(),
+                'end': match.end()
+            })
 
-    # Convert part number to Apple model identifier (e.g., MWW03ZP/A -> A3114)
-    model_identifier = get_apple_model_identifier(part_number) if part_number else None
-    logger.info(f"Part number detected: {part_number}, Model identifier: {model_identifier}")
+    logger.info(f"Found {len(serial_matches)} potential serial numbers")
 
-    # Create asset entries for each serial
-    for serial in serial_numbers:
+    # For each serial, find the nearest part number that comes BEFORE it
+    seen_serials = set()
+    for serial_info in serial_matches:
+        serial = serial_info['serial']
+        if serial in seen_serials:
+            continue
+        seen_serials.add(serial)
+
+        serial_pos = serial_info['start']
+
+        # Find the closest part number that appears before this serial
+        best_part = None
+        best_distance = float('inf')
+        for part in part_matches:
+            if part['end'] < serial_pos:  # Part must be before serial
+                distance = serial_pos - part['end']
+                if distance < best_distance:
+                    best_distance = distance
+                    best_part = part
+
+        # If no part found before, use the first one (fallback)
+        if not best_part and part_matches:
+            best_part = part_matches[0]
+
+        # Get part number prefix and look up model
+        part_prefix = best_part['prefix'][:5] if best_part else None
+        model_identifier = get_apple_model_identifier(part_prefix) if part_prefix else None
+
+        # Extract product description from text near the part number
+        product_details = {'name': 'MacBook', 'cpu_type': '', 'cpu_cores': '', 'gpu_cores': '', 'memory': '', 'storage': ''}
+
+        if best_part:
+            # Look for product description in text around the part number (up to 500 chars after)
+            context_start = best_part['start']
+            context_end = min(best_part['start'] + 500, serial_pos)
+            context = text[context_start:context_end]
+
+            # Determine if MacBook Air or Pro from context
+            context_upper = context.upper()
+            if 'MACBOOK PRO' in context_upper:
+                product_details['name'] = 'MacBook Pro'
+            elif 'MACBOOK AIR' in context_upper:
+                product_details['name'] = 'MacBook Air'
+
+            # Extract screen size
+            size_match = re.search(r'(\d+)["\']?\s*(?:IN|INCH|MACBOOK)', context, re.IGNORECASE)
+            if size_match:
+                size = size_match.group(1)
+                if size in ['13', '14', '15', '16']:
+                    product_details['name'] = f'{size}" {product_details["name"]}'
+
+            # Extract CPU type (M1, M2, M3, M4)
+            cpu_match = re.search(r'\b(M\d+)\b', context_upper)
+            if cpu_match:
+                product_details['cpu_type'] = cpu_match.group(1)
+
+            # Extract CPU cores
+            cpu_cores_match = re.search(r'(\d+)C?\s*CPU', context_upper)
+            if cpu_cores_match:
+                product_details['cpu_cores'] = cpu_cores_match.group(1)
+
+            # Extract GPU cores
+            gpu_cores_match = re.search(r'(\d+)C?\s*GPU', context_upper)
+            if gpu_cores_match:
+                product_details['gpu_cores'] = gpu_cores_match.group(1)
+
+            # Extract RAM and storage - look for patterns like "16GB 256GB" or "48GB 512GB"
+            ram_storage = re.search(r'(\d+)GB\s+(\d+)(?:GB|TB)', context, re.IGNORECASE)
+            if ram_storage:
+                product_details['memory'] = ram_storage.group(1) + "GB"
+                storage_num = int(ram_storage.group(2))
+                if storage_num <= 4:
+                    product_details['storage'] = str(storage_num) + "TB"
+                else:
+                    product_details['storage'] = str(storage_num) + "GB"
+
+        logger.info(f"Serial {serial} -> Part: {part_prefix}, Model: {model_identifier}, Name: {product_details['name']}")
+
         asset = {
             'serial_num': serial,
             'name': product_details.get('name', 'MacBook'),
-            'model': model_identifier or '',  # Only use Apple model identifier (e.g., A3113), not "MacBook Air"
+            'model': model_identifier or '',
             'manufacturer': 'Apple',
             'category': 'Laptop',
             'cpu_type': product_details.get('cpu_type', ''),
