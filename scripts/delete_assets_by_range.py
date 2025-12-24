@@ -52,11 +52,35 @@ def delete_assets_by_tag_range(start_tag, end_tag, dry_run=True):
             print("Aborted.")
             return
 
-        # Delete assets
+        # Delete assets - first remove ticket associations via raw SQL
+        from sqlalchemy import text
+
+        asset_ids = [a.id for a in assets_to_delete]
+        print(f"\nRemoving ticket associations for {len(asset_ids)} assets...")
+
+        # Delete from ticket_assets association table first
+        if asset_ids:
+            placeholders = ','.join([str(id) for id in asset_ids])
+            db.execute(text(f"DELETE FROM ticket_assets WHERE asset_id IN ({placeholders})"))
+
+            # Also delete asset history if exists
+            try:
+                db.execute(text(f"DELETE FROM asset_history WHERE asset_id IN ({placeholders})"))
+            except:
+                pass  # Table might not exist
+
+            # Delete from ticket_asset_checkins if exists
+            try:
+                db.execute(text(f"DELETE FROM ticket_asset_checkins WHERE asset_id IN ({placeholders})"))
+            except:
+                pass  # Table might not exist
+
+        db.commit()
+        print("  Associations removed.")
+
+        # Now delete the assets
         deleted_count = 0
         for asset in assets_to_delete:
-            # Remove from any ticket associations first
-            asset.tickets = []
             db.delete(asset)
             deleted_count += 1
             print(f"  Deleted: {asset.asset_tag}")
