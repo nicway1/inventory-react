@@ -23,6 +23,8 @@ APPLE_PART_TO_MODEL = {
     'MWOW3': 'A3240',  # OCR misread: 0->O in MWW03
     'MWOW0': 'A3240',  # OCR misread variant
     'MWO0W': 'A3240',  # OCR misread: W->0 (MWO0W3ZP/A)
+    'MWOOW': 'A3240',  # OCR misread: 0->O (MWOOW3ZP/A)
+    'MWOW8': 'A3240',  # OCR misread: 3->8
     # MacBook Air 15" M4 (2025) - A3241
     'MC7A4': 'A3241', 'MC7C4': 'A3241', 'MC7D4': 'A3241',  # Sky Blue configs
     'MW1L3': 'A3241', 'MW1M3': 'A3241', 'MC6L4': 'A3241',  # Midnight configs
@@ -640,7 +642,7 @@ def extract_assets_from_text(text):
         if best_part:
             part_pos = best_part['start']
             context_start = max(0, best_part['end'])  # Start FROM the end of part number
-            context_end = min(len(text), best_part['end'] + 150)
+            context_end = min(len(text), best_part['end'] + 300)
             context = text[context_start:context_end]
         else:
             # Fallback: use serial position

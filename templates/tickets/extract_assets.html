@@ -752,6 +752,18 @@ let extractedData = null;
 let selectedAttachmentId = null;
 let shippingData = null;
 
+// Escape HTML special characters to prevent breaking attribute values
+// Needed for values like '13" MacBook Air' where the quote breaks HTML attributes
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 // Shipping Info Functions
 function extractShippingInfo(attachmentId) {
     showLoading('Extracting shipping information...');
@@ -1259,66 +1271,66 @@ function showAssetDetail(index) {
     // Store the index we're editing
     document.getElementById('editingAssetIndex').value = index;
 
-    // Build editable form
+    // Build editable form - use escapeHtml to prevent quote characters breaking HTML attributes
     let html = `
         <!-- Serial Number -->
         <div class="asset-detail-item full-width">
             <div class="asset-detail-label">Serial Number</div>
-            <input type="text" id="edit_serial_num" class="asset-detail-input serial-input" value="${asset.serial_num || ''}">
+            <input type="text" id="edit_serial_num" class="asset-detail-input serial-input" value="${escapeHtml(asset.serial_num)}">
         </div>
 
         <!-- Asset Tag -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">Asset Tag</div>
-            <input type="text" id="edit_asset_tag" class="asset-detail-input" value="${assetTagInput ? assetTagInput.value : ''}" placeholder="e.g., SG-1234">
+            <input type="text" id="edit_asset_tag" class="asset-detail-input" value="${escapeHtml(assetTagInput ? assetTagInput.value : '')}" placeholder="e.g., SG-1234">
         </div>
 
         <!-- Model Identifier -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">Model Identifier</div>
-            <input type="text" id="edit_model" class="asset-detail-input" value="${asset.model || ''}" placeholder="e.g., A3240">
+            <input type="text" id="edit_model" class="asset-detail-input" value="${escapeHtml(asset.model)}" placeholder="e.g., A3240">
         </div>
 
         <!-- Product Name -->
         <div class="asset-detail-item full-width">
             <div class="asset-detail-label">Product Name</div>
-            <input type="text" id="edit_name" class="asset-detail-input" value="${asset.name || ''}" placeholder="e.g., 13&quot; MacBook Air">
+            <input type="text" id="edit_name" class="asset-detail-input" value="${escapeHtml(asset.name)}" placeholder="e.g., 13&quot; MacBook Air">
         </div>
 
         <!-- Hardware Type -->
         <div class="asset-detail-item full-width">
             <div class="asset-detail-label">Hardware Type</div>
-            <input type="text" id="edit_hardware_type" class="asset-detail-input" value="${hardwareTypeInput ? hardwareTypeInput.value : ''}" placeholder="e.g., MacBook Air M4 10-Core 256GB">
+            <input type="text" id="edit_hardware_type" class="asset-detail-input" value="${escapeHtml(hardwareTypeInput ? hardwareTypeInput.value : '')}" placeholder="e.g., MacBook Air M4 10-Core 256GB">
         </div>
 
         <!-- CPU Type -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">CPU Type</div>
-            <input type="text" id="edit_cpu_type" class="asset-detail-input" value="${asset.cpu_type || ''}" placeholder="e.g., M4, M4 Pro">
+            <input type="text" id="edit_cpu_type" class="asset-detail-input" value="${escapeHtml(asset.cpu_type)}" placeholder="e.g., M4, M4 Pro">
         </div>
 
         <!-- CPU Cores -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">CPU Cores</div>
-            <input type="text" id="edit_cpu_cores" class="asset-detail-input" value="${asset.cpu_cores || ''}" placeholder="e.g., 10, 14">
+            <input type="text" id="edit_cpu_cores" class="asset-detail-input" value="${escapeHtml(asset.cpu_cores)}" placeholder="e.g., 10, 14">
         </div>
 
         <!-- GPU Cores -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">GPU Cores</div>
-            <input type="text" id="edit_gpu_cores" class="asset-detail-input" value="${asset.gpu_cores || ''}" placeholder="e.g., 8, 20">
+            <input type="text" id="edit_gpu_cores" class="asset-detail-input" value="${escapeHtml(asset.gpu_cores)}" placeholder="e.g., 8, 20">
         </div>
 
         <!-- Memory -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">Memory (RAM)</div>
-            <input type="text" id="edit_memory" class="asset-detail-input" value="${asset.memory || ''}" placeholder="e.g., 16GB, 48GB">
+            <input type="text" id="edit_memory" class="asset-detail-input" value="${escapeHtml(asset.memory)}" placeholder="e.g., 16GB, 48GB">
         </div>
 
         <!-- Storage -->
         <div class="asset-detail-item">
             <div class="asset-detail-label">Storage</div>
-            <input type="text" id="edit_harddrive" class="asset-detail-input" value="${asset.harddrive || ''}" placeholder="e.g., 256GB, 512GB">
+            <input type="text" id="edit_harddrive" class="asset-detail-input" value="${escapeHtml(asset.harddrive)}" placeholder="e.g., 256GB, 512GB">
         </div>
 
         <!-- Condition -->
