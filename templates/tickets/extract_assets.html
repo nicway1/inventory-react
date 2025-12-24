@@ -938,6 +938,10 @@ async function showPreview(data) {
         const tagData = await tagResponse.json();
         if (tagData.success && tagData.tags) {
             assetTags = tagData.tags;
+            // Also update the Asset Tag Start input field
+            if (tagData.next_number) {
+                document.getElementById('assetTagStart').value = tagData.next_number;
+            }
         }
     } catch (error) {
         console.error('Error fetching next asset tags:', error);
