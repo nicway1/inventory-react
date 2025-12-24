@@ -233,6 +233,42 @@
         background: #f3f4f6;
         color: #6b7280;
     }
+    .badge-danger {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    .change-item.danger {
+        background: #fee2e2;
+        border-left-color: #dc2626;
+    }
+    .change-item.danger .change-label {
+        color: #dc2626;
+    }
+    .warning-banner {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .warning-banner i {
+        color: #f59e0b;
+        font-size: 1.25rem;
+        margin-top: 2px;
+    }
+    .warning-banner-content h4 {
+        font-weight: 600;
+        color: #92400e;
+        margin: 0 0 0.25rem 0;
+    }
+    .warning-banner-content p {
+        color: #a16207;
+        margin: 0;
+        font-size: 0.875rem;
+    }
     .loading-overlay {
         position: fixed;
         top: 0;
@@ -540,15 +576,27 @@
             tbody.innerHTML = '';
 
             matchedData.forEach((match, index) => {
+                // Filter out dangerous changes (empty new value with existing old value)
+                const validChanges = (match.changes || []).filter(change => {
+                    const oldVal = (change.old || '').trim();
+                    const newVal = (change.new || '').trim();
+                    // Keep changes where new value is not empty, OR old value was also empty
+                    return newVal || !oldVal;
+                });
+
+                // Update has_changes based on valid changes only
+                match.valid_changes = validChanges;
+                match.has_valid_changes = validChanges.length > 0;
+
                 const row = document.createElement('tr');
-                if (!match.has_changes) {
+                if (!match.has_valid_changes) {
                     row.classList.add('no-changes');
                 }
 
                 // Checkbox
                 const checkCell = document.createElement('td');
                 checkCell.className = 'checkbox-cell';
-                if (match.has_changes) {
+                if (match.has_valid_changes) {
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.checked = true;
@@ -572,11 +620,11 @@
 
                 // Changes
                 const changesCell = document.createElement('td');
-                if (match.has_changes) {
+                if (match.has_valid_changes) {
                     const changesList = document.createElement('div');
                     changesList.className = 'changes-list';
 
-                    match.changes.forEach(change => {
+                    match.valid_changes.forEach(change => {
                         const changeItem = document.createElement('div');
                         changeItem.className = 'change-item';
                         changeItem.innerHTML = `
@@ -591,6 +639,9 @@
                     });
 
                     changesCell.appendChild(changesList);
+                } else if (match.has_changes && !match.has_valid_changes) {
+                    // Had changes but all were filtered out (would overwrite with empty)
+                    changesCell.innerHTML = '<span style="color: #9ca3af;"><i class="fas fa-shield-alt" style="color: #10b981;"></i> Existing data preserved</span>';
                 } else {
                     changesCell.innerHTML = '<span style="color: #9ca3af;">No changes needed</span>';
                 }
@@ -598,8 +649,10 @@
 
                 // Status
                 const statusCell = document.createElement('td');
-                if (match.has_changes) {
+                if (match.has_valid_changes) {
                     statusCell.innerHTML = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Needs Update</span>';
+                } else if (match.has_changes && !match.has_valid_changes) {
+                    statusCell.innerHTML = '<span class="badge badge-success"><i class="fas fa-shield-alt"></i> Protected</span>';
                 } else {
                     statusCell.innerHTML = '<span class="badge badge-success"><i class="fas fa-check"></i> Correct</span>';
                 }
@@ -607,6 +660,10 @@
 
                 tbody.appendChild(row);
             });
+
+            // Recalculate changes count based on valid changes
+            const validChangesCount = matchedData.filter(m => m.has_valid_changes).length;
+            document.getElementById('statChanges').textContent = validChangesCount;
 
             // Show step 2
             document.getElementById('step2').style.display = 'block';
@@ -667,13 +724,13 @@
         showLoading('Applying changes...');
 
         try {
-            // Build updates from selected assets
+            // Build updates from selected assets - only use valid changes
             const updates = [];
             selectedAssets.forEach(index => {
                 const match = matchedData[index];
-                if (match && match.has_changes) {
+                if (match && match.has_valid_changes) {
                     const newValues = {};
-                    match.changes.forEach(change => {
+                    match.valid_changes.forEach(change => {
                         newValues[change.field] = change.new;
                     });
                     updates.push({

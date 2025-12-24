@@ -13141,11 +13141,28 @@ def remediate_assets_update(ticket_id):
                     errors.append(f"Asset #{asset_id} not found")
                     continue
 
-                # Apply updates
+                # Apply updates - ONLY if new value is not empty
+                # This prevents overwriting existing data with blank extracted values
                 changes_made = []
+                skipped_empty = []
                 for field, value in new_values.items():
                     if hasattr(asset, field):
                         old_val = getattr(asset, field)
+                        new_val = str(value).strip() if value else ''
+                        old_val_str = str(old_val).strip() if old_val else ''
+
+                        # Skip if new value is empty but old value exists
+                        if not new_val and old_val_str:
+                            skipped_empty.append({
+                                'field': field,
+                                'kept': old_val_str
+                            })
+                            continue
+
+                        # Skip if values are the same
+                        if old_val_str == new_val:
+                            continue
+
                         setattr(asset, field, value)
                         changes_made.append({
                             'field': field,
