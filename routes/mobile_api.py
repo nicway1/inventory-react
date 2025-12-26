@@ -123,6 +123,24 @@ def get_asset_image_url(asset):
     return None
 
 
+def can_view_all_tickets(user):
+    """
+    Check if user can view all tickets (not just their own).
+    Staff users (SUPER_ADMIN, DEVELOPER, SUPERVISOR, COUNTRY_ADMIN) can view all tickets.
+    CLIENT users are restricted to only their own tickets.
+    """
+    # Super admins can view all
+    if user.user_type == UserType.SUPER_ADMIN:
+        return True
+    # Staff users (non-CLIENT) can view all tickets
+    if user.user_type in [UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+        return True
+    # Check permission system as fallback
+    if user.permissions and hasattr(user.permissions, 'can_view_tickets') and user.permissions.can_view_tickets:
+        return True
+    return False
+
+
 # Authentication decorator for mobile API
 def mobile_auth_required(f):
     """Decorator to require mobile authentication"""
@@ -308,15 +326,15 @@ def get_tickets():
         db_session = db_manager.get_session()
         try:
             # Build base query based on user permissions
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 query = db_session.query(Ticket)
             else:
-                # Users can see tickets they created or are assigned to
+                # CLIENT users can only see tickets they created or are assigned to
                 query = db_session.query(Ticket).filter(
-                    (Ticket.requester_id == user.id) | 
+                    (Ticket.requester_id == user.id) |
                     (Ticket.assigned_to_id == user.id)
                 )
-            
+
             # Apply status filter
             if status_filter:
                 try:
@@ -444,10 +462,10 @@ def get_ticket_detail(ticket_id):
                 joinedload(Ticket.comments)
             )
 
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = base_query.filter(Ticket.id == ticket_id).first()
             else:
-                # Users can only see tickets they created or are assigned to
+                # CLIENT users can only see tickets they created or are assigned to
                 ticket = base_query.filter(
                     Ticket.id == ticket_id,
                     (Ticket.requester_id == user.id) | (Ticket.assigned_to_id == user.id)
@@ -783,13 +801,13 @@ def get_dashboard():
             stats = {}
             
             # Ticket statistics
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 total_tickets = db_session.query(Ticket).count()
                 open_tickets = db_session.query(Ticket).filter(
                     Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
                 ).count()
             else:
-                # User's tickets only
+                # CLIENT users see only their tickets
                 user_tickets_query = db_session.query(Ticket).filter(
                     (Ticket.requester_id == user.id) | (Ticket.assigned_to_id == user.id)
                 )
@@ -1309,7 +1327,7 @@ def mark_outbound_received(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permission check
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
@@ -1418,9 +1436,7 @@ def get_ticket_tracking(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permission check
-            if user.user_type == UserType.SUPER_ADMIN:
-                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
-            elif user.permissions and user.permissions.can_view_tickets:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
@@ -1804,7 +1820,7 @@ def mark_return_received(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permission check
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
@@ -1902,7 +1918,7 @@ def get_ticket_assets(ticket_id):
                 joinedload(Ticket.assets)
             )
 
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = base_query.filter(Ticket.id == ticket_id).first()
             else:
                 ticket = base_query.filter(
@@ -2013,7 +2029,7 @@ def add_asset_to_ticket(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permissions check
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
@@ -2178,7 +2194,7 @@ def mark_ticket_outbound_received(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permission check
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
@@ -2277,7 +2293,7 @@ def mark_ticket_return_received(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permission check
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
@@ -2366,7 +2382,7 @@ def refresh_ticket_tracking(ticket_id):
         db_session = db_manager.get_session()
         try:
             # Get ticket with permission check
-            if user.user_type == UserType.SUPER_ADMIN:
+            if can_view_all_tickets(user):
                 ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
             else:
                 ticket = db_session.query(Ticket).filter(
