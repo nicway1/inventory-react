@@ -4801,6 +4801,163 @@ def mobile_undo_checkin(ticket_id, asset_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@mobile_api_bp.route('/tickets/<int:ticket_id>/update-serial-checkin', methods=['POST'])
+@mobile_auth_required
+def mobile_update_serial_and_checkin(ticket_id):
+    """
+    Update an asset's serial number and check it in for Asset Intake tickets.
+
+    This endpoint is used when the mobile app scans a serial number that differs
+    from the original (e.g., correcting OCR errors from PDF extraction).
+
+    Request body:
+        {
+            "asset_id": 123,
+            "new_serial": "K59L170P9P"
+        }
+
+    Response:
+        {
+            "success": true,
+            "message": "Asset serial updated and checked in successfully",
+            "asset": {
+                "id": 123,
+                "serial_number": "K59L170P9P",
+                "asset_tag": "SG-1234",
+                "model": "MacBook Pro 14"
+            },
+            "progress": {
+                "total": 10,
+                "checked_in": 5,
+                "pending": 5,
+                "progress_percent": 50,
+                "step": 2
+            },
+            "ticket_closed": false
+        }
+    """
+    from models.ticket_asset_checkin import TicketAssetCheckin
+    from sqlalchemy.orm import joinedload
+
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).options(
+                joinedload(Ticket.assets)
+            ).filter(Ticket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            # Validate ticket is Asset Intake category
+            if ticket.category != TicketCategory.ASSET_INTAKE:
+                return jsonify({'success': False, 'error': 'Update serial check-in is only available for Asset Intake tickets'}), 400
+
+            data = request.get_json() or {}
+            asset_id = data.get('asset_id')
+            new_serial = data.get('new_serial', '').strip()
+
+            if not asset_id:
+                return jsonify({'success': False, 'error': 'asset_id is required'}), 400
+
+            if not new_serial:
+                return jsonify({'success': False, 'error': 'new_serial is required'}), 400
+
+            # Find the asset by ID
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+
+            if not asset:
+                return jsonify({'success': False, 'error': f'Asset not found with ID: {asset_id}'}), 404
+
+            # Check if asset is assigned to this ticket
+            ticket_asset_ids = [a.id for a in ticket.assets]
+            if asset.id not in ticket_asset_ids:
+                return jsonify({'success': False, 'error': f'Asset {asset_id} is not assigned to this ticket'}), 400
+
+            # Check if new serial number already exists on another asset
+            existing_asset = db_session.query(Asset).filter(
+                Asset.serial_num == new_serial,
+                Asset.id != asset_id
+            ).first()
+
+            if existing_asset:
+                return jsonify({'success': False, 'error': f'Serial number {new_serial} already exists on another asset (ID: {existing_asset.id})'}), 400
+
+            # Store old serial for logging
+            old_serial = asset.serial_num
+
+            # Update the serial number
+            asset.serial_num = new_serial
+
+            # Check if already checked in
+            existing_checkin = db_session.query(TicketAssetCheckin).filter_by(
+                ticket_id=ticket_id,
+                asset_id=asset.id
+            ).first()
+
+            # Create or update check-in record
+            if existing_checkin:
+                existing_checkin.checked_in = True
+                existing_checkin.checked_in_at = datetime.utcnow()
+                existing_checkin.checked_in_by_id = user.id
+            else:
+                checkin = TicketAssetCheckin(
+                    ticket_id=ticket_id,
+                    asset_id=asset.id,
+                    checked_in=True,
+                    checked_in_at=datetime.utcnow(),
+                    checked_in_by_id=user.id
+                )
+                db_session.add(checkin)
+
+            db_session.commit()
+
+            # Get updated progress
+            progress = ticket.get_checkin_progress(db_session)
+            ticket_closed = False
+
+            # Auto-close ticket if all assets are checked in
+            if progress['pending'] == 0 and progress['total'] > 0:
+                ticket.status = TicketStatus.RESOLVED
+                db_session.commit()
+                ticket_closed = True
+
+            logger.info(f"User {user.username} updated asset {asset_id} serial from '{old_serial}' to '{new_serial}' and checked in for ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': f'Asset serial updated and checked in successfully',
+                'asset': {
+                    'id': asset.id,
+                    'serial_number': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'model': asset.model
+                },
+                'progress': {
+                    'total': progress['total'],
+                    'checked_in': progress['checked_in'],
+                    'pending': progress['pending'],
+                    'progress_percent': progress['progress_percent'],
+                    'step': ticket.get_intake_step(db_session)
+                },
+                'ticket_closed': ticket_closed
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error updating serial and checking in via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # =============================================================================
 # PDF/OCR Text Processing for Mobile
 # =============================================================================
