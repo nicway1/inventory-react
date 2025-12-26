@@ -427,12 +427,282 @@ def extract_assets_from_pdf(pdf_path):
             logger.error("Failed to extract text from PDF")
             return None
 
-        # Parse the extracted text
-        return parse_packing_list_text(all_text)
+        # Detect document format and use appropriate parser
+        if is_asiacloud_delivery_order(all_text):
+            logger.info("Detected AsiaCloud Delivery Order format")
+            return parse_asiacloud_delivery_order(all_text)
+        else:
+            # Standard packing list format
+            return parse_packing_list_text(all_text)
 
     except Exception as e:
         logger.error(f"Error extracting PDF: {e}")
         return None
+
+
+def is_asiacloud_delivery_order(text):
+    """
+    Detect if the document is an AsiaCloud Delivery Order format
+    """
+    text_upper = text.upper()
+    indicators = [
+        'ASIACLOUD' in text_upper,
+        'DELIVERY ORDER' in text_upper,
+        'CUSTOMER PO NO' in text_upper,
+        'SO NO.' in text_upper or 'SO NO:' in text_upper,
+    ]
+    # Need at least 2 indicators to confirm
+    return sum(indicators) >= 2
+
+
+def parse_asiacloud_delivery_order(text):
+    """
+    Parse AsiaCloud Delivery Order format
+    Format has: Part No, Description with specs, Serial numbers listed at bottom
+    """
+    result = {
+        'po_number': None,
+        'reference': None,
+        'ship_date': None,
+        'supplier': 'AsiaCloud Solutions',
+        'receiver': None,
+        'total_quantity': 0,
+        'assets': [],
+        'raw_text': text[:2000]
+    }
+
+    # Extract Customer PO Number (e.g., "PO# 100010699 HackerOne")
+    po_match = re.search(r'(?:Customer\s*)?PO\s*(?:No\.?|#)[:\s]*(?:PO#\s*)?(\d+)', text, re.IGNORECASE)
+    if po_match:
+        result['po_number'] = po_match.group(1)
+
+    # Extract SO Number as reference (e.g., "AT251210060")
+    so_match = re.search(r'SO\s*No\.?[:\s]*([A-Z0-9]+)', text, re.IGNORECASE)
+    if so_match:
+        result['reference'] = so_match.group(1)
+
+    # Extract Date (e.g., "26-12-25")
+    date_match = re.search(r'Date[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})', text, re.IGNORECASE)
+    if date_match:
+        result['ship_date'] = date_match.group(1)
+
+    # Extract Ship-to address receiver
+    ship_match = re.search(r'Ship-to\s*Address[:\s]*([^\n]+)', text, re.IGNORECASE)
+    if ship_match:
+        result['receiver'] = ship_match.group(1).strip()
+
+    # Extract quantity from table
+    qty_match = re.search(r'Quantity\s+(\d+)', text, re.IGNORECASE)
+    if qty_match:
+        result['total_quantity'] = int(qty_match.group(1))
+
+    # Extract product details from Description field
+    product_details = parse_asiacloud_description(text)
+
+    # Extract serial numbers - look for "Serial No:" section
+    serials = extract_asiacloud_serials(text)
+    logger.info(f"AsiaCloud: Found {len(serials)} serial numbers")
+
+    # Create assets for each serial
+    for serial in serials:
+        asset = {
+            'serial_num': serial,
+            'name': product_details.get('name', 'MacBook Pro'),
+            'model': product_details.get('model', ''),
+            'manufacturer': 'Apple',
+            'category': 'Laptop',
+            'cpu_type': product_details.get('cpu_type', ''),
+            'cpu_cores': product_details.get('cpu_cores', ''),
+            'gpu_cores': product_details.get('gpu_cores', ''),
+            'memory': product_details.get('memory', ''),
+            'harddrive': product_details.get('storage', ''),
+            'hardware_type': 'Laptop',
+            'condition': 'New',
+        }
+        result['assets'].append(asset)
+
+    if not result['total_quantity']:
+        result['total_quantity'] = len(serials)
+
+    return result
+
+
+def parse_asiacloud_description(text):
+    """
+    Parse the Description field from AsiaCloud Delivery Order
+    Extracts specs from format like:
+    - Apple "14-inch MacBook Pro: Space Black
+    - Chip (Processor): (065-CJG1) - Apple M4 Pro chip with 14-core CPU, 20-core GPU
+    - Memory: (065-CJG6) - 48GB unified
+    - Storage: (065-CJGC) - 512GB SSD
+    """
+    details = {
+        'name': 'MacBook Pro',
+        'model': '',
+        'cpu_type': '',
+        'cpu_cores': '',
+        'gpu_cores': '',
+        'memory': '',
+        'storage': '',
+    }
+
+    text_upper = text.upper()
+
+    # Extract product name from Description field
+    # Pattern: Apple "14-inch MacBook Pro: Space Black
+    name_match = re.search(r'Apple\s*["\']?(\d+)[-\s]?inch\s+(MacBook\s+(?:Pro|Air))[:\s]*([^"\n]+)?', text, re.IGNORECASE)
+    if name_match:
+        size = name_match.group(1)
+        model_type = name_match.group(2)
+        color = name_match.group(3).strip() if name_match.group(3) else ''
+        details['name'] = f'{size}" {model_type}'
+        if 'Pro' in model_type:
+            details['model'] = 'MacBook Pro'
+        else:
+            details['model'] = 'MacBook Air'
+    elif 'MACBOOK PRO' in text_upper:
+        details['name'] = 'MacBook Pro'
+        details['model'] = 'MacBook Pro'
+        # Try to get screen size
+        size_match = re.search(r'(\d+)[-\s]?inch', text, re.IGNORECASE)
+        if size_match:
+            details['name'] = f'{size_match.group(1)}" MacBook Pro'
+    elif 'MACBOOK AIR' in text_upper:
+        details['name'] = 'MacBook Air'
+        details['model'] = 'MacBook Air'
+        size_match = re.search(r'(\d+)[-\s]?inch', text, re.IGNORECASE)
+        if size_match:
+            details['name'] = f'{size_match.group(1)}" MacBook Air'
+
+    # Extract CPU info from Chip (Processor) line
+    # Pattern: Apple M4 Pro chip with 14-core CPU, 20-core GPU
+    chip_match = re.search(r'Apple\s+(M\d+(?:\s+Pro|\s+Max)?)\s+chip\s+with\s+(\d+)[-\s]?core\s+CPU[,\s]+(\d+)[-\s]?core\s+GPU', text, re.IGNORECASE)
+    if chip_match:
+        details['cpu_type'] = chip_match.group(1)
+        details['cpu_cores'] = chip_match.group(2)
+        details['gpu_cores'] = chip_match.group(3)
+    else:
+        # Fallback: just look for M4/M4 Pro/M4 Max
+        cpu_match = re.search(r'\b(M\d+(?:\s+Pro|\s+Max)?)\b', text, re.IGNORECASE)
+        if cpu_match:
+            details['cpu_type'] = cpu_match.group(1)
+
+        # Look for CPU cores
+        cpu_cores_match = re.search(r'(\d+)[-\s]?core\s+CPU', text, re.IGNORECASE)
+        if cpu_cores_match:
+            details['cpu_cores'] = cpu_cores_match.group(1)
+
+        # Look for GPU cores
+        gpu_cores_match = re.search(r'(\d+)[-\s]?core\s+GPU', text, re.IGNORECASE)
+        if gpu_cores_match:
+            details['gpu_cores'] = gpu_cores_match.group(1)
+
+    # Extract Memory
+    # Pattern: Memory: (065-CJG6) - 48GB unified
+    mem_match = re.search(r'Memory[:\s]*(?:\([^)]+\)\s*-?\s*)?(\d+)GB', text, re.IGNORECASE)
+    if mem_match:
+        details['memory'] = mem_match.group(1) + 'GB'
+
+    # Extract Storage
+    # Pattern: Storage: (065-CJGC) - 512GB SSD
+    storage_match = re.search(r'Storage[:\s]*(?:\([^)]+\)\s*-?\s*)?(\d+)(?:GB|TB)\s*(?:SSD|SSE|SSt)?', text, re.IGNORECASE)
+    if storage_match:
+        storage_val = storage_match.group(1)
+        # OCR often misreads "512GB" as "12GB" - detect this by checking if value is unrealistically low
+        # Apple storage is always >= 128GB, never 12GB
+        if int(storage_val) < 100:
+            # Try to find more specific storage mentions in description
+            # Look for patterns like "512GB SSD" anywhere in text
+            alt_storage = re.search(r'\b(128|256|512|1024|2048)\s*GB', text, re.IGNORECASE)
+            if alt_storage:
+                storage_val = alt_storage.group(1)
+            else:
+                # Check for TB
+                tb_match = re.search(r'\b([1248])\s*TB', text, re.IGNORECASE)
+                if tb_match:
+                    details['storage'] = tb_match.group(1) + 'TB'
+                    storage_val = None  # Already set
+
+        if storage_val:
+            if int(storage_val) <= 4:
+                details['storage'] = storage_val + 'TB'
+            else:
+                details['storage'] = storage_val + 'GB'
+
+    # Sanity check: storage should be larger than memory
+    # If not, try to infer from common Apple configs
+    if details['memory'] and details['storage']:
+        try:
+            mem_gb = int(details['memory'].replace('GB', '').replace('TB', ''))
+            storage_num = int(details['storage'].replace('GB', '').replace('TB', ''))
+            if 'TB' not in details['storage'] and storage_num < mem_gb:
+                # Storage can't be less than RAM - likely OCR error
+                # For 48GB RAM configs, storage is typically 512GB or higher
+                if mem_gb >= 48:
+                    details['storage'] = '512GB'
+                elif mem_gb >= 24:
+                    details['storage'] = '512GB'
+                else:
+                    details['storage'] = '256GB'
+                logger.warning(f"Storage {storage_num}GB < Memory {mem_gb}GB - corrected to {details['storage']}")
+        except (ValueError, AttributeError):
+            pass
+
+    logger.info(f"AsiaCloud description parsed: {details}")
+    return details
+
+
+def extract_asiacloud_serials(text):
+    """
+    Extract serial numbers from AsiaCloud Delivery Order format
+    They appear after "Serial No:" in two columns:
+    Serial No:    SFDGJG97N27
+    SFD7T2H5C9C   SFDK6F7D7LW
+    SFDGDW5952K   SH6WT329MW7
+    """
+    serials = []
+
+    # Find the Serial No section
+    serial_section_match = re.search(r'Serial\s*No\s*[:\s]*([\s\S]*?)(?:Remarks:|Received|$)', text, re.IGNORECASE)
+    if serial_section_match:
+        serial_section = serial_section_match.group(1)
+    else:
+        serial_section = text
+
+    # Apple serial patterns - typically 10-12 alphanumeric starting with letter
+    # MacBook Pro serials often start with S, C, F, or other letters
+    serial_pattern = r'\b([A-Z][A-Z0-9]{9,11})\b'
+
+    # Exclude patterns
+    exclude_patterns = [
+        r'^\d+$',  # Pure numbers
+        r'^AT\d+',  # SO numbers like AT251210060
+        r'^Z\d+',  # Part numbers like Z1FE00012
+        r'^PO\d+',
+        r'^\d{6,}$',
+    ]
+
+    for match in re.finditer(serial_pattern, serial_section):
+        serial = match.group(1)
+
+        # Skip excluded patterns
+        skip = False
+        for exc in exclude_patterns:
+            if re.match(exc, serial, re.IGNORECASE):
+                skip = True
+                break
+
+        if skip:
+            continue
+
+        # Apple serials must have mix of letters and numbers
+        has_letters = sum(1 for c in serial if c.isalpha()) >= 2
+        has_numbers = sum(1 for c in serial if c.isdigit()) >= 2
+
+        if has_letters and has_numbers and serial not in serials:
+            serials.append(serial)
+
+    return serials
 
 
 def parse_packing_list_text(text):
