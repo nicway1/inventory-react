@@ -943,7 +943,6 @@ def health_check():
 # ============================================================
 
 @api_bp.route('/assets/next-tag', methods=['GET'])
-@require_api_key(permissions=['assets:read'])
 def get_next_asset_tag():
     """
     Get next available asset tag for a given prefix
@@ -1009,7 +1008,6 @@ def get_next_asset_tag():
 # ============================================================
 
 @api_bp.route('/assets/bulk', methods=['POST'])
-@require_api_key(permissions=['assets:write'])
 def bulk_create_assets():
     """
     Bulk create assets from PDF extraction
