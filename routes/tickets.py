@@ -8154,11 +8154,21 @@ def mark_return_received(ticket_id):
             old_shipping_status = ticket.shipping_status
             ticket.shipping_status = f"Item was received on {singapore_time_str}"
             logger.info(f"Also updating shipping_status from '{old_shipping_status}' to '{ticket.shipping_status}' for Asset Return (Claw) ticket")
-        
+
+            # Auto-close ticket if both return and replacement are received
+            replacement_received = ticket.replacement_status and "Item was received" in ticket.replacement_status
+            if replacement_received:
+                ticket.status = TicketStatus.RESOLVED
+                logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+
         db_session.commit()
         logger.info(f"Database commit successful for ticket {ticket_id}")
-        
-        flash('Return shipment marked as received')
+
+        # Check if ticket was auto-closed
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status == TicketStatus.RESOLVED:
+            flash('Return shipment marked as received - Ticket closed (both shipments received)')
+        else:
+            flash('Return shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
                 
     except Exception as e:
@@ -8191,13 +8201,25 @@ def mark_replacement_received(ticket_id):
         old_status = ticket.replacement_status
         ticket.replacement_status = f"Item was received on {singapore_time_str}"
         logger.info(f"Updating ticket {ticket_id} replacement_status from '{old_status}' to '{ticket.replacement_status}'")
-        
+
+        # Auto-close Asset Return (Claw) tickets if both return and replacement are received
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
+            # For ASSET_RETURN_CLAW, check shipping_status (which mirrors return_status)
+            return_received = ticket.shipping_status and "Item was received" in ticket.shipping_status
+            if return_received:
+                ticket.status = TicketStatus.RESOLVED
+                logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+
         db_session.commit()
         logger.info(f"Database commit successful for ticket {ticket_id}")
-        
-        flash('Replacement shipment marked as received')
+
+        # Check if ticket was auto-closed
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status == TicketStatus.RESOLVED:
+            flash('Replacement shipment marked as received - Ticket closed (both shipments received)')
+        else:
+            flash('Replacement shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-                
+
     except Exception as e:
         db_session.rollback()
         logger.info(f"Error marking replacement as received: {str(e)}")
