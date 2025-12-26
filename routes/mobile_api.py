@@ -5039,3 +5039,301 @@ def mobile_create_assets_from_text(ticket_id):
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/companies', methods=['GET'])
+def mobile_get_companies():
+    """
+    Get list of all companies for mobile app dropdown.
+
+    Response:
+        {
+            "success": true,
+            "companies": [
+                {"id": 1, "name": "Company A"},
+                {"id": 2, "name": "Company B"}
+            ]
+        }
+    """
+    try:
+        # Verify auth token
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Missing or invalid authorization token'}), 401
+
+        token = auth_header.split(' ')[1]
+        user = verify_mobile_token(token)
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+
+        from models.company import Company
+
+        db_session = db_manager.get_session()
+        try:
+            companies = db_session.query(Company).order_by(Company.name).all()
+
+            return jsonify({
+                'success': True,
+                'companies': [
+                    {
+                        'id': c.id,
+                        'name': c.name,
+                        'grouped_display_name': getattr(c, 'grouped_display_name', c.name)
+                    }
+                    for c in companies
+                ]
+            })
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error fetching companies for mobile: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/next-asset-tag', methods=['GET'])
+def mobile_get_next_asset_tag():
+    """
+    Get the next available asset tag number and optionally pre-generate a list of tags.
+
+    Query Parameters:
+        prefix: Tag prefix (default: "SG-")
+        count: Number of tags to generate (default: 1, max: 200)
+
+    Response:
+        {
+            "success": true,
+            "next_number": 1207,
+            "tags": ["SG-1207", "SG-1208", "SG-1209", ...]
+        }
+    """
+    try:
+        # Verify auth token
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Missing or invalid authorization token'}), 401
+
+        token = auth_header.split(' ')[1]
+        user = verify_mobile_token(token)
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+
+        prefix = request.args.get('prefix', 'SG-')
+        count = min(int(request.args.get('count', 1)), 200)  # Max 200 tags
+
+        import re
+
+        db_session = db_manager.get_session()
+        try:
+            # Find highest existing tag with this prefix
+            # Handle both "SG-" and "SG" prefixes
+            clean_prefix = prefix.rstrip('-')
+
+            existing_tags = db_session.query(Asset.asset_tag).filter(
+                Asset.asset_tag.like(f'{clean_prefix}-%')
+            ).all()
+
+            max_num = 0
+            for (tag,) in existing_tags:
+                if tag:
+                    match = re.match(rf'{re.escape(clean_prefix)}-(\d+)', tag)
+                    if match:
+                        num = int(match.group(1))
+                        if num > max_num:
+                            max_num = num
+
+            next_number = max_num + 1
+
+            # Generate the requested number of tags
+            tags = [f"{clean_prefix}-{next_number + i}" for i in range(count)]
+
+            return jsonify({
+                'success': True,
+                'next_number': next_number,
+                'prefix': f"{clean_prefix}-",
+                'tags': tags
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting next asset tag for mobile: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/create-assets', methods=['POST'])
+def mobile_create_assets_bulk():
+    """
+    Bulk create assets from mobile app with full control over all fields.
+
+    Request Body:
+        {
+            "ticket_id": 2040,  // Optional - link assets to ticket
+            "company_id": 5,    // Optional - assign company to all assets
+            "assets": [
+                {
+                    "serial_num": "C02XG1YHJK77",
+                    "asset_tag": "SG-1207",
+                    "name": "13\" MacBook Air",
+                    "model": "A3240",
+                    "cpu_type": "M4",
+                    "cpu_cores": "10",
+                    "gpu_cores": "8",
+                    "memory": "16GB",
+                    "harddrive": "256GB",
+                    "hardware_type": "13\" MacBook Air M4 10-Core 256GB",
+                    "manufacturer": "Apple",
+                    "category": "APPLE",
+                    "condition": "New",
+                    "country": "Singapore"
+                },
+                ...
+            ]
+        }
+
+    Response:
+        {
+            "success": true,
+            "created_count": 56,
+            "error_count": 0,
+            "assets": [...],
+            "errors": []
+        }
+    """
+    try:
+        # Verify auth token
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Missing or invalid authorization token'}), 401
+
+        token = auth_header.split(' ')[1]
+        user = verify_mobile_token(token)
+
+        if not user:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+
+        data = request.get_json()
+        if not data or 'assets' not in data:
+            return jsonify({'success': False, 'error': 'Missing assets data'}), 400
+
+        assets_data = data.get('assets', [])
+        ticket_id = data.get('ticket_id')
+        company_id = data.get('company_id')
+
+        if not assets_data:
+            return jsonify({'success': False, 'error': 'No assets provided'}), 400
+
+        db_session = db_manager.get_session()
+        try:
+            # Get ticket if provided
+            ticket = None
+            if ticket_id:
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+                if not ticket:
+                    return jsonify({'success': False, 'error': f'Ticket {ticket_id} not found'}), 404
+
+            created_assets = []
+            errors = []
+
+            for asset_data in assets_data:
+                try:
+                    serial_num = asset_data.get('serial_num', '').strip()
+                    asset_tag = asset_data.get('asset_tag', '').strip()
+
+                    if not serial_num:
+                        errors.append({'error': 'Missing serial number', 'data': asset_data})
+                        continue
+
+                    # Check for duplicate serial
+                    existing_serial = db_session.query(Asset).filter(Asset.serial_num == serial_num).first()
+                    if existing_serial:
+                        errors.append({
+                            'error': f'Serial {serial_num} already exists (Asset #{existing_serial.id})',
+                            'serial_num': serial_num
+                        })
+                        continue
+
+                    # Check for duplicate asset tag
+                    if asset_tag:
+                        existing_tag = db_session.query(Asset).filter(Asset.asset_tag == asset_tag).first()
+                        if existing_tag:
+                            errors.append({
+                                'error': f'Asset tag {asset_tag} already exists (Asset #{existing_tag.id})',
+                                'asset_tag': asset_tag
+                            })
+                            continue
+
+                    # Create the asset
+                    asset = Asset(
+                        serial_num=serial_num,
+                        asset_tag=asset_tag,
+                        name=asset_data.get('name', ''),
+                        model=asset_data.get('model', ''),
+                        manufacturer=asset_data.get('manufacturer', 'Apple'),
+                        category=asset_data.get('category', 'APPLE'),
+                        asset_type=asset_data.get('category', 'APPLE'),
+                        cpu_type=asset_data.get('cpu_type', ''),
+                        cpu_cores=asset_data.get('cpu_cores', ''),
+                        gpu_cores=asset_data.get('gpu_cores', ''),
+                        memory=asset_data.get('memory', ''),
+                        harddrive=asset_data.get('harddrive', ''),
+                        hardware_type=asset_data.get('hardware_type', ''),
+                        condition=asset_data.get('condition', 'New'),
+                        country=asset_data.get('country', 'Singapore'),
+                        company_id=company_id,
+                        status=AssetStatus.IN_STOCK,
+                        receiving_date=datetime.utcnow(),
+                        notes=f"Created via mobile app by {user.username}"
+                    )
+
+                    db_session.add(asset)
+                    db_session.flush()  # Get the asset ID
+
+                    # Link to ticket if provided
+                    if ticket:
+                        ticket.assets.append(asset)
+
+                    created_assets.append({
+                        'id': asset.id,
+                        'serial_num': asset.serial_num,
+                        'asset_tag': asset.asset_tag,
+                        'name': asset.name,
+                        'model': asset.model
+                    })
+
+                except Exception as e:
+                    errors.append({
+                        'error': str(e),
+                        'serial_num': asset_data.get('serial_num', 'unknown')
+                    })
+
+            db_session.commit()
+
+            logger.info(f"Mobile API: User {user.username} created {len(created_assets)} assets" +
+                       (f" for ticket {ticket_id}" if ticket_id else ""))
+
+            return jsonify({
+                'success': True,
+                'created_count': len(created_assets),
+                'error_count': len(errors),
+                'assets': created_assets,
+                'errors': errors,
+                'ticket_id': ticket_id,
+                'message': f'Successfully created {len(created_assets)} asset(s)' +
+                          (f' and linked to ticket #{ticket_id}' if ticket_id else '')
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error creating assets from mobile app: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
