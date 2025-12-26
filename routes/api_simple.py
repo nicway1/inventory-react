@@ -2160,3 +2160,194 @@ def get_accessory_item(accessory_id):
             500
         )
         return jsonify(response), status_code
+
+
+# ============================================================
+# NEXT ASSET TAG ENDPOINT (for iOS PDF extraction)
+# ============================================================
+
+@api_bp.route('/assets/next-tag', methods=['GET'])
+def get_next_asset_tag():
+    """
+    Get next available asset tag for a given prefix
+
+    GET /api/v1/assets/next-tag?prefix=SG-
+    """
+    try:
+        import re
+
+        prefix = request.args.get('prefix', 'SG-')
+        clean_prefix = prefix.rstrip('-')
+
+        db_session = db_manager.get_session()
+        try:
+            # Find highest existing tag with this prefix
+            existing_tags = db_session.query(Asset.asset_tag).filter(
+                Asset.asset_tag.like(f'{clean_prefix}-%')
+            ).all()
+
+            max_num = 0
+            for (tag,) in existing_tags:
+                if tag:
+                    match = re.match(rf'{re.escape(clean_prefix)}-(\d+)', tag)
+                    if match:
+                        num = int(match.group(1))
+                        if num > max_num:
+                            max_num = num
+
+            next_num = max_num + 1
+
+            return jsonify(create_success_response(
+                {
+                    'prefix': f'{clean_prefix}-',
+                    'next_number': next_num,
+                    'next_tag': f'{clean_prefix}-{next_num}'
+                },
+                f"Next asset tag: {clean_prefix}-{next_num}"
+            ))
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error getting next asset tag: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+# ============================================================
+# BULK CREATE ASSETS ENDPOINT (for iOS PDF extraction)
+# ============================================================
+
+@api_bp.route('/assets/bulk', methods=['POST'])
+def bulk_create_assets():
+    """
+    Bulk create assets from PDF extraction
+
+    POST /api/v1/assets/bulk
+    """
+    try:
+        from models.asset import AssetStatus
+
+        data = request.get_json()
+        if not data or 'assets' not in data:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Missing 'assets' in request body",
+                400
+            )
+            return jsonify(response), status_code
+
+        assets_data = data.get('assets', [])
+        ticket_id = data.get('ticket_id')
+
+        if not assets_data:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "No assets provided",
+                400
+            )
+            return jsonify(response), status_code
+
+        db_session = db_manager.get_session()
+        try:
+            # Get ticket if provided
+            ticket = None
+            if ticket_id:
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+
+            created_ids = []
+            errors = []
+
+            for asset_data in assets_data:
+                try:
+                    # Check for duplicate serial number
+                    serial = asset_data.get('serial_number') or asset_data.get('serial_num')
+                    if serial:
+                        existing = db_session.query(Asset).filter(Asset.serial_num == serial).first()
+                        if existing:
+                            errors.append({
+                                'serial_number': serial,
+                                'error': f'Duplicate serial number (exists as {existing.asset_tag})'
+                            })
+                            continue
+
+                    # Check for duplicate asset tag
+                    asset_tag = asset_data.get('asset_tag')
+                    if asset_tag:
+                        existing = db_session.query(Asset).filter(Asset.asset_tag == asset_tag).first()
+                        if existing:
+                            errors.append({
+                                'serial_number': serial,
+                                'asset_tag': asset_tag,
+                                'error': 'Duplicate asset tag'
+                            })
+                            continue
+
+                    # Create asset
+                    asset = Asset(
+                        serial_num=serial,
+                        asset_tag=asset_tag,
+                        name=asset_data.get('name'),
+                        model=asset_data.get('model_identifier') or asset_data.get('model'),
+                        part_number=asset_data.get('part_number'),
+                        hardware_type=asset_data.get('hardware_type'),
+                        cpu_type=asset_data.get('cpu_type'),
+                        cpu_cores=asset_data.get('cpu_cores'),
+                        gpu_cores=asset_data.get('gpu_cores'),
+                        memory=asset_data.get('memory'),
+                        harddrive=asset_data.get('storage') or asset_data.get('harddrive'),
+                        condition=asset_data.get('condition', 'New'),
+                        status=AssetStatus.IN_STOCK,
+                        manufacturer=asset_data.get('manufacturer', 'Apple'),
+                        category=asset_data.get('category', 'APPLE'),
+                        company_id=asset_data.get('company_id'),
+                        country=asset_data.get('country', 'Singapore')
+                    )
+
+                    db_session.add(asset)
+                    db_session.flush()  # Get the ID
+
+                    created_ids.append(asset.id)
+
+                    # Link to ticket if provided
+                    if ticket:
+                        ticket.assets.append(asset)
+
+                except Exception as e:
+                    errors.append({
+                        'serial_number': asset_data.get('serial_number', 'unknown'),
+                        'error': str(e)
+                    })
+
+            db_session.commit()
+
+            result_data = {
+                'created_count': len(created_ids),
+                'created_ids': created_ids,
+                'failed_count': len(errors),
+                'errors': errors
+            }
+
+            if errors:
+                message = f"Created {len(created_ids)} of {len(assets_data)} assets"
+            else:
+                message = f"Successfully created {len(created_ids)} assets"
+
+            return jsonify(create_success_response(result_data, message))
+
+        except Exception as e:
+            db_session.rollback()
+            raise
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error creating assets: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
