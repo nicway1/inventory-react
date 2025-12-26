@@ -2085,21 +2085,42 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
 
                             <!-- Progress Line 3 -->
-                            <div class="flex-1 h-1 mx-2 
-                                {% if (ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}bg-green-500{% else %}bg-gray-300{% endif %}">
+                            {% set return_received = (ticket.shipping_status and ('delivered' in ticket.shipping_status.lower() or 'received' in ticket.shipping_status.lower())) %}
+                            <div class="flex-1 h-1 mx-2
+                                {% if return_received %}bg-green-500{% else %}bg-gray-300{% endif %}">
                             </div>
 
-                            <!-- Stage 4: Item Received -->
+                            <!-- Stage 4: Return Received -->
                             <div class="flex flex-col items-center flex-1">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2 
-                                    {% if (ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
+                                    {% if return_received %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                     </svg>
                                 </div>
-                                <span class="text-xs font-medium text-center">Item Received</span>
+                                <span class="text-xs font-medium text-center">Return Received</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if (ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}Complete{% else %}Pending{% endif %}
+                                    {% if return_received %}Complete{% else %}Pending{% endif %}
+                                </span>
+                            </div>
+
+                            <!-- Progress Line 4 -->
+                            {% set replacement_received = (ticket.replacement_status and ('delivered' in ticket.replacement_status.lower() or 'received' in ticket.replacement_status.lower())) %}
+                            <div class="flex-1 h-1 mx-2
+                                {% if replacement_received %}bg-green-500{% else %}bg-gray-300{% endif %}">
+                            </div>
+
+                            <!-- Stage 5: Replacement Received -->
+                            <div class="flex flex-col items-center flex-1">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
+                                    {% if replacement_received %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-xs font-medium text-center">Replacement Received</span>
+                                <span class="text-xs text-gray-500 text-center">
+                                    {% if replacement_received %}Complete{% else %}Pending{% endif %}
                                 </span>
                             </div>
                         </div>
@@ -2110,8 +2131,12 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <div>
                                     <h4 class="text-sm font-medium text-blue-900">Current Status</h4>
                                     <p class="text-sm text-blue-700">
-                                        {% if (ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}
-                                            Return item has been received. Case can be closed.
+                                        {% if return_received and replacement_received %}
+                                            Both shipments received. Case completed!
+                                        {% elif return_received and not replacement_received %}
+                                            Return received. Waiting for replacement to be received by customer.
+                                        {% elif replacement_received and not return_received %}
+                                            Replacement received by customer. Waiting for return item.
                                         {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
                                             {% if ticket.return_tracking %}
                                                 Customer has shipped the item back - Return tracking: {{ ticket.return_tracking }}
@@ -2127,8 +2152,10 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
                                 <div class="text-right">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                        {% if (ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}
+                                        {% if return_received and replacement_received %}
                                             bg-green-100 text-green-800
+                                        {% elif return_received or replacement_received %}
+                                            bg-yellow-100 text-yellow-800
                                         {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
                                             bg-blue-100 text-blue-800
                                         {% elif ticket.shipping_tracking %}
@@ -2136,8 +2163,10 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {% else %}
                                             bg-gray-100 text-gray-800
                                         {% endif %}">
-                                        {% if (ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower()) %}
+                                        {% if return_received and replacement_received %}
                                             Completed
+                                        {% elif return_received or replacement_received %}
+                                            Partially Complete
                                         {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
                                             Item In Transit
                                         {% elif ticket.shipping_tracking %}
@@ -2219,34 +2248,49 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
                         </div>
 
-                        <!-- Auto-close notification for received returns -->
-                        {% if ((ticket.return_tracking and ticket.return_status and 'delivered' in ticket.return_status.lower()) or (ticket.shipping_status and 'delivered' in ticket.shipping_status.lower())) and (not ticket.status or ticket.status.name != 'RESOLVED') %}
+                        <!-- Auto-close notification for received shipments -->
+                        {% if return_received and replacement_received and (not ticket.status or ticket.status.name != 'RESOLVED') %}
                         <div class="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
                             <div class="flex items-center">
                                 <svg class="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                 </svg>
                                 <div>
-                                    <h4 class="text-sm font-medium text-green-900">Return Received</h4>
-                                    <p class="text-sm text-green-700">Return item has been received. This case can now be closed.</p>
+                                    <h4 class="text-sm font-medium text-green-900">Both Shipments Received</h4>
+                                    <p class="text-sm text-green-700">Return and replacement have both been received. This case will be auto-closed.</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif (return_received or replacement_received) and (not ticket.status or ticket.status.name != 'RESOLVED') %}
+                        <div class="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                <div>
+                                    <h4 class="text-sm font-medium text-yellow-900">Partially Complete</h4>
+                                    <p class="text-sm text-yellow-700">
+                                        {% if return_received %}Return received - waiting for replacement to be received by customer.{% endif %}
+                                        {% if replacement_received %}Replacement received - waiting for return item.{% endif %}
+                                    </p>
                                 </div>
                             </div>
                         </div>
                         {% endif %}
 
-                        <!-- Return Tracking Information -->
-                        {% if ticket.shipping_tracking or ticket.return_tracking %}
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Tracking Information -->
+                        {% if ticket.shipping_tracking or ticket.return_tracking or ticket.replacement_tracking or ticket.replacement_status %}
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <!-- Outbound Tracking (Return Label) -->
                             {% if ticket.shipping_tracking %}
                             <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                <h5 class="text-sm font-medium text-gray-900 mb-2">Outbound Tracking (Return Label)</h5>
+                                <h5 class="text-sm font-medium text-gray-900 mb-2">Return Label Sent</h5>
                                 <div class="space-y-1">
                                     <p class="text-xs text-gray-600">Tracking Number:</p>
                                     <p class="text-sm font-mono text-blue-600">{{ ticket.shipping_tracking }}</p>
                                     <p class="text-xs text-gray-600">Status:</p>
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                        {% if ticket.shipping_status and 'delivered' in ticket.shipping_status.lower() %}
+                                        {% if return_received %}
                                             bg-green-100 text-green-800
                                         {% elif ticket.shipping_status and ticket.shipping_status != 'Pending' %}
                                             bg-blue-100 text-blue-800
@@ -2256,19 +2300,26 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {{ ticket.shipping_status or 'Pending' }}
                                     </span>
                                 </div>
+                                {% if not return_received %}
+                                <form action="{{ url_for('tickets.mark_return_received', ticket_id=ticket.id) }}" method="POST" class="mt-2">
+                                    <button type="submit" class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded">
+                                        Mark Return Received
+                                    </button>
+                                </form>
+                                {% endif %}
                             </div>
                             {% endif %}
 
                             <!-- Inbound Tracking (Return Item) -->
                             {% if ticket.return_tracking %}
                             <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                <h5 class="text-sm font-medium text-gray-900 mb-2">Inbound Tracking (Return Item)</h5>
+                                <h5 class="text-sm font-medium text-gray-900 mb-2">Return Tracking</h5>
                                 <div class="space-y-1">
                                     <p class="text-xs text-gray-600">Tracking Number:</p>
                                     <p class="text-sm font-mono text-blue-600">{{ ticket.return_tracking }}</p>
                                     <p class="text-xs text-gray-600">Status:</p>
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                        {% if ticket.return_status and 'delivered' in ticket.return_status.lower() %}
+                                        {% if ticket.return_status and ('delivered' in ticket.return_status.lower() or 'received' in ticket.return_status.lower()) %}
                                             bg-green-100 text-green-800
                                         {% elif ticket.return_status and ticket.return_status != 'Pending' %}
                                             bg-blue-100 text-blue-800
@@ -2280,6 +2331,35 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
                             </div>
                             {% endif %}
+
+                            <!-- Replacement Tracking -->
+                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <h5 class="text-sm font-medium text-gray-900 mb-2">Replacement Shipment</h5>
+                                <div class="space-y-1">
+                                    {% if ticket.replacement_tracking %}
+                                    <p class="text-xs text-gray-600">Tracking Number:</p>
+                                    <p class="text-sm font-mono text-blue-600">{{ ticket.replacement_tracking }}</p>
+                                    {% endif %}
+                                    <p class="text-xs text-gray-600">Status:</p>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                        {% if replacement_received %}
+                                            bg-green-100 text-green-800
+                                        {% elif ticket.replacement_status and ticket.replacement_status != 'Pending' %}
+                                            bg-blue-100 text-blue-800
+                                        {% else %}
+                                            bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {{ ticket.replacement_status or 'Pending' }}
+                                    </span>
+                                </div>
+                                {% if not replacement_received %}
+                                <form action="{{ url_for('tickets.mark_replacement_received', ticket_id=ticket.id) }}" method="POST" class="mt-2">
+                                    <button type="submit" class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded">
+                                        Mark Replacement Received
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </div>
                         {% endif %}
                     </div>
