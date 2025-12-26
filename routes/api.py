@@ -110,67 +110,67 @@ def list_tickets():
         session = SessionLocal()
         try:
             query = session.query(Ticket)
-        
-        # Apply filters
-        if status:
-            query = query.filter(Ticket.status == status)
-        
-        if priority:
-            query = query.filter(Ticket.priority_id == priority)
-        
-        if queue_id:
-            query = query.filter(Ticket.queue_id == queue_id)
-        
-        if customer_id:
-            query = query.filter(Ticket.customer_user_id == customer_id)
-        
-        if created_after:
-            query = query.filter(Ticket.created_at >= created_after)
-        
-        if updated_after:
-            query = query.filter(Ticket.updated_at >= updated_after)
-        
-        # Order by most recent first
-        query = query.order_by(Ticket.updated_at.desc())
-        
-        # Paginate
-        tickets, pagination = paginate_query(query, page, per_page)
-        
-        # Convert to dict
-        tickets_data = []
-        for ticket in tickets:
-            ticket_data = {
-                'id': ticket.id,
-                'subject': ticket.subject,
-                'description': ticket.description,
-                'status': ticket.status,
-                'priority': ticket.priority.name if ticket.priority else None,
-                'category': ticket.category.name if ticket.category else None,
-                'queue_id': ticket.queue_id,
-                'queue_name': ticket.queue.name if ticket.queue else None,
-                'customer_id': ticket.customer_user_id,
-                'customer_name': ticket.customer_user.name if ticket.customer_user else None,
-                'customer_email': ticket.customer_user.email if ticket.customer_user else None,
-                'assigned_to_id': ticket.assigned_to_id,
-                'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
-                'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
-                'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
-                'shipping_address': ticket.shipping_address,
-                'shipping_tracking': ticket.shipping_tracking,
-                'shipping_carrier': ticket.shipping_carrier,
-                'shipping_status': ticket.shipping_status
-            }
-            tickets_data.append(ticket_data)
-        
-        return jsonify(create_success_response(
-            tickets_data,
-            f"Retrieved {len(tickets_data)} tickets",
-            {"pagination": pagination}
-        ))
-        
-    finally:
+
+            # Apply filters
+            if status:
+                query = query.filter(Ticket.status == status)
+
+            if priority:
+                query = query.filter(Ticket.priority_id == priority)
+
+            if queue_id:
+                query = query.filter(Ticket.queue_id == queue_id)
+
+            if customer_id:
+                query = query.filter(Ticket.customer_user_id == customer_id)
+
+            if created_after:
+                query = query.filter(Ticket.created_at >= created_after)
+
+            if updated_after:
+                query = query.filter(Ticket.updated_at >= updated_after)
+
+            # Order by most recent first
+            query = query.order_by(Ticket.updated_at.desc())
+
+            # Paginate
+            tickets, pagination = paginate_query(query, page, per_page)
+
+            # Convert to dict
+            tickets_data = []
+            for ticket in tickets:
+                ticket_data = {
+                    'id': ticket.id,
+                    'subject': ticket.subject,
+                    'description': ticket.description,
+                    'status': ticket.status,
+                    'priority': ticket.priority.name if ticket.priority else None,
+                    'category': ticket.category.name if ticket.category else None,
+                    'queue_id': ticket.queue_id,
+                    'queue_name': ticket.queue.name if ticket.queue else None,
+                    'customer_id': ticket.customer_user_id,
+                    'customer_name': ticket.customer_user.name if ticket.customer_user else None,
+                    'customer_email': ticket.customer_user.email if ticket.customer_user else None,
+                    'assigned_to_id': ticket.assigned_to_id,
+                    'assigned_to_name': ticket.assigned_to.name if ticket.assigned_to else None,
+                    'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                    'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
+                    'shipping_address': ticket.shipping_address,
+                    'shipping_tracking': ticket.shipping_tracking,
+                    'shipping_carrier': ticket.shipping_carrier,
+                    'shipping_status': ticket.shipping_status
+                }
+                tickets_data.append(ticket_data)
+
+            return jsonify(create_success_response(
+                tickets_data,
+                f"Retrieved {len(tickets_data)} tickets",
+                {"pagination": pagination}
+            ))
+
+        finally:
             session.close()
-        
+
     except Exception as e:
         response, status_code = create_error_response(
             "INTERNAL_ERROR",
@@ -937,6 +937,233 @@ def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0"
     })
+
+# ============================================================
+# NEXT ASSET TAG ENDPOINT (for iOS PDF extraction)
+# ============================================================
+
+@api_bp.route('/assets/next-tag', methods=['GET'])
+@require_api_key(permissions=['assets:read'])
+def get_next_asset_tag():
+    """
+    Get next available asset tag for a given prefix
+
+    GET /api/v1/assets/next-tag?prefix=SG-
+
+    Response: {
+        "success": true,
+        "data": {
+            "prefix": "SG-",
+            "next_number": 1234,
+            "next_tag": "SG-1234"
+        }
+    }
+    """
+    try:
+        import re
+        from database import SessionLocal
+
+        prefix = request.args.get('prefix', 'SG-')
+        clean_prefix = prefix.rstrip('-')
+
+        session = SessionLocal()
+        try:
+            # Find highest existing tag with this prefix
+            existing_tags = session.query(Asset.asset_tag).filter(
+                Asset.asset_tag.like(f'{clean_prefix}-%')
+            ).all()
+
+            max_num = 0
+            for (tag,) in existing_tags:
+                if tag:
+                    match = re.match(rf'{re.escape(clean_prefix)}-(\d+)', tag)
+                    if match:
+                        num = int(match.group(1))
+                        if num > max_num:
+                            max_num = num
+
+            next_num = max_num + 1
+
+            return jsonify(create_success_response(
+                {
+                    'prefix': f'{clean_prefix}-',
+                    'next_number': next_num,
+                    'next_tag': f'{clean_prefix}-{next_num}'
+                },
+                f"Next asset tag: {clean_prefix}-{next_num}"
+            ))
+        finally:
+            session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error getting next asset tag: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+# ============================================================
+# BULK CREATE ASSETS ENDPOINT (for iOS PDF extraction)
+# ============================================================
+
+@api_bp.route('/assets/bulk', methods=['POST'])
+@require_api_key(permissions=['assets:write'])
+def bulk_create_assets():
+    """
+    Bulk create assets from PDF extraction
+
+    POST /api/v1/assets/bulk
+
+    Request Body: {
+        "assets": [
+            {
+                "serial_number": "ABC123",
+                "asset_tag": "SG-1234",
+                "name": "MacBook Pro 14\"",
+                ...
+            }
+        ],
+        "ticket_id": 123  // Optional
+    }
+
+    Response: {
+        "success": true,
+        "data": {
+            "created_count": 5,
+            "created_ids": [101, 102, ...],
+            "failed_count": 0,
+            "errors": []
+        }
+    }
+    """
+    try:
+        from database import SessionLocal
+        from models.asset import AssetStatus
+        from models.ticket import Ticket
+
+        data = request.get_json()
+        if not data or 'assets' not in data:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Missing 'assets' in request body",
+                400
+            )
+            return jsonify(response), status_code
+
+        assets_data = data.get('assets', [])
+        ticket_id = data.get('ticket_id')
+
+        if not assets_data:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "No assets provided",
+                400
+            )
+            return jsonify(response), status_code
+
+        session = SessionLocal()
+        try:
+            # Get ticket if provided
+            ticket = None
+            if ticket_id:
+                ticket = session.query(Ticket).filter(Ticket.id == ticket_id).first()
+
+            created_ids = []
+            errors = []
+
+            for asset_data in assets_data:
+                try:
+                    # Check for duplicate serial number
+                    serial = asset_data.get('serial_number') or asset_data.get('serial_num')
+                    if serial:
+                        existing = session.query(Asset).filter(Asset.serial_num == serial).first()
+                        if existing:
+                            errors.append({
+                                'serial_number': serial,
+                                'error': f'Duplicate serial number (exists as {existing.asset_tag})'
+                            })
+                            continue
+
+                    # Check for duplicate asset tag
+                    asset_tag = asset_data.get('asset_tag')
+                    if asset_tag:
+                        existing = session.query(Asset).filter(Asset.asset_tag == asset_tag).first()
+                        if existing:
+                            errors.append({
+                                'serial_number': serial,
+                                'asset_tag': asset_tag,
+                                'error': 'Duplicate asset tag'
+                            })
+                            continue
+
+                    # Create asset
+                    asset = Asset(
+                        serial_num=serial,
+                        asset_tag=asset_tag,
+                        name=asset_data.get('name'),
+                        model=asset_data.get('model_identifier') or asset_data.get('model'),
+                        part_number=asset_data.get('part_number'),
+                        hardware_type=asset_data.get('hardware_type'),
+                        cpu_type=asset_data.get('cpu_type'),
+                        cpu_cores=asset_data.get('cpu_cores'),
+                        gpu_cores=asset_data.get('gpu_cores'),
+                        memory=asset_data.get('memory'),
+                        harddrive=asset_data.get('storage') or asset_data.get('harddrive'),
+                        condition=asset_data.get('condition', 'New'),
+                        status=AssetStatus.IN_STOCK,
+                        manufacturer=asset_data.get('manufacturer', 'Apple'),
+                        category=asset_data.get('category', 'APPLE'),
+                        company_id=asset_data.get('company_id'),
+                        country=asset_data.get('country', 'Singapore')
+                    )
+
+                    session.add(asset)
+                    session.flush()  # Get the ID
+
+                    created_ids.append(asset.id)
+
+                    # Link to ticket if provided
+                    if ticket:
+                        ticket.assets.append(asset)
+
+                except Exception as e:
+                    errors.append({
+                        'serial_number': asset_data.get('serial_number', 'unknown'),
+                        'error': str(e)
+                    })
+
+            session.commit()
+
+            result_data = {
+                'created_count': len(created_ids),
+                'created_ids': created_ids,
+                'failed_count': len(errors),
+                'errors': errors
+            }
+
+            if errors:
+                message = f"Created {len(created_ids)} of {len(assets_data)} assets"
+            else:
+                message = f"Successfully created {len(created_ids)} assets"
+
+            return jsonify(create_success_response(result_data, message))
+
+        except Exception as e:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error creating assets: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
 
 # Error handlers for the API blueprint
 
