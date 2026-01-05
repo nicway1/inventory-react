@@ -2723,8 +2723,9 @@ def view_ticket(ticket_id):
 
         # Auto-update status for Asset Return (Claw) tickets based on progress
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
-            return_received = ticket.shipping_status and ("Item was received" in ticket.shipping_status or "delivered" in ticket.shipping_status.lower())
-            replacement_received = ticket.replacement_status and ("Item was received" in ticket.replacement_status or "delivered" in ticket.replacement_status.lower())
+            # Match template logic: check for "received" or "delivered" (case-insensitive)
+            return_received = ticket.shipping_status and ("received" in ticket.shipping_status.lower() or "delivered" in ticket.shipping_status.lower())
+            replacement_received = ticket.replacement_status and ("received" in ticket.replacement_status.lower() or "delivered" in ticket.replacement_status.lower())
 
             # Set to RESOLVED if both shipments received
             if return_received and replacement_received and ticket.status != TicketStatus.RESOLVED:
@@ -8178,7 +8179,7 @@ def mark_return_received(ticket_id):
             logger.info(f"Also updating shipping_status from '{old_shipping_status}' to '{ticket.shipping_status}' for Asset Return (Claw) ticket")
 
             # Auto-close ticket if both return and replacement are received
-            replacement_received = ticket.replacement_status and "Item was received" in ticket.replacement_status
+            replacement_received = ticket.replacement_status and ("received" in ticket.replacement_status.lower() or "delivered" in ticket.replacement_status.lower())
             if replacement_received:
                 ticket.status = TicketStatus.RESOLVED
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
@@ -8231,7 +8232,7 @@ def mark_replacement_received(ticket_id):
         # Auto-close Asset Return (Claw) tickets if both return and replacement are received
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
             # For ASSET_RETURN_CLAW, check shipping_status (which mirrors return_status)
-            return_received = ticket.shipping_status and "Item was received" in ticket.shipping_status
+            return_received = ticket.shipping_status and ("received" in ticket.shipping_status.lower() or "delivered" in ticket.shipping_status.lower())
             if return_received:
                 ticket.status = TicketStatus.RESOLVED
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")

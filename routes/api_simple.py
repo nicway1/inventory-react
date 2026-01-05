@@ -3596,9 +3596,9 @@ def debug_fix_ticket(ticket_id):
             'replacement_status': ticket.replacement_status,
         }
 
-        # Check conditions
-        return_received = ticket.shipping_status and ("Item was received" in ticket.shipping_status or "delivered" in ticket.shipping_status.lower())
-        replacement_received = ticket.replacement_status and ("Item was received" in ticket.replacement_status or "delivered" in ticket.replacement_status.lower())
+        # Check conditions - match template logic: check for "received" or "delivered" (case-insensitive)
+        return_received = ticket.shipping_status and ("received" in ticket.shipping_status.lower() or "delivered" in ticket.shipping_status.lower())
+        replacement_received = ticket.replacement_status and ("received" in ticket.replacement_status.lower() or "delivered" in ticket.replacement_status.lower())
 
         result['return_received'] = return_received
         result['replacement_received'] = replacement_received
