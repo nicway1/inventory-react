@@ -878,6 +878,10 @@ class Ship24Tracker:
         """Detect carrier based on tracking number format"""
         tn = tracking_number.upper().strip()
 
+        # HFD Israel (14-digit numbers starting with 5)
+        if self._is_hfd_tracking(tracking_number):
+            return 'HFD Israel'
+
         # DHL Express (10-digit numbers)
         if len(tn) == 10 and tn.isdigit():
             return 'DHL Express'
@@ -942,6 +946,18 @@ class Ship24Tracker:
             return True
         return False
 
+    def _is_hfd_tracking(self, tracking_number: str) -> bool:
+        """Check if tracking number is an HFD Israel tracking number"""
+        tn = tracking_number.strip()
+        # HFD tracking numbers are typically 14-digit numbers
+        # Example: 55983416173321
+        if len(tn) >= 12 and len(tn) <= 16 and tn.isdigit():
+            # Could be HFD if it's a long numeric string
+            # HFD numbers often start with 5
+            if tn.startswith('5'):
+                return True
+        return False
+
     def _get_all_tracking_links(self, tracking_number: str) -> Dict[str, str]:
         """Get all tracking links for manual checking"""
         links = {
@@ -950,6 +966,13 @@ class Ship24Tracker:
             'TrackingMore': f'https://www.trackingmore.com/track/en/{tracking_number}',
             'ParcelsApp': f'https://parcelsapp.com/en/tracking/{tracking_number}',
         }
+
+        # HFD Israel tracking
+        if self._is_hfd_tracking(tracking_number):
+            links = {
+                'HFD': f'https://run.hfd.co.il/info/{tracking_number}',
+                **links
+            }
 
         # Add carrier-specific links
         if self._is_singpost_tracking(tracking_number):
