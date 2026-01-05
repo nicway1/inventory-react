@@ -2351,3 +2351,1279 @@ def bulk_create_assets():
             500
         )
         return jsonify(response), status_code
+
+
+# ============================================================
+# MOBILE TICKET CREATION ENDPOINTS (for iOS app)
+# ============================================================
+
+# JSON API Key for iOS app authentication
+MOBILE_API_KEY = 'xAQhm3__ZH6MvRIPMIBSDRAsIa1w2Slh5uaCtc4NurM'
+
+
+def get_jwt_user_id():
+    """Helper function to get user_id from JWT token"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return None, "Authorization header with Bearer token is required"
+
+    token = auth_header[7:]
+    secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+        return payload.get('user_id'), None
+    except jwt.ExpiredSignatureError:
+        return None, "Token has expired"
+    except jwt.InvalidTokenError:
+        return None, "Invalid token"
+
+
+def get_authenticated_user_for_tickets():
+    """
+    Get authenticated user from either:
+    1. X-API-Key + JWT Bearer token (iOS app)
+    2. JWT Bearer token only (mobile)
+    Returns (user_id, error_message)
+    """
+    from routes.json_api import verify_jwt_token
+
+    api_key = request.headers.get('X-API-Key')
+    auth_header = request.headers.get('Authorization', '')
+
+    # Method 1: API Key + JWT (iOS app pattern)
+    if api_key == MOBILE_API_KEY:
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+            user_id = verify_jwt_token(token)
+            if user_id:
+                return user_id, None
+            return None, "Invalid or expired token"
+        return None, "Authorization Bearer token required with API key"
+
+    # Method 2: JWT only
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+        secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            return payload.get('user_id'), None
+        except jwt.ExpiredSignatureError:
+            return None, "Token has expired"
+        except jwt.InvalidTokenError:
+            return None, "Invalid token"
+
+    return None, "Authentication required. Provide X-API-Key and Authorization Bearer token"
+
+
+@api_bp.route('/tickets/categories', methods=['GET'])
+def get_ticket_categories():
+    """
+    Get available ticket categories for mobile app
+
+    Returns list of categories the user can create tickets for
+    """
+    try:
+        categories = [
+            {
+                'id': 'PIN_REQUEST',
+                'name': 'PIN Request',
+                'description': 'Request PIN code for locked device',
+                'requires_asset': True,
+                'required_fields': ['serial_number', 'lock_type', 'queue_id'],
+                'optional_fields': ['notes', 'priority']
+            },
+            {
+                'id': 'ASSET_REPAIR',
+                'name': 'Asset Repair',
+                'description': 'Report device damage and request repair',
+                'requires_asset': True,
+                'required_fields': ['serial_number', 'damage_description', 'queue_id'],
+                'optional_fields': ['apple_diagnostics', 'country', 'notes', 'priority']
+            },
+            {
+                'id': 'ASSET_CHECKOUT_CLAW',
+                'name': 'Asset Checkout (claw)',
+                'description': 'Deploy device to customer',
+                'requires_asset': True,
+                'required_fields': ['serial_number', 'customer_id', 'shipping_address', 'queue_id'],
+                'optional_fields': ['shipping_tracking', 'notes', 'priority']
+            },
+            {
+                'id': 'ASSET_RETURN_CLAW',
+                'name': 'Asset Return (claw)',
+                'description': 'Process device return from customer',
+                'requires_asset': False,
+                'required_fields': ['customer_id', 'return_address', 'queue_id'],
+                'optional_fields': ['outbound_tracking', 'inbound_tracking', 'damage_description', 'return_description', 'notes', 'priority']
+            },
+            {
+                'id': 'ASSET_INTAKE',
+                'name': 'Asset Intake',
+                'description': 'Receive new assets into inventory',
+                'requires_asset': False,
+                'required_fields': ['title', 'description', 'queue_id'],
+                'optional_fields': ['notes', 'priority']
+            },
+            {
+                'id': 'INTERNAL_TRANSFER',
+                'name': 'Internal Transfer',
+                'description': 'Transfer device between customers/locations',
+                'requires_asset': False,
+                'required_fields': ['offboarding_customer_id', 'offboarding_details', 'offboarding_address', 'onboarding_customer_id', 'onboarding_address', 'queue_id'],
+                'optional_fields': ['transfer_tracking', 'notes', 'priority']
+            },
+            {
+                'id': 'BULK_DELIVERY_QUOTATION',
+                'name': 'Bulk Delivery Quote',
+                'description': 'Request quote for bulk device delivery',
+                'requires_asset': False,
+                'required_fields': ['subject', 'description', 'queue_id'],
+                'optional_fields': ['notes', 'priority']
+            },
+            {
+                'id': 'REPAIR_QUOTE',
+                'name': 'Repair Quote',
+                'description': 'Request quote for device repair',
+                'requires_asset': False,
+                'required_fields': ['subject', 'description', 'queue_id'],
+                'optional_fields': ['serial_number', 'notes', 'priority']
+            },
+            {
+                'id': 'ITAD_QUOTE',
+                'name': 'ITAD Quote',
+                'description': 'IT Asset Disposal quotation',
+                'requires_asset': False,
+                'required_fields': ['subject', 'description', 'queue_id'],
+                'optional_fields': ['notes', 'priority']
+            }
+        ]
+
+        return jsonify(create_success_response(
+            categories,
+            "Retrieved ticket categories"
+        ))
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving categories: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+@api_bp.route('/tickets/create', methods=['POST'])
+def create_ticket_mobile():
+    """
+    Create a new ticket from mobile app
+
+    Supports all ticket categories with category-specific validation.
+    Accepts both X-API-Key + Bearer token (iOS) or Bearer token only.
+    """
+    try:
+        from models.ticket import TicketCategory, TicketPriority, Ticket
+        from models.asset import Asset, AssetStatus
+        from models.customer_user import CustomerUser
+        from utils.store_instances import ticket_store
+
+        # Get user from JWT (supports both iOS API Key + JWT and JWT only)
+        user_id, error = get_authenticated_user_for_tickets()
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error,
+                'message': 'Authentication required'
+            }), 401
+
+        data = request.get_json()
+        if not data:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Request body is required",
+                400
+            )
+            return jsonify(response), status_code
+
+        category = data.get('category')
+        if not category:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Category is required",
+                400
+            )
+            return jsonify(response), status_code
+
+        # Get common fields
+        queue_id = data.get('queue_id')
+
+        if not queue_id:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Queue ID is required",
+                400
+            )
+            return jsonify(response), status_code
+
+        db_session = db_manager.get_session()
+
+        try:
+            # Validate queue exists
+            queue = db_session.query(Queue).get(queue_id)
+            if not queue:
+                response, status_code = create_error_response(
+                    "VALIDATION_ERROR",
+                    f"Queue with ID {queue_id} not found",
+                    400
+                )
+                return jsonify(response), status_code
+
+            # Category-specific handling
+            if category == 'PIN_REQUEST':
+                return _create_pin_request_ticket(data, user_id, db_session)
+
+            elif category == 'ASSET_REPAIR':
+                return _create_asset_repair_ticket(data, user_id, db_session)
+
+            elif category == 'ASSET_CHECKOUT_CLAW':
+                return _create_asset_checkout_ticket(data, user_id, db_session)
+
+            elif category == 'ASSET_RETURN_CLAW':
+                return _create_asset_return_ticket(data, user_id, db_session)
+
+            elif category == 'ASSET_INTAKE':
+                return _create_asset_intake_ticket(data, user_id, db_session)
+
+            elif category == 'INTERNAL_TRANSFER':
+                return _create_internal_transfer_ticket(data, user_id, db_session)
+
+            elif category in ['BULK_DELIVERY_QUOTATION', 'REPAIR_QUOTE', 'ITAD_QUOTE']:
+                return _create_quote_ticket(data, user_id, db_session, category)
+
+            else:
+                response, status_code = create_error_response(
+                    "VALIDATION_ERROR",
+                    f"Unknown category: {category}",
+                    400
+                )
+                return jsonify(response), status_code
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error creating ticket: {str(e)}")
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error creating ticket: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+def _create_pin_request_ticket(data, user_id, db_session):
+    """Create PIN Request ticket"""
+    from models.ticket import TicketCategory, TicketPriority
+    from models.asset import Asset
+    from utils.store_instances import ticket_store
+
+    serial_number = data.get('serial_number')
+    lock_type = data.get('lock_type')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not serial_number:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Serial number is required for PIN Request",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not lock_type:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Lock type is required for PIN Request",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Find asset
+    asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+    if not asset:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Asset not found with serial number: {serial_number}",
+            404
+        )
+        return jsonify(response), status_code
+
+    subject = f"PIN Request for {asset.model} ({serial_number})"
+    description = f"""PIN Request Details:
+Serial Number: {serial_number}
+Model: {asset.model}
+Asset Tag: {asset.asset_tag}
+Lock Type: {lock_type}
+
+Additional Notes:
+{notes}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
+            description=description,
+            requester_id=user_id,
+            category=TicketCategory.PIN_REQUEST,
+            priority=priority,
+            asset_id=asset.id,
+            queue_id=queue_id,
+            notes=notes,
+            case_owner_id=user_id
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': subject,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+def _create_asset_repair_ticket(data, user_id, db_session):
+    """Create Asset Repair ticket"""
+    from models.ticket import TicketCategory
+    from models.asset import Asset
+    from utils.store_instances import ticket_store
+
+    serial_number = data.get('serial_number')
+    damage_description = data.get('damage_description')
+    apple_diagnostics = data.get('apple_diagnostics', '')
+    country = data.get('country', '')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not serial_number:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Serial number is required for Asset Repair",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not damage_description:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Damage description is required for Asset Repair",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Find asset
+    asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+    if not asset:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Asset not found with serial number: {serial_number}",
+            404
+        )
+        return jsonify(response), status_code
+
+    # Get customer info if available
+    customer_info = "N/A"
+    if asset.customer_user and asset.customer_user.company:
+        customer_info = asset.customer_user.company.name
+    elif asset.customer:
+        customer_info = asset.customer
+
+    subject = f"Asset Repair - {asset.model} ({serial_number})"
+    description = f"""Asset Details:
+Serial Number: {serial_number}
+Model: {asset.model}
+Asset Tag: {asset.asset_tag}
+Customer: {customer_info}
+Country: {country if country else 'N/A'}
+
+Damage Description:
+{damage_description}
+
+Apple Diagnostics Code: {apple_diagnostics if apple_diagnostics else 'N/A'}
+
+Additional Notes:
+{notes}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
+            description=description,
+            requester_id=user_id,
+            category=TicketCategory.ASSET_REPAIR,
+            priority=priority,
+            asset_id=asset.id,
+            country=country,
+            damage_description=damage_description,
+            apple_diagnostics=apple_diagnostics,
+            queue_id=queue_id,
+            notes=notes,
+            case_owner_id=user_id
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': subject,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+def _create_asset_checkout_ticket(data, user_id, db_session):
+    """Create Asset Checkout (claw) ticket"""
+    from models.ticket import TicketCategory, Ticket
+    from models.asset import Asset, AssetStatus
+    from models.customer_user import CustomerUser
+    from models.asset_transaction import AssetTransaction
+    from utils.store_instances import ticket_store
+    from sqlalchemy import text
+    from datetime import datetime
+
+    serial_number = data.get('serial_number')
+    customer_id = data.get('customer_id')
+    shipping_address = data.get('shipping_address')
+    shipping_tracking = data.get('shipping_tracking', '')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not serial_number:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Serial number is required for Asset Checkout",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not customer_id:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Customer ID is required for Asset Checkout",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not shipping_address:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Shipping address is required for Asset Checkout",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Find asset
+    asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+    if not asset:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Asset not found with serial number: {serial_number}",
+            404
+        )
+        return jsonify(response), status_code
+
+    # Find customer
+    customer = db_session.query(CustomerUser).get(customer_id)
+    if not customer:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Customer not found with ID: {customer_id}",
+            404
+        )
+        return jsonify(response), status_code
+
+    company_name = customer.company.name if customer.company else 'N/A'
+
+    subject = f"Asset Checkout (claw) - {asset.model} to {customer.name}"
+    description = f"""Asset Checkout Details:
+Serial Number: {serial_number}
+Model: {asset.model}
+Asset Tag: {asset.asset_tag}
+
+Customer Information:
+Name: {customer.name}
+Company: {company_name}
+Email: {customer.email}
+Contact: {customer.contact_number}
+
+Shipping Information:
+Address: {shipping_address}
+Tracking Number: {shipping_tracking if shipping_tracking else 'Not provided'}
+Shipping Method: claw
+
+Additional Notes:
+{notes}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
+            description=description,
+            requester_id=user_id,
+            category=TicketCategory.ASSET_CHECKOUT_CLAW,
+            priority=priority,
+            asset_id=asset.id,
+            customer_id=customer_id,
+            shipping_address=shipping_address,
+            shipping_tracking=shipping_tracking if shipping_tracking else None,
+            shipping_carrier='claw',
+            queue_id=queue_id,
+            notes=notes,
+            case_owner_id=user_id
+        )
+
+        # Create ticket-asset relationship
+        existing_check = text("""
+            SELECT COUNT(*) FROM ticket_assets
+            WHERE ticket_id = :ticket_id AND asset_id = :asset_id
+        """)
+        existing_count = db_session.execute(existing_check, {"ticket_id": ticket_id, "asset_id": asset.id}).scalar()
+
+        if existing_count == 0:
+            insert_stmt = text("""
+                INSERT INTO ticket_assets (ticket_id, asset_id)
+                VALUES (:ticket_id, :asset_id)
+            """)
+            db_session.execute(insert_stmt, {"ticket_id": ticket_id, "asset_id": asset.id})
+
+        # Update asset status and assign to customer
+        asset.customer_id = customer_id
+        asset.status = AssetStatus.DEPLOYED
+
+        # Create asset transaction
+        transaction = AssetTransaction(
+            asset_id=asset.id,
+            transaction_type='checkout',
+            customer_id=customer_id,
+            notes=f'Asset checkout via mobile ticket #{ticket_id}',
+            transaction_date=datetime.utcnow()
+        )
+        transaction.user_id = user_id
+        db_session.add(transaction)
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': subject,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+def _create_asset_return_ticket(data, user_id, db_session):
+    """Create Asset Return (claw) ticket"""
+    from models.ticket import TicketCategory
+    from models.customer_user import CustomerUser
+    from utils.store_instances import ticket_store
+    from sqlalchemy.orm import joinedload
+
+    customer_id = data.get('customer_id')
+    return_address = data.get('return_address') or data.get('shipping_address')
+    outbound_tracking = data.get('outbound_tracking') or data.get('shipping_tracking', '')
+    inbound_tracking = data.get('inbound_tracking') or data.get('return_tracking', '')
+    damage_description = data.get('damage_description', '')
+    return_description = data.get('return_description', '')
+    subject = data.get('subject', '')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not customer_id:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Customer ID is required for Asset Return",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not return_address:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Return address is required for Asset Return",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Find customer with company
+    customer = db_session.query(CustomerUser).options(
+        joinedload(CustomerUser.company)
+    ).filter(CustomerUser.id == customer_id).first()
+
+    if not customer:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Customer not found with ID: {customer_id}",
+            404
+        )
+        return jsonify(response), status_code
+
+    company_name = customer.company.name if customer.company else 'N/A'
+
+    if not subject:
+        subject = f"Asset Return (claw) - {customer.name}"
+
+    description = f"""Asset Return (Claw) Details:
+Customer Information:
+Name: {customer.name}
+Company: {company_name}
+Email: {customer.email}
+Contact: {customer.contact_number}
+
+Return Information:
+Address: {return_address}
+Outbound Tracking Number: {outbound_tracking if outbound_tracking else 'Not provided yet'}
+Inbound Tracking Number: {inbound_tracking if inbound_tracking else 'Not provided yet'}
+Shipping Method: Claw (Ship24)
+
+Reported Issue:
+{damage_description if damage_description else 'None reported'}
+
+Device Condition:
+{return_description if return_description else 'Not specified'}
+
+Additional Notes:
+{notes}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
+            description=description,
+            requester_id=user_id,
+            category=TicketCategory.ASSET_RETURN_CLAW,
+            priority=priority,
+            asset_id=None,
+            customer_id=customer_id,
+            shipping_address=return_address,
+            shipping_tracking=outbound_tracking if outbound_tracking else None,
+            shipping_carrier='claw',
+            return_tracking=inbound_tracking if inbound_tracking else None,
+            queue_id=queue_id,
+            notes=notes,
+            return_description=return_description,
+            damage_description=damage_description if damage_description else None,
+            case_owner_id=user_id
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': subject,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+def _create_asset_intake_ticket(data, user_id, db_session):
+    """Create Asset Intake ticket"""
+    from models.ticket import TicketCategory
+    from utils.store_instances import ticket_store
+
+    title = data.get('title') or data.get('subject')
+    description = data.get('description', '')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not title:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Title is required for Asset Intake",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not description:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Description is required for Asset Intake",
+            400
+        )
+        return jsonify(response), status_code
+
+    full_description = f"""Asset Intake Details:
+Title: {title}
+
+Description:
+{description}
+
+Additional Notes:
+{notes}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=title,
+            description=full_description,
+            requester_id=user_id,
+            category=TicketCategory.ASSET_INTAKE,
+            priority=priority,
+            queue_id=queue_id,
+            notes=notes,
+            case_owner_id=user_id
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': title,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+def _create_internal_transfer_ticket(data, user_id, db_session):
+    """Create Internal Transfer ticket"""
+    from models.ticket import TicketCategory, Ticket
+    from models.customer_user import CustomerUser
+    from models.asset import Asset
+    from utils.store_instances import ticket_store
+    from sqlalchemy.orm import joinedload
+
+    offboarding_customer_id = data.get('offboarding_customer_id')
+    offboarding_details = data.get('offboarding_details', '')
+    offboarding_address = data.get('offboarding_address', '')
+    onboarding_customer_id = data.get('onboarding_customer_id')
+    onboarding_address = data.get('onboarding_address', '')
+    transfer_tracking = data.get('transfer_tracking', '')
+    serial_number = data.get('serial_number', '')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not offboarding_customer_id:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Offboarding customer ID is required for Internal Transfer",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not offboarding_details:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Offboarding device details are required for Internal Transfer",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not offboarding_address:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Offboarding address is required for Internal Transfer",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not onboarding_customer_id:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Onboarding customer ID is required for Internal Transfer",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not onboarding_address:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Onboarding address is required for Internal Transfer",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Get offboarding customer
+    offboarding_customer = db_session.query(CustomerUser).options(
+        joinedload(CustomerUser.company)
+    ).filter(CustomerUser.id == offboarding_customer_id).first()
+
+    if not offboarding_customer:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Offboarding customer not found with ID: {offboarding_customer_id}",
+            404
+        )
+        return jsonify(response), status_code
+
+    # Get onboarding customer
+    onboarding_customer = db_session.query(CustomerUser).options(
+        joinedload(CustomerUser.company)
+    ).filter(CustomerUser.id == onboarding_customer_id).first()
+
+    if not onboarding_customer:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Onboarding customer not found with ID: {onboarding_customer_id}",
+            404
+        )
+        return jsonify(response), status_code
+
+    offboarding_company = offboarding_customer.company.name if offboarding_customer.company else 'N/A'
+    onboarding_company = onboarding_customer.company.name if onboarding_customer.company else 'N/A'
+
+    # Find asset if serial provided
+    asset = None
+    if serial_number:
+        asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+
+    subject = f"Internal Transfer: {offboarding_customer.name} -> {onboarding_customer.name}"
+    description = f"""Internal Transfer Details:
+
+OFFBOARDING
+Customer: {offboarding_customer.name}
+Company: {offboarding_company}
+Device Details: {offboarding_details}
+Address: {offboarding_address}
+
+ONBOARDING
+Customer: {onboarding_customer.name}
+Company: {onboarding_company}
+Address: {onboarding_address}
+
+Tracking Link: {transfer_tracking if transfer_tracking else 'Not provided'}
+
+Additional Notes:
+{notes if notes else 'None'}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
+            description=description,
+            requester_id=user_id,
+            category=TicketCategory.INTERNAL_TRANSFER,
+            priority=priority,
+            asset_id=asset.id if asset else None,
+            customer_id=offboarding_customer_id,
+            shipping_address=onboarding_address,
+            shipping_tracking=transfer_tracking if transfer_tracking else None,
+            queue_id=queue_id,
+            notes=notes,
+            case_owner_id=user_id
+        )
+
+        # Update ticket with offboarding/onboarding fields
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if ticket:
+            ticket.offboarding_customer_id = int(offboarding_customer_id)
+            ticket.onboarding_customer_id = int(onboarding_customer_id)
+            ticket.offboarding_details = offboarding_details
+            ticket.offboarding_address = offboarding_address
+            ticket.onboarding_address = onboarding_address
+            db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': subject,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+def _create_quote_ticket(data, user_id, db_session, category):
+    """Create quote ticket (Bulk Delivery, Repair Quote, ITAD Quote)"""
+    from models.ticket import TicketCategory
+    from models.asset import Asset
+    from utils.store_instances import ticket_store
+
+    subject = data.get('subject', '')
+    description = data.get('description', '')
+    serial_number = data.get('serial_number', '')
+    priority = data.get('priority', 'Medium')
+    queue_id = data.get('queue_id')
+    notes = data.get('notes', '')
+
+    # Validate required fields
+    if not subject:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Subject is required for quote tickets",
+            400
+        )
+        return jsonify(response), status_code
+
+    if not description:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            "Description is required for quote tickets",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Map category string to enum
+    category_map = {
+        'BULK_DELIVERY_QUOTATION': TicketCategory.BULK_DELIVERY_QUOTATION,
+        'REPAIR_QUOTE': TicketCategory.REPAIR_QUOTE,
+        'ITAD_QUOTE': TicketCategory.ITAD_QUOTE
+    }
+
+    category_enum = category_map.get(category)
+    if not category_enum:
+        response, status_code = create_error_response(
+            "VALIDATION_ERROR",
+            f"Invalid quote category: {category}",
+            400
+        )
+        return jsonify(response), status_code
+
+    # Find asset if serial provided
+    asset = None
+    if serial_number:
+        asset = db_session.query(Asset).filter(Asset.serial_num == serial_number).first()
+
+    full_description = f"""{category.replace('_', ' ').title()} Request:
+
+{description}
+
+Additional Notes:
+{notes}"""
+
+    try:
+        ticket_id = ticket_store.create_ticket(
+            subject=subject,
+            description=full_description,
+            requester_id=user_id,
+            category=category_enum,
+            priority=priority,
+            asset_id=asset.id if asset else None,
+            queue_id=queue_id,
+            notes=notes,
+            case_owner_id=user_id
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Ticket created successfully',
+            'data': {
+                'ticket_id': ticket_id,
+                'display_id': f'TKT-{ticket_id:06d}',
+                'subject': subject,
+                'status': 'open'
+            }
+        }), 200
+
+    except Exception as e:
+        db_session.rollback()
+        raise
+
+
+@api_bp.route('/customers', methods=['GET'])
+def get_customers_list():
+    """
+    Get list of customers for ticket creation
+
+    Returns customers with company information.
+    Accepts both X-API-Key + Bearer token (iOS) or Bearer token only.
+    """
+    try:
+        from models.customer_user import CustomerUser
+        from models.company import Company
+        from sqlalchemy.orm import joinedload
+
+        # Get user from JWT (supports both iOS API Key + JWT and JWT only)
+        user_id, error = get_authenticated_user_for_tickets()
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error,
+                'message': 'Authentication required'
+            }), 401
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        search = request.args.get('search', '')
+        company_id = request.args.get('company_id', type=int)
+
+        db_session = db_manager.get_session()
+        try:
+            query = db_session.query(CustomerUser).options(
+                joinedload(CustomerUser.company)
+            )
+
+            # Apply search filter
+            if search:
+                search_term = f"%{search}%"
+                query = query.filter(
+                    (CustomerUser.name.ilike(search_term)) |
+                    (CustomerUser.email.ilike(search_term))
+                )
+
+            # Apply company filter
+            if company_id:
+                query = query.filter(CustomerUser.company_id == company_id)
+
+            # Order by name
+            query = query.order_by(CustomerUser.name)
+
+            # Get total
+            total = query.count()
+
+            # Apply pagination
+            customers = query.offset((page - 1) * per_page).limit(per_page).all()
+
+            customers_data = []
+            for customer in customers:
+                customers_data.append({
+                    'id': customer.id,
+                    'name': customer.name,
+                    'email': customer.email,
+                    'contact_number': customer.contact_number,
+                    'address': customer.address,
+                    'company_id': customer.company_id,
+                    'company_name': customer.company.name if customer.company else None
+                })
+
+            pagination = {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'has_next': (page * per_page) < total,
+                'has_prev': page > 1
+            }
+
+            return jsonify(create_success_response(
+                customers_data,
+                f"Retrieved {len(customers_data)} customers",
+                {"pagination": pagination}
+            ))
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error retrieving customers: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+@api_bp.route('/assets/search', methods=['GET'])
+def search_assets_mobile():
+    """
+    Search assets by serial number or asset tag
+
+    Used for ticket creation to find assets.
+    Accepts both X-API-Key + Bearer token (iOS) or Bearer token only.
+    """
+    try:
+        from models.asset import Asset
+
+        # Get user from JWT (supports both iOS API Key + JWT and JWT only)
+        user_id, error = get_authenticated_user_for_tickets()
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error,
+                'message': 'Authentication required'
+            }), 401
+
+        search = request.args.get('q', '') or request.args.get('search', '')
+        limit = min(request.args.get('limit', 20, type=int), 50)
+
+        if not search or len(search) < 2:
+            response, status_code = create_error_response(
+                "VALIDATION_ERROR",
+                "Search query must be at least 2 characters",
+                400
+            )
+            return jsonify(response), status_code
+
+        db_session = db_manager.get_session()
+        try:
+            search_term = f"%{search}%"
+            assets = db_session.query(Asset).filter(
+                (Asset.serial_num.ilike(search_term)) |
+                (Asset.asset_tag.ilike(search_term)) |
+                (Asset.name.ilike(search_term))
+            ).limit(limit).all()
+
+            assets_data = []
+            for asset in assets:
+                assets_data.append({
+                    'id': asset.id,
+                    'serial_number': asset.serial_num,
+                    'asset_tag': asset.asset_tag,
+                    'name': asset.name,
+                    'model': asset.model,
+                    'manufacturer': getattr(asset, 'manufacturer', None),
+                    'status': asset.status.value if hasattr(asset.status, 'value') else str(asset.status) if asset.status else None,
+                    'image_url': get_asset_image_url_simple(asset)
+                })
+
+            return jsonify(create_success_response(
+                assets_data,
+                f"Found {len(assets_data)} assets"
+            ))
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        response, status_code = create_error_response(
+            "INTERNAL_ERROR",
+            f"Error searching assets: {str(e)}",
+            500
+        )
+        return jsonify(response), status_code
+
+
+@api_bp.route('/queues', methods=['GET'])
+def get_queues_list():
+    """
+    Get list of queues for ticket creation
+
+    Returns available queues.
+    Accepts both X-API-Key + Bearer token (iOS) or Bearer token only.
+    """
+    try:
+        # Get user from JWT (supports both iOS API Key + JWT and JWT only)
+        user_id, error = get_authenticated_user_for_tickets()
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error,
+                'message': 'Authentication required'
+            }), 401
+
+        db_session = db_manager.get_session()
+        try:
+            queues = db_session.query(Queue).order_by(Queue.name).all()
+
+            queues_data = []
+            for queue in queues:
+                queues_data.append({
+                    'id': queue.id,
+                    'name': queue.name,
+                    'description': getattr(queue, 'description', None)
+                })
+
+            return jsonify({
+                'success': True,
+                'message': f"Retrieved {len(queues_data)} queues",
+                'data': queues_data
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to retrieve queues'
+        }), 500
+
+
+# ============================================================
+# DEBUG ENDPOINT - Check and fix Asset Return ticket status
+# ============================================================
+
+@api_bp.route('/debug/fix-ticket/<int:ticket_id>', methods=['GET'])
+def debug_fix_ticket(ticket_id):
+    """Debug endpoint to check and fix Asset Return ticket status"""
+    from models.ticket import TicketStatus, TicketCategory
+
+    db_manager = DatabaseManager()
+    db_session = db_manager.get_session()
+
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'error': 'Ticket not found'}), 404
+
+        result = {
+            'ticket_id': ticket.id,
+            'category': ticket.category.name if ticket.category else None,
+            'current_status': ticket.status.name if ticket.status else None,
+            'shipping_status': ticket.shipping_status,
+            'replacement_status': ticket.replacement_status,
+        }
+
+        # Check conditions
+        return_received = ticket.shipping_status and ("Item was received" in ticket.shipping_status or "delivered" in ticket.shipping_status.lower())
+        replacement_received = ticket.replacement_status and ("Item was received" in ticket.replacement_status or "delivered" in ticket.replacement_status.lower())
+
+        result['return_received'] = return_received
+        result['replacement_received'] = replacement_received
+        result['should_be_resolved'] = return_received and replacement_received
+
+        # Auto-fix if needed
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
+            if return_received and replacement_received and ticket.status != TicketStatus.RESOLVED:
+                old_status = ticket.status.name if ticket.status else None
+                ticket.status = TicketStatus.RESOLVED
+                db_session.commit()
+                result['fixed'] = True
+                result['old_status'] = old_status
+                result['new_status'] = 'RESOLVED'
+            else:
+                result['fixed'] = False
+                result['reason'] = 'Already resolved or conditions not met'
+        else:
+            result['fixed'] = False
+            result['reason'] = 'Not an Asset Return (Claw) ticket'
+
+        return jsonify(result)
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
