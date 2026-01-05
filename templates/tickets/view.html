@@ -1156,7 +1156,12 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {{ custom_status_obj.display_name if custom_status_obj else ticket.custom_status.replace('_', ' ') }}
                                     </span>
                                 {% elif ticket.status %}
-                                    <span class="sf-badge {% if ticket.status.value == 'REVIEW' %}sf-badge-info{% endif %}">
+                                    <span class="sf-badge
+                                        {% if ticket.status.name == 'RESOLVED' or ticket.status.name == 'RESOLVED_DELIVERED' %}sf-badge-success
+                                        {% elif ticket.status.value == 'REVIEW' %}sf-badge-info
+                                        {% elif ticket.status.name == 'IN_PROGRESS' %}sf-badge-info
+                                        {% elif ticket.status.name == 'ON_HOLD' %}sf-badge-warning
+                                        {% endif %}">
                                         {{ ticket.status.value }}
                                     </span>
                                 {% else %}

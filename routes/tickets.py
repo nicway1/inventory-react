@@ -2721,7 +2721,15 @@ def view_ticket(ticket_id):
             flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
 
+        # Auto-close Asset Return (Claw) tickets if both shipments are received but status not RESOLVED
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status != TicketStatus.RESOLVED:
+            return_received = ticket.shipping_status and ("Item was received" in ticket.shipping_status or "delivered" in ticket.shipping_status.lower())
+            replacement_received = ticket.replacement_status and ("Item was received" in ticket.replacement_status or "delivered" in ticket.replacement_status.lower())
 
+            if return_received and replacement_received:
+                ticket.status = TicketStatus.RESOLVED
+                db_session.commit()
+                logger.info(f"Auto-closed ticket {ticket_id} on view - both shipments were already received")
 
         logger.info("Loading additional data...")
         # Load additional data needed for the template
