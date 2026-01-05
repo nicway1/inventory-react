@@ -1,6 +1,6 @@
 """
 Parcel Tracking Routes
-Provides parcel tracking functionality using SingPost Tracking API
+Provides parcel tracking functionality using multiple carriers (Ship24, SingPost, HFD, etc.)
 """
 
 from flask import Blueprint, render_template, request, jsonify
@@ -9,11 +9,13 @@ from functools import wraps
 import logging
 
 from utils.singpost_tracking import get_singpost_tracking_client
+from utils.ship24_tracker import get_tracker
 
 logger = logging.getLogger(__name__)
 
-# Initialize SingPost Tracking client
+# Initialize tracking clients
 singpost_client = get_singpost_tracking_client()
+ship24_tracker = get_tracker()
 
 parcel_tracking_bp = Blueprint('parcel_tracking', __name__, url_prefix='/parcel-tracking')
 
@@ -40,11 +42,12 @@ def index():
 @developer_required
 def track_parcel():
     """
-    Track a single parcel using SingPost Tracking API
+    Track a single parcel using multiple tracking services
 
     Expected JSON:
     {
-        "tracking_number": "1234567890"
+        "tracking_number": "1234567890",
+        "carrier": "auto"  // optional: auto, singpost, hfd, dhl, ups, fedex, etc.
     }
     """
     try:
@@ -57,6 +60,7 @@ def track_parcel():
             }), 400
 
         tracking_number = data.get('tracking_number', '').strip() if data.get('tracking_number') else ''
+        carrier = data.get('carrier', 'auto').lower()
 
         if not tracking_number:
             return jsonify({
@@ -64,15 +68,12 @@ def track_parcel():
                 'error': 'Tracking number is required'
             }), 400
 
-        # Check if API is configured
-        if not singpost_client.is_configured():
-            return jsonify({
-                'success': False,
-                'error': 'SingPost Tracking API not configured'
-            }), 500
+        # Use Ship24Tracker for multi-carrier support
+        result = ship24_tracker.track_parcel_sync(tracking_number, carrier if carrier != 'auto' else None)
 
-        # Track parcel using SingPost API
-        result = singpost_client.track_single(tracking_number)
+        # Add tracking links for manual checking
+        if 'tracking_links' not in result:
+            result['tracking_links'] = ship24_tracker._get_all_tracking_links(tracking_number)
 
         return jsonify(result)
 
@@ -81,7 +82,8 @@ def track_parcel():
         return jsonify({
             'success': False,
             'error': str(e),
-            'message': 'An error occurred while tracking the parcel'
+            'message': 'An error occurred while tracking the parcel',
+            'tracking_links': ship24_tracker._get_all_tracking_links(tracking_number) if tracking_number else {}
         }), 500
 
 
@@ -89,11 +91,12 @@ def track_parcel():
 @developer_required
 def track_multiple_parcels():
     """
-    Track multiple parcels using SingPost Tracking API
+    Track multiple parcels using multiple tracking services
 
     Expected JSON:
     {
-        "tracking_numbers": ["1234567890", "0987654321", ...]
+        "tracking_numbers": ["1234567890", "0987654321", ...],
+        "carrier": "auto"  // optional
     }
     """
     try:
@@ -106,6 +109,7 @@ def track_multiple_parcels():
             }), 400
 
         tracking_numbers = data.get('tracking_numbers', [])
+        carrier = data.get('carrier', 'auto').lower()
 
         if not tracking_numbers or not isinstance(tracking_numbers, list):
             return jsonify({
@@ -122,39 +126,22 @@ def track_multiple_parcels():
                 'error': 'No valid tracking numbers provided'
             }), 400
 
-        # Check if API is configured
-        if not singpost_client.is_configured():
-            return jsonify({
-                'success': False,
-                'error': 'SingPost Tracking API not configured'
-            }), 500
-
-        # Track all parcels using SingPost API
-        tracking_results = singpost_client.track(tracking_numbers)
-
+        # Track all parcels using Ship24Tracker
         results = []
-        for result in tracking_results:
-            events = []
-            for event in result.events:
-                events.append({
-                    'code': event.status_code,
-                    'description': event.status_description,
-                    'date': event.date,
-                    'time': event.time,
-                    'reason_code': event.reason_code
+        for tn in tracking_numbers:
+            try:
+                result = ship24_tracker.track_parcel_sync(tn, carrier if carrier != 'auto' else None)
+                if 'tracking_links' not in result:
+                    result['tracking_links'] = ship24_tracker._get_all_tracking_links(tn)
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Error tracking {tn}: {str(e)}")
+                results.append({
+                    'success': False,
+                    'tracking_number': tn,
+                    'error': str(e),
+                    'tracking_links': ship24_tracker._get_all_tracking_links(tn)
                 })
-
-            results.append({
-                'success': result.found,
-                'tracking_number': result.tracking_number,
-                'carrier': 'SingPost',
-                'status': result.events[0].status_description if result.events else 'Unknown',
-                'origin_country': result.origin_country,
-                'destination_country': result.destination_country,
-                'events': events,
-                'was_pushed': result.was_pushed,  # True if physically received by SingPost
-                'error': result.error
-            })
 
         return jsonify({
             'success': True,
@@ -176,7 +163,23 @@ def track_multiple_parcels():
 def get_carriers():
     """Get list of supported carriers"""
     carriers = [
+        {'code': 'auto', 'name': 'Auto-Detect'},
+        {'code': 'hfd', 'name': 'HFD (Israel)'},
         {'code': 'singpost', 'name': 'Singapore Post'},
+        {'code': 'dhl', 'name': 'DHL Express'},
+        {'code': 'ups', 'name': 'UPS'},
+        {'code': 'fedex', 'name': 'FedEx'},
+        {'code': 'usps', 'name': 'USPS'},
+        {'code': 'china_post', 'name': 'China Post'},
+        {'code': 'ems', 'name': 'EMS'},
+        {'code': 'royal_mail', 'name': 'Royal Mail'},
+        {'code': 'australia_post', 'name': 'Australia Post'},
+        {'code': 'japan_post', 'name': 'Japan Post'},
+        {'code': 'korea_post', 'name': 'Korea Post'},
+        {'code': 'pos_malaysia', 'name': 'Pos Malaysia'},
+        {'code': 'thai_post', 'name': 'Thai Post'},
+        {'code': 'aramex', 'name': 'Aramex'},
+        {'code': 'tnt', 'name': 'TNT'},
     ]
 
     return jsonify({
@@ -188,10 +191,31 @@ def get_carriers():
 @parcel_tracking_bp.route('/status')
 @developer_required
 def get_status():
-    """Get SingPost Tracking API status"""
-    status = singpost_client.get_credentials_status()
+    """Get tracking API status"""
+    singpost_status = singpost_client.get_credentials_status() if singpost_client.is_configured() else {'is_configured': False}
+
     return jsonify({
         'success': True,
-        'configured': status['is_configured'],
-        'api_url': status['base_url']
+        'singpost_configured': singpost_status.get('is_configured', False),
+        'ship24_available': True,
+        'supported_carriers': [
+            'HFD (Israel)', 'SingPost', 'DHL', 'UPS', 'FedEx', 'USPS',
+            'China Post', 'EMS', 'Royal Mail', 'Australia Post', 'Japan Post',
+            'Korea Post', 'Pos Malaysia', 'Thai Post', 'Aramex', 'TNT'
+        ]
+    })
+
+
+@parcel_tracking_bp.route('/links/<tracking_number>')
+@developer_required
+def get_tracking_links(tracking_number):
+    """Get all tracking links for a tracking number"""
+    links = ship24_tracker._get_all_tracking_links(tracking_number)
+    detected_carrier = ship24_tracker._detect_carrier(tracking_number)
+
+    return jsonify({
+        'success': True,
+        'tracking_number': tracking_number,
+        'detected_carrier': detected_carrier,
+        'links': links
     })
