@@ -2721,15 +2721,29 @@ def view_ticket(ticket_id):
             flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
 
-        # Auto-close Asset Return (Claw) tickets if both shipments are received but status not RESOLVED
-        if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status != TicketStatus.RESOLVED:
+        # Auto-update status for Asset Return (Claw) tickets based on progress
+        if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
             return_received = ticket.shipping_status and ("Item was received" in ticket.shipping_status or "delivered" in ticket.shipping_status.lower())
             replacement_received = ticket.replacement_status and ("Item was received" in ticket.replacement_status or "delivered" in ticket.replacement_status.lower())
 
-            if return_received and replacement_received:
+            # Set to RESOLVED if both shipments received
+            if return_received and replacement_received and ticket.status != TicketStatus.RESOLVED:
                 ticket.status = TicketStatus.RESOLVED
                 db_session.commit()
                 logger.info(f"Auto-closed ticket {ticket_id} on view - both shipments were already received")
+            # Set to IN_PROGRESS if any progress has been made and status is still NEW
+            elif ticket.status == TicketStatus.NEW:
+                # Check if any progress has been made
+                has_progress = (
+                    ticket.shipping_tracking or  # Return label sent
+                    (ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received']) or  # Customer shipped
+                    return_received or  # Return received
+                    replacement_received  # Replacement received
+                )
+                if has_progress:
+                    ticket.status = TicketStatus.IN_PROGRESS
+                    db_session.commit()
+                    logger.info(f"Auto-updated ticket {ticket_id} status to IN_PROGRESS based on case progress")
 
         logger.info("Loading additional data...")
         # Load additional data needed for the template
@@ -8168,6 +8182,10 @@ def mark_return_received(ticket_id):
             if replacement_received:
                 ticket.status = TicketStatus.RESOLVED
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+            # Set to IN_PROGRESS if status is NEW
+            elif ticket.status == TicketStatus.NEW:
+                ticket.status = TicketStatus.IN_PROGRESS
+                logger.info(f"Updated ticket {ticket_id} status to IN_PROGRESS")
 
         db_session.commit()
         logger.info(f"Database commit successful for ticket {ticket_id}")
@@ -8217,6 +8235,10 @@ def mark_replacement_received(ticket_id):
             if return_received:
                 ticket.status = TicketStatus.RESOLVED
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+            # Set to IN_PROGRESS if status is NEW
+            elif ticket.status == TicketStatus.NEW:
+                ticket.status = TicketStatus.IN_PROGRESS
+                logger.info(f"Updated ticket {ticket_id} status to IN_PROGRESS")
 
         db_session.commit()
         logger.info(f"Database commit successful for ticket {ticket_id}")
