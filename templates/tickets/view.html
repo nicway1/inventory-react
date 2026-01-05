@@ -2303,7 +2303,25 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <h5 class="text-sm font-medium text-gray-900 mb-2">Return Label Sent</h5>
                                 <div class="space-y-1">
                                     <p class="text-xs text-gray-600">Tracking Number:</p>
+                                    {% set tracking_url = '' %}
+                                    {% if ticket.shipping_carrier == 'hfd' %}
+                                        {% set tracking_url = 'https://run.hfd.co.il/info/' ~ ticket.shipping_tracking %}
+                                    {% elif ticket.shipping_carrier == 'dhl' %}
+                                        {% set tracking_url = 'https://www.dhl.com/en/express/tracking.html?AWB=' ~ ticket.shipping_tracking %}
+                                    {% elif ticket.shipping_carrier == 'ups' %}
+                                        {% set tracking_url = 'https://www.ups.com/track?tracknum=' ~ ticket.shipping_tracking %}
+                                    {% elif ticket.shipping_carrier == 'fedex' %}
+                                        {% set tracking_url = 'https://www.fedex.com/fedextrack/?trknbr=' ~ ticket.shipping_tracking %}
+                                    {% elif ticket.shipping_carrier == 'singpost' %}
+                                        {% set tracking_url = 'https://www.singpost.com/track-items?trackingid=' ~ ticket.shipping_tracking %}
+                                    {% elif ticket.shipping_tracking.startswith('http') %}
+                                        {% set tracking_url = ticket.shipping_tracking %}
+                                    {% endif %}
+                                    {% if tracking_url %}
+                                    <a href="{{ tracking_url }}" target="_blank" class="text-sm font-mono text-blue-600 hover:text-blue-800 underline">{{ ticket.shipping_tracking[:20] }}{% if ticket.shipping_tracking|length > 20 %}...{% endif %} ↗</a>
+                                    {% else %}
                                     <p class="text-sm font-mono text-blue-600">{{ ticket.shipping_tracking }}</p>
+                                    {% endif %}
                                     <p class="text-xs text-gray-600">Status:</p>
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                         {% if return_received %}
@@ -6269,12 +6287,21 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <select id="outbound_carrier" name="outbound_carrier" required
                                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                         <option value="auto">Auto-Detect</option>
+                                        <option value="hfd">HFD (Israel)</option>
                                         <option value="singpost">SingPost</option>
                                         <option value="dhl">DHL</option>
                                         <option value="ups">UPS</option>
+                                        <option value="fedex">FedEx</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="other">Other / Custom URL</option>
                                     </select>
+                                </div>
+                                <div id="customTrackingUrlDiv" style="display: none;">
+                                    <label for="custom_tracking_url" class="block text-sm font-medium text-gray-700">Custom Tracking URL (optional)</label>
+                                    <input type="url" id="custom_tracking_url" name="custom_tracking_url" placeholder="https://..."
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <p class="text-xs text-gray-500 mt-1">Enter full URL if your carrier is not listed</p>
                                 </div>
                             </form>
                         </div>
@@ -7592,21 +7619,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Outbound carrier dropdown - show/hide custom URL field
+    const outboundCarrierSelect = document.getElementById('outbound_carrier');
+    if (outboundCarrierSelect) {
+        outboundCarrierSelect.addEventListener('change', function() {
+            const customUrlDiv = document.getElementById('customTrackingUrlDiv');
+            if (customUrlDiv) {
+                customUrlDiv.style.display = this.value === 'other' ? 'block' : 'none';
+            }
+        });
+    }
+
     // Outbound tracking form submission
     const outboundTrackingBtn = document.getElementById('submitOutboundTrackingBtn');
     if (outboundTrackingBtn) {
         outboundTrackingBtn.addEventListener('click', function() {
             const trackingNumber = document.getElementById('outbound_tracking_number').value;
             const carrier = document.getElementById('outbound_carrier').value;
-            
+            const customUrlField = document.getElementById('custom_tracking_url');
+            const customUrl = customUrlField ? customUrlField.value : '';
+
             if (!trackingNumber) {
                 alert('Please enter a tracking number');
                 return;
             }
-            
+
             // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            
+
             // Submit form data with direct origin URL
             fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/add_outbound_tracking`, {
                 method: 'POST',
@@ -7617,7 +7657,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     tracking_number: trackingNumber,
-                    carrier: carrier
+                    carrier: carrier,
+                    custom_tracking_url: customUrl
                 })
             })
             .then(response => response.json())
