@@ -2126,11 +2126,11 @@ body.dark-theme .sf-card-body .sf-field-label {
                         </div>
 
                         <!-- Current Status Display -->
-                        <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div class="mt-4 p-3 {% if ticket.status and ticket.status.name == 'RESOLVED' %}bg-green-50 border-green-200{% else %}bg-blue-50 border-blue-200{% endif %} rounded-lg border">
                             <div class="flex items-center justify-between">
-                                <div>
-                                    <h4 class="text-sm font-medium text-blue-900">Current Status</h4>
-                                    <p class="text-sm text-blue-700">
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-medium {% if ticket.status and ticket.status.name == 'RESOLVED' %}text-green-900{% else %}text-blue-900{% endif %}">Current Status</h4>
+                                    <p class="text-sm {% if ticket.status and ticket.status.name == 'RESOLVED' %}text-green-700{% else %}text-blue-700{% endif %}">
                                         {% if return_received and replacement_received %}
                                             Both shipments received. Case completed!
                                         {% elif return_received and not replacement_received %}
@@ -2149,10 +2149,18 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             Case created, return label needs to be generated and sent to customer
                                         {% endif %}
                                     </p>
+                                    {% if ticket.status and ticket.status.name == 'RESOLVED' %}
+                                    <div class="mt-2 flex items-center">
+                                        <svg class="w-5 h-5 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span class="text-sm font-semibold text-green-800">Case Status: RESOLVED</span>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                <div class="text-right">
+                                <div class="text-right ml-4">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                        {% if return_received and replacement_received %}
+                                        {% if ticket.status and ticket.status.name == 'RESOLVED' %}
                                             bg-green-100 text-green-800
                                         {% elif return_received or replacement_received %}
                                             bg-yellow-100 text-yellow-800
@@ -2163,8 +2171,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {% else %}
                                             bg-gray-100 text-gray-800
                                         {% endif %}">
-                                        {% if return_received and replacement_received %}
-                                            Completed
+                                        {% if ticket.status and ticket.status.name == 'RESOLVED' %}
+                                            Resolved
                                         {% elif return_received or replacement_received %}
                                             Partially Complete
                                         {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
