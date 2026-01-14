@@ -306,6 +306,17 @@ def list_tickets():
     queues = []
 
     try:
+        # Get accessible queue IDs for COUNTRY_ADMIN and SUPERVISOR
+        accessible_queue_ids = []
+        if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_queue_permission import UserQueuePermission
+            queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == user.id,
+                UserQueuePermission.can_view == True
+            ).all()
+            accessible_queue_ids = [q[0] for q in queue_permissions]
+            logging.info(f"User {user.id} has access to {len(accessible_queue_ids)} queues")
+
         # Query queues with ticket count, sorted by count descending
         queues_with_counts = db_session.query(
             Queue,
@@ -320,20 +331,21 @@ def list_tickets():
         ).all()
 
         # Filter queues based on user permissions
-        # SUPER_ADMIN and DEVELOPER can see all queues
         if user.is_super_admin or user.is_developer:
             queues = [queue for queue, count in queues_with_counts]
             logging.info(f"Loaded {len(queues)} queues for SUPER_ADMIN/DEVELOPER (all queues)")
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Filter using directly queried UserQueuePermission IDs
+            queues = [queue for queue, count in queues_with_counts if queue.id in accessible_queue_ids]
+            logging.info(f"Loaded {len(queues)}/{len(queues_with_counts)} queues for COUNTRY_ADMIN/SUPERVISOR")
         else:
-            # Other users only see queues they have permission to access
+            # For CLIENT and other users
             all_queues = [queue for queue, count in queues_with_counts]
             queues = [queue for queue in all_queues if user.can_access_queue(queue.id)]
             logging.info(f"Loaded {len(queues)}/{len(all_queues)} queues based on user permissions")
-            for queue in queues:
-                logging.debug(f"✓ Queue allowed: {queue.name}")
 
         for queue in queues:
-            logging.info(f"  Queue: {queue.name} (ID: {queue.id})")
+            logging.debug(f"  Queue: {queue.name} (ID: {queue.id})")
     except Exception as e:
         logging.error(f"Error loading queues: {str(e)}")
         queues = []
@@ -445,6 +457,17 @@ def list_tickets_sf():
     queues = []
 
     try:
+        # Get accessible queue IDs for COUNTRY_ADMIN and SUPERVISOR
+        accessible_queue_ids = []
+        if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_queue_permission import UserQueuePermission
+            queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == user.id,
+                UserQueuePermission.can_view == True
+            ).all()
+            accessible_queue_ids = [q[0] for q in queue_permissions]
+            logging.info(f"DEBUG SF - User {user.id} has access to {len(accessible_queue_ids)} queues: {accessible_queue_ids}")
+
         queues_with_counts = db_session.query(
             Queue,
             func.count(Ticket.id).label('ticket_count')
@@ -459,7 +482,13 @@ def list_tickets_sf():
 
         if user.is_super_admin or user.is_developer:
             queues = [queue for queue, count in queues_with_counts]
+            logging.info(f"DEBUG SF - SUPER_ADMIN/DEVELOPER sees all {len(queues)} queues")
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Filter using directly queried UserQueuePermission IDs
+            queues = [queue for queue, count in queues_with_counts if queue.id in accessible_queue_ids]
+            logging.info(f"DEBUG SF - COUNTRY_ADMIN/SUPERVISOR sees {len(queues)}/{len(queues_with_counts)} queues")
         else:
+            # For CLIENT and other users
             all_queues = [queue for queue, count in queues_with_counts]
             queues = [queue for queue in all_queues if user.can_access_queue(queue.id)]
     except Exception as e:
