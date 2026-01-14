@@ -890,72 +890,75 @@ class Ship24Tracker:
         tracking_url = self._get_hfd_tracking_url(tracking_number)
         logger.info(f"Tracking HFD parcel at: {tracking_url}")
 
-        # Try Oxylabs Web Unblocker API first (works better than Playwright with proxy)
+        # Try Oxylabs Web Unblocker with requests (sync, more reliable than httpx)
         try:
-            import httpx
+            import requests
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
             oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
             oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
 
-            proxy_url = f"https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000"
+            proxies = {
+                'http': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000',
+                'https': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000'
+            }
 
-            logger.info(f"Using Oxylabs Web Unblocker for HFD: {tracking_url}")
+            logger.info(f"Using Oxylabs Web Unblocker (requests) for HFD: {tracking_url}")
 
-            async with httpx.AsyncClient(
-                proxy=proxy_url,
-                verify=False,  # Required for proxy
-                timeout=60.0,
-                follow_redirects=True
-            ) as client:
-                response = await client.get(
-                    tracking_url,
-                    headers={
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                        'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+            response = requests.get(
+                tracking_url,
+                proxies=proxies,
+                verify=False,
+                timeout=60,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+                },
+                allow_redirects=True
+            )
+
+            logger.info(f"HFD response status: {response.status_code}")
+            page_text = response.text
+            logger.info(f"HFD response length: {len(page_text)}")
+
+            if response.status_code == 200 and len(page_text) > 500:
+                # Check if blocked
+                if 'you have been blocked' in page_text.lower():
+                    logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
+                    return {
+                        'success': True,
+                        'tracking_number': tracking_number,
+                        'carrier': 'HFD Israel',
+                        'status': 'Check Link',
+                        'events': [{
+                            'description': 'HFD website blocked automated access. Please check tracking manually.',
+                            'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+                        }],
+                        'current_location': 'Israel',
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'tracking_url': tracking_url,
+                        'source': 'HFD',
+                        'blocked': True
                     }
-                )
 
-                logger.info(f"HFD response status: {response.status_code}")
-                page_text = response.text
-                logger.info(f"HFD response length: {len(page_text)}")
+                # Parse the HTML response
+                tracking_data = self._parse_hfd_html(page_text, tracking_number)
 
-                if response.status_code == 200 and len(page_text) > 500:
-                    # Check if blocked
-                    if 'you have been blocked' in page_text.lower():
-                        logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
-                        return {
-                            'success': True,
-                            'tracking_number': tracking_number,
-                            'carrier': 'HFD Israel',
-                            'status': 'Check Link',
-                            'events': [{
-                                'description': 'HFD website blocked automated access. Please check tracking manually.',
-                                'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-                            }],
-                            'current_location': 'Israel',
-                            'last_updated': datetime.utcnow().isoformat(),
-                            'tracking_url': tracking_url,
-                            'source': 'HFD',
-                            'blocked': True
-                        }
-
-                    # Parse the HTML response
-                    tracking_data = self._parse_hfd_html(page_text, tracking_number)
-
-                    if tracking_data.get('status') not in ['Unknown', None]:
-                        return {
-                            'success': True,
-                            'tracking_number': tracking_number,
-                            'carrier': 'HFD Israel',
-                            'status': tracking_data.get('status', 'Unknown'),
-                            'events': tracking_data.get('events', []),
-                            'current_location': tracking_data.get('location', 'Israel'),
-                            'estimated_delivery': tracking_data.get('estimated_delivery'),
-                            'last_updated': datetime.utcnow().isoformat(),
-                            'tracking_url': tracking_url,
-                            'source': 'HFD'
-                        }
+                if tracking_data.get('status') not in ['Unknown', None]:
+                    return {
+                        'success': True,
+                        'tracking_number': tracking_number,
+                        'carrier': 'HFD Israel',
+                        'status': tracking_data.get('status', 'Unknown'),
+                        'events': tracking_data.get('events', []),
+                        'current_location': tracking_data.get('location', 'Israel'),
+                        'estimated_delivery': tracking_data.get('estimated_delivery'),
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'tracking_url': tracking_url,
+                        'source': 'HFD'
+                    }
 
         except Exception as e:
             import traceback
