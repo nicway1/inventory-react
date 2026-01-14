@@ -4688,11 +4688,20 @@ def track_debug(ticket_id):
     return jsonify(debug_info)
 
 def is_singpost_tracking_number(tracking_number: str) -> bool:
-    """Check if a tracking number is a SingPost tracking number (starts with XZB, XZD, or XZ)"""
+    """Check if a tracking number is a SingPost tracking number"""
     if not tracking_number:
         return False
     upper_tn = tracking_number.upper()
-    return upper_tn.startswith('XZB') or upper_tn.startswith('XZD') or upper_tn.startswith('XZ')
+    # XZ prefixes (XZB, XZD, etc.)
+    if upper_tn.startswith('XZ'):
+        return True
+    # New SPNDD and SPPSD formats
+    if upper_tn.startswith('SPNDD') or upper_tn.startswith('SPPSD'):
+        return True
+    # Other SP prefixes
+    if upper_tn.startswith('SP') or upper_tn.startswith('SG'):
+        return True
+    return False
 
 
 @tickets_bp.route('/<int:ticket_id>/track_singpost', methods=['GET'])

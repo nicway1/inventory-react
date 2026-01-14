@@ -1483,10 +1483,13 @@ def get_ticket_tracking(ticket_id):
             from utils.singpost_tracking import get_singpost_tracking_client
 
             # Check if it's a SingPost tracking number
+            upper_tn = tracking_number.upper()
             is_singpost = (
-                tracking_number.upper().startswith('XZB') or
-                tracking_number.upper().startswith('XZD') or
-                tracking_number.upper().startswith('XZ')
+                upper_tn.startswith('XZ') or
+                upper_tn.startswith('SPNDD') or
+                upper_tn.startswith('SPPSD') or
+                upper_tn.startswith('SP') or
+                upper_tn.startswith('SG')
             )
 
             # Try to get cached data first (unless force refresh)
@@ -1629,16 +1632,19 @@ def lookup_tracking():
             }), 400
 
         # Check if it's a SingPost tracking number
+        upper_tn = tracking_number.upper()
         is_singpost = (
-            tracking_number.upper().startswith('XZB') or
-            tracking_number.upper().startswith('XZD') or
-            tracking_number.upper().startswith('XZ')
+            upper_tn.startswith('XZ') or
+            upper_tn.startswith('SPNDD') or
+            upper_tn.startswith('SPPSD') or
+            upper_tn.startswith('SP') or
+            upper_tn.startswith('SG')
         )
 
         if not is_singpost:
             return jsonify({
                 'success': False,
-                'error': 'Only SingPost tracking numbers (starting with XZ) are supported'
+                'error': 'Only SingPost tracking numbers (XZ, SP, SG, SPNDD, SPPSD prefixes) are supported'
             }), 400
 
         from utils.singpost_tracking import get_singpost_tracking_client

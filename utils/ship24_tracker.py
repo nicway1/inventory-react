@@ -1419,8 +1419,11 @@ class Ship24Tracker:
         # SingPost format: 2 letters + 9 digits + SG
         if len(tn) == 13 and tn[:2].isalpha() and tn[2:11].isdigit() and tn.endswith('SG'):
             return True
-        # XZD prefix is used by SingPost for certain shipments
-        if tn.startswith('XZD'):
+        # XZD/XZB/XZ prefixes used by SingPost for certain shipments
+        if tn.startswith('XZD') or tn.startswith('XZB') or tn.startswith('XZ'):
+            return True
+        # SPNDD and SPPSD are new SingPost tracking formats
+        if tn.startswith('SPNDD') or tn.startswith('SPPSD'):
             return True
         # Also check for other SingPost formats
         if tn.startswith('SP') or tn.startswith('SG'):
