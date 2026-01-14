@@ -400,6 +400,129 @@
     font-family: monospace;
     font-size: 13px;
 }
+
+/* Bug Report Form */
+.bug-report-form {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.bug-report-form label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 4px;
+    margin-top: 10px;
+}
+
+.bug-report-form label:first-child {
+    margin-top: 0;
+}
+
+.bug-report-form textarea,
+.bug-report-form input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.bug-report-form textarea:focus,
+.bug-report-form input[type="text"]:focus {
+    border-color: #0176d3;
+    outline: none;
+}
+
+.bug-report-form textarea {
+    min-height: 60px;
+}
+
+.bug-report-form .severity-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+}
+
+.bug-report-form .image-upload-area {
+    margin-top: 10px;
+    padding: 12px;
+    border: 2px dashed #ddd;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bug-report-form .image-upload-area:hover {
+    border-color: #0176d3;
+    background: #f0f7ff;
+}
+
+.bug-report-form .image-upload-area i {
+    font-size: 24px;
+    color: #999;
+    margin-bottom: 6px;
+}
+
+.bug-report-form .image-upload-area p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+}
+
+.bug-report-form .image-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.bug-report-form .image-preview-item {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+}
+
+.bug-report-form .image-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bug-report-form .image-preview-item .remove-image {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bug-report-form .image-preview-item .remove-image:hover {
+    background: #c62828;
+}
 </style>
 
 <div class="chatbot-container" id="chatbot">
@@ -596,18 +719,62 @@ async function sendChatMessage() {
     }
 }
 
+// Store uploaded images for bug reports
+const bugReportImages = {};
+
 function addActionConfirmMessage(result) {
     const container = document.getElementById('chatMessages');
     const actionId = 'action_' + Date.now();
 
     // Store action data in global object
     pendingActions[actionId] = result;
+    bugReportImages[actionId] = [];
 
     let formattedText = formatMessage(result.answer);
 
     let html = `<div class="chat-message bot" id="${actionId}">
         <div class="message-bubble">
-            <div class="message-content">${formattedText}</div>
+            <div class="message-content">${formattedText}</div>`;
+
+    // Show expanded form for bug reports
+    if (result.action === 'report_bug') {
+        html += `
+            <div class="bug-report-form" id="${actionId}_form">
+                <label>Title</label>
+                <input type="text" id="${actionId}_title" value="${escapeHtml(result.bug_title || '')}" placeholder="Brief description of the bug">
+
+                <label>Description</label>
+                <textarea id="${actionId}_description" placeholder="What happened? What did you expect to happen?"></textarea>
+
+                <label>Steps to Reproduce</label>
+                <textarea id="${actionId}_steps" placeholder="1. Go to...&#10;2. Click on...&#10;3. See error"></textarea>
+
+                <label>Severity</label>
+                <select id="${actionId}_severity" class="severity-select">
+                    <option value="Low" ${result.severity === 'Low' ? 'selected' : ''}>Low - Minor issue, workaround exists</option>
+                    <option value="Medium" ${result.severity === 'Medium' ? 'selected' : ''}>Medium - Affects functionality</option>
+                    <option value="High" ${result.severity === 'High' ? 'selected' : ''}>High - Major feature broken</option>
+                    <option value="Critical" ${result.severity === 'Critical' ? 'selected' : ''}>Critical - System unusable</option>
+                </select>
+
+                <label>Screenshots (optional)</label>
+                <div class="image-upload-area" onclick="document.getElementById('${actionId}_file').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Click to upload images</p>
+                    <input type="file" id="${actionId}_file" accept="image/*" multiple style="display:none" onchange="handleBugImageUpload('${actionId}', this)">
+                </div>
+                <div class="image-preview" id="${actionId}_preview"></div>
+            </div>
+            <div class="action-buttons" id="${actionId}_buttons">
+                <button class="action-btn action-btn-confirm" onclick="submitBugReport('${actionId}')" id="${actionId}_confirm">
+                    <i class="fas fa-bug"></i> Submit Bug Report
+                </button>
+                <button class="action-btn action-btn-cancel" onclick="cancelAction('${actionId}')" id="${actionId}_cancel">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>`;
+    } else {
+        html += `
             <div class="action-buttons" id="${actionId}_buttons">
                 <button class="action-btn action-btn-confirm" onclick="executeAction('${actionId}')" id="${actionId}_confirm">
                     <i class="fas fa-check"></i> Confirm
@@ -615,12 +782,138 @@ function addActionConfirmMessage(result) {
                 <button class="action-btn action-btn-cancel" onclick="cancelAction('${actionId}')" id="${actionId}_cancel">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-            </div>
-        </div>
-    </div>`;
+            </div>`;
+    }
+
+    html += `</div></div>`;
 
     container.innerHTML += html;
     container.scrollTop = container.scrollHeight;
+}
+
+function handleBugImageUpload(actionId, input) {
+    const files = input.files;
+    const previewContainer = document.getElementById(actionId + '_preview');
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+
+        const reader = new FileReader();
+        const imageIndex = bugReportImages[actionId].length;
+
+        reader.onload = function(e) {
+            bugReportImages[actionId].push(file);
+
+            const previewItem = document.createElement('div');
+            previewItem.className = 'image-preview-item';
+            previewItem.id = actionId + '_img_' + imageIndex;
+            previewItem.innerHTML = `
+                <img src="${e.target.result}" alt="Preview">
+                <button class="remove-image" onclick="removeBugImage('${actionId}', ${imageIndex})">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            previewContainer.appendChild(previewItem);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Clear the input so the same file can be selected again
+    input.value = '';
+}
+
+function removeBugImage(actionId, imageIndex) {
+    bugReportImages[actionId][imageIndex] = null;
+    const previewItem = document.getElementById(actionId + '_img_' + imageIndex);
+    if (previewItem) {
+        previewItem.remove();
+    }
+}
+
+async function submitBugReport(actionId) {
+    const actionData = pendingActions[actionId];
+    if (!actionData) {
+        console.error('Action data not found for:', actionId);
+        return;
+    }
+
+    // Get form values
+    const title = document.getElementById(actionId + '_title').value.trim();
+    const description = document.getElementById(actionId + '_description').value.trim();
+    const steps = document.getElementById(actionId + '_steps').value.trim();
+    const severity = document.getElementById(actionId + '_severity').value;
+
+    if (!title) {
+        alert('Please enter a bug title');
+        return;
+    }
+
+    const confirmBtn = document.getElementById(actionId + '_confirm');
+    const cancelBtn = document.getElementById(actionId + '_cancel');
+    const buttonsDiv = document.getElementById(actionId + '_buttons');
+    const formDiv = document.getElementById(actionId + '_form');
+
+    // Disable buttons and show loading
+    confirmBtn.disabled = true;
+    cancelBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+    try {
+        // Use FormData for file uploads
+        const formData = new FormData();
+        formData.append('action', 'report_bug');
+        formData.append('bug_title', title);
+        formData.append('bug_description', description);
+        formData.append('steps_to_reproduce', steps);
+        formData.append('severity', severity);
+
+        // Add images
+        const images = bugReportImages[actionId].filter(img => img !== null);
+        images.forEach((file, index) => {
+            formData.append('images', file);
+        });
+
+        const response = await fetch('/chatbot/execute', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': chatbotCSRFToken
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        // Hide form and replace buttons with result message
+        if (formDiv) formDiv.style.display = 'none';
+
+        if (result.success) {
+            let viewLink = result.bug_url ? `<br><a href="${result.bug_url}" target="_blank">View Bug Report</a>` : '';
+            buttonsDiv.innerHTML = `
+                <div class="action-result success">
+                    <i class="fas fa-check-circle"></i> ${result.message}
+                    ${viewLink}
+                </div>
+            `;
+        } else {
+            buttonsDiv.innerHTML = `
+                <div class="action-result error">
+                    <i class="fas fa-exclamation-circle"></i> ${result.error}
+                </div>
+            `;
+        }
+
+        // Cleanup
+        delete bugReportImages[actionId];
+        delete pendingActions[actionId];
+
+    } catch (error) {
+        buttonsDiv.innerHTML = `
+            <div class="action-result error">
+                <i class="fas fa-exclamation-circle"></i> Failed to submit bug report. Please try again.
+            </div>
+        `;
+    }
 }
 
 async function executeAction(actionId) {

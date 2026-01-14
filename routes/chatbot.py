@@ -1165,7 +1165,17 @@ def ask():
 @login_required
 def execute_action():
     """Execute a confirmed action"""
-    data = request.get_json()
+    import os
+    from werkzeug.utils import secure_filename
+
+    # Handle both JSON and FormData
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        data = request.form.to_dict()
+        files = request.files.getlist('images')
+    else:
+        data = request.get_json() or {}
+        files = []
+
     action = data.get('action')
 
     if not action:
@@ -1179,6 +1189,7 @@ def execute_action():
 
             bug_title = data.get('bug_title')
             bug_description = data.get('bug_description', '')
+            steps_to_reproduce = data.get('steps_to_reproduce', '')
             severity = data.get('severity', 'Medium')
 
             if not bug_title:
@@ -1189,12 +1200,36 @@ def execute_action():
                 bug = BugReport(
                     title=bug_title,
                     description=bug_description or f"Bug reported via chatbot: {bug_title}",
+                    steps_to_reproduce=steps_to_reproduce or None,
                     severity=BugSeverity(severity),
                     priority=BugPriority("Medium"),
                     reporter_id=current_user.id,
                     component="Chatbot Report"
                 )
                 db_session.add(bug)
+                db_session.flush()  # Get the bug ID
+
+                # Handle image uploads
+                if files:
+                    upload_folder = os.path.join('static', 'uploads', 'bugs', str(bug.id))
+                    os.makedirs(upload_folder, exist_ok=True)
+
+                    saved_paths = []
+                    for file in files:
+                        if file and file.filename:
+                            filename = secure_filename(file.filename)
+                            # Add timestamp to avoid duplicates
+                            import time
+                            timestamp = int(time.time() * 1000)
+                            filename = f"{timestamp}_{filename}"
+                            filepath = os.path.join(upload_folder, filename)
+                            file.save(filepath)
+                            saved_paths.append(filepath)
+
+                    if saved_paths:
+                        # Store paths as comma-separated string
+                        bug.screenshot_path = ','.join(saved_paths)
+
                 db_session.commit()
 
                 return jsonify({
