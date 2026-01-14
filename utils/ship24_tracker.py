@@ -884,101 +884,92 @@ class Ship24Tracker:
 
     async def track_with_hfd(self, tracking_number: str) -> Optional[Dict]:
         """
-        Track a parcel using HFD Israel website via Playwright
+        Track a parcel using HFD Israel website via Oxylabs Web Unblocker
         HFD pages are in Hebrew and rendered via JavaScript
         """
-        if not PLAYWRIGHT_AVAILABLE:
-            logger.info("Playwright not available for HFD tracking")
-            return None
-
         tracking_url = self._get_hfd_tracking_url(tracking_number)
         logger.info(f"Tracking HFD parcel at: {tracking_url}")
 
+        # Try Oxylabs Web Unblocker API first (works better than Playwright with proxy)
         try:
-            from playwright.async_api import async_playwright
+            import httpx
 
-            async with async_playwright() as p:
-                launch_options = get_browser_launch_options()
-                browser = await p.chromium.launch(**launch_options)
+            oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
+            oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
 
-                context_options = {
-                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                    'viewport': {'width': 1366, 'height': 768},
-                    'locale': 'he-IL'  # Hebrew locale for HFD
-                }
+            proxy_url = f"https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000"
 
-                # Use Oxylabs Web Unblocker proxy to bypass Cloudflare
-                oxylabs_proxy = {
-                    'server': 'https://unblock.oxylabs.io:60000',
-                    'username': os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP'),
-                    'password': os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
-                }
-                context_options['proxy'] = oxylabs_proxy
-                context_options['ignore_https_errors'] = True  # Required for proxy
-                logger.info(f"Using Oxylabs proxy for HFD tracking")
+            logger.info(f"Using Oxylabs Web Unblocker for HFD: {tracking_url}")
 
-                context = await browser.new_context(**context_options)
-                page = await context.new_page()
-
-                await page.goto(tracking_url, wait_until='domcontentloaded', timeout=30000)
-
-                # Wait for page to load (HFD uses JavaScript rendering)
-                await page.wait_for_timeout(5000)
-
-                # Try to wait for tracking content
-                try:
-                    await page.wait_for_selector('.tracking-info, .status, .timeline, [class*="track"], [class*="status"]', timeout=10000)
-                except:
-                    pass
-
-                await page.wait_for_timeout(2000)
-
-                # Check if blocked by Cloudflare
-                page_text = await page.evaluate('() => document.body.innerText')
-                if 'you have been blocked' in page_text.lower() or 'cloudflare' in page_text.lower():
-                    logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
-                    await browser.close()
-                    # Return result with link for manual checking
-                    return {
-                        'success': True,
-                        'tracking_number': tracking_number,
-                        'carrier': 'HFD Israel',
-                        'status': 'Check Link',
-                        'events': [{
-                            'description': 'HFD website blocked automated access. Please check tracking manually using the link below.',
-                            'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-                        }],
-                        'current_location': 'Israel',
-                        'estimated_delivery': None,
-                        'last_updated': datetime.utcnow().isoformat(),
-                        'tracking_url': tracking_url,
-                        'source': 'HFD',
-                        'blocked': True
+            async with httpx.AsyncClient(
+                proxy=proxy_url,
+                verify=False,  # Required for proxy
+                timeout=60.0,
+                follow_redirects=True
+            ) as client:
+                response = await client.get(
+                    tracking_url,
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
                     }
+                )
 
-                # Extract tracking data
-                tracking_data = await self._extract_hfd_data(page, tracking_number)
+                logger.info(f"HFD response status: {response.status_code}")
+                page_text = response.text
+                logger.info(f"HFD response length: {len(page_text)}")
 
-                await browser.close()
+                if response.status_code == 200 and len(page_text) > 500:
+                    # Check if blocked
+                    if 'you have been blocked' in page_text.lower():
+                        logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
+                        return {
+                            'success': True,
+                            'tracking_number': tracking_number,
+                            'carrier': 'HFD Israel',
+                            'status': 'Check Link',
+                            'events': [{
+                                'description': 'HFD website blocked automated access. Please check tracking manually.',
+                                'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+                            }],
+                            'current_location': 'Israel',
+                            'last_updated': datetime.utcnow().isoformat(),
+                            'tracking_url': tracking_url,
+                            'source': 'HFD',
+                            'blocked': True
+                        }
 
-                if tracking_data.get('status') not in ['Unknown', None]:
-                    return {
-                        'success': True,
-                        'tracking_number': tracking_number,
-                        'carrier': 'HFD Israel',
-                        'status': tracking_data.get('status', 'Unknown'),
-                        'events': tracking_data.get('events', []),
-                        'current_location': tracking_data.get('location', 'Israel'),
-                        'estimated_delivery': tracking_data.get('estimated_delivery'),
-                        'last_updated': datetime.utcnow().isoformat(),
-                        'tracking_url': tracking_url,
-                        'source': 'HFD'
-                    }
+                    # Parse the HTML response
+                    tracking_data = self._parse_hfd_html(page_text, tracking_number)
+
+                    if tracking_data.get('status') not in ['Unknown', None]:
+                        return {
+                            'success': True,
+                            'tracking_number': tracking_number,
+                            'carrier': 'HFD Israel',
+                            'status': tracking_data.get('status', 'Unknown'),
+                            'events': tracking_data.get('events', []),
+                            'current_location': tracking_data.get('location', 'Israel'),
+                            'estimated_delivery': tracking_data.get('estimated_delivery'),
+                            'last_updated': datetime.utcnow().isoformat(),
+                            'tracking_url': tracking_url,
+                            'source': 'HFD'
+                        }
 
         except Exception as e:
             import traceback
-            logger.error(f"Error tracking HFD parcel {tracking_number}: {str(e)}")
-            logger.error(f"HFD tracking traceback: {traceback.format_exc()}")
+            logger.error(f"Oxylabs HFD error: {str(e)}")
+            logger.error(f"Oxylabs HFD traceback: {traceback.format_exc()}")
+
+        # Fallback to Playwright if available
+        if PLAYWRIGHT_AVAILABLE:
+            try:
+                return await self._track_hfd_playwright(tracking_number, tracking_url)
+            except Exception as e:
+                import traceback
+                logger.error(f"Playwright HFD error: {str(e)}")
+                logger.error(f"Playwright HFD traceback: {traceback.format_exc()}")
 
         # Return fallback with link even on error
         return {
@@ -996,6 +987,147 @@ class Ship24Tracker:
             'source': 'HFD',
             'error': True
         }
+
+    def _parse_hfd_html(self, html_content: str, tracking_number: str) -> Dict:
+        """Parse HFD HTML response and extract tracking data"""
+        from bs4 import BeautifulSoup
+
+        tracking_data = {
+            'status': 'Unknown',
+            'location': 'Israel',
+            'events': [],
+            'estimated_delivery': None
+        }
+
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            page_text = soup.get_text(separator='\n')
+            logger.info(f"HFD HTML parsed, text length: {len(page_text)}")
+
+            # Use the same translation logic
+            phrase_translations = self._get_hfd_translations()
+
+            def translate_hebrew(text):
+                result = text
+                for hebrew, english in phrase_translations:
+                    result = result.replace(hebrew, english)
+                return result
+
+            # Detect status
+            if 'נמסר' in page_text:
+                tracking_data['status'] = 'Delivered'
+            elif 'בדרך ללקוח' in page_text or 'בדרך' in page_text:
+                tracking_data['status'] = 'In Transit'
+            elif 'יצא לחלוקה' in page_text or 'בחלוקה' in page_text:
+                tracking_data['status'] = 'Out for Delivery'
+            elif 'במחסן' in page_text or 'במחסני' in page_text:
+                tracking_data['status'] = 'At Warehouse'
+            elif 'התקבל' in page_text or 'נקלט' in page_text or 'הוקם במערכת' in page_text:
+                tracking_data['status'] = 'Received'
+
+            logger.info(f"HFD parsed status: {tracking_data['status']}")
+
+            # Extract events from page text
+            events = []
+            lines = page_text.split('\n')
+            lines = [l.strip() for l in lines if l.strip()]
+
+            i = 0
+            while i < len(lines) and len(events) < 15:
+                line = lines[i]
+                if len(line) < 5 or len(line) > 300:
+                    i += 1
+                    continue
+
+                date_match = re.match(r'^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s*(\d{1,2}:\d{2})?$', line)
+                if date_match:
+                    date_str = date_match.group(1)
+                    time_str = date_match.group(2) or ''
+                    timestamp = f"{date_str} {time_str}".strip()
+
+                    if i > 0:
+                        for j in range(i - 1, max(i - 3, -1), -1):
+                            prev_line = lines[j]
+                            if not re.match(r'^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}', prev_line):
+                                translated = translate_hebrew(prev_line)
+                                skip_phrases = ['shipment status', 'shipment details', 'shipping address', 'status', 'details', 'estimated delivery']
+                                if translated.lower() not in skip_phrases:
+                                    if not any(e.get('description') == translated and e.get('timestamp') == timestamp for e in events):
+                                        events.append({'description': translated, 'timestamp': timestamp})
+                                break
+                i += 1
+
+            tracking_data['events'] = events
+            logger.info(f"HFD parsed {len(events)} events")
+
+        except Exception as e:
+            logger.error(f"Error parsing HFD HTML: {str(e)}")
+
+        return tracking_data
+
+    def _get_hfd_translations(self):
+        """Get HFD Hebrew to English translations"""
+        return [
+            ('המשלוח במחסני המיון שלנו ולאחר מיון יצא אל בית הלקוח', 'Shipment at sorting warehouse, will be sent to customer after sorting'),
+            ('המשלוח בדרכו לישראל/למחסן המיון', 'Shipment on its way to Israel/sorting warehouse'),
+            ('צפי מסירה משוער עד', 'Estimated delivery by'),
+            ('צפי מסירה משוער', 'Estimated delivery'),
+            ('המשלוח הוקם במערכת', 'Shipment created in system'),
+            ('המשלוח במחסני HFD', 'Shipment at HFD warehouse'),
+            ('המשלוח בדרך ללקוח', 'Shipment on its way to customer'),
+            ('המשלוח נמסר', 'Shipment delivered'),
+            ('המשלוח בדרך', 'Shipment in transit'),
+            ('סטטוס משלוח', 'Shipment Status'),
+            ('פרטי משלוח', 'Shipment Details'),
+            ('פרטי נהג', 'Out for delivery'),
+            ('נמסר', 'Delivered'),
+            ('במשלוח', 'In shipment'),
+            ('בדרך', 'On the way'),
+            ('התקבל', 'Received'),
+            ('במחסן', 'At warehouse'),
+            ('במחסני', 'At warehouses'),
+            ('נהג', 'Driver'),
+            ('המשלוח', 'Shipment'),
+            ('משלוח', 'shipment'),
+        ]
+
+    async def _track_hfd_playwright(self, tracking_number: str, tracking_url: str) -> Optional[Dict]:
+        """Fallback: Track HFD using Playwright (no proxy)"""
+        from playwright.async_api import async_playwright
+
+        async with async_playwright() as p:
+            launch_options = get_browser_launch_options()
+            browser = await p.chromium.launch(**launch_options)
+
+            context_options = {
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'viewport': {'width': 1366, 'height': 768},
+                'locale': 'he-IL'
+            }
+
+            context = await browser.new_context(**context_options)
+            page = await context.new_page()
+
+            await page.goto(tracking_url, wait_until='domcontentloaded', timeout=30000)
+            await page.wait_for_timeout(5000)
+
+            tracking_data = await self._extract_hfd_data(page, tracking_number)
+            await browser.close()
+
+            if tracking_data.get('status') not in ['Unknown', None]:
+                return {
+                    'success': True,
+                    'tracking_number': tracking_number,
+                    'carrier': 'HFD Israel',
+                    'status': tracking_data.get('status', 'Unknown'),
+                    'events': tracking_data.get('events', []),
+                    'current_location': tracking_data.get('location', 'Israel'),
+                    'last_updated': datetime.utcnow().isoformat(),
+                    'tracking_url': tracking_url,
+                    'source': 'HFD'
+                }
+
+        return None
 
     async def _extract_hfd_data(self, page, tracking_number: str) -> Dict:
         """Extract tracking data from HFD Israel page (Hebrew content)"""
