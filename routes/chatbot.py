@@ -38,6 +38,13 @@ ACTION_PATTERNS = {
         r"bug\s+report[:\s]+(.+)",
         r"(?:report|create|submit|log)\s+(?:a\s+)?(?:new\s+)?bug\s+(?:titled?|called|named)[:\s]+(.+)",
     ],
+    "report_bug_intent": [
+        r"(?:i\s+)?(?:want|wanna|need|would\s+like|like)\s+to\s+(?:report|create|submit|log|file)\s+(?:a\s+)?(?:new\s+)?bug",
+        r"(?:how\s+)?(?:do\s+i|can\s+i|to)\s+(?:report|create|submit|log|file)\s+(?:a\s+)?(?:new\s+)?bug",
+        r"report\s+(?:a\s+)?(?:new\s+)?bug\s*$",
+        r"create\s+(?:a\s+)?(?:new\s+)?bug\s*$",
+        r"(?:open|file|raise)\s+(?:a\s+)?(?:new\s+)?bug\s*(?:report)?\s*$",
+    ],
     "user_permissions": [
         r"(?:what|which)\s+permissions?\s+(?:does|do|has|have)\s+(.+?)(?:\s+have|\s+got)?(?:\?|$)",
         r"(.+?)\s+(?:got|has|have)\s+(?:what|which)\s+permissions?",
@@ -202,6 +209,16 @@ def parse_action(query):
                 "action": "report_bug",
                 "bug_title": bug_title.capitalize() if bug_title else "Untitled Bug",
                 "severity": severity,
+                "original_query": query
+            }
+
+    # Check for bug report intent (user wants to report but hasn't provided title)
+    for pattern in ACTION_PATTERNS["report_bug_intent"]:
+        match = re.search(pattern, query_lower)
+        if match:
+            return {
+                "type": "prompt",
+                "action": "report_bug_intent",
                 "original_query": query
             }
 
@@ -795,6 +812,17 @@ def ask():
                     "bug_title": action["bug_title"],
                     "severity": action["severity"],
                     "answer": answer
+                })
+
+            elif action["action"] == "report_bug_intent":
+                # User wants to report a bug but hasn't provided details yet
+                answer = "I can help you report a bug! Please provide the bug details using this format:\n\n`report bug: <description of the issue>`\n\n**Examples:**\n• `report bug: Login page not loading`\n• `report critical bug: System crashes on save`\n• `report bug: Button not working on mobile`\n\nYou can also go directly to **Development → Bugs** (`/development/bugs`) to fill out the full bug report form."
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "bug_report_prompt",
+                    "answer": answer,
+                    "url": "/development/bugs"
                 })
 
             elif action["action"] == "user_permissions":
@@ -1680,6 +1708,16 @@ def mobile_ask():
                     "action": action["action"],
                     "bug_title": action["bug_title"],
                     "severity": action["severity"],
+                    "answer": answer
+                })
+
+            elif action["action"] == "report_bug_intent":
+                # User wants to report a bug but hasn't provided details yet
+                answer = "I can help you report a bug! Please provide the bug details using this format:\n\n`report bug: <description of the issue>`\n\n**Examples:**\n• `report bug: Login page not loading`\n• `report critical bug: System crashes on save`\n• `report bug: Button not working on mobile`"
+                log_chat_interaction(user_id, query, answer, "answer", action_type=action["action"])
+                return jsonify({
+                    "success": True,
+                    "type": "bug_report_prompt",
                     "answer": answer
                 })
 

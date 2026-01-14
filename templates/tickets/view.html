@@ -2029,6 +2029,9 @@ body.dark-theme .sf-card-body .sf-field-label {
 
             <!-- Case Progression Bar for Asset Return (claw) -->
             {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
+            {% set customer_received = (ticket.shipping_status and ('delivered' in ticket.shipping_status.lower() or 'received' in ticket.shipping_status.lower())) %}
+            {% set return_shipped = ticket.return_tracking and ticket.return_tracking|length > 0 %}
+            {% set return_received_at_warehouse = (ticket.return_status and ('delivered' in ticket.return_status.lower() or 'received' in ticket.return_status.lower())) %}
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
                     <div class="sf-card-title">Case Progress</div>
@@ -2039,7 +2042,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                         <div class="flex items-center justify-between mb-4">
                             <!-- Stage 1: Case Created -->
                             <div class="flex flex-col items-center flex-1">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2 
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
                                     {% if ticket.created_at %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
@@ -2052,7 +2055,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
 
                             <!-- Progress Line 1 -->
-                            <div class="flex-1 h-1 mx-2 
+                            <div class="flex-1 h-1 mx-2
                                 {% if ticket.shipping_tracking %}bg-green-500{% else %}bg-gray-300{% endif %}">
                             </div>
 
@@ -2074,61 +2077,59 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </div>
 
                             <!-- Progress Line 2 -->
-                            <div class="flex-1 h-1 mx-2 
-                                {% if ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}bg-green-500{% else %}bg-gray-300{% endif %}">
+                            <div class="flex-1 h-1 mx-2
+                                {% if customer_received %}bg-green-500{% else %}bg-gray-300{% endif %}">
                             </div>
 
-                            <!-- Stage 3: Customer Shipped -->
+                            <!-- Stage 3: Customer Received Package -->
                             <div class="flex flex-col items-center flex-1">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2 
-                                    {% if ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
+                                    {% if customer_received %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3 2h6v2H7V4zm8 4H5v1h10V8zm0 3H5v1h10v-1z" clip-rule="evenodd"/>
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                     </svg>
                                 </div>
-                                <span class="text-xs font-medium text-center">Customer Shipped</span>
+                                <span class="text-xs font-medium text-center">Customer Received Package</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}In Transit{% else %}Pending{% endif %}
+                                    {% if customer_received %}Complete{% else %}Pending{% endif %}
                                 </span>
                             </div>
 
                             <!-- Progress Line 3 -->
-                            {% set return_received = (ticket.shipping_status and ('delivered' in ticket.shipping_status.lower() or 'received' in ticket.shipping_status.lower())) %}
                             <div class="flex-1 h-1 mx-2
-                                {% if return_received %}bg-green-500{% else %}bg-gray-300{% endif %}">
+                                {% if return_shipped %}bg-green-500{% else %}bg-gray-300{% endif %}">
                             </div>
 
-                            <!-- Stage 4: Return Received -->
+                            <!-- Stage 4: Return Shipment Sent by Customer -->
                             <div class="flex flex-col items-center flex-1">
                                 <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
-                                    {% if return_received %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
+                                    {% if return_shipped %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3 2h6v2H7V4zm8 4H5v1h10V8zm0 3H5v1h10v-1z" clip-rule="evenodd"/>
                                     </svg>
                                 </div>
-                                <span class="text-xs font-medium text-center">Return Received</span>
+                                <span class="text-xs font-medium text-center">Return Shipment Sent</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if return_received %}Complete{% else %}Pending{% endif %}
+                                    {% if return_shipped %}{{ ticket.return_tracking[:8] }}...{% else %}Pending{% endif %}
                                 </span>
                             </div>
 
                             <!-- Progress Line 4 -->
-                            {% set replacement_received = (ticket.replacement_status and ('delivered' in ticket.replacement_status.lower() or 'received' in ticket.replacement_status.lower())) %}
                             <div class="flex-1 h-1 mx-2
-                                {% if replacement_received %}bg-green-500{% else %}bg-gray-300{% endif %}">
+                                {% if return_received_at_warehouse %}bg-green-500{% else %}bg-gray-300{% endif %}">
                             </div>
 
-                            <!-- Stage 5: Replacement Received -->
+                            <!-- Stage 5: Return Received at Warehouse -->
                             <div class="flex flex-col items-center flex-1">
                                 <div class="w-8 h-8 rounded-full flex items-center justify-center mb-2
-                                    {% if replacement_received %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
+                                    {% if return_received_at_warehouse %}bg-green-500 text-white{% else %}bg-gray-300 text-gray-500{% endif %}">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                     </svg>
                                 </div>
-                                <span class="text-xs font-medium text-center">Replacement Received</span>
+                                <span class="text-xs font-medium text-center">Return Received at Warehouse</span>
                                 <span class="text-xs text-gray-500 text-center">
-                                    {% if replacement_received %}Complete{% else %}Pending{% endif %}
+                                    {% if return_received_at_warehouse %}Complete{% else %}Pending{% endif %}
                                 </span>
                             </div>
                         </div>
@@ -2139,22 +2140,16 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <div class="flex-1">
                                     <h4 class="text-sm font-medium {% if ticket.status and ticket.status.name == 'RESOLVED' %}text-green-900{% else %}text-blue-900{% endif %}">Current Status</h4>
                                     <p class="text-sm {% if ticket.status and ticket.status.name == 'RESOLVED' %}text-green-700{% else %}text-blue-700{% endif %}">
-                                        {% if return_received and replacement_received %}
-                                            Both shipments received. Case completed!
-                                        {% elif return_received and not replacement_received %}
-                                            Return received. Waiting for replacement to be received by customer.
-                                        {% elif replacement_received and not return_received %}
-                                            Replacement received by customer. Waiting for return item.
-                                        {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
-                                            {% if ticket.return_tracking %}
-                                                Customer has shipped the item back - Return tracking: {{ ticket.return_tracking }}
-                                            {% else %}
-                                                Customer has shipped the item using provided return label
-                                            {% endif %}
+                                        {% if return_received_at_warehouse %}
+                                            Return received at warehouse. Case completed!
+                                        {% elif return_shipped %}
+                                            Customer has shipped the item back - Return tracking: {{ ticket.return_tracking }}
+                                        {% elif customer_received %}
+                                            Customer received the return label package. Waiting for customer to ship item back.
                                         {% elif ticket.shipping_tracking %}
-                                            Return label sent to customer, waiting for customer to ship item back
+                                            Return label sent to customer, waiting for delivery confirmation.
                                         {% else %}
-                                            Case created, return label needs to be generated and sent to customer
+                                            Case created, return label needs to be generated and sent to customer.
                                         {% endif %}
                                     </p>
                                     {% if ticket.status and ticket.status.name == 'RESOLVED' %}
@@ -2170,10 +2165,12 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                                         {% if ticket.status and ticket.status.name == 'RESOLVED' %}
                                             bg-green-100 text-green-800
-                                        {% elif return_received or replacement_received %}
-                                            bg-yellow-100 text-yellow-800
-                                        {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
+                                        {% elif return_received_at_warehouse %}
+                                            bg-green-100 text-green-800
+                                        {% elif return_shipped %}
                                             bg-blue-100 text-blue-800
+                                        {% elif customer_received %}
+                                            bg-yellow-100 text-yellow-800
                                         {% elif ticket.shipping_tracking %}
                                             bg-yellow-100 text-yellow-800
                                         {% else %}
@@ -2181,12 +2178,14 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {% endif %}">
                                         {% if ticket.status and ticket.status.name == 'RESOLVED' %}
                                             Resolved
-                                        {% elif return_received or replacement_received %}
-                                            Partially Complete
-                                        {% elif ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received'] %}
-                                            Item In Transit
+                                        {% elif return_received_at_warehouse %}
+                                            Complete
+                                        {% elif return_shipped %}
+                                            Return In Transit
+                                        {% elif customer_received %}
+                                            Awaiting Return Shipment
                                         {% elif ticket.shipping_tracking %}
-                                            Awaiting Shipment
+                                            Label Sent
                                         {% else %}
                                             Processing
                                         {% endif %}
