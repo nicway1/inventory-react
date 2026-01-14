@@ -890,6 +890,14 @@ class Ship24Tracker:
         tracking_url = self._get_hfd_tracking_url(tracking_number)
         logger.info(f"Tracking HFD parcel at: {tracking_url}")
 
+        # Debug info to return
+        debug_info = {
+            'source': 'oxylabs_proxy',
+            'tracking_number': tracking_number,
+            'url': tracking_url,
+            'proxy_used': 'Oxylabs Web Unblocker (unblock.oxylabs.io:60000)'
+        }
+
         # Try Oxylabs Web Unblocker with requests (sync, more reliable than httpx)
         try:
             import requests
@@ -923,10 +931,16 @@ class Ship24Tracker:
             page_text = response.text
             logger.info(f"HFD response length: {len(page_text)}")
 
+            # Add response info to debug
+            debug_info['response_status'] = response.status_code
+            debug_info['response_length'] = len(page_text)
+            debug_info['response_preview'] = page_text[:500] if page_text else 'EMPTY'
+
             if response.status_code == 200 and len(page_text) > 500:
                 # Check if blocked
                 if 'you have been blocked' in page_text.lower():
                     logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
+                    debug_info['blocked_reason'] = 'Cloudflare WAF block detected'
                     return {
                         'success': True,
                         'tracking_number': tracking_number,
@@ -940,11 +954,14 @@ class Ship24Tracker:
                         'last_updated': datetime.utcnow().isoformat(),
                         'tracking_url': tracking_url,
                         'source': 'HFD',
-                        'blocked': True
+                        'blocked': True,
+                        'debug_info': debug_info
                     }
 
                 # Parse the HTML response
                 tracking_data = self._parse_hfd_html(page_text, tracking_number)
+                debug_info['parsed_status'] = tracking_data.get('status')
+                debug_info['events_count'] = len(tracking_data.get('events', []))
 
                 if tracking_data.get('status') not in ['Unknown', None]:
                     return {
@@ -957,13 +974,19 @@ class Ship24Tracker:
                         'estimated_delivery': tracking_data.get('estimated_delivery'),
                         'last_updated': datetime.utcnow().isoformat(),
                         'tracking_url': tracking_url,
-                        'source': 'HFD'
+                        'source': 'HFD',
+                        'debug_info': debug_info
                     }
+            else:
+                debug_info['error_detail'] = f'Bad response: status={response.status_code}, length={len(page_text)}'
 
         except Exception as e:
             import traceback
+            error_tb = traceback.format_exc()
             logger.error(f"Oxylabs HFD error: {str(e)}")
-            logger.error(f"Oxylabs HFD traceback: {traceback.format_exc()}")
+            logger.error(f"Oxylabs HFD traceback: {error_tb}")
+            debug_info['error_detail'] = str(e)
+            debug_info['traceback'] = error_tb
 
         # Fallback to Playwright if available
         if PLAYWRIGHT_AVAILABLE:
@@ -975,6 +998,7 @@ class Ship24Tracker:
                 logger.error(f"Playwright HFD traceback: {traceback.format_exc()}")
 
         # Return fallback with link even on error
+        debug_info['fallback'] = True
         return {
             'success': True,
             'tracking_number': tracking_number,
@@ -988,7 +1012,8 @@ class Ship24Tracker:
             'last_updated': datetime.utcnow().isoformat(),
             'tracking_url': self._get_hfd_tracking_url(tracking_number),
             'source': 'HFD',
-            'error': True
+            'error': True,
+            'debug_info': debug_info
         }
 
     def _parse_hfd_html(self, html_content: str, tracking_number: str) -> Dict:
