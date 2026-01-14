@@ -976,7 +976,9 @@ class Ship24Tracker:
                     }
 
         except Exception as e:
+            import traceback
             logger.error(f"Error tracking HFD parcel {tracking_number}: {str(e)}")
+            logger.error(f"HFD tracking traceback: {traceback.format_exc()}")
 
         # Return fallback with link even on error
         return {
