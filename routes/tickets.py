@@ -2908,10 +2908,7 @@ def view_ticket(ticket_id):
             users_dict_mention[str(user.id)] = user_data
             users_list.append(user_data)
         
-        # Get all queues
-        queues = db_session.query(Queue).all()
-
-        # Get accessible queue IDs for SUPERVISOR/COUNTRY_ADMIN users
+        # Get queues - filtered by permissions for COUNTRY_ADMIN and SUPERVISOR
         accessible_queue_ids = []
         if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
             from models.user_queue_permission import UserQueuePermission
@@ -2920,6 +2917,11 @@ def view_ticket(ticket_id):
                 UserQueuePermission.can_view == True
             ).all()
             accessible_queue_ids = [q[0] for q in queue_permissions]
+            # Only show queues the user has permission to access
+            queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).all() if accessible_queue_ids else []
+        else:
+            # SUPER_ADMIN and DEVELOPER can see all queues
+            queues = db_session.query(Queue).all()
 
         # Get custom ticket statuses
         from models.custom_ticket_status import CustomTicketStatus
@@ -3184,15 +3186,24 @@ def list_queues():
     db_session = db_manager.get_session()
     try:
         user = db_manager.get_user(session['user_id'])
-        queues = db_session.query(Queue).all()
-        
-        # Filter queues based on company permissions if not super admin
-        if not user.is_super_admin:
-            filtered_queues = []
-            for queue in queues:
-                if user.can_access_queue(queue.id):
-                    filtered_queues.append(queue)
-            queues = filtered_queues
+
+        # Filter queues based on user type and permissions
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # SUPER_ADMIN and DEVELOPER can see all queues
+            queues = db_session.query(Queue).all()
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # COUNTRY_ADMIN and SUPERVISOR can only see queues they have permission for
+            from models.user_queue_permission import UserQueuePermission
+            queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == user.id,
+                UserQueuePermission.can_view == True
+            ).all()
+            accessible_queue_ids = [q[0] for q in queue_permissions]
+            queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).all() if accessible_queue_ids else []
+        else:
+            # Other users (CLIENT) - filter by can_access_queue
+            all_queues = db_session.query(Queue).all()
+            queues = [q for q in all_queues if user.can_access_queue(q.id)]
         
         # Get ticket counts for each queue to avoid detached session issues
         queue_ticket_counts = {}
@@ -11209,8 +11220,17 @@ def bulk_import_asset_return():
             # Render the import form
             db_session = db_manager.get_session()
             try:
-                # Get queues for dropdown
-                queues = db_session.query(Queue).order_by(Queue.name).all()
+                # Get queues for dropdown - filtered by permissions for SUPERVISOR
+                if user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    from models.user_queue_permission import UserQueuePermission
+                    queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                        UserQueuePermission.user_id == user.id,
+                        UserQueuePermission.can_view == True
+                    ).all()
+                    accessible_queue_ids = [q[0] for q in queue_permissions]
+                    queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).order_by(Queue.name).all() if accessible_queue_ids else []
+                else:
+                    queues = db_session.query(Queue).order_by(Queue.name).all()
 
                 return render_template('tickets/bulk_import_asset_return.html',
                                      user=user,
@@ -11338,7 +11358,17 @@ def bulk_import_asset_return():
                     'ZAMBIA', 'ZIMBABWE'
                 ]
                 countries = sorted(all_countries)
-                queues = db_session.query(Queue).order_by(Queue.name).all()
+                # Get queues for dropdown - filtered by permissions for SUPERVISOR
+                if user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    from models.user_queue_permission import UserQueuePermission
+                    queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                        UserQueuePermission.user_id == user.id,
+                        UserQueuePermission.can_view == True
+                    ).all()
+                    accessible_queue_ids = [q[0] for q in queue_permissions]
+                    queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).order_by(Queue.name).all() if accessible_queue_ids else []
+                else:
+                    queues = db_session.query(Queue).order_by(Queue.name).all()
                 users = db_session.query(User).filter(
                     User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN])
                 ).order_by(User.username).all()
@@ -11608,8 +11638,17 @@ def bulk_import_1stbase():
             # Render the import form
             db_session = db_manager.get_session()
             try:
-                # Get queues for dropdown
-                queues = db_session.query(Queue).order_by(Queue.name).all()
+                # Get queues for dropdown - filtered by permissions for SUPERVISOR
+                if user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    from models.user_queue_permission import UserQueuePermission
+                    queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                        UserQueuePermission.user_id == user.id,
+                        UserQueuePermission.can_view == True
+                    ).all()
+                    accessible_queue_ids = [q[0] for q in queue_permissions]
+                    queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).order_by(Queue.name).all() if accessible_queue_ids else []
+                else:
+                    queues = db_session.query(Queue).order_by(Queue.name).all()
 
                 return render_template('tickets/bulk_import_1stbase.html',
                                      user=user,
@@ -11824,7 +11863,17 @@ def bulk_import_1stbase():
                     'ZAMBIA', 'ZIMBABWE'
                 ]
                 countries = sorted(all_countries)
-                queues = db_session.query(Queue).order_by(Queue.name).all()
+                # Get queues for dropdown - filtered by permissions for SUPERVISOR
+                if user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    from models.user_queue_permission import UserQueuePermission
+                    queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                        UserQueuePermission.user_id == user.id,
+                        UserQueuePermission.can_view == True
+                    ).all()
+                    accessible_queue_ids = [q[0] for q in queue_permissions]
+                    queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).order_by(Queue.name).all() if accessible_queue_ids else []
+                else:
+                    queues = db_session.query(Queue).order_by(Queue.name).all()
                 users = db_session.query(User).filter(
                     User.user_type.in_([UserType.SUPER_ADMIN, UserType.DEVELOPER, UserType.SUPERVISOR, UserType.COUNTRY_ADMIN])
                 ).order_by(User.username).all()
