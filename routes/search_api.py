@@ -172,7 +172,7 @@ def global_search():
                 'tickets': [],
                 'related_tickets': []
             }
-            
+
             counts = {
                 'assets': 0,
                 'accessories': 0,
@@ -181,11 +181,43 @@ def global_search():
                 'related_tickets': 0,
                 'total': 0
             }
-            
+
+            # Get permission data for COUNTRY_ADMIN and SUPERVISOR users
+            permitted_company_ids = []
+            permitted_company_names = []
+            accessible_queue_ids = []
+
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                from models.user_company_permission import UserCompanyPermission
+                from models.user_queue_permission import UserQueuePermission
+
+                # Get permitted company IDs
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id, can_view=True
+                ).all()
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    permitted_company_names = [c.name.strip() for c in permitted_companies if c.name]
+                    # Include child companies
+                    for company in permitted_companies:
+                        if company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            permitted_company_ids.extend(child_ids)
+                            child_names = [c.name.strip() for c in company.child_companies.all() if c.name]
+                            permitted_company_names.extend(child_names)
+
+                # Get accessible queue IDs
+                queue_permissions = db_session.query(UserQueuePermission.queue_id).filter(
+                    UserQueuePermission.user_id == user.id,
+                    UserQueuePermission.can_view == True
+                ).all()
+                accessible_queue_ids = [q[0] for q in queue_permissions] if queue_permissions else []
+
             # Search Assets
             if 'assets' in search_types:
                 asset_query = db_session.query(Asset)
-                
+
                 # Apply user permission filters
                 if user.user_type == UserType.CLIENT and user.company:
                     asset_query = asset_query.filter(
@@ -194,8 +226,20 @@ def global_search():
                             Asset.customer == user.company.name
                         )
                     )
-                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+                    # Filter by company permissions
+                    if permitted_company_ids:
+                        asset_query = asset_query.filter(
+                            or_(
+                                Asset.company_id.in_(permitted_company_ids),
+                                Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                            )
+                        )
+                    else:
+                        asset_query = asset_query.filter(Asset.id == -1)
                 
                 # Apply search filters (matching web version)
                 assets = asset_query.filter(
@@ -219,10 +263,20 @@ def global_search():
             # Search Accessories
             if 'accessories' in search_types:
                 accessory_query = db_session.query(Accessory)
-                
+
                 # Apply user permission filters
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+                if user.user_type == UserType.CLIENT and user.company:
+                    # CLIENT users can only see their company's accessories
+                    accessory_query = accessory_query.filter(Accessory.company_id == user.company_id)
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+                    # Filter by company permissions
+                    if permitted_company_ids:
+                        accessory_query = accessory_query.filter(Accessory.company_id.in_(permitted_company_ids))
+                    else:
+                        accessory_query = accessory_query.filter(Accessory.id == -1)
                 
                 accessories = accessory_query.filter(
                     or_(
@@ -241,9 +295,16 @@ def global_search():
             # Search Customers
             if 'customers' in search_types:
                 customer_query = db_session.query(CustomerUser)
-                
-                # Apply company filtering for non-SUPER_ADMIN users
-                if user.user_type != UserType.SUPER_ADMIN and user.company_id:
+
+                # Apply company filtering based on user type
+                if user.user_type == UserType.CLIENT and user.company_id:
+                    customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    if permitted_company_ids:
+                        customer_query = customer_query.filter(CustomerUser.company_id.in_(permitted_company_ids))
+                    else:
+                        customer_query = customer_query.filter(CustomerUser.id == -1)
+                elif user.user_type == UserType.DEVELOPER and user.company_id:
                     customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
                 
                 customers = customer_query.filter(
@@ -273,8 +334,23 @@ def global_search():
                 )
 
                 # Apply user permission filters
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
+                if user.user_type == UserType.CLIENT and user.company:
+                    # CLIENT users can only see tickets for their company's customers or tickets they created
+                    ticket_query = ticket_query.filter(
+                        or_(
+                            CustomerUser.company_id == user.company_id,
+                            Ticket.requester_id == user.id  # Also show tickets they created
+                        )
+                    )
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
+                    # Filter by queue permissions
+                    if accessible_queue_ids:
+                        ticket_query = ticket_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+                    else:
+                        ticket_query = ticket_query.filter(Ticket.id == -1)
 
                 # Build ticket search filters
                 ticket_filters = [
@@ -336,12 +412,29 @@ def global_search():
                             ])
                     
                     if related_filters:
-                        related_tickets_query = db_session.query(Ticket)
-                        
+                        related_tickets_query = db_session.query(Ticket).outerjoin(
+                            CustomerUser, Ticket.customer_id == CustomerUser.id
+                        )
+
                         # Apply user permission filters
-                        if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                            related_tickets_query = related_tickets_query.filter(Ticket.country.in_(user.assigned_countries))
-                        
+                        if user.user_type == UserType.CLIENT and user.company:
+                            # CLIENT users can only see tickets for their company's customers or tickets they created
+                            related_tickets_query = related_tickets_query.filter(
+                                or_(
+                                    CustomerUser.company_id == user.company_id,
+                                    Ticket.requester_id == user.id
+                                )
+                            )
+                        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                            # Filter by country if assigned
+                            if user.assigned_countries:
+                                related_tickets_query = related_tickets_query.filter(Ticket.country.in_(user.assigned_countries))
+                            # Filter by queue permissions
+                            if accessible_queue_ids:
+                                related_tickets_query = related_tickets_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+                            else:
+                                related_tickets_query = related_tickets_query.filter(Ticket.id == -1)
+
                         related_tickets = related_tickets_query.filter(or_(*related_filters)).order_by(Ticket.created_at.desc()).limit(limit).all()
                         
                         # Remove duplicates if a ticket appears in both direct search and related search
@@ -446,7 +539,30 @@ def search_assets():
         try:
             # Build base query
             query = db_session.query(Asset)
-            
+
+            # Get permission data for COUNTRY_ADMIN and SUPERVISOR users
+            permitted_company_ids = []
+            permitted_company_names = []
+
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                from models.user_company_permission import UserCompanyPermission
+
+                # Get permitted company IDs
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id, can_view=True
+                ).all()
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    permitted_company_names = [c.name.strip() for c in permitted_companies if c.name]
+                    # Include child companies
+                    for company in permitted_companies:
+                        if company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            permitted_company_ids.extend(child_ids)
+                            child_names = [c.name.strip() for c in company.child_companies.all() if c.name]
+                            permitted_company_names.extend(child_names)
+
             # Apply user permission filters
             if user.user_type == UserType.CLIENT and user.company:
                 query = query.filter(
@@ -455,9 +571,21 @@ def search_assets():
                         Asset.customer == user.company.name
                     )
                 )
-            elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                query = query.filter(Asset.country.in_(user.assigned_countries))
-            
+            elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                # Filter by country if assigned
+                if user.assigned_countries:
+                    query = query.filter(Asset.country.in_(user.assigned_countries))
+                # Filter by company permissions
+                if permitted_company_ids:
+                    query = query.filter(
+                        or_(
+                            Asset.company_id.in_(permitted_company_ids),
+                            Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                        )
+                    )
+                else:
+                    query = query.filter(Asset.id == -1)
+
             # Apply search filters
             query = query.filter(
                 or_(
@@ -616,11 +744,40 @@ def search_accessories():
         try:
             # Build base query
             query = db_session.query(Accessory)
-            
+
+            # Get permission data for COUNTRY_ADMIN and SUPERVISOR users
+            permitted_company_ids = []
+
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                from models.user_company_permission import UserCompanyPermission
+
+                # Get permitted company IDs
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id, can_view=True
+                ).all()
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    # Include child companies
+                    for company in permitted_companies:
+                        if company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            permitted_company_ids.extend(child_ids)
+
             # Apply user permission filters
-            if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                query = query.filter(Accessory.country.in_(user.assigned_countries))
-            
+            if user.user_type == UserType.CLIENT and user.company:
+                # CLIENT users can only see their company's accessories
+                query = query.filter(Accessory.company_id == user.company_id)
+            elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                # Filter by country if assigned
+                if user.assigned_countries:
+                    query = query.filter(Accessory.country.in_(user.assigned_countries))
+                # Filter by company permissions
+                if permitted_company_ids:
+                    query = query.filter(Accessory.company_id.in_(permitted_company_ids))
+                else:
+                    query = query.filter(Accessory.id == -1)
+
             # Apply search filters
             query = query.filter(
                 or_(
@@ -752,11 +909,34 @@ def search_suggestions():
         db_session = db_manager.get_session()
         try:
             suggestions = []
-            
+
+            # Get permission data for COUNTRY_ADMIN and SUPERVISOR users
+            permitted_company_ids = []
+            permitted_company_names = []
+
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                from models.user_company_permission import UserCompanyPermission
+
+                # Get permitted company IDs
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id, can_view=True
+                ).all()
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    permitted_company_names = [c.name.strip() for c in permitted_companies if c.name]
+                    # Include child companies
+                    for company in permitted_companies:
+                        if company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            permitted_company_ids.extend(child_ids)
+                            child_names = [c.name.strip() for c in company.child_companies.all() if c.name]
+                            permitted_company_names.extend(child_names)
+
             if entity_type == 'assets' and user.permissions and user.permissions.can_view_assets:
                 # Get asset suggestions
                 asset_query = db_session.query(Asset)
-                
+
                 # Apply user permission filters
                 if user.user_type == UserType.CLIENT and user.company:
                     asset_query = asset_query.filter(
@@ -765,8 +945,20 @@ def search_suggestions():
                             Asset.customer == user.company.name
                         )
                     )
-                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+                    # Filter by company permissions
+                    if permitted_company_ids:
+                        asset_query = asset_query.filter(
+                            or_(
+                                Asset.company_id.in_(permitted_company_ids),
+                                Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                            )
+                        )
+                    else:
+                        asset_query = asset_query.filter(Asset.id == -1)
                 
                 # Get distinct suggestions from various fields
                 from sqlalchemy import distinct
@@ -792,9 +984,19 @@ def search_suggestions():
             elif entity_type == 'accessories' and user.permissions and user.permissions.can_view_assets:
                 # Get accessory suggestions
                 accessory_query = db_session.query(Accessory)
-                
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+
+                # Apply user permission filters
+                if user.user_type == UserType.CLIENT and user.company:
+                    accessory_query = accessory_query.filter(Accessory.company_id == user.company_id)
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+                    # Filter by company permissions
+                    if permitted_company_ids:
+                        accessory_query = accessory_query.filter(Accessory.company_id.in_(permitted_company_ids))
+                    else:
+                        accessory_query = accessory_query.filter(Accessory.id == -1)
                 
                 from sqlalchemy import distinct
                 
@@ -860,10 +1062,33 @@ def get_search_filters():
         db_session = db_manager.get_session()
         try:
             filters = {}
-            
+
+            # Get permission data for COUNTRY_ADMIN and SUPERVISOR users
+            permitted_company_ids = []
+            permitted_company_names = []
+
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                from models.user_company_permission import UserCompanyPermission
+
+                # Get permitted company IDs
+                company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                    user_id=user.id, can_view=True
+                ).all()
+                if company_permissions:
+                    permitted_company_ids = [perm.company_id for perm in company_permissions]
+                    permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                    permitted_company_names = [c.name.strip() for c in permitted_companies if c.name]
+                    # Include child companies
+                    for company in permitted_companies:
+                        if company.child_companies.count() > 0:
+                            child_ids = [c.id for c in company.child_companies.all()]
+                            permitted_company_ids.extend(child_ids)
+                            child_names = [c.name.strip() for c in company.child_companies.all() if c.name]
+                            permitted_company_names.extend(child_names)
+
             if entity_type == 'assets' and user.permissions and user.permissions.can_view_assets:
                 asset_query = db_session.query(Asset)
-                
+
                 # Apply user permission filters
                 if user.user_type == UserType.CLIENT and user.company:
                     asset_query = asset_query.filter(
@@ -872,8 +1097,20 @@ def get_search_filters():
                             Asset.customer == user.company.name
                         )
                     )
-                elif user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
+                    # Filter by company permissions
+                    if permitted_company_ids:
+                        asset_query = asset_query.filter(
+                            or_(
+                                Asset.company_id.in_(permitted_company_ids),
+                                Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                            )
+                        )
+                    else:
+                        asset_query = asset_query.filter(Asset.id == -1)
                 
                 from sqlalchemy import distinct
                 
@@ -894,9 +1131,19 @@ def get_search_filters():
             
             elif entity_type == 'accessories' and user.permissions and user.permissions.can_view_assets:
                 accessory_query = db_session.query(Accessory)
-                
-                if user.user_type == UserType.COUNTRY_ADMIN and user.assigned_countries:
-                    accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+
+                # Apply user permission filters
+                if user.user_type == UserType.CLIENT and user.company:
+                    accessory_query = accessory_query.filter(Accessory.company_id == user.company_id)
+                elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by country if assigned
+                    if user.assigned_countries:
+                        accessory_query = accessory_query.filter(Accessory.country.in_(user.assigned_countries))
+                    # Filter by company permissions
+                    if permitted_company_ids:
+                        accessory_query = accessory_query.filter(Accessory.company_id.in_(permitted_company_ids))
+                    else:
+                        accessory_query = accessory_query.filter(Accessory.id == -1)
                 
                 from sqlalchemy import distinct
                 
