@@ -168,6 +168,14 @@ class Ship24Tracker:
         tracking_url = f"{self.base_url}/tracking?p={tracking_number}"
         ship24_result = None
 
+        # For HFD Israel tracking, try HFD scraper first
+        if self._is_hfd_tracking(tracking_number):
+            logger.info(f"Trying HFD scraper for {tracking_number}")
+            result = await self.track_with_hfd(tracking_number)
+            if result and result.get('status') not in ['Unknown', None, 'Check Links Below']:
+                result['tracking_links'] = self._get_all_tracking_links(tracking_number)
+                return result
+
         # For SingPost tracking numbers, try official API first if configured
         if self._is_singpost_tracking(tracking_number) and self.singpost_api_key:
             logger.info(f"Trying SingPost API for {tracking_number}")
@@ -871,6 +879,178 @@ class Ship24Tracker:
 
         except Exception as e:
             logger.error(f"Error extracting TrackingMore data: {str(e)}")
+
+        return tracking_data
+
+    async def track_with_hfd(self, tracking_number: str) -> Optional[Dict]:
+        """
+        Track a parcel using HFD Israel website via Playwright
+        HFD pages are in Hebrew and rendered via JavaScript
+        """
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.info("Playwright not available for HFD tracking")
+            return None
+
+        tracking_url = self._get_hfd_tracking_url(tracking_number)
+        logger.info(f"Tracking HFD parcel at: {tracking_url}")
+
+        try:
+            from playwright.async_api import async_playwright
+
+            async with async_playwright() as p:
+                launch_options = get_browser_launch_options()
+                browser = await p.chromium.launch(**launch_options)
+
+                context_options = {
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'viewport': {'width': 1366, 'height': 768},
+                    'locale': 'he-IL'  # Hebrew locale for HFD
+                }
+
+                proxy_config = get_proxy_config()
+                if proxy_config:
+                    context_options['proxy'] = proxy_config
+                    logger.info(f"Using proxy for HFD: {proxy_config['server']}")
+
+                context = await browser.new_context(**context_options)
+                page = await context.new_page()
+
+                await page.goto(tracking_url, wait_until='domcontentloaded', timeout=30000)
+
+                # Wait for page to load (HFD uses JavaScript rendering)
+                await page.wait_for_timeout(5000)
+
+                # Try to wait for tracking content
+                try:
+                    await page.wait_for_selector('.tracking-info, .status, .timeline, [class*="track"], [class*="status"]', timeout=10000)
+                except:
+                    pass
+
+                await page.wait_for_timeout(2000)
+
+                # Extract tracking data
+                tracking_data = await self._extract_hfd_data(page, tracking_number)
+
+                await browser.close()
+
+                if tracking_data.get('status') not in ['Unknown', None]:
+                    return {
+                        'success': True,
+                        'tracking_number': tracking_number,
+                        'carrier': 'HFD Israel',
+                        'status': tracking_data.get('status', 'Unknown'),
+                        'events': tracking_data.get('events', []),
+                        'current_location': tracking_data.get('location', 'Israel'),
+                        'estimated_delivery': tracking_data.get('estimated_delivery'),
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'tracking_url': tracking_url,
+                        'source': 'HFD'
+                    }
+
+        except Exception as e:
+            logger.error(f"Error tracking HFD parcel {tracking_number}: {str(e)}")
+
+        return None
+
+    async def _extract_hfd_data(self, page, tracking_number: str) -> Dict:
+        """Extract tracking data from HFD Israel page (Hebrew content)"""
+        tracking_data = {
+            'status': 'Unknown',
+            'location': 'Israel',
+            'events': [],
+            'estimated_delivery': None
+        }
+
+        try:
+            page_text = await page.evaluate('() => document.body.innerText')
+            logger.info(f"HFD page text length: {len(page_text)}")
+            logger.info(f"HFD page preview: {page_text[:500] if page_text else 'EMPTY'}")
+
+            # Hebrew status keywords with English translations
+            status_mapping = {
+                # Delivered statuses
+                'נמסר': 'Delivered',
+                'הגיע ליעד': 'Delivered',
+                'נמסרה': 'Delivered',
+                'סופק': 'Delivered',
+                # In transit statuses
+                'במשלוח': 'In Transit',
+                'בדרך': 'In Transit',
+                'יצא לחלוקה': 'Out for Delivery',
+                'בחלוקה': 'Out for Delivery',
+                # Processing statuses
+                'התקבל': 'Received',
+                'נקלט': 'Received',
+                'ממתין': 'Pending',
+                'בטיפול': 'Processing',
+                'במחסן': 'At Warehouse',
+                'בסניף': 'At Branch',
+                # Return statuses
+                'החזרה': 'Return',
+                'הוחזר': 'Returned',
+            }
+
+            # Search for status in page text
+            page_lower = page_text.lower()
+            for hebrew, english in status_mapping.items():
+                if hebrew in page_text:
+                    tracking_data['status'] = english
+                    logger.info(f"Found HFD status: {hebrew} -> {english}")
+                    break
+
+            # Try to extract events from timeline elements
+            events = []
+            try:
+                # Look for timeline or event elements
+                event_elements = await page.query_selector_all('[class*="timeline"] li, [class*="event"], [class*="status-item"], tr')
+                for elem in event_elements[:15]:  # Limit to 15 events
+                    try:
+                        text = await elem.inner_text()
+                        text = text.strip()
+                        if text and len(text) > 5 and len(text) < 500:
+                            # Try to translate common Hebrew terms
+                            translated = text
+                            for hebrew, english in status_mapping.items():
+                                translated = translated.replace(hebrew, english)
+
+                            events.append({
+                                'description': translated,
+                                'timestamp': None,
+                                'original': text
+                            })
+                    except:
+                        pass
+            except:
+                pass
+
+            # If no events found, try parsing from page text
+            if not events:
+                lines = page_text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if len(line) > 10 and len(line) < 200:
+                        # Check if line contains date pattern
+                        has_date = bool(re.search(r'\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{2}:\d{2}', line))
+                        has_status = any(hebrew in line for hebrew in status_mapping.keys())
+
+                        if has_date or has_status:
+                            translated = line
+                            for hebrew, english in status_mapping.items():
+                                translated = translated.replace(hebrew, english)
+
+                            if translated not in [e.get('description') for e in events]:
+                                events.append({
+                                    'description': translated,
+                                    'timestamp': None
+                                })
+
+                            if len(events) >= 10:
+                                break
+
+            tracking_data['events'] = events
+
+        except Exception as e:
+            logger.error(f"Error extracting HFD data: {str(e)}")
 
         return tracking_data
 
