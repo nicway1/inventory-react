@@ -988,6 +988,26 @@ class Ship24Tracker:
                 # Return statuses
                 'החזרה': 'Return',
                 'הוחזר': 'Returned',
+                # Common words
+                'המשלוח': 'Shipment',
+                'משלוח': 'Shipment',
+                'החבילה': 'Package',
+                'חבילה': 'Package',
+                'ללקוח': 'to customer',
+                'לכתובת': 'to address',
+                'הועבר': 'Transferred',
+                'עודכן': 'Updated',
+                'סטטוס': 'Status',
+                'תאריך': 'Date',
+                'שעה': 'Time',
+                'איפה המשלוח שלי': 'Where is my shipment',
+                'פרטי משלוח': 'Shipment details',
+                'היסטוריית משלוח': 'Shipment history',
+                'נשלח': 'Sent',
+                'הגיע': 'Arrived',
+                'יצא': 'Left',
+                'נאסף': 'Collected',
+                'מוכן לאיסוף': 'Ready for pickup',
             }
 
             # Search for status in page text
