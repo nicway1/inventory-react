@@ -651,7 +651,9 @@ async function executeAction(actionId) {
                 ticket_id: actionData.ticket_id,
                 new_status: actionData.new_status,
                 new_priority: actionData.new_priority,
-                new_assignee_id: actionData.new_assignee_id
+                new_assignee_id: actionData.new_assignee_id,
+                bug_title: actionData.bug_title,
+                severity: actionData.severity
             })
         });
 
@@ -659,10 +661,16 @@ async function executeAction(actionId) {
 
         // Replace buttons with result message
         if (result.success) {
+            let viewLink = '';
+            if (result.ticket_url) {
+                viewLink = `<br><a href="${result.ticket_url}" target="_blank">View Ticket</a>`;
+            } else if (result.bug_url) {
+                viewLink = `<br><a href="${result.bug_url}" target="_blank">View Bug Report</a>`;
+            }
             buttonsDiv.innerHTML = `
                 <div class="action-result success">
                     <i class="fas fa-check-circle"></i> ${result.message}
-                    ${result.ticket_url ? `<br><a href="${result.ticket_url}" target="_blank">View Ticket</a>` : ''}
+                    ${viewLink}
                 </div>
             `;
         } else {
