@@ -3770,7 +3770,13 @@ def update_ticket(ticket_id):
         if return_tracking is not None:  # Allow empty string to clear field
             ticket.return_tracking = return_tracking.strip() if return_tracking else None
             logger.info("DEBUG - Updated return_tracking")
-        
+
+        # Update firstbaseorderid (Order ID / Customer Reference)
+        firstbaseorderid = request.form.get('firstbaseorderid')
+        if firstbaseorderid is not None:  # Allow empty string to clear field
+            ticket.firstbaseorderid = firstbaseorderid.strip() if firstbaseorderid else None
+            logger.info("DEBUG - Updated firstbaseorderid")
+
         # Debug current status
         logger.info(f"DEBUG - Current ticket status before update: {ticket.status}")
         if ticket.status:
