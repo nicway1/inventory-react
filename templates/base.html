@@ -1056,7 +1056,8 @@
                         </a>
                         {% endif %}
 
-                        <!-- Shipment History Button -->
+                        <!-- Shipment History Button (not for COUNTRY_ADMIN or SUPERVISOR) -->
+                        {% if session.get('user_type') not in ['COUNTRY_ADMIN', 'SUPERVISOR'] %}
                         <a href="{{ url_for('shipments.shipment_history') }}"
                             class="flex items-center px-4 py-2 text-base font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1065,6 +1066,7 @@
                             </svg>
                             Shipment History
                         </a>
+                        {% endif %}
 
                         <!-- Import Manager Button -->
                         <a href="{{ url_for('import_manager.dashboard') }}"

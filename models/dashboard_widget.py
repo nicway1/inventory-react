@@ -628,7 +628,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-search-location',
     color='teal',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR', 'COUNTRY_ADMIN'],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],  # COUNTRY_ADMIN and SUPERVISOR cannot access
     data_loader=None,
     configurable=False,
     screenshot='shipment_history.png'

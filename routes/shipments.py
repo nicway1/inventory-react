@@ -4,6 +4,7 @@ from utils.shipment_tracker import ShipmentTracker
 from utils.singpost_tracking import get_singpost_tracking_client
 from utils.auth_decorators import login_required, admin_required
 from models.tracking_history import TrackingHistory
+from models.user import User, UserType
 from database import SessionLocal
 from datetime import datetime, timedelta
 import json
@@ -83,10 +84,32 @@ def track_shipment(shipment_id):
 # SingPost Shipment History Routes (using Ship24Tracker with SingPost API)
 # ============================================================================
 
+def check_shipment_history_access():
+    """
+    Check if current user has access to shipment history.
+    COUNTRY_ADMIN and SUPERVISOR users are denied access.
+    Returns (has_access, user) tuple.
+    """
+    db = SessionLocal()
+    try:
+        user = db.query(User).get(session.get('user_id'))
+        if user and user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            return False, user
+        return True, user
+    finally:
+        db.close()
+
+
 @shipments_bp.route('/history')
 @login_required
 def shipment_history():
     """Display the shipment history page - search tracking via SingPost API"""
+    # Permission check - COUNTRY_ADMIN and SUPERVISOR cannot access shipment history
+    has_access, user = check_shipment_history_access()
+    if not has_access:
+        flash('You do not have permission to access shipment history', 'error')
+        return redirect(url_for('main.dashboard'))
+
     # Check SingPost Tracking API configuration status
     credentials_status = singpost_client.get_credentials_status()
 
@@ -131,6 +154,12 @@ def shipment_history():
 @login_required
 def search_shipment_history():
     """Search for shipment tracking history using SingPost Tracking API"""
+    # Permission check - COUNTRY_ADMIN and SUPERVISOR cannot access shipment history
+    has_access, user = check_shipment_history_access()
+    if not has_access:
+        flash('You do not have permission to access shipment history', 'error')
+        return redirect(url_for('main.dashboard'))
+
     tracking_number = request.form.get('tracking_number') or request.args.get('tracking_number', '').strip()
 
     if not tracking_number:
@@ -215,6 +244,12 @@ def search_shipment_history():
 @login_required
 def bulk_shipment_history():
     """Search for multiple shipment tracking numbers at once"""
+    # Permission check - COUNTRY_ADMIN and SUPERVISOR cannot access shipment history
+    has_access, user = check_shipment_history_access()
+    if not has_access:
+        flash('You do not have permission to access shipment history', 'error')
+        return redirect(url_for('main.dashboard'))
+
     credentials_status = singpost_client.get_credentials_status()
 
     if request.method == 'GET':
@@ -278,6 +313,14 @@ def bulk_shipment_history():
 @login_required
 def api_shipment_history(tracking_number):
     """API endpoint for shipment tracking history (returns JSON)"""
+    # Permission check - COUNTRY_ADMIN and SUPERVISOR cannot access shipment history
+    has_access, user = check_shipment_history_access()
+    if not has_access:
+        return jsonify({
+            'success': False,
+            'error': 'You do not have permission to access shipment history'
+        }), 403
+
     try:
         tracking_data = singpost_client.track_single(tracking_number)
         return jsonify(tracking_data)
@@ -294,6 +337,14 @@ def api_shipment_history(tracking_number):
 @login_required
 def api_bulk_shipment_history():
     """API endpoint for bulk shipment tracking (returns JSON)"""
+    # Permission check - COUNTRY_ADMIN and SUPERVISOR cannot access shipment history
+    has_access, user = check_shipment_history_access()
+    if not has_access:
+        return jsonify({
+            'success': False,
+            'error': 'You do not have permission to access shipment history'
+        }), 403
+
     data = request.get_json()
 
     if not data or 'tracking_numbers' not in data:
