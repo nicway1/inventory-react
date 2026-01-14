@@ -848,46 +848,21 @@
         border-radius: 1rem;
     }
 
-    /* Folder Tab Styles - same size as queue tabs */
-    .sf-folder-tab {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
+    /* Folder Tab Styles - just color override */
+    .sf-queue-tab.sf-folder-tab {
         background: #f59e0b;
-        border: 1px solid #d97706;
-        border-radius: 2rem;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        white-space: nowrap;
-        font-size: 0.8125rem;
+        border-color: #d97706;
         color: white;
     }
 
-    .sf-folder-tab:hover {
+    .sf-queue-tab.sf-folder-tab:hover {
         background: #d97706;
         border-color: #b45309;
     }
 
-    .sf-folder-tab.active {
+    .sf-queue-tab.sf-folder-tab.active {
         background: #b45309;
         border-color: #92400e;
-    }
-
-    .sf-folder-tab .folder-icon {
-        font-size: 0.75rem;
-    }
-
-    .sf-folder-tab .folder-name {
-        font-weight: 500;
-    }
-
-    .sf-folder-tab .folder-count {
-        display: flex;
-        align-items: center;
-        gap: 0.125rem;
-        font-size: 0.75rem;
-        opacity: 0.9;
     }
 
     /* Back button for folder view */
@@ -921,8 +896,7 @@
         display: none;
     }
 
-    /* When folder is expanded */
-    .sf-queue-tabs.folder-expanded .sf-folder-tab,
+    /* When folder is expanded - hide all except folder-queue tabs */
     .sf-queue-tabs.folder-expanded .sf-queue-tab:not(.folder-queue) {
         display: none;
     }
@@ -933,10 +907,6 @@
 
     .sf-queue-tabs.folder-expanded .sf-folder-back-btn {
         display: flex;
-    }
-
-    .sf-queue-tabs.folder-expanded .sf-queue-tab[data-queue="all"] {
-        display: none;
     }
 
     /* Import Dropdown */
@@ -1254,12 +1224,11 @@
                         {# Show folders for SUPER_ADMIN/DEVELOPER #}
                         {% for folder in folders_data.folders %}
                         {% set folder_queue_names = folder.queues | map(attribute='name') | list | join('|||') %}
-                        <button type="button" class="sf-folder-tab" data-folder-id="{{ folder.id }}" data-queue-names="{{ folder_queue_names }}" onclick="expandFolder(this)">
-                            <i class="fas fa-folder folder-icon"></i>
-                            <span class="folder-name">{{ folder.name }}</span>
-                            <span class="folder-count">
-                                <span>{{ folder.open_count }}</span>
-                                <span style="opacity: 0.7;">/ {{ folder.total_count }}</span>
+                        <button type="button" class="sf-queue-tab sf-folder-tab" data-folder-id="{{ folder.id }}" data-queue-names="{{ folder_queue_names }}" onclick="expandFolder(this)">
+                            <span class="queue-name">{{ folder.name }}</span>
+                            <span class="queue-count">
+                                <span class="open-count">{{ folder.open_count }}</span>
+                                <span class="total-count">/ {{ folder.total_count }}</span>
                             </span>
                         </button>
                         {# Hidden queue tabs that appear when folder is expanded #}
