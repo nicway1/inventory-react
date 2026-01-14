@@ -907,11 +907,15 @@ class Ship24Tracker:
                     'locale': 'he-IL'  # Hebrew locale for HFD
                 }
 
-                # Note: Proxy disabled for HFD - not needed and causes issues on PythonAnywhere
-                # proxy_config = get_proxy_config()
-                # if proxy_config:
-                #     context_options['proxy'] = proxy_config
-                #     logger.info(f"Using proxy for HFD: {proxy_config['server']}")
+                # Use Oxylabs Web Unblocker proxy to bypass Cloudflare
+                oxylabs_proxy = {
+                    'server': 'https://unblock.oxylabs.io:60000',
+                    'username': os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP'),
+                    'password': os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+                }
+                context_options['proxy'] = oxylabs_proxy
+                context_options['ignore_https_errors'] = True  # Required for proxy
+                logger.info(f"Using Oxylabs proxy for HFD tracking")
 
                 context = await browser.new_context(**context_options)
                 page = await context.new_page()
