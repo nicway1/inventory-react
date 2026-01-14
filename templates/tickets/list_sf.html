@@ -1254,14 +1254,14 @@
                         {# Show folders for SUPER_ADMIN/DEVELOPER #}
                         {% for folder in folders_data.folders %}
                         {% set folder_queue_names = folder.queues | map(attribute='name') | list | join('|||') %}
-                        <div class="sf-folder-tab" data-folder-id="{{ folder.id }}" data-queue-names="{{ folder_queue_names }}" onclick="expandFolder(this)">
+                        <button type="button" class="sf-folder-tab" data-folder-id="{{ folder.id }}" data-queue-names="{{ folder_queue_names }}" onclick="expandFolder(this)">
                             <i class="fas fa-folder folder-icon"></i>
                             <span class="folder-name">{{ folder.name }}</span>
                             <span class="folder-count">
                                 <span>{{ folder.open_count }}</span>
                                 <span style="opacity: 0.7;">/ {{ folder.total_count }}</span>
                             </span>
-                        </div>
+                        </button>
                         {# Hidden queue tabs that appear when folder is expanded #}
                         {% for queue in folder.queues %}
                         <button class="sf-queue-tab folder-queue" data-queue="{{ queue.name }}" data-folder-id="{{ folder.id }}" onclick="filterByQueue('{{ queue.name }}', this)">
