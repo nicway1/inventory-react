@@ -907,10 +907,11 @@ class Ship24Tracker:
                     'locale': 'he-IL'  # Hebrew locale for HFD
                 }
 
-                proxy_config = get_proxy_config()
-                if proxy_config:
-                    context_options['proxy'] = proxy_config
-                    logger.info(f"Using proxy for HFD: {proxy_config['server']}")
+                # Note: Proxy disabled for HFD - not needed and causes issues on PythonAnywhere
+                # proxy_config = get_proxy_config()
+                # if proxy_config:
+                #     context_options['proxy'] = proxy_config
+                #     logger.info(f"Using proxy for HFD: {proxy_config['server']}")
 
                 context = await browser.new_context(**context_options)
                 page = await context.new_page()
