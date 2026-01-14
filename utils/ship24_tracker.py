@@ -877,8 +877,9 @@ class Ship24Tracker:
     def _detect_carrier(self, tracking_number: str) -> Optional[str]:
         """Detect carrier based on tracking number format"""
         tn = tracking_number.upper().strip()
+        tn_lower = tracking_number.lower().strip()
 
-        # HFD Israel (14-digit numbers starting with 5)
+        # HFD Israel (URLs, short codes, or 14-digit numbers starting with 5 or 7)
         if self._is_hfd_tracking(tracking_number):
             return 'HFD Israel'
 
@@ -949,14 +950,37 @@ class Ship24Tracker:
     def _is_hfd_tracking(self, tracking_number: str) -> bool:
         """Check if tracking number is an HFD Israel tracking number"""
         tn = tracking_number.strip()
+
+        # HFD short URL format: hfd.sh/xxx or full URL
+        if 'hfd.sh/' in tn.lower() or 'hfd.co.il' in tn.lower():
+            return True
+
         # HFD tracking numbers are typically 14-digit numbers
-        # Example: 55983416173321
+        # Example: 55983416173321, 73083700057955
         if len(tn) >= 12 and len(tn) <= 16 and tn.isdigit():
-            # Could be HFD if it's a long numeric string
-            # HFD numbers often start with 5
-            if tn.startswith('5'):
+            # HFD numbers often start with 5 or 7
+            if tn.startswith('5') or tn.startswith('7'):
                 return True
         return False
+
+    def _get_hfd_tracking_url(self, tracking_number: str) -> str:
+        """Get HFD tracking URL from tracking number or short URL"""
+        tn = tracking_number.strip()
+
+        # If it's already a full URL, return as-is
+        if tn.startswith('http'):
+            # Convert short URL to tracking page URL
+            if 'hfd.sh/' in tn:
+                # Short URL format - just return as-is, browser will follow redirect
+                return tn
+            return tn
+
+        # If it's a short code (like KlXJVk), construct short URL
+        if len(tn) <= 10 and not tn.isdigit():
+            return f'https://hfd.sh/{tn}'
+
+        # Otherwise it's a tracking number, construct full URL
+        return f'https://run.hfd.co.il/info/{tn}'
 
     def _get_all_tracking_links(self, tracking_number: str) -> Dict[str, str]:
         """Get all tracking links for manual checking"""
@@ -969,8 +993,9 @@ class Ship24Tracker:
 
         # HFD Israel tracking
         if self._is_hfd_tracking(tracking_number):
+            hfd_url = self._get_hfd_tracking_url(tracking_number)
             links = {
-                'HFD': f'https://run.hfd.co.il/info/{tracking_number}',
+                'HFD Israel': hfd_url,
                 **links
             }
 
