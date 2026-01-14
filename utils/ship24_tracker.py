@@ -929,6 +929,29 @@ class Ship24Tracker:
 
                 await page.wait_for_timeout(2000)
 
+                # Check if blocked by Cloudflare
+                page_text = await page.evaluate('() => document.body.innerText')
+                if 'you have been blocked' in page_text.lower() or 'cloudflare' in page_text.lower():
+                    logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
+                    await browser.close()
+                    # Return result with link for manual checking
+                    return {
+                        'success': True,
+                        'tracking_number': tracking_number,
+                        'carrier': 'HFD Israel',
+                        'status': 'Check Link',
+                        'events': [{
+                            'description': 'HFD website blocked automated access. Please check tracking manually using the link below.',
+                            'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+                        }],
+                        'current_location': 'Israel',
+                        'estimated_delivery': None,
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'tracking_url': tracking_url,
+                        'source': 'HFD',
+                        'blocked': True
+                    }
+
                 # Extract tracking data
                 tracking_data = await self._extract_hfd_data(page, tracking_number)
 
@@ -951,7 +974,22 @@ class Ship24Tracker:
         except Exception as e:
             logger.error(f"Error tracking HFD parcel {tracking_number}: {str(e)}")
 
-        return None
+        # Return fallback with link even on error
+        return {
+            'success': True,
+            'tracking_number': tracking_number,
+            'carrier': 'HFD Israel',
+            'status': 'Check Link',
+            'events': [{
+                'description': 'Could not fetch HFD tracking data. Please check tracking manually using the link below.',
+                'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+            }],
+            'current_location': 'Israel',
+            'last_updated': datetime.utcnow().isoformat(),
+            'tracking_url': self._get_hfd_tracking_url(tracking_number),
+            'source': 'HFD',
+            'error': True
+        }
 
     async def _extract_hfd_data(self, page, tracking_number: str) -> Dict:
         """Extract tracking data from HFD Israel page (Hebrew content)"""
