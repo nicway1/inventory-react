@@ -2030,7 +2030,7 @@ body.dark-theme .sf-card-body .sf-field-label {
             <!-- Case Progression Bar for Asset Return (claw) -->
             {% if ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' %}
             {% set customer_received = (ticket.shipping_status and ('delivered' in ticket.shipping_status.lower() or 'received' in ticket.shipping_status.lower())) %}
-            {% set return_shipped = ticket.return_tracking and ticket.return_tracking|length > 0 %}
+            {% set return_shipped = (ticket.return_tracking and ticket.return_status and ticket.return_status not in ['Pending', 'Information Received', '']) %}
             {% set return_received_at_warehouse = (ticket.return_status and ('delivered' in ticket.return_status.lower() or 'received' in ticket.return_status.lower())) %}
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
@@ -2143,7 +2143,9 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {% if return_received_at_warehouse %}
                                             Return received at warehouse. Case completed!
                                         {% elif return_shipped %}
-                                            Customer has shipped the item back - Return tracking: {{ ticket.return_tracking }}
+                                            Customer has shipped the item back - Return tracking: {{ ticket.return_tracking }} ({{ ticket.return_status }})
+                                        {% elif ticket.return_tracking and not return_shipped %}
+                                            Return tracking added ({{ ticket.return_tracking }}). Waiting for carrier to collect package.
                                         {% elif customer_received %}
                                             Customer received the return label package. Waiting for customer to ship item back.
                                         {% elif ticket.shipping_tracking %}
@@ -2169,6 +2171,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             bg-green-100 text-green-800
                                         {% elif return_shipped %}
                                             bg-blue-100 text-blue-800
+                                        {% elif ticket.return_tracking and not return_shipped %}
+                                            bg-orange-100 text-orange-800
                                         {% elif customer_received %}
                                             bg-yellow-100 text-yellow-800
                                         {% elif ticket.shipping_tracking %}
@@ -2182,6 +2186,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             Complete
                                         {% elif return_shipped %}
                                             Return In Transit
+                                        {% elif ticket.return_tracking and not return_shipped %}
+                                            Awaiting Pickup
                                         {% elif customer_received %}
                                             Awaiting Return Shipment
                                         {% elif ticket.shipping_tracking %}
