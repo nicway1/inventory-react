@@ -4848,6 +4848,11 @@ def search():
             )
             logger.info(f"DEBUG: Filtering search results for client user. Company ID: {user.company_id}, Company Name: {user.company.name}")
 
+        # Initialize permission variables (used for filtering additional ticket queries)
+        accessible_queue_ids = []
+        permitted_company_ids = []
+        permitted_company_names = []
+
         # Filter for COUNTRY_ADMIN and SUPERVISOR users
         if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
             from models.user_company_permission import UserCompanyPermission
@@ -4858,9 +4863,6 @@ def search():
                 user_id=user.id,
                 can_view=True
             ).all()
-
-            permitted_company_ids = []
-            permitted_company_names = []
             if company_permissions:
                 permitted_company_ids = [perm.company_id for perm in company_permissions]
                 # Get company names and include child companies
@@ -4993,7 +4995,7 @@ def search():
         asset_linked_tickets = []
         try:
             # Search for tickets where the linked asset matches our search term (via asset_id FK)
-            asset_linked_tickets = db_session.query(Ticket).join(
+            asset_linked_query = db_session.query(Ticket).join(
                 Asset, Ticket.asset_id == Asset.id
             ).filter(
                 or_(
@@ -5002,11 +5004,31 @@ def search():
                     Asset.name.ilike(f'%{search_term}%'),
                     Asset.model.ilike(f'%{search_term}%')
                 )
-            ).all()
+            )
+
+            # Apply permission filters for COUNTRY_ADMIN and SUPERVISOR
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                if user.assigned_countries:
+                    asset_linked_query = asset_linked_query.filter(Ticket.country.in_(user.assigned_countries))
+                if accessible_queue_ids:
+                    asset_linked_query = asset_linked_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+                else:
+                    asset_linked_query = asset_linked_query.filter(Ticket.id == -1)
+            elif user.user_type == UserType.CLIENT and user.company:
+                asset_linked_query = asset_linked_query.outerjoin(
+                    CustomerUser, Ticket.customer_id == CustomerUser.id
+                ).filter(
+                    or_(
+                        CustomerUser.company_id == user.company_id,
+                        Ticket.requester_id == user.id
+                    )
+                )
+
+            asset_linked_tickets = asset_linked_query.all()
 
             # Also search for tickets linked via ticket_assets many-to-many table
             from models.asset import ticket_assets
-            multi_asset_tickets = db_session.query(Ticket).join(
+            multi_asset_query = db_session.query(Ticket).join(
                 ticket_assets, Ticket.id == ticket_assets.c.ticket_id
             ).join(
                 Asset, ticket_assets.c.asset_id == Asset.id
@@ -5017,7 +5039,27 @@ def search():
                     Asset.name.ilike(f'%{search_term}%'),
                     Asset.model.ilike(f'%{search_term}%')
                 )
-            ).all()
+            )
+
+            # Apply permission filters for COUNTRY_ADMIN and SUPERVISOR
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                if user.assigned_countries:
+                    multi_asset_query = multi_asset_query.filter(Ticket.country.in_(user.assigned_countries))
+                if accessible_queue_ids:
+                    multi_asset_query = multi_asset_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+                else:
+                    multi_asset_query = multi_asset_query.filter(Ticket.id == -1)
+            elif user.user_type == UserType.CLIENT and user.company:
+                multi_asset_query = multi_asset_query.outerjoin(
+                    CustomerUser, Ticket.customer_id == CustomerUser.id
+                ).filter(
+                    or_(
+                        CustomerUser.company_id == user.company_id,
+                        Ticket.requester_id == user.id
+                    )
+                )
+
+            multi_asset_tickets = multi_asset_query.all()
 
             # Merge multi_asset_tickets into asset_linked_tickets (avoid duplicates)
             existing_ids = {t.id for t in asset_linked_tickets}
@@ -5068,11 +5110,31 @@ def search():
             if asset_ids:
                 try:
                     from models.asset import ticket_assets
-                    multi_asset_related = db_session.query(Ticket).join(
+                    multi_asset_related_query = db_session.query(Ticket).join(
                         ticket_assets, Ticket.id == ticket_assets.c.ticket_id
                     ).filter(
                         ticket_assets.c.asset_id.in_(asset_ids)
-                    ).all()
+                    )
+
+                    # Apply permission filters for COUNTRY_ADMIN and SUPERVISOR
+                    if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                        if user.assigned_countries:
+                            multi_asset_related_query = multi_asset_related_query.filter(Ticket.country.in_(user.assigned_countries))
+                        if accessible_queue_ids:
+                            multi_asset_related_query = multi_asset_related_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+                        else:
+                            multi_asset_related_query = multi_asset_related_query.filter(Ticket.id == -1)
+                    elif user.user_type == UserType.CLIENT and user.company:
+                        multi_asset_related_query = multi_asset_related_query.outerjoin(
+                            CustomerUser, Ticket.customer_id == CustomerUser.id
+                        ).filter(
+                            or_(
+                                CustomerUser.company_id == user.company_id,
+                                Ticket.requester_id == user.id
+                            )
+                        )
+
+                    multi_asset_related = multi_asset_related_query.all()
 
                     # Merge into related_tickets
                     existing_related_ids = {t.id for t in related_tickets}
