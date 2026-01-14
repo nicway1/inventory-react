@@ -972,6 +972,8 @@ class Ship24Tracker:
                 # Full HFD status phrases (longest first to avoid partial matches)
                 ('המשלוח במחסני המיון שלנו ולאחר מיון יצא אל בית הלקוח', 'Shipment at sorting warehouse, will be sent to customer after sorting'),
                 ('המשלוח בדרכו לישראל/למחסן המיון', 'Shipment on its way to Israel/sorting warehouse'),
+                ('צפי מסירה משוער עד', 'Estimated delivery by'),
+                ('צפי מסירה משוער', 'Estimated delivery'),
                 ('המשלוח הוקם במערכת', 'Shipment created in system'),
                 ('המשלוח במחסני HFD', 'Shipment at HFD warehouse'),
                 ('המשלוח בדרך ללקוח', 'Shipment on its way to customer'),
@@ -986,6 +988,7 @@ class Ship24Tracker:
                 ('יצא לחלוקה', 'Out for delivery'),
                 ('הגיע ליעד', 'Arrived at destination'),
                 ('בדרך ללקוח', 'On the way to customer'),
+                ('פרטי נהג', 'Out for delivery'),
                 # Status words
                 ('נמסר', 'Delivered'),
                 ('נמסרה', 'Delivered'),
@@ -1008,6 +1011,7 @@ class Ship24Tracker:
                 ('הגיע', 'Arrived'),
                 ('יצא', 'Left'),
                 ('נאסף', 'Collected'),
+                ('נהג', 'Driver'),
                 # Common words
                 ('המשלוח', 'Shipment'),
                 ('משלוח', 'shipment'),
@@ -1026,6 +1030,10 @@ class Ship24Tracker:
                 ('אל', 'to'),
                 ('בית', 'home'),
                 ('הלקוח', 'the customer'),
+                ('צפי', 'Estimated'),
+                ('מסירה', 'delivery'),
+                ('משוער', 'estimated'),
+                ('עד', 'by'),
             ]
 
             def translate_hebrew(text):
@@ -1106,13 +1114,12 @@ class Ship24Tracker:
                                     # This is the status for this date
                                     translated = translate_hebrew(prev_line)
 
-                                    # Skip UI elements
-                                    if translated.lower() not in ['shipment status', 'shipment details', 'shipping address', 'status', 'details']:
+                                    # Skip UI elements and estimated delivery header
+                                    skip_phrases = ['shipment status', 'shipment details', 'shipping address', 'status', 'details', 'estimated delivery by', 'estimated delivery']
+                                    if translated.lower() not in skip_phrases:
                                         event = {
                                             'description': translated,
-                                            'timestamp': timestamp,
-                                            'date': date_str,
-                                            'time': time_str
+                                            'timestamp': timestamp
                                         }
                                         # Avoid duplicates
                                         if not any(e.get('description') == translated and e.get('timestamp') == timestamp for e in events):

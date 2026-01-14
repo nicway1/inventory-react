@@ -683,7 +683,7 @@ function displayResults(results) {
                                 <div class="event-description">
                                     <strong>${event.description || event.status_description || ''}</strong>
                                     ${event.code ? `<span style="color: #667eea; font-size: 11px; margin-left: 8px;">[${event.code}]</span>` : ''}
-                                    ${event.timestamp || event.date || event.time ? `<br><small style="color: #78858F;">${event.timestamp || ''} ${event.date || ''} ${event.time || ''}</small>` : ''}
+                                    ${event.timestamp || event.date ? `<br><small style="color: #78858F;">${event.timestamp || (event.date + (event.time ? ' ' + event.time : ''))}</small>` : ''}
                                     ${event.location ? `<br><small style="color: #6b7280;">${event.location}</small>` : ''}
                                 </div>
                             </div>
