@@ -515,6 +515,24 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
+    # Get folders data for SUPER_ADMIN/DEVELOPER
+    folders_data = None
+    if user.is_super_admin or user.is_developer:
+        folders_data = queue_store.get_queues_with_folders()
+        # Calculate aggregate ticket counts for each folder
+        for folder in folders_data.get('folders', []):
+            folder_open = 0
+            folder_total = 0
+            folder_queue_ids = []
+            for q in folder.get('queues', []):
+                counts = queue_ticket_counts.get(q['id'], {'open': 0, 'total': 0})
+                folder_open += counts['open']
+                folder_total += counts['total']
+                folder_queue_ids.append(q['id'])
+            folder['open_count'] = folder_open
+            folder['total_count'] = folder_total
+            folder['queue_ids'] = folder_queue_ids
+
     # Get custom ticket statuses
     from models.custom_ticket_status import CustomTicketStatus
     db_session = db_manager.get_session()
@@ -528,7 +546,7 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
-    return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list)
+    return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data)
 
 
 @tickets_bp.route('/export/csv')

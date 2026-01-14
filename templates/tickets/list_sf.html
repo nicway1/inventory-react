@@ -848,6 +848,111 @@
         border-radius: 1rem;
     }
 
+    /* Folder Tab Styles */
+    .sf-folder-tab {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: 1px solid #d97706;
+        border-radius: 2rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        font-size: 0.8125rem;
+        color: white;
+    }
+
+    .sf-folder-tab:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        border-color: #b45309;
+    }
+
+    .sf-folder-tab.active {
+        background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+        border-color: #92400e;
+        box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4);
+    }
+
+    .sf-folder-tab .folder-icon {
+        font-size: 0.875rem;
+    }
+
+    .sf-folder-tab .folder-name {
+        font-weight: 600;
+    }
+
+    .sf-folder-tab .folder-count {
+        display: flex;
+        align-items: center;
+        gap: 0.125rem;
+        font-size: 0.75rem;
+        background: rgba(255,255,255,0.2);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    .sf-folder-tab .folder-dropdown-arrow {
+        margin-left: 0.25rem;
+        transition: transform 0.2s ease;
+    }
+
+    .sf-folder-tab.expanded .folder-dropdown-arrow {
+        transform: rotate(180deg);
+    }
+
+    /* Folder Dropdown Menu */
+    .sf-folder-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: 0;
+        background: white;
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 220px;
+        z-index: 1000;
+        padding: 0.5rem 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .sf-folder-dropdown.show {
+        display: block;
+    }
+
+    .sf-folder-dropdown-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        color: var(--sf-gray-800);
+        cursor: pointer;
+        transition: background 0.15s ease;
+        font-size: 0.8125rem;
+    }
+
+    .sf-folder-dropdown-item:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-folder-dropdown-item.active {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-folder-dropdown-item .queue-count-small {
+        font-size: 0.75rem;
+        opacity: 0.7;
+    }
+
+    .sf-folder-dropdown-item.active .queue-count-small {
+        opacity: 0.9;
+    }
+
     /* Import Dropdown */
     .sf-dropdown {
         position: relative;
@@ -1154,15 +1259,55 @@
                         <span class="queue-name">All Queues</span>
                         <span class="queue-count" id="allQueuesCount">0</span>
                     </button>
-                    {% for queue in queues %}
-                    <button class="sf-queue-tab" data-queue="{{ queue.name }}" onclick="filterByQueue('{{ queue.name }}', this)">
-                        <span class="queue-name">{{ queue.name }}</span>
-                        <span class="queue-count">
-                            <span class="open-count">{{ queue_ticket_counts.get(queue.id, {}).get('open', 0) }}</span>
-                            <span class="total-count">/ {{ queue_ticket_counts.get(queue.id, {}).get('total', 0) }}</span>
-                        </span>
-                    </button>
-                    {% endfor %}
+                    {% if folders_data and (current_user.is_super_admin or current_user.is_developer) %}
+                        {# Show folders for SUPER_ADMIN/DEVELOPER #}
+                        {% for folder in folders_data.folders %}
+                        {% set folder_queue_names = folder.queues | map(attribute='name') | list | join('|||') %}
+                        <div class="sf-folder-tab" data-folder-id="{{ folder.id }}" data-queue-names="{{ folder_queue_names }}" onclick="toggleFolderDropdown(event, this)">
+                            <i class="fas fa-folder folder-icon"></i>
+                            <span class="folder-name">{{ folder.name }}</span>
+                            <span class="folder-count">
+                                <span>{{ folder.open_count }}</span>
+                                <span style="opacity: 0.7;">/ {{ folder.total_count }}</span>
+                            </span>
+                            <i class="fas fa-chevron-down folder-dropdown-arrow"></i>
+                            <div class="sf-folder-dropdown">
+                                <div class="sf-folder-dropdown-item" onclick="event.stopPropagation(); filterByFolder('{{ folder.id }}', '{{ folder_queue_names }}', this.closest('.sf-folder-tab'))">
+                                    <span><i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i>All in {{ folder.name }}</span>
+                                    <span class="queue-count-small">{{ folder.open_count }} / {{ folder.total_count }}</span>
+                                </div>
+                                <hr style="margin: 0.25rem 0; border: none; border-top: 1px solid var(--sf-gray-200);">
+                                {% for queue in folder.queues %}
+                                <div class="sf-folder-dropdown-item" onclick="event.stopPropagation(); filterByQueueInFolder('{{ queue.name }}', this)">
+                                    <span>{{ queue.name }}</span>
+                                    <span class="queue-count-small">{{ queue_ticket_counts.get(queue.id, {}).get('open', 0) }} / {{ queue_ticket_counts.get(queue.id, {}).get('total', 0) }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {# Show unfiled queues as individual tabs #}
+                        {% for queue in folders_data.unfiled_queues %}
+                        <button class="sf-queue-tab" data-queue="{{ queue.name }}" onclick="filterByQueue('{{ queue.name }}', this)">
+                            <span class="queue-name">{{ queue.name }}</span>
+                            <span class="queue-count">
+                                <span class="open-count">{{ queue_ticket_counts.get(queue.id, {}).get('open', 0) }}</span>
+                                <span class="total-count">/ {{ queue_ticket_counts.get(queue.id, {}).get('total', 0) }}</span>
+                            </span>
+                        </button>
+                        {% endfor %}
+                    {% else %}
+                        {# Show individual queues for other users #}
+                        {% for queue in queues %}
+                        <button class="sf-queue-tab" data-queue="{{ queue.name }}" onclick="filterByQueue('{{ queue.name }}', this)">
+                            <span class="queue-name">{{ queue.name }}</span>
+                            <span class="queue-count">
+                                <span class="open-count">{{ queue_ticket_counts.get(queue.id, {}).get('open', 0) }}</span>
+                                <span class="total-count">/ {{ queue_ticket_counts.get(queue.id, {}).get('total', 0) }}</span>
+                            </span>
+                        </button>
+                        {% endfor %}
+                    {% endif %}
                 </div>
                 {% if current_user.is_super_admin or current_user.is_developer %}
                 <button type="button" onclick="QueueManager.open()" class="sf-queue-manage-btn" title="Manage Queues">
@@ -1880,8 +2025,15 @@
     function filterByQueue(queue, button) {
         selectedQueue = queue;
 
-        // Update tab styles
+        // Update tab styles - clear all active states
         document.querySelectorAll('.sf-queue-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.sf-folder-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.sf-folder-dropdown-item').forEach(item => item.classList.remove('active'));
+
+        // Close all folder dropdowns
+        document.querySelectorAll('.sf-folder-dropdown').forEach(d => d.classList.remove('show'));
+        document.querySelectorAll('.sf-folder-tab').forEach(t => t.classList.remove('expanded'));
+
         button.classList.add('active');
 
         // Clear queue checkboxes in sidebar and set the correct one
@@ -1894,6 +2046,95 @@
 
         applyFilters();
     }
+
+    // Toggle folder dropdown
+    function toggleFolderDropdown(event, folderTab) {
+        event.stopPropagation();
+
+        // Close other folder dropdowns
+        document.querySelectorAll('.sf-folder-tab').forEach(tab => {
+            if (tab !== folderTab) {
+                tab.classList.remove('expanded');
+                tab.querySelector('.sf-folder-dropdown').classList.remove('show');
+            }
+        });
+
+        // Toggle this folder's dropdown
+        folderTab.classList.toggle('expanded');
+        folderTab.querySelector('.sf-folder-dropdown').classList.toggle('show');
+    }
+
+    // Filter by all queues in a folder
+    function filterByFolder(folderId, queueNamesStr, folderTab) {
+        // Clear all active states
+        document.querySelectorAll('.sf-queue-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.sf-folder-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.sf-folder-dropdown-item').forEach(item => item.classList.remove('active'));
+
+        // Set folder as active
+        folderTab.classList.add('active');
+
+        // Mark "All in folder" as active
+        folderTab.querySelector('.sf-folder-dropdown-item').classList.add('active');
+
+        // Close the dropdown
+        folderTab.classList.remove('expanded');
+        folderTab.querySelector('.sf-folder-dropdown').classList.remove('show');
+
+        // Get queue names for the queues in this folder (split by |||)
+        const queueNames = queueNamesStr.split('|||').filter(n => n.trim());
+
+        // Clear sidebar queue checkboxes first
+        document.querySelectorAll('#queueFilter input').forEach(cb => cb.checked = false);
+
+        // Check all queues in this folder in the sidebar
+        queueNames.forEach(queueName => {
+            const checkbox = document.querySelector(`#queueFilter input[value="${queueName}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Set special filter mode for folder
+        selectedQueue = 'folder:' + folderId;
+
+        applyFilters();
+    }
+
+    // Filter by a specific queue within a folder
+    function filterByQueueInFolder(queueName, dropdownItem) {
+        // Clear all active states
+        document.querySelectorAll('.sf-queue-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.sf-folder-tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.sf-folder-dropdown-item').forEach(item => item.classList.remove('active'));
+
+        // Get the parent folder tab
+        const folderTab = dropdownItem.closest('.sf-folder-tab');
+        folderTab.classList.add('active');
+        dropdownItem.classList.add('active');
+
+        // Close the dropdown
+        folderTab.classList.remove('expanded');
+        folderTab.querySelector('.sf-folder-dropdown').classList.remove('show');
+
+        // Set filter to specific queue
+        selectedQueue = queueName;
+
+        // Clear and set sidebar checkbox
+        document.querySelectorAll('#queueFilter input').forEach(cb => cb.checked = false);
+        const checkbox = document.querySelector(`#queueFilter input[value="${queueName}"]`);
+        if (checkbox) checkbox.checked = true;
+
+        applyFilters();
+    }
+
+    // Close folder dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.sf-folder-tab')) {
+            document.querySelectorAll('.sf-folder-tab').forEach(tab => {
+                tab.classList.remove('expanded');
+                tab.querySelector('.sf-folder-dropdown')?.classList.remove('show');
+            });
+        }
+    });
 
     // Toggle import dropdown
     function toggleImportDropdown(event) {
