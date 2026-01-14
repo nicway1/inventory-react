@@ -80,6 +80,59 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
 
 tickets_bp = Blueprint('tickets', __name__, url_prefix='/tickets')
 
+
+def check_ticket_permission(db_session, user, ticket):
+    """
+    Check if user has permission to access a ticket.
+    Returns (has_permission, error_message)
+    """
+    from models.user_queue_permission import UserQueuePermission
+
+    # Super admins and developers have full access
+    if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+        return True, None
+
+    # COUNTRY_ADMIN and SUPERVISOR: Check queue and country permissions
+    if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+        # Check queue permission - must have explicit access
+        has_queue_access = False
+        if ticket.queue_id:
+            queue_permission = db_session.query(UserQueuePermission).filter_by(
+                user_id=user.id,
+                queue_id=ticket.queue_id,
+                can_view=True
+            ).first()
+            has_queue_access = queue_permission is not None
+        # If ticket has no queue, user cannot access it
+
+        # Check country if assigned
+        has_country_access = True
+        if user.assigned_countries and ticket.country:
+            has_country_access = ticket.country in user.assigned_countries
+
+        if not has_queue_access:
+            return False, "You do not have permission to access tickets in this queue"
+        if not has_country_access:
+            return False, "You do not have permission to access tickets from this country"
+        return True, None
+
+    # CLIENT: Check if ticket belongs to their company or they created it
+    if user.user_type == UserType.CLIENT:
+        if not user.company_id:
+            return False, "Your account is not associated with a company"
+
+        customer_company_id = ticket.customer.company_id if ticket.customer else None
+        is_requester = ticket.requester_id == user.id
+        is_same_company = customer_company_id == user.company_id
+
+        if is_requester or is_same_company:
+            return True, None
+        return False, "You do not have permission to view this ticket"
+
+    # Default deny for unknown user types
+    return False, "Unknown user type"
+
+
 def get_filtered_customers(db_session, user):
     """Get customers filtered by company permissions for non-SUPER_ADMIN users"""
     from models.company_customer_permission import CompanyCustomerPermission
@@ -2724,40 +2777,11 @@ def view_ticket(ticket_id):
         # Permission check - ensure user has access to this ticket
         user = db_session.query(User).get(session.get('user_id'))
         if user:
-            # COUNTRY_ADMIN and SUPERVISOR: Check queue permissions
-            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
-                from models.user_queue_permission import UserQueuePermission
-
-                # Check if user has access to the ticket's queue
-                has_queue_access = False
-                if ticket.queue_id:
-                    queue_permission = db_session.query(UserQueuePermission).filter_by(
-                        user_id=user.id,
-                        queue_id=ticket.queue_id,
-                        can_view=True
-                    ).first()
-                    has_queue_access = queue_permission is not None
-
-                # Also check country if assigned
-                has_country_access = True
-                if user.assigned_countries and ticket.country:
-                    has_country_access = ticket.country in user.assigned_countries
-
-                if not has_queue_access or not has_country_access:
-                    logger.warning(f"User {user.id} denied access to ticket {ticket_id} - queue_access: {has_queue_access}, country_access: {has_country_access}")
-                    flash('You do not have permission to view this ticket', 'error')
-                    return redirect(url_for('tickets.list_tickets'))
-
-            # CLIENT: Check if ticket belongs to their company or they created it
-            elif user.user_type == UserType.CLIENT and user.company_id:
-                customer_company_id = ticket.customer.company_id if ticket.customer else None
-                is_requester = ticket.requester_id == user.id
-                is_same_company = customer_company_id == user.company_id
-
-                if not is_requester and not is_same_company:
-                    logger.warning(f"Client user {user.id} denied access to ticket {ticket_id}")
-                    flash('You do not have permission to view this ticket', 'error')
-                    return redirect(url_for('tickets.list_tickets'))
+            has_permission, error_message = check_ticket_permission(db_session, user, ticket)
+            if not has_permission:
+                logger.warning(f"User {user.id} denied access to ticket {ticket_id}: {error_message}")
+                flash(error_message or 'You do not have permission to view this ticket', 'error')
+                return redirect(url_for('tickets.list_tickets'))
 
         # Auto-update status for Asset Return (Claw) tickets based on progress
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
@@ -3064,6 +3088,24 @@ def view_ticket(ticket_id):
 @tickets_bp.route('/<int:ticket_id>/comment', methods=['POST'])
 @login_required
 def add_comment(ticket_id):
+    # Permission check
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('tickets.list_tickets'))
+
+        user = db_session.query(User).get(session.get('user_id'))
+        if user:
+            has_permission, error_message = check_ticket_permission(db_session, user, ticket)
+            if not has_permission:
+                logger.warning(f"User {user.id} denied comment access to ticket {ticket_id}: {error_message}")
+                flash(error_message or 'You do not have permission to comment on this ticket', 'error')
+                return redirect(url_for('tickets.list_tickets'))
+    finally:
+        db_session.close()
+
     content = request.form.get('message')  # Changed from 'content' to 'message'
     if not content:
         flash('Comment cannot be empty')
@@ -3074,7 +3116,7 @@ def add_comment(ticket_id):
         user_id=session['user_id'],
         content=content
     )
-    
+
     flash('Comment added successfully')
     return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id) + '?comment_posted=1#comments')
 
@@ -3656,12 +3698,22 @@ def update_ticket(ticket_id):
             return redirect(url_for('tickets.list_tickets'))
 
         # --- PERMISSION CHECK ---
-        # Allow Super Admin, ticket creator, or assigned owner to edit
-        if not (current_user.is_super_admin or current_user.id == ticket.requester_id or current_user.id == ticket.assigned_to_id):
+        # First check if user can access this ticket at all (queue/company permissions)
+        user = db_session.query(User).get(session.get('user_id'))
+        if user:
+            has_permission, error_message = check_ticket_permission(db_session, user, ticket)
+            if not has_permission:
+                logger.warning(f"User {user.id} denied update access to ticket {ticket_id}: {error_message}")
+                flash(error_message or 'You do not have permission to update this ticket', 'error')
+                return redirect(url_for('tickets.list_tickets'))
+
+        # Additionally, for non-admins, check if they are the creator or assigned
+        if not (current_user.is_super_admin or current_user.is_developer or
+                current_user.id == ticket.requester_id or current_user.id == ticket.assigned_to_id):
             flash('You do not have permission to update this ticket.', 'error')
             return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
         # --- END PERMISSION CHECK ---
-        
+
         # Update basic fields
         subject = request.form.get('subject')
         if subject and subject.strip():
