@@ -2721,6 +2721,44 @@ def view_ticket(ticket_id):
             flash('Ticket not found', 'error')
             return redirect(url_for('tickets.list_tickets'))
 
+        # Permission check - ensure user has access to this ticket
+        user = db_session.query(User).get(session.get('user_id'))
+        if user:
+            # COUNTRY_ADMIN and SUPERVISOR: Check queue permissions
+            if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                from models.user_queue_permission import UserQueuePermission
+
+                # Check if user has access to the ticket's queue
+                has_queue_access = False
+                if ticket.queue_id:
+                    queue_permission = db_session.query(UserQueuePermission).filter_by(
+                        user_id=user.id,
+                        queue_id=ticket.queue_id,
+                        can_view=True
+                    ).first()
+                    has_queue_access = queue_permission is not None
+
+                # Also check country if assigned
+                has_country_access = True
+                if user.assigned_countries and ticket.country:
+                    has_country_access = ticket.country in user.assigned_countries
+
+                if not has_queue_access or not has_country_access:
+                    logger.warning(f"User {user.id} denied access to ticket {ticket_id} - queue_access: {has_queue_access}, country_access: {has_country_access}")
+                    flash('You do not have permission to view this ticket', 'error')
+                    return redirect(url_for('tickets.list_tickets'))
+
+            # CLIENT: Check if ticket belongs to their company or they created it
+            elif user.user_type == UserType.CLIENT and user.company_id:
+                customer_company_id = ticket.customer.company_id if ticket.customer else None
+                is_requester = ticket.requester_id == user.id
+                is_same_company = customer_company_id == user.company_id
+
+                if not is_requester and not is_same_company:
+                    logger.warning(f"Client user {user.id} denied access to ticket {ticket_id}")
+                    flash('You do not have permission to view this ticket', 'error')
+                    return redirect(url_for('tickets.list_tickets'))
+
         # Auto-update status for Asset Return (Claw) tickets based on progress
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
             # Match template logic: check for "received" or "delivered" (case-insensitive)
