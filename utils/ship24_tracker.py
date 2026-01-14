@@ -966,57 +966,91 @@ class Ship24Tracker:
             logger.info(f"HFD page text length: {len(page_text)}")
             logger.info(f"HFD page preview: {page_text[:500] if page_text else 'EMPTY'}")
 
-            # Hebrew status keywords with English translations
-            status_mapping = {
-                # Delivered statuses
-                'נמסר': 'Delivered',
-                'הגיע ליעד': 'Delivered',
-                'נמסרה': 'Delivered',
-                'סופק': 'Delivered',
-                # In transit statuses
-                'במשלוח': 'In Transit',
-                'בדרך': 'In Transit',
-                'יצא לחלוקה': 'Out for Delivery',
-                'בחלוקה': 'Out for Delivery',
-                # Processing statuses
-                'התקבל': 'Received',
-                'נקלט': 'Received',
-                'ממתין': 'Pending',
-                'בטיפול': 'Processing',
-                'במחסן': 'At Warehouse',
-                'בסניף': 'At Branch',
-                # Return statuses
-                'החזרה': 'Return',
-                'הוחזר': 'Returned',
+            # HFD-specific full phrase translations (MUST be sorted longest first)
+            # These are actual phrases from HFD tracking pages
+            phrase_translations = [
+                # Full HFD status phrases (longest first to avoid partial matches)
+                ('המשלוח במחסני המיון שלנו ולאחר מיון יצא אל בית הלקוח', 'Shipment at sorting warehouse, will be sent to customer after sorting'),
+                ('המשלוח בדרכו לישראל/למחסן המיון', 'Shipment on its way to Israel/sorting warehouse'),
+                ('המשלוח הוקם במערכת', 'Shipment created in system'),
+                ('המשלוח במחסני HFD', 'Shipment at HFD warehouse'),
+                ('המשלוח בדרך ללקוח', 'Shipment on its way to customer'),
+                ('המשלוח נמסר', 'Shipment delivered'),
+                ('המשלוח בדרך', 'Shipment in transit'),
+                ('סטטוס משלוח', 'Shipment Status'),
+                ('פרטי משלוח', 'Shipment Details'),
+                ('כתובת למשלוח', 'Shipping Address'),
+                ('היסטוריית משלוח', 'Shipment History'),
+                ('איפה המשלוח שלי', 'Where is my shipment'),
+                ('מוכן לאיסוף', 'Ready for pickup'),
+                ('יצא לחלוקה', 'Out for delivery'),
+                ('הגיע ליעד', 'Arrived at destination'),
+                ('בדרך ללקוח', 'On the way to customer'),
+                # Status words
+                ('נמסר', 'Delivered'),
+                ('נמסרה', 'Delivered'),
+                ('סופק', 'Supplied'),
+                ('במשלוח', 'In shipment'),
+                ('בדרך', 'On the way'),
+                ('בחלוקה', 'In distribution'),
+                ('התקבל', 'Received'),
+                ('נקלט', 'Received'),
+                ('ממתין', 'Pending'),
+                ('בטיפול', 'Processing'),
+                ('במחסן', 'At warehouse'),
+                ('במחסני', 'At warehouses'),
+                ('בסניף', 'At branch'),
+                ('החזרה', 'Return'),
+                ('הוחזר', 'Returned'),
+                ('הועבר', 'Transferred'),
+                ('עודכן', 'Updated'),
+                ('נשלח', 'Sent'),
+                ('הגיע', 'Arrived'),
+                ('יצא', 'Left'),
+                ('נאסף', 'Collected'),
                 # Common words
-                'המשלוח': 'Shipment',
-                'משלוח': 'Shipment',
-                'החבילה': 'Package',
-                'חבילה': 'Package',
-                'ללקוח': 'to customer',
-                'לכתובת': 'to address',
-                'הועבר': 'Transferred',
-                'עודכן': 'Updated',
-                'סטטוס': 'Status',
-                'תאריך': 'Date',
-                'שעה': 'Time',
-                'איפה המשלוח שלי': 'Where is my shipment',
-                'פרטי משלוח': 'Shipment details',
-                'היסטוריית משלוח': 'Shipment history',
-                'נשלח': 'Sent',
-                'הגיע': 'Arrived',
-                'יצא': 'Left',
-                'נאסף': 'Collected',
-                'מוכן לאיסוף': 'Ready for pickup',
-            }
+                ('המשלוח', 'Shipment'),
+                ('משלוח', 'shipment'),
+                ('החבילה', 'The package'),
+                ('חבילה', 'package'),
+                ('ללקוח', 'to customer'),
+                ('לכתובת', 'to address'),
+                ('סטטוס', 'Status'),
+                ('תאריך', 'Date'),
+                ('שעה', 'Time'),
+                ('פרטי', 'Details'),
+                ('כתובת', 'Address'),
+                ('שלנו', 'our'),
+                ('ולאחר', 'and after'),
+                ('מיון', 'sorting'),
+                ('אל', 'to'),
+                ('בית', 'home'),
+                ('הלקוח', 'the customer'),
+            ]
 
-            # Search for status in page text
-            page_lower = page_text.lower()
-            for hebrew, english in status_mapping.items():
-                if hebrew in page_text:
-                    tracking_data['status'] = english
-                    logger.info(f"Found HFD status: {hebrew} -> {english}")
-                    break
+            def translate_hebrew(text):
+                """Translate Hebrew text using phrase list (longest first)"""
+                result = text
+                for hebrew, english in phrase_translations:
+                    result = result.replace(hebrew, english)
+                return result
+
+            # Search for status in page text (check for delivered first)
+            if 'נמסר' in page_text:
+                tracking_data['status'] = 'Delivered'
+                logger.info("Found HFD status: Delivered")
+            elif 'בדרך ללקוח' in page_text or 'בדרך' in page_text:
+                tracking_data['status'] = 'In Transit'
+                logger.info("Found HFD status: In Transit")
+            elif 'יצא לחלוקה' in page_text or 'בחלוקה' in page_text:
+                tracking_data['status'] = 'Out for Delivery'
+                logger.info("Found HFD status: Out for Delivery")
+            elif 'במחסן' in page_text or 'במחסני' in page_text:
+                tracking_data['status'] = 'At Warehouse'
+                logger.info("Found HFD status: At Warehouse")
+            elif 'התקבל' in page_text or 'נקלט' in page_text or 'הוקם במערכת' in page_text:
+                tracking_data['status'] = 'Received'
+                logger.info("Found HFD status: Received")
 
             # Try to extract events from timeline elements
             events = []
@@ -1028,11 +1062,7 @@ class Ship24Tracker:
                         text = await elem.inner_text()
                         text = text.strip()
                         if text and len(text) > 5 and len(text) < 500:
-                            # Try to translate common Hebrew terms
-                            translated = text
-                            for hebrew, english in status_mapping.items():
-                                translated = translated.replace(hebrew, english)
-
+                            translated = translate_hebrew(text)
                             events.append({
                                 'description': translated,
                                 'timestamp': None,
@@ -1044,28 +1074,66 @@ class Ship24Tracker:
                 pass
 
             # If no events found, try parsing from page text
+            # HFD format: status line, then date/time line on next line
             if not events:
                 lines = page_text.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if len(line) > 10 and len(line) < 200:
-                        # Check if line contains date pattern
-                        has_date = bool(re.search(r'\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{2}:\d{2}', line))
-                        has_status = any(hebrew in line for hebrew in status_mapping.keys())
+                lines = [l.strip() for l in lines if l.strip()]
 
-                        if has_date or has_status:
-                            translated = line
-                            for hebrew, english in status_mapping.items():
-                                translated = translated.replace(hebrew, english)
+                i = 0
+                while i < len(lines) and len(events) < 15:
+                    line = lines[i]
 
-                            if translated not in [e.get('description') for e in events]:
-                                events.append({
-                                    'description': translated,
-                                    'timestamp': None
-                                })
+                    # Skip very short or very long lines
+                    if len(line) < 5 or len(line) > 300:
+                        i += 1
+                        continue
 
-                            if len(events) >= 10:
-                                break
+                    # Check if this line is a date/time (e.g., "12.01.2026 09:40")
+                    date_match = re.match(r'^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s*(\d{1,2}:\d{2})?$', line)
+
+                    if date_match:
+                        # This is a date line - look back for the status
+                        date_str = date_match.group(1)
+                        time_str = date_match.group(2) or ''
+                        timestamp = f"{date_str} {time_str}".strip()
+
+                        # Find the previous non-date status line
+                        if i > 0:
+                            for j in range(i - 1, max(i - 3, -1), -1):
+                                prev_line = lines[j]
+                                # Check if previous line is NOT a date
+                                if not re.match(r'^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}', prev_line):
+                                    # This is the status for this date
+                                    translated = translate_hebrew(prev_line)
+
+                                    # Skip UI elements
+                                    if translated.lower() not in ['shipment status', 'shipment details', 'shipping address', 'status', 'details']:
+                                        event = {
+                                            'description': translated,
+                                            'timestamp': timestamp,
+                                            'date': date_str,
+                                            'time': time_str
+                                        }
+                                        # Avoid duplicates
+                                        if not any(e.get('description') == translated and e.get('timestamp') == timestamp for e in events):
+                                            events.append(event)
+                                    break
+                    i += 1
+
+                # If still no events with dates, fall back to just collecting status lines
+                if not events:
+                    for line in lines:
+                        if len(line) > 10 and len(line) < 200:
+                            has_hebrew = any(hebrew in line for hebrew, _ in phrase_translations[:20])
+                            if has_hebrew:
+                                translated = translate_hebrew(line)
+                                if translated not in [e.get('description') for e in events]:
+                                    events.append({
+                                        'description': translated,
+                                        'timestamp': None
+                                    })
+                                if len(events) >= 10:
+                                    break
 
             tracking_data['events'] = events
 
