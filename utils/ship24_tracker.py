@@ -1057,18 +1057,31 @@ class Ship24Tracker:
             logger.info(f"[HFD] Step 8: Parsing HTML content")
             try:
                 tracking_data = self._parse_hfd_html(page_text, tracking_number)
+
+                # Check for Hebrew content in the page
+                has_hebrew = any('\u0590' <= c <= '\u05FF' for c in page_text)
+
                 debug_info['parsing'] = {
                     'status': tracking_data.get('status'),
+                    'raw_status': tracking_data.get('raw_status'),
                     'events_count': len(tracking_data.get('events', [])),
                     'location': tracking_data.get('location'),
-                    'estimated_delivery': tracking_data.get('estimated_delivery')
+                    'estimated_delivery': tracking_data.get('estimated_delivery'),
+                    'has_hebrew_content': has_hebrew,
+                    'text_length': len(page_text)
                 }
+
+                # Add sample of text content for debugging (first 500 chars that aren't just whitespace)
+                clean_text = ' '.join(page_text.split())[:500]
+                debug_info['parsing']['text_sample'] = clean_text
+
                 debug_info['steps'].append({
                     'step': 8,
                     'action': 'parse_html',
                     'status': 'ok',
                     'parsed_status': tracking_data.get('status'),
-                    'events_found': len(tracking_data.get('events', []))
+                    'events_found': len(tracking_data.get('events', [])),
+                    'has_hebrew': has_hebrew
                 })
             except Exception as parse_error:
                 import traceback
@@ -1086,12 +1099,27 @@ class Ship24Tracker:
 
             # Step 9: Validate parsed data
             if tracking_data.get('status') in ['Unknown', None]:
+                # Check what content we got
+                has_hebrew = debug_info.get('parsing', {}).get('has_hebrew_content', False)
+                text_sample = debug_info.get('parsing', {}).get('text_sample', '')
+
+                # Determine likely reason for failure
+                if not has_hebrew and 'script' in page_text.lower()[:1000]:
+                    warning_msg = 'Page loaded but content appears to be JavaScript-rendered. The actual tracking data may load dynamically.'
+                elif not has_hebrew:
+                    warning_msg = 'Page loaded but no Hebrew content found. The page may have changed or tracking number may be invalid.'
+                else:
+                    warning_msg = 'Page loaded with Hebrew content but status keywords not found. Check the tracking link manually.'
+
                 debug_info['steps'].append({
                     'step': 9,
                     'action': 'validate_parsed',
                     'status': 'warning',
-                    'reason': 'Could not extract status from page'
+                    'reason': 'Could not extract status from page',
+                    'has_hebrew': has_hebrew,
+                    'diagnosis': warning_msg
                 })
+
                 # Still return success but with warning
                 return {
                     'success': True,
@@ -1104,7 +1132,7 @@ class Ship24Tracker:
                     'last_updated': datetime.utcnow().isoformat(),
                     'tracking_url': tracking_url,
                     'source': 'HFD (Oxylabs)',
-                    'warning': 'Page loaded but status could not be extracted. Check the tracking link manually.',
+                    'warning': warning_msg,
                     'debug_info': debug_info
                 }
 
@@ -1218,18 +1246,21 @@ class Ship24Tracker:
     def _parse_hfd_html(self, html_content: str, tracking_number: str) -> Dict:
         """Parse HFD HTML response and extract tracking data"""
         from bs4 import BeautifulSoup
+        import json
 
         tracking_data = {
             'status': 'Unknown',
             'location': 'Israel',
             'events': [],
-            'estimated_delivery': None
+            'estimated_delivery': None,
+            'raw_status': None  # For debugging
         }
 
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             page_text = soup.get_text(separator='\n')
             logger.info(f"HFD HTML parsed, text length: {len(page_text)}")
+            logger.info(f"HFD raw HTML length: {len(html_content)}")
 
             # Use the same translation logic
             phrase_translations = self._get_hfd_translations()
@@ -1240,19 +1271,109 @@ class Ship24Tracker:
                     result = result.replace(hebrew, english)
                 return result
 
-            # Detect status
-            if 'נמסר' in page_text:
-                tracking_data['status'] = 'Delivered'
-            elif 'בדרך ללקוח' in page_text or 'בדרך' in page_text:
-                tracking_data['status'] = 'In Transit'
-            elif 'יצא לחלוקה' in page_text or 'בחלוקה' in page_text:
-                tracking_data['status'] = 'Out for Delivery'
-            elif 'במחסן' in page_text or 'במחסני' in page_text:
-                tracking_data['status'] = 'At Warehouse'
-            elif 'התקבל' in page_text or 'נקלט' in page_text or 'הוקם במערכת' in page_text:
-                tracking_data['status'] = 'Received'
+            # Search in BOTH raw HTML and extracted text for better coverage
+            # Some content might be in data attributes, scripts, or hidden elements
+            search_text = html_content + '\n' + page_text
+
+            # Log sample of content for debugging
+            logger.info(f"HFD content sample (first 300 chars): {search_text[:300]}")
+
+            # Try to find JSON data embedded in the page (common in React/Vue apps)
+            json_patterns = [
+                r'window\.__INITIAL_STATE__\s*=\s*({.*?});',
+                r'window\.__PRELOADED_STATE__\s*=\s*({.*?});',
+                r'"status"\s*:\s*"([^"]+)"',
+                r'"trackingStatus"\s*:\s*"([^"]+)"',
+                r'"shipmentStatus"\s*:\s*"([^"]+)"',
+                r'data-status\s*=\s*["\']([^"\']+)["\']',
+            ]
+
+            for pattern in json_patterns:
+                match = re.search(pattern, html_content, re.DOTALL)
+                if match:
+                    try:
+                        status_val = match.group(1)
+                        logger.info(f"HFD found JSON/data pattern match: {status_val[:100] if len(status_val) > 100 else status_val}")
+                        # Check if it's a status value directly
+                        if len(status_val) < 50:  # Likely a status string, not JSON object
+                            tracking_data['raw_status'] = status_val
+                    except:
+                        pass
+
+            # Extended Hebrew status keywords - check in both HTML and text
+            status_keywords = [
+                # Delivered variations
+                ('נמסר', 'Delivered'),
+                ('נמסרה', 'Delivered'),
+                ('סופק', 'Delivered'),
+                ('delivered', 'Delivered'),
+                ('DELIVERED', 'Delivered'),
+                # In Transit variations
+                ('בדרך ללקוח', 'In Transit'),
+                ('בדרך', 'In Transit'),
+                ('במשלוח', 'In Transit'),
+                ('in transit', 'In Transit'),
+                ('IN_TRANSIT', 'In Transit'),
+                # Out for Delivery
+                ('יצא לחלוקה', 'Out for Delivery'),
+                ('בחלוקה', 'Out for Delivery'),
+                ('פרטי נהג', 'Out for Delivery'),
+                ('out for delivery', 'Out for Delivery'),
+                # At Warehouse
+                ('במחסן', 'At Warehouse'),
+                ('במחסני', 'At Warehouse'),
+                ('at warehouse', 'At Warehouse'),
+                # Received/Created
+                ('התקבל', 'Received'),
+                ('נקלט', 'Received'),
+                ('הוקם במערכת', 'Received'),
+                ('received', 'Received'),
+                # Processing
+                ('בטיפול', 'Processing'),
+                ('processing', 'Processing'),
+            ]
+
+            # Check for status in search text (case-insensitive for English)
+            for keyword, status in status_keywords:
+                if keyword in search_text or keyword.lower() in search_text.lower():
+                    tracking_data['status'] = status
+                    logger.info(f"HFD found status keyword '{keyword}' -> {status}")
+                    break
 
             logger.info(f"HFD parsed status: {tracking_data['status']}")
+
+            # Also try to extract status from specific HTML elements
+            if tracking_data['status'] == 'Unknown':
+                # Look for status in common element patterns
+                status_selectors = [
+                    ('div.status', 'text'),
+                    ('span.status', 'text'),
+                    ('[class*="status"]', 'text'),
+                    ('[data-status]', 'data-status'),
+                    ('[class*="delivery"]', 'text'),
+                    ('h1', 'text'),
+                    ('h2', 'text'),
+                ]
+                for selector, attr in status_selectors:
+                    try:
+                        elements = soup.select(selector)
+                        for elem in elements:
+                            if attr == 'text':
+                                elem_text = elem.get_text().strip()
+                            else:
+                                elem_text = elem.get(attr, '').strip()
+                            if elem_text:
+                                for keyword, status in status_keywords:
+                                    if keyword in elem_text or keyword.lower() in elem_text.lower():
+                                        tracking_data['status'] = status
+                                        logger.info(f"HFD found status in element {selector}: {status}")
+                                        break
+                            if tracking_data['status'] != 'Unknown':
+                                break
+                    except:
+                        pass
+                    if tracking_data['status'] != 'Unknown':
+                        break
 
             # Extract events from page text
             events = []
@@ -1284,11 +1405,35 @@ class Ship24Tracker:
                                 break
                 i += 1
 
+            # If no events with dates found, try to find any Hebrew status lines
+            if not events:
+                for line in lines:
+                    if len(line) > 10 and len(line) < 200:
+                        # Check if line contains Hebrew characters
+                        has_hebrew = any('\u0590' <= c <= '\u05FF' for c in line)
+                        if has_hebrew:
+                            translated = translate_hebrew(line)
+                            # Skip header/UI elements
+                            skip_words = ['status', 'details', 'address', 'track', 'follow', 'menu', 'home']
+                            if not any(skip in translated.lower() for skip in skip_words):
+                                if translated not in [e.get('description') for e in events]:
+                                    events.append({'description': translated, 'timestamp': None})
+                            if len(events) >= 10:
+                                break
+
             tracking_data['events'] = events
             logger.info(f"HFD parsed {len(events)} events")
 
+            # Log what we found for debugging
+            if tracking_data['status'] == 'Unknown':
+                # Log more content to help debug
+                logger.warning(f"HFD could not find status. Page text preview: {page_text[:500]}")
+                logger.warning(f"HFD HTML contains Hebrew: {any(chr(0x0590) <= c <= chr(0x05FF) for c in html_content)}")
+
         except Exception as e:
             logger.error(f"Error parsing HFD HTML: {str(e)}")
+            import traceback
+            logger.error(f"HFD parsing traceback: {traceback.format_exc()}")
 
         return tracking_data
 
