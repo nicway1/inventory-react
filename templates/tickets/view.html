@@ -9989,8 +9989,8 @@ function createAndAssignCustomer() {
             address: address
         })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(response => response.json().then(data => ({ status: response.status, data })))
+    .then(({ status, data }) => {
         if (data.success && data.customer) {
             // Customer created, now assign to ticket
             return fetch('{{ url_for("tickets.update_ticket_customer", ticket_id=ticket.id) }}', {
@@ -10000,23 +10000,41 @@ function createAndAssignCustomer() {
                     'X-CSRFToken': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ customer_id: data.customer.id })
-            });
+            }).then(r => r.json());
+        } else if (status === 409 && data.existing_customer) {
+            // Customer with same name exists - ask user if they want to use it
+            const existingName = data.existing_customer.name;
+            const existingCompany = data.existing_customer.company || 'No company';
+            if (confirm(`A customer named "${existingName}" (${existingCompany}) already exists.\n\nDo you want to assign the existing customer to this ticket instead?`)) {
+                // Use existing customer
+                return fetch('{{ url_for("tickets.update_ticket_customer", ticket_id=ticket.id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ customer_id: data.existing_customer.id })
+                }).then(r => r.json());
+            } else {
+                throw new Error('Customer creation cancelled');
+            }
         } else {
             throw new Error(data.error || 'Failed to create customer');
         }
     })
-    .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            alert('Customer created and assigned successfully!');
+        if (data && data.success) {
+            alert('Customer assigned successfully!');
             location.reload();
-        } else {
+        } else if (data) {
             alert('Error assigning customer: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error: ' + error.message);
+        if (error.message !== 'Customer creation cancelled') {
+            alert('Error: ' + error.message);
+        }
     });
 }
 

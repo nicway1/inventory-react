@@ -8204,9 +8204,24 @@ def create_customer():
         
         if not name or not contact_number or not country or not address:
             return jsonify({'error': 'Name, contact number, country, and address are required'}), 400
-        
+
         db_session = db_manager.get_session()
-        
+
+        # Check if customer with the same name already exists
+        existing_customer = db_session.query(CustomerUser).filter(
+            CustomerUser.name.ilike(name)
+        ).first()
+
+        if existing_customer:
+            return jsonify({
+                'error': f'A customer with the name "{existing_customer.name}" already exists',
+                'existing_customer': {
+                    'id': existing_customer.id,
+                    'name': existing_customer.name,
+                    'company': existing_customer.company.name if existing_customer.company else None
+                }
+            }), 409
+
         # Convert country string to enum if it exists, otherwise use as string
         from models.enums import Country
         try:
