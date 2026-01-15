@@ -972,7 +972,7 @@ class Ship24Tracker:
                     'x-oxylabs-render': 'html',
                     # Wait for async content to load (in milliseconds)
                     # HFD uses React and loads data asynchronously - need more time
-                    'x-oxylabs-render-wait': '10000',
+                    'x-oxylabs-render-wait': '15000',
                 },
                 allow_redirects=True
             )
@@ -1098,9 +1098,10 @@ class Ship24Tracker:
                     html_sample = html_sample.replace('\x00', '').replace('\r', '\\r').replace('\n', '\\n').replace('\t', '\\t')
                     debug_info['parsing']['html_sample'] = html_sample
                     debug_info['parsing']['html_sample_length'] = len(html_sample)
-                    # Also show first Hebrew text found
-                    hebrew_chars = [c for c in page_text[:2000] if '\u0590' <= c <= '\u05FF']
-                    debug_info['parsing']['hebrew_sample'] = ''.join(hebrew_chars[:100]) if hebrew_chars else 'NONE'
+                    # Also show first Hebrew text found - search entire content
+                    hebrew_chars = [c for c in page_text if '\u0590' <= c <= '\u05FF']
+                    debug_info['parsing']['hebrew_sample'] = ''.join(hebrew_chars[:200]) if hebrew_chars else 'NONE'
+                    debug_info['parsing']['total_hebrew_chars'] = len(hebrew_chars)
                 else:
                     debug_info['parsing']['html_sample'] = 'EMPTY'
                     debug_info['parsing']['html_sample_length'] = 0
