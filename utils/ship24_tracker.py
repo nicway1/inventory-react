@@ -886,134 +886,314 @@ class Ship24Tracker:
         """
         Track a parcel using HFD Israel website via Oxylabs Web Unblocker
         HFD pages are in Hebrew and rendered via JavaScript
+        Uses ONLY Oxylabs proxy method - no fallback to Playwright
         """
         tracking_url = self._get_hfd_tracking_url(tracking_number)
         logger.info(f"Tracking HFD parcel at: {tracking_url}")
 
-        # Debug info to return
+        # Debug info to return - comprehensive error tracking
         debug_info = {
-            'source': 'oxylabs_proxy',
+            'method': 'oxylabs_web_unblocker',
             'tracking_number': tracking_number,
-            'url': tracking_url,
-            'proxy_used': 'Oxylabs Web Unblocker (unblock.oxylabs.io:60000)'
+            'tracking_url': tracking_url,
+            'proxy_endpoint': 'unblock.oxylabs.io:60000',
+            'timestamp': datetime.utcnow().isoformat(),
+            'steps': []
         }
 
-        # Try Oxylabs Web Unblocker with requests (sync, more reliable than httpx)
+        # Step 1: Check environment and credentials
+        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
+        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+
+        debug_info['credentials'] = {
+            'username': oxylabs_username,
+            'password_set': bool(oxylabs_password),
+            'password_length': len(oxylabs_password) if oxylabs_password else 0,
+            'from_env': 'OXYLABS_USERNAME' in os.environ
+        }
+        debug_info['steps'].append({'step': 1, 'action': 'credentials_loaded', 'status': 'ok'})
+
         try:
             import requests
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            debug_info['steps'].append({'step': 2, 'action': 'imports_loaded', 'status': 'ok'})
+        except ImportError as e:
+            debug_info['steps'].append({'step': 2, 'action': 'imports_loaded', 'status': 'failed', 'error': str(e)})
+            debug_info['error'] = f'Missing required library: {str(e)}'
+            return self._hfd_error_response(tracking_number, tracking_url, debug_info, 'Missing requests library')
 
-            oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
-            oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+        # Step 3: Build proxy configuration
+        proxies = {
+            'http': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000',
+            'https': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000'
+        }
+        debug_info['steps'].append({'step': 3, 'action': 'proxy_configured', 'status': 'ok'})
 
-            proxies = {
-                'http': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000',
-                'https': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000'
-            }
-
-            logger.info(f"Using Oxylabs Web Unblocker (requests) for HFD: {tracking_url}")
+        # Step 4: Make the request
+        try:
+            logger.info(f"[HFD] Step 4: Making request to {tracking_url}")
+            debug_info['steps'].append({'step': 4, 'action': 'request_started', 'url': tracking_url})
 
             response = requests.get(
                 tracking_url,
                 proxies=proxies,
                 verify=False,
-                timeout=60,
+                timeout=90,  # Increased timeout
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                     'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
                 },
                 allow_redirects=True
             )
 
-            logger.info(f"HFD response status: {response.status_code}")
+            # Step 5: Process response
+            debug_info['response'] = {
+                'status_code': response.status_code,
+                'content_length': len(response.text),
+                'headers': dict(response.headers),
+                'url_after_redirects': response.url,
+                'encoding': response.encoding,
+                'elapsed_seconds': response.elapsed.total_seconds()
+            }
+            debug_info['steps'].append({
+                'step': 5,
+                'action': 'response_received',
+                'status_code': response.status_code,
+                'content_length': len(response.text),
+                'elapsed': response.elapsed.total_seconds()
+            })
+
+            logger.info(f"[HFD] Response: status={response.status_code}, length={len(response.text)}, elapsed={response.elapsed.total_seconds()}s")
+
             page_text = response.text
-            logger.info(f"HFD response length: {len(page_text)}")
 
-            # Add response info to debug
-            debug_info['response_status'] = response.status_code
-            debug_info['response_length'] = len(page_text)
-            debug_info['response_preview'] = page_text[:500] if page_text else 'EMPTY'
+            # Add preview of response content
+            debug_info['response']['content_preview'] = page_text[:1000] if page_text else 'EMPTY'
+            debug_info['response']['content_tail'] = page_text[-500:] if len(page_text) > 500 else ''
 
-            if response.status_code == 200 and len(page_text) > 500:
-                # Check if blocked
-                if 'you have been blocked' in page_text.lower():
-                    logger.warning(f"HFD blocked by Cloudflare for {tracking_number}")
-                    debug_info['blocked_reason'] = 'Cloudflare WAF block detected'
-                    return {
-                        'success': True,
-                        'tracking_number': tracking_number,
-                        'carrier': 'HFD Israel',
-                        'status': 'Check Link',
-                        'events': [{
-                            'description': 'HFD website blocked automated access. Please check tracking manually.',
-                            'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-                        }],
-                        'current_location': 'Israel',
-                        'last_updated': datetime.utcnow().isoformat(),
-                        'tracking_url': tracking_url,
-                        'source': 'HFD',
-                        'blocked': True,
-                        'debug_info': debug_info
-                    }
+            # Step 6: Validate response
+            if response.status_code != 200:
+                debug_info['steps'].append({
+                    'step': 6,
+                    'action': 'validate_status',
+                    'status': 'failed',
+                    'reason': f'HTTP {response.status_code}'
+                })
+                return self._hfd_error_response(
+                    tracking_number, tracking_url, debug_info,
+                    f'HTTP Error {response.status_code}: {response.reason}'
+                )
 
-                # Parse the HTML response
+            if len(page_text) < 500:
+                debug_info['steps'].append({
+                    'step': 6,
+                    'action': 'validate_content',
+                    'status': 'failed',
+                    'reason': f'Response too short ({len(page_text)} bytes)'
+                })
+                return self._hfd_error_response(
+                    tracking_number, tracking_url, debug_info,
+                    f'Response too short ({len(page_text)} bytes) - possible empty page or error'
+                )
+
+            debug_info['steps'].append({'step': 6, 'action': 'validate_response', 'status': 'ok'})
+
+            # Step 7: Check for blocks/captchas
+            lower_text = page_text.lower()
+            block_indicators = [
+                ('you have been blocked', 'Cloudflare WAF block'),
+                ('access denied', 'Access denied'),
+                ('captcha', 'CAPTCHA challenge'),
+                ('challenge-running', 'JavaScript challenge'),
+                ('cf-browser-verification', 'Cloudflare browser check'),
+                ('just a moment', 'Cloudflare waiting page'),
+                ('checking your browser', 'Browser verification'),
+                ('ray id', 'Cloudflare error page'),
+            ]
+
+            for indicator, block_type in block_indicators:
+                if indicator in lower_text:
+                    debug_info['steps'].append({
+                        'step': 7,
+                        'action': 'check_blocks',
+                        'status': 'blocked',
+                        'block_type': block_type,
+                        'indicator': indicator
+                    })
+                    debug_info['blocked'] = True
+                    debug_info['block_type'] = block_type
+                    return self._hfd_error_response(
+                        tracking_number, tracking_url, debug_info,
+                        f'Blocked by {block_type}. The proxy may need adjustment.'
+                    )
+
+            debug_info['steps'].append({'step': 7, 'action': 'check_blocks', 'status': 'ok'})
+
+            # Step 8: Parse HTML
+            logger.info(f"[HFD] Step 8: Parsing HTML content")
+            try:
                 tracking_data = self._parse_hfd_html(page_text, tracking_number)
-                debug_info['parsed_status'] = tracking_data.get('status')
-                debug_info['events_count'] = len(tracking_data.get('events', []))
+                debug_info['parsing'] = {
+                    'status': tracking_data.get('status'),
+                    'events_count': len(tracking_data.get('events', [])),
+                    'location': tracking_data.get('location'),
+                    'estimated_delivery': tracking_data.get('estimated_delivery')
+                }
+                debug_info['steps'].append({
+                    'step': 8,
+                    'action': 'parse_html',
+                    'status': 'ok',
+                    'parsed_status': tracking_data.get('status'),
+                    'events_found': len(tracking_data.get('events', []))
+                })
+            except Exception as parse_error:
+                import traceback
+                debug_info['steps'].append({
+                    'step': 8,
+                    'action': 'parse_html',
+                    'status': 'failed',
+                    'error': str(parse_error),
+                    'traceback': traceback.format_exc()
+                })
+                return self._hfd_error_response(
+                    tracking_number, tracking_url, debug_info,
+                    f'HTML parsing failed: {str(parse_error)}'
+                )
 
-                if tracking_data.get('status') not in ['Unknown', None]:
-                    return {
-                        'success': True,
-                        'tracking_number': tracking_number,
-                        'carrier': 'HFD Israel',
-                        'status': tracking_data.get('status', 'Unknown'),
-                        'events': tracking_data.get('events', []),
-                        'current_location': tracking_data.get('location', 'Israel'),
-                        'estimated_delivery': tracking_data.get('estimated_delivery'),
-                        'last_updated': datetime.utcnow().isoformat(),
-                        'tracking_url': tracking_url,
-                        'source': 'HFD',
-                        'debug_info': debug_info
-                    }
-            else:
-                debug_info['error_detail'] = f'Bad response: status={response.status_code}, length={len(page_text)}'
+            # Step 9: Validate parsed data
+            if tracking_data.get('status') in ['Unknown', None]:
+                debug_info['steps'].append({
+                    'step': 9,
+                    'action': 'validate_parsed',
+                    'status': 'warning',
+                    'reason': 'Could not extract status from page'
+                })
+                # Still return success but with warning
+                return {
+                    'success': True,
+                    'tracking_number': tracking_number,
+                    'carrier': 'HFD Israel',
+                    'status': 'Unable to Parse',
+                    'events': tracking_data.get('events', []),
+                    'current_location': tracking_data.get('location', 'Israel'),
+                    'estimated_delivery': tracking_data.get('estimated_delivery'),
+                    'last_updated': datetime.utcnow().isoformat(),
+                    'tracking_url': tracking_url,
+                    'source': 'HFD (Oxylabs)',
+                    'warning': 'Page loaded but status could not be extracted. Check the tracking link manually.',
+                    'debug_info': debug_info
+                }
+
+            debug_info['steps'].append({'step': 9, 'action': 'validate_parsed', 'status': 'ok'})
+
+            # Success!
+            logger.info(f"[HFD] Successfully parsed: status={tracking_data.get('status')}, events={len(tracking_data.get('events', []))}")
+            return {
+                'success': True,
+                'tracking_number': tracking_number,
+                'carrier': 'HFD Israel',
+                'status': tracking_data.get('status', 'Unknown'),
+                'events': tracking_data.get('events', []),
+                'current_location': tracking_data.get('location', 'Israel'),
+                'estimated_delivery': tracking_data.get('estimated_delivery'),
+                'last_updated': datetime.utcnow().isoformat(),
+                'tracking_url': tracking_url,
+                'source': 'HFD (Oxylabs)',
+                'debug_info': debug_info
+            }
+
+        except requests.exceptions.Timeout as e:
+            debug_info['steps'].append({
+                'step': 4,
+                'action': 'request',
+                'status': 'timeout',
+                'error': str(e)
+            })
+            return self._hfd_error_response(
+                tracking_number, tracking_url, debug_info,
+                f'Request timed out after 90 seconds. The proxy or HFD site may be slow.'
+            )
+
+        except requests.exceptions.ProxyError as e:
+            debug_info['steps'].append({
+                'step': 4,
+                'action': 'request',
+                'status': 'proxy_error',
+                'error': str(e)
+            })
+            return self._hfd_error_response(
+                tracking_number, tracking_url, debug_info,
+                f'Proxy connection failed: {str(e)}. Check Oxylabs credentials and subscription.'
+            )
+
+        except requests.exceptions.SSLError as e:
+            debug_info['steps'].append({
+                'step': 4,
+                'action': 'request',
+                'status': 'ssl_error',
+                'error': str(e)
+            })
+            return self._hfd_error_response(
+                tracking_number, tracking_url, debug_info,
+                f'SSL/TLS error: {str(e)}'
+            )
+
+        except requests.exceptions.ConnectionError as e:
+            debug_info['steps'].append({
+                'step': 4,
+                'action': 'request',
+                'status': 'connection_error',
+                'error': str(e)
+            })
+            return self._hfd_error_response(
+                tracking_number, tracking_url, debug_info,
+                f'Connection failed: {str(e)}. Check network connectivity.'
+            )
 
         except Exception as e:
             import traceback
             error_tb = traceback.format_exc()
-            logger.error(f"Oxylabs HFD error: {str(e)}")
-            logger.error(f"Oxylabs HFD traceback: {error_tb}")
-            debug_info['error_detail'] = str(e)
-            debug_info['traceback'] = error_tb
+            logger.error(f"[HFD] Unexpected error: {str(e)}")
+            logger.error(f"[HFD] Traceback: {error_tb}")
+            debug_info['steps'].append({
+                'step': 4,
+                'action': 'request',
+                'status': 'exception',
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'traceback': error_tb
+            })
+            return self._hfd_error_response(
+                tracking_number, tracking_url, debug_info,
+                f'Unexpected error ({type(e).__name__}): {str(e)}'
+            )
 
-        # Fallback to Playwright if available
-        if PLAYWRIGHT_AVAILABLE:
-            try:
-                return await self._track_hfd_playwright(tracking_number, tracking_url)
-            except Exception as e:
-                import traceback
-                logger.error(f"Playwright HFD error: {str(e)}")
-                logger.error(f"Playwright HFD traceback: {traceback.format_exc()}")
+    def _hfd_error_response(self, tracking_number: str, tracking_url: str, debug_info: dict, error_message: str) -> dict:
+        """Generate a detailed HFD error response"""
+        debug_info['error_message'] = error_message
+        debug_info['final_status'] = 'error'
 
-        # Return fallback with link even on error
-        debug_info['fallback'] = True
         return {
-            'success': True,
+            'success': False,
             'tracking_number': tracking_number,
             'carrier': 'HFD Israel',
-            'status': 'Check Link',
+            'status': 'Error',
+            'error': error_message,
             'events': [{
-                'description': 'Could not fetch HFD tracking data. Please check tracking manually using the link below.',
+                'description': f'Error: {error_message}',
                 'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
             }],
             'current_location': 'Israel',
             'last_updated': datetime.utcnow().isoformat(),
-            'tracking_url': self._get_hfd_tracking_url(tracking_number),
-            'source': 'HFD',
-            'error': True,
-            'debug_info': debug_info
+            'tracking_url': tracking_url,
+            'source': 'HFD (Oxylabs)',
+            'debug_info': debug_info,
+            'message': 'Could not fetch tracking data. Use the tracking link to check manually.'
         }
 
     def _parse_hfd_html(self, html_content: str, tracking_number: str) -> Dict:
