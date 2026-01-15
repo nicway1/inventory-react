@@ -22,7 +22,48 @@ article_content = """
 
 <hr>
 
-<h2>Collecting Device Specs</h2>
+<h2>Collecting Device Specs (Recovery Mode)</h2>
+
+<p>Follow these steps to collect specs from a MacBook in Recovery Mode:</p>
+
+<h3>Step 1: Enter Recovery Mode</h3>
+<ol>
+<li>Hold the <strong>Power Button</strong> on the MacBook until the startup options screen appears</li>
+<li>You will see the "Options" page with startup disks</li>
+</ol>
+
+<h3>Step 2: Open Safari and Get the Command</h3>
+<ol>
+<li>Click on <strong>Safari</strong> from the menu or options</li>
+<li>In the Safari address bar, go to <strong>tinyurl.com</strong></li>
+<li>Type <strong>12888x</strong> in the URL field (this redirects to the specs page)</li>
+<li>The page will load showing the command to copy</li>
+<li><strong>Copy the command</strong> from the page</li>
+<li>Exit Safari when done</li>
+</ol>
+
+<h3>Step 3: Run the Command in Terminal</h3>
+<ol>
+<li>From the menu bar, go to <strong>Utilities &gt; Terminal</strong></li>
+<li><strong>Paste the command</strong> you copied and press Enter</li>
+<li>Wait for the script to complete - it will collect all device specifications</li>
+</ol>
+
+<h3>Step 4: Process the Submission</h3>
+<ol>
+<li>Go to the <strong>MacBook Specs Collector</strong> widget on your dashboard (or navigate to <code>/device-specs</code>)</li>
+<li>Find the newly submitted device spec card</li>
+<li>Click the <strong>Tickets</strong> button to search for related tickets</li>
+<li><strong>Verify the specifications are correct</strong> - check serial number, RAM, storage, and model</li>
+<li>If a related ticket is found, click <strong>Add to Ticket</strong> to create the asset and link it</li>
+<li>If no ticket is found, click <strong>Add</strong> to add the asset to inventory</li>
+</ol>
+
+<hr>
+
+<h2>Alternative: Running from Normal macOS</h2>
+
+<p>If the MacBook boots normally, you can also run the command directly:</p>
 
 <h3>Step 1: Copy the Command</h3>
 <p>On the Device Specs page, you'll see a command box with:</p>
@@ -30,10 +71,7 @@ article_content = """
 <p>Click the <strong>Copy</strong> button to copy this command to your clipboard.</p>
 
 <h3>Step 2: Run on the MacBook</h3>
-<p>Open <strong>Terminal</strong> on the MacBook you want to collect specs from and paste the command. Press Enter to run it.</p>
-<div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0;">
-<strong>Note:</strong> This command also works in <strong>macOS Recovery Mode</strong> - just open Terminal from the Utilities menu.
-</div>
+<p>Open <strong>Terminal</strong> (Applications &gt; Utilities &gt; Terminal) and paste the command. Press Enter to run it.</p>
 
 <h3>Step 3: View the Results</h3>
 <p>Once the script runs, the device specs will automatically appear on the Device Specs page. The page shows:</p>
