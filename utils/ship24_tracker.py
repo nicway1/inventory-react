@@ -888,14 +888,33 @@ class Ship24Tracker:
         HFD pages are in Hebrew and rendered via JavaScript
         Uses ONLY Oxylabs proxy method - no fallback to Playwright
         """
+        original_input = tracking_number.strip()
         tracking_url = self._get_hfd_tracking_url(tracking_number)
         logger.info(f"Tracking HFD parcel at: {tracking_url}")
+
+        # Track original URL for debug
+        original_url = tracking_url
+        resolved_from_short = False
+
+        # If it's a short URL, resolve it first to get the actual tracking URL
+        if 'hfd.sh/' in tracking_url:
+            logger.info(f"[HFD] Detected short URL, resolving: {tracking_url}")
+            resolved_url = await self._resolve_hfd_short_url(tracking_url)
+            if resolved_url:
+                tracking_url = resolved_url
+                resolved_from_short = True
+                logger.info(f"[HFD] Resolved short URL to: {tracking_url}")
+            else:
+                logger.warning(f"[HFD] Could not resolve short URL, using original")
 
         # Debug info to return - comprehensive error tracking
         debug_info = {
             'method': 'oxylabs_web_unblocker',
             'tracking_number': tracking_number,
+            'original_input': original_input,
+            'original_url': original_url,
             'tracking_url': tracking_url,
+            'resolved_from_short_url': resolved_from_short,
             'proxy_endpoint': 'unblock.oxylabs.io:60000',
             'timestamp': datetime.utcnow().isoformat(),
             'steps': []
@@ -1626,16 +1645,58 @@ class Ship24Tracker:
                 return True
         return False
 
+    async def _resolve_hfd_short_url(self, short_url: str) -> Optional[str]:
+        """Resolve HFD short URL (hfd.sh/xxx) to actual tracking URL without using proxy"""
+        try:
+            import requests
+            logger.info(f"[HFD] Resolving short URL: {short_url}")
+
+            # Use a simple HEAD request to follow redirects and get final URL
+            # Don't use proxy for this - short URL service is usually not blocked
+            response = requests.head(
+                short_url,
+                allow_redirects=True,
+                timeout=15,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            )
+
+            final_url = response.url
+            logger.info(f"[HFD] Short URL resolved to: {final_url}")
+
+            # Check if it resolved to an HFD tracking page
+            if 'hfd.co.il' in final_url or 'run.hfd' in final_url:
+                return final_url
+
+            # If HEAD didn't work, try GET
+            response = requests.get(
+                short_url,
+                allow_redirects=True,
+                timeout=15,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            )
+
+            final_url = response.url
+            logger.info(f"[HFD] Short URL (GET) resolved to: {final_url}")
+
+            if 'hfd.co.il' in final_url or 'run.hfd' in final_url:
+                return final_url
+
+            return None
+
+        except Exception as e:
+            logger.error(f"[HFD] Error resolving short URL: {str(e)}")
+            return None
+
     def _get_hfd_tracking_url(self, tracking_number: str) -> str:
         """Get HFD tracking URL from tracking number or short URL"""
         tn = tracking_number.strip()
 
         # If it's already a full URL, return as-is
         if tn.startswith('http'):
-            # Convert short URL to tracking page URL
-            if 'hfd.sh/' in tn:
-                # Short URL format - just return as-is, browser will follow redirect
-                return tn
             return tn
 
         # If it's a short code (like KlXJVk), construct short URL
