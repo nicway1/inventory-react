@@ -1317,6 +1317,22 @@ class Ship24Tracker:
                     except:
                         pass
 
+            # Check for error/not found states first
+            error_keywords = [
+                ('לא נמצא', 'Not Found'),
+                ('לא קיים', 'Not Found'),
+                ('מספר שגוי', 'Invalid Number'),
+                ('not found', 'Not Found'),
+                ('invalid', 'Invalid'),
+                ('error', 'Error'),
+            ]
+
+            for keyword, error_status in error_keywords:
+                if keyword in search_text.lower():
+                    tracking_data['status'] = error_status
+                    logger.info(f"HFD found error keyword '{keyword}' -> {error_status}")
+                    return tracking_data
+
             # Extended Hebrew status keywords - check in both HTML and text
             status_keywords = [
                 # Delivered variations
@@ -1340,6 +1356,9 @@ class Ship24Tracker:
                 ('במחסן', 'At Warehouse'),
                 ('במחסני', 'At Warehouse'),
                 ('at warehouse', 'At Warehouse'),
+                # Sorting/Processing at HFD
+                ('במחסני המיון', 'At Sorting Warehouse'),
+                ('מיון', 'Sorting'),
                 # Received/Created
                 ('התקבל', 'Received'),
                 ('נקלט', 'Received'),
@@ -1430,11 +1449,15 @@ class Ship24Tracker:
                         has_hebrew = any('\u0590' <= c <= '\u05FF' for c in line)
                         if has_hebrew:
                             translated = translate_hebrew(line)
-                            # Skip header/UI elements
-                            skip_words = ['status', 'details', 'address', 'track', 'follow', 'menu', 'home']
-                            if not any(skip in translated.lower() for skip in skip_words):
-                                if translated not in [e.get('description') for e in events]:
-                                    events.append({'description': translated, 'timestamp': None})
+                            # Skip header/UI elements and questions
+                            skip_words = ['status', 'details', 'address', 'track', 'follow', 'menu', 'home', 'איפה', 'שלי', 'where is', '?']
+                            skip_phrases = ['איפה המשלוח שלי', 'איפה shipment שלי', 'עברית', 'english']
+                            if any(skip in translated.lower() for skip in skip_words):
+                                continue
+                            if any(phrase in line.lower() for phrase in skip_phrases):
+                                continue
+                            if translated not in [e.get('description') for e in events]:
+                                events.append({'description': translated, 'timestamp': None})
                             if len(events) >= 10:
                                 break
 
