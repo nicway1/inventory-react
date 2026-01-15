@@ -8239,7 +8239,7 @@ def create_customer():
                 'name': customer.name,
                 'contact_number': customer.contact_number,
                 'email': customer.email,
-                'country': customer.country.value,
+                'country': customer.country.value if hasattr(customer.country, 'value') else customer.country,
                 'address': customer.address,
                 'company': customer.company.name if customer.company else None
             },
