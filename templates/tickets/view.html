@@ -9592,6 +9592,27 @@ function updateAccessoryTable(accessory) {
             </button>
         </div>
 
+        <!-- Current Customer Info (if exists) -->
+        {% if ticket.customer %}
+        <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-blue-800 mb-1">Current Customer:</p>
+                    <p class="font-semibold text-blue-900">{{ ticket.customer.name }}</p>
+                    {% if ticket.customer.email %}<p class="text-sm text-blue-700">{{ ticket.customer.email }}</p>{% endif %}
+                    {% if ticket.customer.contact_number %}<p class="text-sm text-blue-700">{{ ticket.customer.contact_number }}</p>{% endif %}
+                    {% if ticket.customer.country %}<p class="text-sm text-blue-700">{{ ticket.customer.country }}</p>{% endif %}
+                </div>
+                <button type="button" onclick="cloneCurrentCustomer()" class="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    Clone & Edit
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Tabs -->
         <div class="flex border-b border-gray-200 mb-4">
             <button type="button" id="tabSelectExisting" class="px-4 py-2 text-sm font-medium text-amber-600 border-b-2 border-amber-600" onclick="switchCustomerTab('existing')">
@@ -9727,6 +9748,43 @@ function updateAccessoryTable(accessory) {
 function showAssignCustomerModal() {
     document.getElementById('assignCustomerModal').style.display = 'flex';
     switchCustomerTab('existing'); // Reset to first tab
+}
+
+// Clone current customer data into Create New form
+function cloneCurrentCustomer() {
+    {% if ticket.customer %}
+    // Get current customer data
+    const currentName = {{ ticket.customer.name | tojson if ticket.customer.name else '""' }};
+    const currentEmail = {{ ticket.customer.email | tojson if ticket.customer.email else '""' }};
+    const currentPhone = {{ ticket.customer.contact_number | tojson if ticket.customer.contact_number else '""' }};
+    const currentCountry = {{ ticket.customer.country | tojson if ticket.customer.country else '""' }};
+    const currentAddress = {{ ticket.customer.address | tojson if ticket.customer.address else '""' }};
+
+    // Switch to Create New tab
+    switchCustomerTab('create');
+
+    // Pre-fill the form with current customer data
+    document.getElementById('newCustomerName').value = currentName;
+    document.getElementById('newCustomerEmail').value = currentEmail;
+    document.getElementById('newCustomerPhone').value = currentPhone;
+    document.getElementById('newCustomerAddress').value = currentAddress;
+
+    // Try to match country in dropdown
+    const countrySelect = document.getElementById('newCustomerCountry');
+    const countryUpper = currentCountry.toUpperCase().replace(/\s+/g, '_');
+    for (let option of countrySelect.options) {
+        if (option.value === countryUpper || option.value === currentCountry) {
+            countrySelect.value = option.value;
+            break;
+        }
+    }
+
+    // Focus on name field so user can edit
+    setTimeout(() => {
+        document.getElementById('newCustomerName').focus();
+        document.getElementById('newCustomerName').select();
+    }, 100);
+    {% endif %}
 }
 
 function closeAssignCustomerModal() {
