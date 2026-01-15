@@ -948,6 +948,7 @@ class Ship24Tracker:
             'https': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000'
         }
         debug_info['steps'].append({'step': 3, 'action': 'proxy_configured', 'status': 'ok'})
+        debug_info['js_rendering'] = True  # Oxylabs x-oxylabs-render: html
 
         # Step 4: Make the request
         try:
@@ -958,7 +959,7 @@ class Ship24Tracker:
                 tracking_url,
                 proxies=proxies,
                 verify=False,
-                timeout=90,  # Increased timeout
+                timeout=120,  # Increased timeout for JS rendering
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -966,6 +967,9 @@ class Ship24Tracker:
                     'Accept-Encoding': 'gzip, deflate, br',
                     'Connection': 'keep-alive',
                     'Upgrade-Insecure-Requests': '1',
+                    # Oxylabs Web Unblocker: Enable JavaScript rendering
+                    # This is required for JavaScript-rendered pages like HFD
+                    'x-oxylabs-render': 'html',
                 },
                 allow_redirects=True
             )
