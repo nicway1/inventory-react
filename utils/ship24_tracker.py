@@ -955,11 +955,21 @@ class Ship24Tracker:
             logger.info(f"[HFD] Step 4: Making request to {tracking_url}")
             debug_info['steps'].append({'step': 4, 'action': 'request_started', 'url': tracking_url})
 
+            # Use JavaScript instructions to ensure page fully loads
+            import json as json_module
+            js_instructions = json_module.dumps([
+                {"action": "wait", "timeout": 5000},  # Initial wait for page load
+                {"action": "scroll", "direction": "down", "value": 500},  # Scroll to trigger lazy loading
+                {"action": "wait", "timeout": 3000},  # Wait for content after scroll
+                {"action": "scroll", "direction": "up", "value": 500},  # Scroll back up
+                {"action": "wait", "timeout": 2000},  # Final wait
+            ])
+
             response = requests.get(
                 tracking_url,
                 proxies=proxies,
                 verify=False,
-                timeout=120,  # Increased timeout for JS rendering
+                timeout=180,  # Increased timeout for JS rendering
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -972,7 +982,9 @@ class Ship24Tracker:
                     'x-oxylabs-render': 'html',
                     # Wait for async content to load (in milliseconds)
                     # HFD uses React and loads data asynchronously - need more time
-                    'x-oxylabs-render-wait': '15000',
+                    'x-oxylabs-render-wait': '20000',
+                    # JavaScript instructions to interact with page and trigger content load
+                    'x-oxylabs-js-instructions': js_instructions,
                 },
                 allow_redirects=True
             )
