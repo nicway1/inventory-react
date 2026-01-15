@@ -12824,6 +12824,50 @@ def update_ticket_description(ticket_id):
         db_session.close()
 
 
+@tickets_bp.route('/<int:ticket_id>/update-customer', methods=['POST'])
+@login_required
+def update_ticket_customer(ticket_id):
+    """Update ticket customer - SUPER_ADMIN and DEVELOPER only"""
+    db_session = db_manager.get_session()
+    try:
+        # Check user permission
+        user = db_session.query(User).get(session.get('user_id'))
+        if not user or not (user.is_super_admin or user.is_developer):
+            return jsonify({'success': False, 'error': 'Permission denied. Only SUPER_ADMIN and DEVELOPER can update customer.'}), 403
+
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        customer_id = request.json.get('customer_id')
+        if not customer_id:
+            return jsonify({'success': False, 'error': 'No customer_id provided'}), 400
+
+        # Verify customer exists
+        customer = db_session.query(CustomerUser).get(customer_id)
+        if not customer:
+            return jsonify({'success': False, 'error': 'Customer not found'}), 404
+
+        # Update the ticket's customer
+        old_customer_id = ticket.customer_id
+        ticket.customer_id = customer_id
+        db_session.commit()
+
+        logger.info(f"Ticket {ticket_id} customer updated from {old_customer_id} to {customer_id} by user {user.id}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Customer updated to {customer.name}'
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error updating ticket customer: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
 # =============================================================================
 # Asset Intake Check-in Routes
 # =============================================================================
