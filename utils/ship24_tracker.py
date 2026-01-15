@@ -995,9 +995,13 @@ class Ship24Tracker:
 
             page_text = response.text
 
-            # Add preview of response content
-            debug_info['response']['content_preview'] = page_text[:1000] if page_text else 'EMPTY'
-            debug_info['response']['content_tail'] = page_text[-500:] if len(page_text) > 500 else ''
+            # Add preview of response content (larger sample for debugging)
+            debug_info['response']['content_preview'] = page_text[:2000] if page_text else 'EMPTY'
+            debug_info['response']['content_tail'] = page_text[-1000:] if len(page_text) > 1000 else ''
+            # Also capture middle section which might have actual content
+            if len(page_text) > 4000:
+                middle_start = len(page_text) // 2 - 500
+                debug_info['response']['content_middle'] = page_text[middle_start:middle_start + 1000]
 
             # Step 6: Validate response
             if response.status_code != 200:
@@ -1076,8 +1080,11 @@ class Ship24Tracker:
                 }
 
                 # Add sample of text content for debugging (first 500 chars that aren't just whitespace)
-                clean_text = ' '.join(page_text.split())[:500]
+                clean_text = ' '.join(page_text.split())[:500] if page_text else 'EMPTY'
                 debug_info['parsing']['text_sample'] = clean_text
+
+                # Also add raw HTML sample for better debugging
+                debug_info['parsing']['html_sample'] = page_text[:1000] if page_text else 'EMPTY'
 
                 debug_info['steps'].append({
                     'step': 8,
