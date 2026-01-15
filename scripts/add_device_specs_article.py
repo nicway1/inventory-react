@@ -89,11 +89,28 @@ article_content = """
 <h3>Add to Inventory</h3>
 <p>Click <strong>Add</strong> to create a new asset in inventory using the collected specs. The form will be pre-filled with the device information.</p>
 
+<div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0;">
+<strong>Important:</strong> Always verify the collected specifications are correct before adding to the system. Double-check the serial number, RAM, storage, and model information match the physical device.
+</div>
+
 <h3>Find Related Tickets</h3>
-<p>Click <strong>Tickets</strong> to search for any existing tickets that mention this device's serial number or model. You can then:</p>
+<p>Click <strong>Tickets</strong> to search for any existing tickets that mention this device's serial number or model. This is useful when you need to link a device to an existing support case.</p>
+
+<h4>How to Add Device to a Ticket:</h4>
+<ol>
+<li>Click the <strong>Tickets</strong> button on the device spec card</li>
+<li>The system will search for tickets matching the device's serial number or model</li>
+<li>If matching tickets are found, you'll see a list of related tickets</li>
+<li>Click <strong>View</strong> to open the ticket in a new tab</li>
+<li>Click <strong>Add to Ticket</strong> to create an asset and automatically link it to that ticket</li>
+<li>If no tickets are found, you can click <strong>Add Asset Without Ticket</strong> to add it to inventory without linking</li>
+</ol>
+
+<p>This feature is especially useful for:</p>
 <ul>
-<li><strong>View</strong> the ticket</li>
-<li><strong>Add to Ticket</strong> - Create an asset and link it to the ticket</li>
+<li>Repair tickets - Link the device being repaired to the ticket</li>
+<li>Asset intake tickets - Associate incoming devices with their intake records</li>
+<li>Return tickets - Connect returned devices to their return case</li>
 </ul>
 
 <h3>Delete Submission</h3>
