@@ -971,7 +971,8 @@ class Ship24Tracker:
                     # This is required for JavaScript-rendered pages like HFD
                     'x-oxylabs-render': 'html',
                     # Wait for async content to load (in milliseconds)
-                    'x-oxylabs-render-wait': '5000',
+                    # HFD uses React and loads data asynchronously - need more time
+                    'x-oxylabs-render-wait': '10000',
                 },
                 allow_redirects=True
             )
