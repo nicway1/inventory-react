@@ -225,13 +225,24 @@ def main():
             KnowledgeArticle.title == "How to Use the MacBook Specs Collector"
         ).first()
 
+        now = datetime.now(timezone.utc)
+
         if existing:
-            print(f"Article already exists with ID: {existing.id}")
+            # Update existing article
+            existing.content = article_content
+            existing.summary = "Learn how to remotely collect MacBook hardware specifications using the Device Specs Collector tool. Works even in Recovery Mode."
+            existing.updated_at = now
+            db.commit()
+
+            print(f"Successfully updated article!")
+            print(f"  ID: {existing.id}")
+            print(f"  Title: {existing.title}")
+            print(f"  Updated at: {now}")
+            print(f"")
             print(f"View at: /knowledge/article/{existing.id}")
             return
 
         # Create the article
-        now = datetime.now(timezone.utc)
         article = KnowledgeArticle(
             title="How to Use the MacBook Specs Collector",
             content=article_content,
