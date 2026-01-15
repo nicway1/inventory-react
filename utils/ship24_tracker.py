@@ -993,6 +993,10 @@ class Ship24Tracker:
                 'elapsed': response.elapsed.total_seconds()
             })
 
+            # Force UTF-8 encoding for Hebrew content
+            # The server may not specify encoding, causing requests to default to ISO-8859-1
+            response.encoding = 'utf-8'
+
             logger.info(f"[HFD] Response: status={response.status_code}, length={len(response.text)}, elapsed={response.elapsed.total_seconds()}s")
 
             page_text = response.text
