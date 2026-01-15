@@ -3001,7 +3001,10 @@ def view_ticket(ticket_id):
         # Get customers for the template (filtered by company for non-SUPER_ADMIN users)
         user = db_manager.get_user(session['user_id'])
         customers = get_filtered_customers(db_session, user)
-        
+
+        # Get companies for the Create New Customer form
+        all_companies = db_session.query(Company).order_by(Company.name).all()
+
         # Get asset model names for the model dropdown
         asset_models = db_session.query(Asset.model).filter(Asset.model.isnot(None)).distinct().all()
         asset_modal_models = [model[0] for model in asset_models if model[0]]
@@ -3100,6 +3103,7 @@ def view_ticket(ticket_id):
             queues=queues,
             assets_data=assets_data,
             customers=customers,
+            all_companies=all_companies,  # Companies for Create New Customer form
             comments=comments,  # Add comments here!
             packages=packages,  # Add packages data
             packages_tracking_data=packages_tracking_data,  # Add tracking data

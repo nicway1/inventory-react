@@ -9599,7 +9599,8 @@ function updateAccessoryTable(accessory) {
              data-email="{{ ticket.customer.email or '' }}"
              data-phone="{{ ticket.customer.contact_number or '' }}"
              data-country="{{ ticket.customer.country.value if ticket.customer.country else '' }}"
-             data-address="{{ ticket.customer.address or '' }}">
+             data-address="{{ ticket.customer.address or '' }}"
+             data-company-id="{{ ticket.customer.company_id or '' }}">
             <div class="flex justify-between items-start">
                 <div>
                     <p class="text-sm font-medium text-blue-800 mb-1">Current Customer:</p>
@@ -9686,6 +9687,15 @@ function updateAccessoryTable(accessory) {
                     <input type="email" id="newCustomerEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="email@example.com">
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Company <span class="text-red-500">*</span></label>
+                    <select id="newCustomerCompany" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500" required>
+                        <option value="">Select Company</option>
+                        {% for company in all_companies %}
+                        <option value="{{ company.id }}">{{ company.grouped_display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Phone <span class="text-red-500">*</span></label>
                     <input type="text" id="newCustomerPhone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500" placeholder="+1234567890" required>
                 </div>
@@ -9766,6 +9776,7 @@ function cloneCurrentCustomer() {
     const currentPhone = customerData.dataset.phone || '';
     const currentCountry = customerData.dataset.country || '';
     const currentAddress = customerData.dataset.address || '';
+    const currentCompanyId = customerData.dataset.companyId || '';
 
     // Switch to Create New tab
     switchCustomerTab('create');
@@ -9775,6 +9786,11 @@ function cloneCurrentCustomer() {
     document.getElementById('newCustomerEmail').value = currentEmail;
     document.getElementById('newCustomerPhone').value = currentPhone;
     document.getElementById('newCustomerAddress').value = currentAddress;
+
+    // Set company dropdown
+    if (currentCompanyId) {
+        document.getElementById('newCustomerCompany').value = currentCompanyId;
+    }
 
     // Try to match country in dropdown
     const countrySelect = document.getElementById('newCustomerCountry');
@@ -9800,6 +9816,7 @@ function closeAssignCustomerModal() {
     // Reset create form
     document.getElementById('newCustomerName').value = '';
     document.getElementById('newCustomerEmail').value = '';
+    document.getElementById('newCustomerCompany').value = '';
     document.getElementById('newCustomerPhone').value = '';
     document.getElementById('newCustomerCountry').value = '';
     document.getElementById('newCustomerAddress').value = '';
@@ -9929,6 +9946,7 @@ function submitAssignCustomer() {
 function createAndAssignCustomer() {
     const name = document.getElementById('newCustomerName').value.trim();
     const email = document.getElementById('newCustomerEmail').value.trim();
+    const companyId = document.getElementById('newCustomerCompany').value;
     const phone = document.getElementById('newCustomerPhone').value.trim();
     const country = document.getElementById('newCustomerCountry').value;
     const address = document.getElementById('newCustomerAddress').value.trim();
@@ -9936,6 +9954,10 @@ function createAndAssignCustomer() {
     // Validate required fields
     if (!name) {
         alert('Please enter customer name');
+        return;
+    }
+    if (!companyId) {
+        alert('Please select a company');
         return;
     }
     if (!phone) {
@@ -9961,6 +9983,7 @@ function createAndAssignCustomer() {
         body: JSON.stringify({
             name: name,
             email: email,
+            company_id: parseInt(companyId),
             contact_number: phone,
             country: country,
             address: address
