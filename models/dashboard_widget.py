@@ -652,6 +652,25 @@ register_widget(WidgetDefinition(
     screenshot='device_specs_collector.png'
 ))
 
+register_widget(WidgetDefinition(
+    id='action_items_link',
+    name='Action Items',
+    description='View and manage pending action items',
+    long_description='Access the Action Items board to view, create, and manage pending tasks. Track items through different stages (To Do, In Progress, Testing, Done) and collaborate with team members on task completion.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/action_items_link.html',
+    icon='fas fa-tasks',
+    color='orange',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
+    data_loader=None,
+    configurable=True,
+    default_config={'style': 'photo'},
+    screenshot='action_items.png'
+))
+
 
 # Default layout for new users
 DEFAULT_DASHBOARD_LAYOUT = {
