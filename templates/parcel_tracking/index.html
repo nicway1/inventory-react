@@ -961,10 +961,13 @@ function displayResults(results) {
                     ` : ''}
                 </div>
 
-                ${result.events && result.events.length > 0 ? `
+                ${result.events && result.events.length > 0 ? (() => {
+                    // Filter out empty events
+                    const validEvents = result.events.filter(e => e.description || e.status_description);
+                    return validEvents.length > 0 ? `
                     <div class="events-timeline">
-                        <div class="timeline-title">Tracking History (${result.events.length} events)</div>
-                        ${result.events.map(event => `
+                        <div class="timeline-title">Tracking History (${validEvents.length} events)</div>
+                        ${validEvents.map(event => `
                             <div class="event-item">
                                 <div class="event-dot"></div>
                                 <div class="event-description">
@@ -976,7 +979,8 @@ function displayResults(results) {
                             </div>
                         `).join('')}
                     </div>
-                ` : '<p style="color: #78858F; margin-top: 16px;">No tracking events available yet.</p>'}
+                ` : '<p style="color: #78858F; margin-top: 16px;">No tracking events available yet.</p>';
+                })() : '<p style="color: #78858F; margin-top: 16px;">No tracking events available yet.</p>'}
 
                 ${trackingLinksHtml}
 
