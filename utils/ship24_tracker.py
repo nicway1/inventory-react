@@ -970,6 +970,8 @@ class Ship24Tracker:
                     # Oxylabs Web Unblocker: Enable JavaScript rendering
                     # This is required for JavaScript-rendered pages like HFD
                     'x-oxylabs-render': 'html',
+                    # Wait for async content to load (in milliseconds)
+                    'x-oxylabs-render-wait': '5000',
                 },
                 allow_redirects=True
             )
