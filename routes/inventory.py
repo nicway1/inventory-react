@@ -4617,20 +4617,28 @@ def view_customer_user(id):
         # Calculate net quantity per accessory
         for transaction in transactions:
             accessory_id = transaction.accessory_id
-            
+
             # Initialize if not already in the dictionary
             if accessory_id not in accessory_quantities:
                 accessory_quantities[accessory_id] = 0
-                
+
             # Add or subtract quantity based on transaction type
             if transaction.transaction_type.lower() == 'checkout':
                 accessory_quantities[accessory_id] += transaction.quantity
             elif transaction.transaction_type.lower() == 'checkin':
                 accessory_quantities[accessory_id] -= transaction.quantity
-        
-        return render_template('inventory/view_customer_user.html', 
+
+        # Get related tickets for this customer
+        from models.ticket import Ticket
+        related_tickets = db_session.query(Ticket)\
+            .filter(Ticket.customer_id == customer.id)\
+            .order_by(Ticket.created_at.desc())\
+            .all()
+
+        return render_template('inventory/view_customer_user.html',
                               customer=customer,
-                              accessory_quantities=accessory_quantities)
+                              accessory_quantities=accessory_quantities,
+                              related_tickets=related_tickets)
     finally:
         db_session.close()
 
