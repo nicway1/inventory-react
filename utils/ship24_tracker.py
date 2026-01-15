@@ -1090,8 +1090,21 @@ class Ship24Tracker:
                 clean_text = ' '.join(page_text.split())[:500] if page_text else 'EMPTY'
                 debug_info['parsing']['text_sample'] = clean_text
 
-                # Also add raw HTML sample for better debugging
-                debug_info['parsing']['html_sample'] = page_text[:1000] if page_text else 'EMPTY'
+                # Also add raw HTML sample for better debugging - sanitize for JSON
+                if page_text:
+                    # Get a sample and make it JSON-safe
+                    html_sample = page_text[:1500]
+                    # Replace control characters that break JSON
+                    html_sample = html_sample.replace('\x00', '').replace('\r', '\\r').replace('\n', '\\n').replace('\t', '\\t')
+                    debug_info['parsing']['html_sample'] = html_sample
+                    debug_info['parsing']['html_sample_length'] = len(html_sample)
+                    # Also show first Hebrew text found
+                    hebrew_chars = [c for c in page_text[:2000] if '\u0590' <= c <= '\u05FF']
+                    debug_info['parsing']['hebrew_sample'] = ''.join(hebrew_chars[:100]) if hebrew_chars else 'NONE'
+                else:
+                    debug_info['parsing']['html_sample'] = 'EMPTY'
+                    debug_info['parsing']['html_sample_length'] = 0
+                    debug_info['parsing']['hebrew_sample'] = 'NONE'
 
                 debug_info['steps'].append({
                     'step': 8,
