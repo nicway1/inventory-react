@@ -9594,7 +9594,12 @@ function updateAccessoryTable(accessory) {
 
         <!-- Current Customer Info (if exists) -->
         {% if ticket.customer %}
-        <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div id="currentCustomerData" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+             data-name="{{ ticket.customer.name }}"
+             data-email="{{ ticket.customer.email or '' }}"
+             data-phone="{{ ticket.customer.contact_number or '' }}"
+             data-country="{{ ticket.customer.country.value if ticket.customer.country else '' }}"
+             data-address="{{ ticket.customer.address or '' }}">
             <div class="flex justify-between items-start">
                 <div>
                     <p class="text-sm font-medium text-blue-800 mb-1">Current Customer:</p>
@@ -9752,13 +9757,15 @@ function showAssignCustomerModal() {
 
 // Clone current customer data into Create New form
 function cloneCurrentCustomer() {
-    {% if ticket.customer %}
-    // Get current customer data
-    const currentName = {{ ticket.customer.name | tojson if ticket.customer.name else '""' }};
-    const currentEmail = {{ ticket.customer.email | tojson if ticket.customer.email else '""' }};
-    const currentPhone = {{ ticket.customer.contact_number | tojson if ticket.customer.contact_number else '""' }};
-    const currentCountry = {{ ticket.customer.country | tojson if ticket.customer.country else '""' }};
-    const currentAddress = {{ ticket.customer.address | tojson if ticket.customer.address else '""' }};
+    // Get current customer data from data attributes
+    const customerData = document.getElementById('currentCustomerData');
+    if (!customerData) return;
+
+    const currentName = customerData.dataset.name || '';
+    const currentEmail = customerData.dataset.email || '';
+    const currentPhone = customerData.dataset.phone || '';
+    const currentCountry = customerData.dataset.country || '';
+    const currentAddress = customerData.dataset.address || '';
 
     // Switch to Create New tab
     switchCustomerTab('create');
@@ -9784,7 +9791,6 @@ function cloneCurrentCustomer() {
         document.getElementById('newCustomerName').focus();
         document.getElementById('newCustomerName').select();
     }, 100);
-    {% endif %}
 }
 
 function closeAssignCustomerModal() {
@@ -9823,9 +9829,9 @@ function switchCustomerTab(tab) {
 // Create new customer - try to pre-fill from available ticket data
 function cloneAndEditCustomer() {
     // Get available data from ticket
-    const shippingAddress = {{ ticket.shipping_address | tojson if ticket.shipping_address else '""' }};
-    const description = {{ ticket.description | tojson if ticket.description else '""' }};
-    const subject = {{ ticket.subject | tojson if ticket.subject else '""' }};
+    const shippingAddress = {{ ticket.shipping_address | tojson | safe if ticket.shipping_address else '""' }};
+    const description = {{ ticket.description | tojson | safe if ticket.description else '""' }};
+    const subject = {{ ticket.subject | tojson | safe if ticket.subject else '""' }};
 
     // Open modal and switch to Create New tab
     document.getElementById('assignCustomerModal').style.display = 'flex';
@@ -10895,7 +10901,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load saved tracking data for packages on page load
     {% if packages_tracking_data %}
-    const packagesTrackingData = {{ packages_tracking_data|tojson }};
+    const packagesTrackingData = {{ packages_tracking_data|tojson|safe }};
     
     // Display saved tracking data for each package
     Object.keys(packagesTrackingData).forEach(packageNumber => {
