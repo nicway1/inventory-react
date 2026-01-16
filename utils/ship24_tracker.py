@@ -1331,30 +1331,70 @@ class Ship24Tracker:
                         break
 
             # Extract events from page text
+            # Ship24 typically shows events as:
+            #   Event description (e.g., "Shipment picked up")
+            #   Date/time (e.g., "Thursday, January 15, 2026 at 03:13 PM")
             events = []
-            lines = page_text.split('\n')
-            for line in lines:
-                line = line.strip()
-                if len(line) < 15 or len(line) > 300:
+            lines = [l.strip() for l in page_text.split('\n') if l.strip()]
+
+            # Date pattern for detecting timestamp lines
+            date_pattern = re.compile(
+                r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w{3,9}\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\w{3,9},?\s+\w{3,9}\s+\d{1,2}'
+            )
+
+            # Skip patterns for UI elements
+            skip_patterns = ['cookie', 'privacy', 'subscribe', 'login', 'sign up', 'track another', 'help center', 'ship24', 'powered by']
+
+            i = 0
+            while i < len(lines) and len(events) < 15:
+                line = lines[i]
+
+                # Skip short lines or UI elements
+                if len(line) < 5 or any(skip in line.lower() for skip in skip_patterns):
+                    i += 1
                     continue
 
-                # Check for date patterns (more flexible)
-                has_date = bool(re.search(
-                    r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w{3,9}\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\w{3,9},?\s+\w{3,9}\s+\d{1,2}',
-                    line
-                ))
+                # Check if this line has a date
+                has_date = bool(date_pattern.search(line))
+
                 if has_date:
-                    clean_text = ' '.join(line.split())
-                    # Skip UI elements
-                    if any(skip in clean_text.lower() for skip in ['cookie', 'privacy', 'subscribe', 'login', 'sign up', 'track another', 'help center']):
-                        continue
-                    if clean_text not in [e['description'] for e in events]:
-                        events.append({
-                            'description': clean_text,
-                            'timestamp': None
-                        })
-                        if len(events) >= 15:
-                            break
+                    timestamp = ' '.join(line.split())
+                    description = None
+
+                    # Look at the previous line for the event description
+                    if i > 0:
+                        prev_line = lines[i - 1].strip()
+                        # Previous line should be short-ish text without a date (the description)
+                        if len(prev_line) >= 5 and len(prev_line) <= 200:
+                            if not date_pattern.search(prev_line):
+                                if not any(skip in prev_line.lower() for skip in skip_patterns):
+                                    description = prev_line
+
+                    # If no description found from prev line, look at next line
+                    if not description and i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        if len(next_line) >= 5 and len(next_line) <= 200:
+                            if not date_pattern.search(next_line):
+                                if not any(skip in next_line.lower() for skip in skip_patterns):
+                                    description = next_line
+
+                    # Create event with description and timestamp
+                    if description:
+                        event_key = f"{description}_{timestamp}"
+                        if event_key not in [f"{e['description']}_{e['timestamp']}" for e in events]:
+                            events.append({
+                                'description': description,
+                                'timestamp': timestamp
+                            })
+                    else:
+                        # No description found, use the date line as both
+                        if timestamp not in [e['description'] for e in events]:
+                            events.append({
+                                'description': timestamp,
+                                'timestamp': None
+                            })
+
+                i += 1
 
             tracking_data['events'] = events
 
