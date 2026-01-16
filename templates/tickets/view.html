@@ -3,7 +3,7 @@
 {% block head %}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
-<script src="{{ url_for('static', filename='js/tab-system.js') }}"></script>
+<!-- tab-system.js is already loaded in base.html -->
 
 <!-- Add HTTP request interception for any internal references to port 5000 -->
 <script>
