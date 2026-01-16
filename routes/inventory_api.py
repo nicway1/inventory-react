@@ -288,7 +288,7 @@ def format_asset_complete(asset):
             "id": asset.customer_user.id,
             "name": asset.customer_user.name,
             "email": asset.customer_user.email,
-            "company": getattr(asset.customer_user, 'company', None)
+            "company": asset.customer_user.company.name if asset.customer_user.company else None
         } if asset.customer_user else None,
         "customer_id": asset.customer_id,
         
