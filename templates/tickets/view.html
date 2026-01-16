@@ -71,6 +71,87 @@ function checkMention(textarea) {
         if (dropdown) dropdown.classList.add('hidden');
     }
 }
+
+// Global @mention state and functions (defined early to be available)
+window.mentionState = {
+    currentTextarea: null,
+    currentMentionStart: -1,
+    mentionUsers: [],
+    selectedIndex: -1
+};
+
+window.triggerMentionSearch = async function(textarea, query, mentionStart) {
+    console.log('[MENTION-GLOBAL] Triggered search for:', query);
+    const dropdown = document.getElementById('mentionDropdown');
+    const mentionList = document.getElementById('mentionList');
+
+    if (!dropdown || !mentionList) {
+        console.error('[MENTION-GLOBAL] Dropdown elements not found!');
+        return;
+    }
+
+    window.mentionState.currentTextarea = textarea;
+    window.mentionState.currentMentionStart = mentionStart;
+
+    try {
+        const url = `/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`;
+        console.log('[MENTION-GLOBAL] Fetching:', url);
+        const response = await fetch(url);
+        const data = await response.json();
+        console.log('[MENTION-GLOBAL] Got response:', data);
+
+        if (data.suggestions && data.suggestions.length > 0) {
+            window.mentionState.mentionUsers = data.suggestions;
+            mentionList.innerHTML = '';
+
+            data.suggestions.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2';
+                div.innerHTML = `
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-sm font-medium">
+                        ${item.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span class="font-medium">${item.name}</span>
+                    <span class="text-xs text-gray-500">${item.type}</span>
+                `;
+                div.onclick = () => window.selectMention(item);
+                mentionList.appendChild(div);
+            });
+
+            // Show and position dropdown
+            dropdown.classList.remove('hidden');
+            dropdown.style.bottom = '100%';
+            dropdown.style.left = '0';
+            dropdown.style.marginBottom = '4px';
+            console.log('[MENTION-GLOBAL] Dropdown shown with', data.suggestions.length, 'items');
+        } else {
+            dropdown.classList.add('hidden');
+        }
+    } catch (err) {
+        console.error('[MENTION-GLOBAL] Error:', err);
+        dropdown.classList.add('hidden');
+    }
+};
+
+window.selectMention = function(item) {
+    const textarea = window.mentionState.currentTextarea;
+    const mentionStart = window.mentionState.currentMentionStart;
+
+    if (!textarea) return;
+
+    const value = textarea.value;
+    const beforeMention = value.substring(0, mentionStart);
+    const afterCursor = value.substring(textarea.selectionStart);
+
+    const mentionText = `@${item.name}`;
+    textarea.value = beforeMention + mentionText + ' ' + afterCursor;
+
+    const newCursorPos = mentionStart + mentionText.length + 1;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+
+    document.getElementById('mentionDropdown').classList.add('hidden');
+};
 </script>
 
 <!-- Initialize global variables -->
