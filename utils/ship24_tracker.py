@@ -1058,13 +1058,18 @@ class Ship24Tracker:
 
         try:
             import json as json_module
-            # JavaScript instructions for page interaction
+            # JavaScript instructions for page interaction - Ship24 is a heavy React app
+            # Need aggressive scrolling and waiting for dynamic content to load
             js_instructions = json_module.dumps([
-                {"action": "wait", "timeout": 5000},
-                {"action": "scroll", "direction": "down", "value": 500},
+                {"action": "wait", "timeout": 8000},  # Wait for initial React render
+                {"action": "scroll", "direction": "down", "value": 300},
                 {"action": "wait", "timeout": 3000},
-                {"action": "scroll", "direction": "up", "value": 500},
-                {"action": "wait", "timeout": 2000},
+                {"action": "scroll", "direction": "down", "value": 500},  # Scroll more to trigger lazy load
+                {"action": "wait", "timeout": 4000},
+                {"action": "scroll", "direction": "down", "value": 800},  # Scroll to tracking events
+                {"action": "wait", "timeout": 5000},
+                {"action": "scroll", "direction": "up", "value": 300},  # Scroll back up
+                {"action": "wait", "timeout": 3000},
             ])
 
             logger.info(f"[Ship24-Oxylabs] Making request...")
@@ -1072,7 +1077,7 @@ class Ship24Tracker:
                 tracking_url,
                 proxies=proxies,
                 verify=False,
-                timeout=180,
+                timeout=240,  # Increased timeout for longer render
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -1080,7 +1085,7 @@ class Ship24Tracker:
                     'Accept-Encoding': 'gzip, deflate, br',
                     'Connection': 'keep-alive',
                     'x-oxylabs-render': 'html',
-                    'x-oxylabs-render-wait': '15000',
+                    'x-oxylabs-render-wait': '30000',  # 30 seconds for React app to fully load
                     'x-oxylabs-js-instructions': js_instructions,
                 },
                 allow_redirects=True
@@ -1219,6 +1224,7 @@ class Ship24Tracker:
     def _parse_ship24_html(self, html_content: str, tracking_number: str) -> Dict:
         """Parse Ship24 HTML response and extract tracking data"""
         from bs4 import BeautifulSoup
+        import json as json_module
 
         tracking_data = {
             'carrier': 'Unknown',
@@ -1230,6 +1236,14 @@ class Ship24Tracker:
 
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
+
+            # FIRST: Try to extract JSON data from script tags (React hydration data)
+            # Ship24 may embed tracking data in __NEXT_DATA__ or similar
+            json_extracted = self._extract_ship24_json_data(soup, tracking_number)
+            if json_extracted and json_extracted.get('events'):
+                logger.info(f"[Ship24-Oxylabs] Extracted data from JSON: {len(json_extracted.get('events', []))} events")
+                return json_extracted
+
             page_text = soup.get_text(separator='\n')
             lower_text = page_text.lower()
 
@@ -1331,68 +1345,118 @@ class Ship24Tracker:
                         break
 
             # Extract events from page text
-            # Ship24 typically shows events as:
-            #   Event description (e.g., "Shipment picked up")
-            #   Date/time (e.g., "Thursday, January 15, 2026 at 03:13 PM")
+            # Ship24 format is typically:
+            #   Status/Description (e.g., "DELIVERED", "Receiver not available...")
+            #   Timestamp (e.g., "Wednesday, January 14, 2026 at 05:52 PM")
+            #   Location (e.g., "VANCOUVER, CA" or "Richmond, BC, Canada")
             events = []
             lines = [l.strip() for l in page_text.split('\n') if l.strip()]
 
             # Date pattern for detecting timestamp lines
             date_pattern = re.compile(
-                r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w{3,9}\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\w{3,9},?\s+\w{3,9}\s+\d{1,2}'
+                r'(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+\w+\s+\d{1,2},?\s+\d{4}|'
+                r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|'
+                r'\w{3,9}\s+\d{1,2},?\s+\d{4}|'
+                r'\d{4}-\d{2}-\d{2}'
             )
 
+            # Location pattern (city, state/province, country format)
+            location_pattern = re.compile(
+                r'^[A-Z][a-zA-Z\s]+,\s*(?:[A-Z]{2}|[A-Za-z\s]+),?\s*(?:Canada|USA|US|UK|Australia|Singapore|China|Japan)?$|'
+                r'^[A-Z]{2,},\s*[A-Z]{2}$|'  # e.g., "VANCOUVER, CA"
+                r'^[A-Za-z\s]+,\s*[A-Z]{2,3}(?:,\s*[A-Za-z]+)?$'  # e.g., "Richmond, BC, Canada"
+            )
+
+            # Status keywords that indicate event descriptions
+            status_keywords = [
+                'delivered', 'picked up', 'pickup', 'out for delivery', 'in transit',
+                'arrived', 'departed', 'processed', 'customs', 'cleared', 'held',
+                'exception', 'attempted', 'available', 'shipment', 'package',
+                'scan', 'received', 'forwarded', 'returned', 'delay', 'receiver',
+                'origin', 'destination', 'facility', 'hub', 'sorting', 'loaded'
+            ]
+
             # Skip patterns for UI elements
-            skip_patterns = ['cookie', 'privacy', 'subscribe', 'login', 'sign up', 'track another', 'help center', 'ship24', 'powered by']
+            skip_patterns = ['cookie', 'privacy', 'subscribe', 'login', 'sign up',
+                           'track another', 'help center', 'ship24', 'powered by',
+                           'more details', 'track on', 'tracking history', 'events']
 
             i = 0
-            while i < len(lines) and len(events) < 15:
+            while i < len(lines) and len(events) < 20:
                 line = lines[i]
+                line_lower = line.lower()
 
                 # Skip short lines or UI elements
-                if len(line) < 5 or any(skip in line.lower() for skip in skip_patterns):
+                if len(line) < 3 or any(skip in line_lower for skip in skip_patterns):
                     i += 1
                     continue
 
-                # Check if this line has a date
+                # Check if this line is a timestamp
                 has_date = bool(date_pattern.search(line))
 
                 if has_date:
                     timestamp = ' '.join(line.split())
                     description = None
+                    location = None
 
-                    # Look at the previous line for the event description
-                    if i > 0:
-                        prev_line = lines[i - 1].strip()
-                        # Previous line should be short-ish text without a date (the description)
-                        if len(prev_line) >= 5 and len(prev_line) <= 200:
-                            if not date_pattern.search(prev_line):
-                                if not any(skip in prev_line.lower() for skip in skip_patterns):
-                                    description = prev_line
+                    # Look backwards for the event description (status)
+                    for j in range(i - 1, max(i - 4, -1), -1):
+                        if j < 0:
+                            break
+                        prev_line = lines[j].strip()
+                        prev_lower = prev_line.lower()
 
-                    # If no description found from prev line, look at next line
-                    if not description and i + 1 < len(lines):
+                        # Skip if it's another timestamp, skip pattern, or too short
+                        if date_pattern.search(prev_line) or len(prev_line) < 3:
+                            continue
+                        if any(skip in prev_lower for skip in skip_patterns):
+                            continue
+
+                        # Check if it looks like a location
+                        if location_pattern.match(prev_line):
+                            if not location:
+                                location = prev_line
+                            continue
+
+                        # Check if it contains status keywords (likely description)
+                        if any(kw in prev_lower for kw in status_keywords):
+                            description = prev_line
+                            break
+
+                        # If it's ALL CAPS and short, likely a status
+                        if prev_line.isupper() and len(prev_line) < 50:
+                            description = prev_line
+                            break
+
+                        # Otherwise, use it as description if we don't have one yet
+                        if not description and len(prev_line) > 5:
+                            description = prev_line
+                            break
+
+                    # Look forward for location if we don't have it
+                    if not location and i + 1 < len(lines):
                         next_line = lines[i + 1].strip()
-                        if len(next_line) >= 5 and len(next_line) <= 200:
-                            if not date_pattern.search(next_line):
-                                if not any(skip in next_line.lower() for skip in skip_patterns):
-                                    description = next_line
+                        if location_pattern.match(next_line) or (
+                            not date_pattern.search(next_line) and
+                            ',' in next_line and
+                            len(next_line) < 50 and
+                            not any(skip in next_line.lower() for skip in skip_patterns)
+                        ):
+                            location = next_line
 
-                    # Create event with description and timestamp
-                    if description:
-                        event_key = f"{description}_{timestamp}"
-                        if event_key not in [f"{e['description']}_{e['timestamp']}" for e in events]:
-                            events.append({
-                                'description': description,
+                    # Create event
+                    if description or location:
+                        event_desc = description or location or 'Status Update'
+                        # Avoid duplicate events
+                        event_key = f"{event_desc}_{timestamp}"
+                        if event_key not in [f"{e['description']}_{e.get('timestamp', '')}" for e in events]:
+                            event = {
+                                'description': event_desc,
                                 'timestamp': timestamp
-                            })
-                    else:
-                        # No description found, use the date line as both
-                        if timestamp not in [e['description'] for e in events]:
-                            events.append({
-                                'description': timestamp,
-                                'timestamp': None
-                            })
+                            }
+                            if location and location != event_desc:
+                                event['location'] = location
+                            events.append(event)
 
                 i += 1
 
@@ -1421,6 +1485,202 @@ class Ship24Tracker:
             logger.error(f"[Ship24-Oxylabs] Error parsing HTML: {str(e)}")
 
         return tracking_data
+
+    def _extract_ship24_json_data(self, soup, tracking_number: str) -> Optional[Dict]:
+        """
+        Try to extract tracking data from JSON embedded in script tags.
+        Ship24 (like many React apps) may embed data in __NEXT_DATA__ or other script blocks.
+        """
+        import json as json_module
+
+        tracking_data = {
+            'carrier': 'Unknown',
+            'status': 'Unknown',
+            'location': 'Unknown',
+            'events': [],
+            'estimated_delivery': None
+        }
+
+        try:
+            # Look for __NEXT_DATA__ (Next.js apps)
+            next_data_script = soup.find('script', {'id': '__NEXT_DATA__'})
+            if next_data_script and next_data_script.string:
+                try:
+                    data = json_module.loads(next_data_script.string)
+                    # Navigate through Next.js page props to find tracking data
+                    page_props = data.get('props', {}).get('pageProps', {})
+                    if page_props:
+                        return self._parse_ship24_json_props(page_props, tracking_number)
+                except json_module.JSONDecodeError:
+                    pass
+
+            # Look for any script containing tracking-related JSON
+            for script in soup.find_all('script'):
+                if script.string and tracking_number in script.string:
+                    # Try to find JSON object in the script
+                    text = script.string
+                    # Look for patterns like trackingData = {...} or window.__data = {...}
+                    json_patterns = [
+                        r'(?:trackingData|tracking|shipment|parcel)\s*[=:]\s*(\{[^}]+\})',
+                        r'window\.__\w+\s*=\s*(\{.*?\});',
+                        r'"events"\s*:\s*(\[[^\]]+\])',
+                    ]
+                    for pattern in json_patterns:
+                        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+                        if match:
+                            try:
+                                json_data = json_module.loads(match.group(1))
+                                if isinstance(json_data, dict) or isinstance(json_data, list):
+                                    logger.info(f"[Ship24-Oxylabs] Found JSON data in script")
+                                    # Process the found JSON
+                                    if isinstance(json_data, list):
+                                        # Might be events array
+                                        tracking_data['events'] = self._process_json_events(json_data)
+                                    else:
+                                        return self._parse_ship24_json_props(json_data, tracking_number)
+                            except json_module.JSONDecodeError:
+                                continue
+
+            # Look for data-* attributes on HTML elements that might contain JSON
+            data_elements = soup.find_all(attrs={'data-tracking': True})
+            for elem in data_elements:
+                try:
+                    data = json_module.loads(elem.get('data-tracking', '{}'))
+                    if data:
+                        return self._parse_ship24_json_props(data, tracking_number)
+                except json_module.JSONDecodeError:
+                    continue
+
+        except Exception as e:
+            logger.error(f"[Ship24-Oxylabs] Error extracting JSON data: {str(e)}")
+
+        return None if not tracking_data.get('events') else tracking_data
+
+    def _parse_ship24_json_props(self, data: Dict, tracking_number: str) -> Optional[Dict]:
+        """Parse tracking data from Ship24 JSON props structure"""
+        tracking_data = {
+            'carrier': 'Unknown',
+            'status': 'Unknown',
+            'location': 'Unknown',
+            'events': [],
+            'estimated_delivery': None
+        }
+
+        try:
+            # Look for common tracking data structures
+            # Try different possible paths in the JSON structure
+            tracking_info = None
+
+            # Path 1: Direct tracking object
+            if 'tracking' in data:
+                tracking_info = data['tracking']
+            # Path 2: Results array
+            elif 'results' in data and data['results']:
+                tracking_info = data['results'][0] if isinstance(data['results'], list) else data['results']
+            # Path 3: Shipment object
+            elif 'shipment' in data:
+                tracking_info = data['shipment']
+            # Path 4: Data wrapper
+            elif 'data' in data:
+                tracking_info = data['data']
+            else:
+                tracking_info = data
+
+            if not tracking_info:
+                return None
+
+            # Extract carrier
+            carrier_keys = ['carrier', 'carrierName', 'courier', 'courierName', 'courierCode']
+            for key in carrier_keys:
+                if key in tracking_info and tracking_info[key]:
+                    tracking_data['carrier'] = tracking_info[key]
+                    break
+
+            # Extract status
+            status_keys = ['status', 'statusDescription', 'statusCode', 'currentStatus', 'lastStatus']
+            for key in status_keys:
+                if key in tracking_info and tracking_info[key]:
+                    status = tracking_info[key]
+                    if isinstance(status, dict):
+                        status = status.get('description') or status.get('name') or status.get('status', '')
+                    tracking_data['status'] = str(status)
+                    break
+
+            # Extract events
+            events_keys = ['events', 'trackingEvents', 'history', 'checkpoints', 'milestones']
+            for key in events_keys:
+                if key in tracking_info and tracking_info[key]:
+                    tracking_data['events'] = self._process_json_events(tracking_info[key])
+                    break
+
+            # Extract estimated delivery
+            delivery_keys = ['estimatedDelivery', 'eta', 'expectedDelivery', 'deliveryDate']
+            for key in delivery_keys:
+                if key in tracking_info and tracking_info[key]:
+                    tracking_data['estimated_delivery'] = tracking_info[key]
+                    break
+
+            # If no carrier from JSON, detect from tracking number
+            if tracking_data['carrier'] == 'Unknown':
+                detected = self._detect_carrier(tracking_number)
+                if detected:
+                    tracking_data['carrier'] = detected
+
+            return tracking_data if tracking_data.get('events') else None
+
+        except Exception as e:
+            logger.error(f"[Ship24-Oxylabs] Error parsing JSON props: {str(e)}")
+            return None
+
+    def _process_json_events(self, events_data) -> List[Dict]:
+        """Process events from JSON data into standard format"""
+        events = []
+        if not isinstance(events_data, list):
+            return events
+
+        for event in events_data:
+            if isinstance(event, dict):
+                # Extract description
+                desc_keys = ['description', 'eventDescription', 'statusDescription', 'message', 'status', 'eventName']
+                description = ''
+                for key in desc_keys:
+                    if key in event and event[key]:
+                        description = str(event[key])
+                        break
+
+                # Extract timestamp
+                time_keys = ['timestamp', 'datetime', 'eventDateTime', 'date', 'time', 'eventDate', 'occurrenceDateTime']
+                timestamp = ''
+                for key in time_keys:
+                    if key in event and event[key]:
+                        timestamp = str(event[key])
+                        break
+
+                # Extract location
+                loc_keys = ['location', 'eventLocation', 'city', 'country']
+                location = ''
+                for key in loc_keys:
+                    if key in event and event[key]:
+                        loc_val = event[key]
+                        if isinstance(loc_val, dict):
+                            loc_val = loc_val.get('city', '') or loc_val.get('name', '')
+                        location = str(loc_val)
+                        break
+
+                if description or timestamp:
+                    events.append({
+                        'description': description or 'Status Update',
+                        'timestamp': timestamp,
+                        'location': location
+                    })
+            elif isinstance(event, str):
+                events.append({
+                    'description': event,
+                    'timestamp': '',
+                    'location': ''
+                })
+
+        return events
 
     async def track_with_hfd(self, tracking_number: str) -> Optional[Dict]:
         """
