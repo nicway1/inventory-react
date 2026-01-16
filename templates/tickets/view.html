@@ -152,6 +152,25 @@ window.selectMention = function(item) {
 
     document.getElementById('mentionDropdown').classList.add('hidden');
 };
+
+// PDF preview functions (defined early to be available for iframe onload)
+window.pdfLoaded = function() {
+    const loader = document.getElementById('pdfLoader');
+    const viewer = document.getElementById('pdfViewer');
+    const error = document.getElementById('pdfError');
+    if (loader) loader.style.display = 'none';
+    if (viewer) viewer.style.display = 'block';
+    if (error) error.classList.add('hidden');
+};
+
+window.pdfError = function() {
+    const loader = document.getElementById('pdfLoader');
+    const viewer = document.getElementById('pdfViewer');
+    const error = document.getElementById('pdfError');
+    if (loader) loader.style.display = 'none';
+    if (viewer) viewer.style.display = 'none';
+    if (error) error.classList.remove('hidden');
+};
 </script>
 
 <!-- Initialize global variables -->
@@ -12096,7 +12115,7 @@ let issueMentionStartPos = -1;
 let issueCurrentMentionText = '';
 const issueAvailableUsers = [
     {% for user_id, user_info in users_dict_mention.items() %}
-    { id: {{ user_id }}, username: '{{ user_info.username }}', email: '{{ user_info.email or "" }}' },
+    { id: {{ user_id }}, username: {{ user_info.username|tojson|safe }}, email: {{ (user_info.email or "")|tojson|safe }} },
     {% endfor %}
 ];
 
