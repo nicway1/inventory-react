@@ -10,3 +10,19 @@ Form has selected_accessories: True
 CSV file uploaded: None
 No selected accessories data found in form
 === END CSV DEBUG ===
+
+=== CSV DEBUG 2025-12-18 15:12:12.361942 ===
+selected_accessories_json = ''
+Form keys: ['csrf_token', 'category', 'country', 'serial_number', 'model', 'customer_company', 'lock_type', 'apple_diagnostics', 'damage_description', 'customer_id', 'asset_checkout_serial', 'subject', 'checkout_serial_number', 'shipping_address', 'package_1_tracking', 'package_1_carrier', 'package_2_tracking', 'package_2_carrier', 'package_3_tracking', 'package_3_carrier', 'package_4_tracking', 'package_4_carrier', 'package_5_tracking', 'package_5_carrier', 'notes', 'queue_id', 'selected_accessories', 'intake_title', 'intake_description', 'intake_priority', 'is_asset_return', 'novalidate', 'return_description', 'shipping_tracking', 'return_tracking', 'offboarding_customer_id', 'offboarding_details', 'offboarding_address', 'transfer_tracking', 'onboarding_customer_id', 'onboarding_address', 'transfer_client', 'transfer_name', 'transfer_address', 'general_subject', 'visible_outbound_tracking', 'visible_inbound_tracking', 'priority', 'description']
+Form has selected_accessories: True
+CSV file uploaded: None
+No selected accessories data found in form
+=== END CSV DEBUG ===
+
+=== CSV DEBUG 2025-12-18 16:44:24.784133 ===
+selected_accessories_json = ''
+Form keys: ['csrf_token', 'category', 'country', 'serial_number', 'model', 'customer_company', 'lock_type', 'apple_diagnostics', 'damage_description', 'customer_id', 'asset_checkout_serial', 'subject', 'checkout_serial_number', 'shipping_address', 'package_1_tracking', 'package_1_carrier', 'package_2_tracking', 'package_2_carrier', 'package_3_tracking', 'package_3_carrier', 'package_4_tracking', 'package_4_carrier', 'package_5_tracking', 'package_5_carrier', 'notes', 'queue_id', 'selected_accessories', 'intake_title', 'intake_description', 'intake_priority', 'is_asset_return', 'novalidate', 'return_description', 'shipping_tracking', 'return_tracking', 'offboarding_customer_id', 'offboarding_details', 'offboarding_address', 'transfer_tracking', 'onboarding_customer_id', 'onboarding_address', 'transfer_client', 'transfer_name', 'transfer_address', 'general_subject', 'visible_outbound_tracking', 'visible_inbound_tracking', 'priority', 'description']
+Form has selected_accessories: True
+CSV file uploaded: None
+No selected accessories data found in form
+=== END CSV DEBUG ===
