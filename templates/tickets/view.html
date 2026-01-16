@@ -141,7 +141,7 @@ function checkMention(textarea) {
                         YQ_Height: 560,
                         YQ_Fc: "0",
                         YQ_Lang: "en",
-                        YQ_Num: "{{ ticket.shipping_tracking }}"
+                        YQ_Num: {{ ticket.shipping_tracking|tojson|safe }}
                     });
                 }
             } else if (attempts < maxAttempts) {
@@ -9399,7 +9399,7 @@ function refreshOutboundTracking() {
 // Auto-load tracking on page load for Asset Checkout categories
 document.addEventListener('DOMContentLoaded', function() {
     const category = '{{ ticket.category.name if ticket.category else "" }}';
-    const hasTracking = '{{ ticket.shipping_tracking or "" }}';
+    const hasTracking = {{ (ticket.shipping_tracking or "")|tojson|safe }};
     
     // DISABLED: Auto-refresh was causing continuous tracking refresh loops
     // Users should manually click refresh button instead
@@ -10178,8 +10178,8 @@ function refreshProgressionBar() {
     console.log(`Refreshing progression bar for ${category} ticket`);
     
     // Check if tracking exists and refresh tracking status
-    const trackingNumber = '{{ ticket.shipping_tracking if ticket.shipping_tracking else "" }}';
-    const returnTrackingNumber = '{{ ticket.return_tracking if ticket.return_tracking else "" }}';
+    const trackingNumber = {{ (ticket.shipping_tracking if ticket.shipping_tracking else "")|tojson|safe }};
+    const returnTrackingNumber = {{ (ticket.return_tracking if ticket.return_tracking else "")|tojson|safe }};
     
     if (category === 'ASSET_CHECKOUT_CLAW' && trackingNumber) {
         // Refresh tracking to get latest status for Asset Checkout
@@ -12042,7 +12042,7 @@ function displayIssues(issues, ticketId) {
     }
 
     const currentUserId = {{ session.get('user_id') }};
-    const currentUsername = '{{ session.get("username", "") }}';
+    const currentUsername = {{ session.get("username", "")|tojson|safe }};
 
     container.innerHTML = issues.map(issue => `
         <div class="border border-gray-300 rounded-lg mb-3 ${issue.is_resolved ? 'bg-green-50' : 'bg-red-50'}">
