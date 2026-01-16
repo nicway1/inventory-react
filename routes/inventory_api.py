@@ -276,7 +276,7 @@ def format_asset_complete(asset):
         # Assignment and deployment information - COMPLETE SET
         "assigned_to": {
             "id": asset.assigned_to.id,
-            "name": f"{asset.assigned_to.first_name or ''} {asset.assigned_to.last_name or ''}".strip(),
+            "name": asset.assigned_to.username,
             "email": asset.assigned_to.email,
             "username": asset.assigned_to.username,
             "user_type": asset.assigned_to.user_type.value if asset.assigned_to.user_type else None
