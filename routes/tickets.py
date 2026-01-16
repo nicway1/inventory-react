@@ -6401,7 +6401,8 @@ def track_claw(ticket_id):
     if not ticket or not ticket.shipping_tracking:
         return jsonify({'success': False, 'error': 'Ticket or tracking number not found'}), 404
 
-    tracking_number = ticket.shipping_tracking
+    # Strip whitespace from tracking number (important - sometimes stored with leading/trailing spaces)
+    tracking_number = ticket.shipping_tracking.strip()
     db_session = ticket_store.db_manager.get_session()
     
     try:
@@ -6722,7 +6723,8 @@ def track_return(ticket_id):
             logger.info("Error: No return tracking number for this ticket")
             return jsonify({'success': False, 'error': 'No return tracking number for this ticket'}), 404
             
-        tracking_number = ticket.return_tracking  # Return tracking is stored as a string
+        # Strip whitespace from tracking number (important - sometimes stored with leading/trailing spaces)
+        tracking_number = ticket.return_tracking.strip()
         logger.info(f"Tracking return number: {tracking_number}")
 
         # Import TrackingCache for caching
@@ -7263,6 +7265,9 @@ def track_package(ticket_id, package_number):
         if not tracking_number:
             db_session.close()
             return jsonify({'success': False, 'message': f'No tracking number found for package {package_number}'}), 404
+
+        # Strip whitespace from tracking number (important - sometimes stored with leading/trailing spaces)
+        tracking_number = tracking_number.strip()
 
         # Check for force refresh parameter
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
