@@ -46,9 +46,26 @@ function handleKeyPress(event) {
     }
 }
 
-// Placeholder for @mention check (actual implementation is in initializeMentionAutocomplete)
+// Direct @mention check (called from oninput)
 function checkMention(textarea) {
-    // This triggers on input but the real @mention logic is handled by event listeners
+    const value = textarea.value;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPos);
+
+    // Look for @mention pattern
+    const mentionMatch = textBeforeCursor.match(/@([a-zA-Z0-9._@-]*)$/);
+
+    if (mentionMatch) {
+        console.log('[MENTION-INLINE] Detected @mention:', mentionMatch[1]);
+        // Trigger the search via global function if available
+        if (typeof window.triggerMentionSearch === 'function') {
+            window.triggerMentionSearch(textarea, mentionMatch[1], cursorPos - mentionMatch[0].length);
+        }
+    } else {
+        // Hide dropdown if no mention pattern
+        const dropdown = document.getElementById('mentionDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+    }
 }
 </script>
 
@@ -11151,6 +11168,87 @@ window.onclick = function(event) {
     }
 }
 
+// Global @mention trigger function (called from inline oninput handler)
+window.mentionState = {
+    currentTextarea: null,
+    currentMentionStart: -1,
+    mentionUsers: [],
+    selectedIndex: -1
+};
+
+window.triggerMentionSearch = async function(textarea, query, mentionStart) {
+    console.log('[MENTION-GLOBAL] Triggered search for:', query);
+    const dropdown = document.getElementById('mentionDropdown');
+    const mentionList = document.getElementById('mentionList');
+
+    if (!dropdown || !mentionList) {
+        console.error('[MENTION-GLOBAL] Dropdown elements not found!');
+        return;
+    }
+
+    window.mentionState.currentTextarea = textarea;
+    window.mentionState.currentMentionStart = mentionStart;
+
+    try {
+        const url = `/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`;
+        console.log('[MENTION-GLOBAL] Fetching:', url);
+        const response = await fetch(url);
+        const data = await response.json();
+        console.log('[MENTION-GLOBAL] Got response:', data);
+
+        if (data.suggestions && data.suggestions.length > 0) {
+            window.mentionState.mentionUsers = data.suggestions;
+            mentionList.innerHTML = '';
+
+            data.suggestions.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2';
+                div.innerHTML = `
+                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-sm font-medium">
+                        ${item.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span class="font-medium">${item.name}</span>
+                    <span class="text-xs text-gray-500">${item.type}</span>
+                `;
+                div.onclick = () => window.selectMention(item);
+                mentionList.appendChild(div);
+            });
+
+            // Show and position dropdown
+            dropdown.classList.remove('hidden');
+            dropdown.style.bottom = '100%';
+            dropdown.style.left = '0';
+            dropdown.style.marginBottom = '4px';
+            console.log('[MENTION-GLOBAL] Dropdown shown with', data.suggestions.length, 'items');
+        } else {
+            dropdown.classList.add('hidden');
+        }
+    } catch (err) {
+        console.error('[MENTION-GLOBAL] Error:', err);
+        dropdown.classList.add('hidden');
+    }
+};
+
+window.selectMention = function(item) {
+    const textarea = window.mentionState.currentTextarea;
+    const mentionStart = window.mentionState.currentMentionStart;
+
+    if (!textarea) return;
+
+    const value = textarea.value;
+    const beforeMention = value.substring(0, mentionStart);
+    const afterCursor = value.substring(textarea.selectionStart);
+
+    const mentionText = `@${item.name}`;
+    textarea.value = beforeMention + mentionText + ' ' + afterCursor;
+
+    const newCursorPos = mentionStart + mentionText.length + 1;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+
+    document.getElementById('mentionDropdown').classList.add('hidden');
+};
+
 // @mention Autocomplete Functionality
 function initializeMentionAutocomplete(textarea) {
     console.log('[MENTION] Initializing autocomplete for textarea:', textarea.id);
@@ -11353,24 +11451,14 @@ function initializeMentionAutocomplete(textarea) {
     // Position dropdown relative to textarea
     function positionDropdown() {
         console.log('[MENTION] Positioning dropdown');
-        const textareaRect = textarea.getBoundingClientRect();
-        const containerRect = textarea.parentElement.getBoundingClientRect();
 
-        console.log('[MENTION] Textarea rect:', textareaRect);
-        console.log('[MENTION] Container rect:', containerRect);
+        // Position dropdown above the textarea (since it's at bottom of screen)
+        dropdown.style.bottom = '100%';
+        dropdown.style.left = '0';
+        dropdown.style.marginBottom = '4px';
+        dropdown.style.top = 'auto';
 
-        // Position dropdown above the textarea (bottom-full behavior)
-        const bottom = (containerRect.bottom - textareaRect.top + 8) + 'px';
-        const left = '0px';
-        const width = textareaRect.width + 'px';
-
-        dropdown.style.bottom = bottom;
-        dropdown.style.left = left;
-        dropdown.style.width = width;
-        dropdown.style.top = 'auto'; // Clear any top value
-
-        console.log('[MENTION] Dropdown positioned at bottom:', bottom, 'left:', left, 'width:', width);
-        console.log('[MENTION] Dropdown computed style:', window.getComputedStyle(dropdown).display);
+        console.log('[MENTION] Dropdown positioned above textarea');
     }
 }
 
