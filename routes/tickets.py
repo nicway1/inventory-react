@@ -2859,6 +2859,7 @@ def view_ticket(ticket_id):
         # Load additional data needed for the template
         # Filter users based on current user's country permissions
         from models.user_country_permission import UserCountryPermission
+        from sqlalchemy import or_
 
         # Base filter to exclude deleted users
         not_deleted_filter = or_(User.is_deleted == False, User.is_deleted == None)
@@ -3101,7 +3102,6 @@ def view_ticket(ticket_id):
             )
 
             # Build OR conditions for matching
-            from sqlalchemy import or_
             conditions = []
             if ticket.serial_number:
                 conditions.append(Ticket.serial_number == ticket.serial_number)
