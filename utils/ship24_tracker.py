@@ -154,19 +154,50 @@ class Ship24Tracker:
 
         return None
 
-    async def track_parcel(self, tracking_number: str, carrier: Optional[str] = None) -> Dict:
+    async def track_parcel(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None) -> Dict:
         """
         Track a parcel using multiple sources with fallbacks
 
         Args:
             tracking_number: The tracking number to search for
             carrier: Optional carrier name
+            method: Optional tracking method - 'auto', 'oxylabs', 'playwright', or 'links_only'
 
         Returns:
             Dictionary containing tracking information
         """
         tracking_url = f"{self.base_url}/tracking?p={tracking_number}"
         ship24_result = None
+
+        # If method is 'links_only', skip scraping entirely
+        if method == 'links_only':
+            detected_carrier = carrier or self._detect_carrier(tracking_number) or 'Unknown'
+            return {
+                'success': True,
+                'tracking_number': tracking_number,
+                'carrier': detected_carrier,
+                'status': 'Check Links Below',
+                'events': [],
+                'current_location': detected_carrier if detected_carrier != 'Unknown' else 'Unknown',
+                'estimated_delivery': None,
+                'last_updated': datetime.utcnow().isoformat(),
+                'tracking_url': tracking_url,
+                'tracking_links': self._get_all_tracking_links(tracking_number),
+                'message': 'Click tracking links below to check status on carrier website.',
+                'source': 'links_only'
+            }
+
+        # If method is 'oxylabs', use Ship24 Oxylabs directly
+        if method == 'oxylabs':
+            logger.info(f"Using Oxylabs method for {tracking_number}")
+            # For HFD tracking, still use HFD-specific Oxylabs
+            if self._is_hfd_tracking(tracking_number):
+                result = await self.track_with_hfd(tracking_number)
+            else:
+                result = await self.track_with_ship24_oxylabs(tracking_number, carrier)
+            if result:
+                result['tracking_links'] = self._get_all_tracking_links(tracking_number)
+            return result
 
         # For HFD Israel tracking, try HFD scraper first
         if self._is_hfd_tracking(tracking_number):
@@ -879,6 +910,320 @@ class Ship24Tracker:
 
         except Exception as e:
             logger.error(f"Error extracting TrackingMore data: {str(e)}")
+
+        return tracking_data
+
+    async def track_with_ship24_oxylabs(self, tracking_number: str, carrier: Optional[str] = None) -> Optional[Dict]:
+        """
+        Track a parcel using Ship24 website via Oxylabs Web Unblocker
+        This is an alternative to Playwright-based scraping
+        """
+        tracking_url = f"{self.base_url}/tracking?p={tracking_number}"
+        logger.info(f"[Ship24-Oxylabs] Tracking: {tracking_url}")
+
+        debug_info = {
+            'method': 'ship24_oxylabs',
+            'tracking_number': tracking_number,
+            'tracking_url': tracking_url,
+            'timestamp': datetime.utcnow().isoformat(),
+            'steps': []
+        }
+
+        # Get Oxylabs credentials
+        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
+        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+
+        debug_info['credentials'] = {
+            'username': oxylabs_username,
+            'password_set': bool(oxylabs_password),
+            'from_env': 'OXYLABS_USERNAME' in os.environ
+        }
+        debug_info['steps'].append({'step': 1, 'action': 'credentials_loaded', 'status': 'ok'})
+
+        try:
+            import requests
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except ImportError as e:
+            debug_info['error'] = f'Missing required library: {str(e)}'
+            return self._ship24_oxylabs_error_response(tracking_number, tracking_url, debug_info, 'Missing requests library')
+
+        # Build proxy configuration
+        proxies = {
+            'http': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000',
+            'https': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000'
+        }
+        debug_info['steps'].append({'step': 2, 'action': 'proxy_configured', 'status': 'ok'})
+
+        try:
+            import json as json_module
+            # JavaScript instructions for page interaction
+            js_instructions = json_module.dumps([
+                {"action": "wait", "timeout": 5000},
+                {"action": "scroll", "direction": "down", "value": 500},
+                {"action": "wait", "timeout": 3000},
+                {"action": "scroll", "direction": "up", "value": 500},
+                {"action": "wait", "timeout": 2000},
+            ])
+
+            logger.info(f"[Ship24-Oxylabs] Making request...")
+            response = requests.get(
+                tracking_url,
+                proxies=proxies,
+                verify=False,
+                timeout=180,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'x-oxylabs-render': 'html',
+                    'x-oxylabs-render-wait': '15000',
+                    'x-oxylabs-js-instructions': js_instructions,
+                },
+                allow_redirects=True
+            )
+
+            response.encoding = 'utf-8'
+            page_text = response.text
+
+            debug_info['response'] = {
+                'status_code': response.status_code,
+                'content_length': len(page_text),
+                'elapsed_seconds': response.elapsed.total_seconds()
+            }
+            debug_info['steps'].append({
+                'step': 3,
+                'action': 'response_received',
+                'status_code': response.status_code,
+                'content_length': len(page_text)
+            })
+
+            logger.info(f"[Ship24-Oxylabs] Response: status={response.status_code}, length={len(page_text)}")
+
+            if response.status_code != 200:
+                return self._ship24_oxylabs_error_response(
+                    tracking_number, tracking_url, debug_info,
+                    f'HTTP Error {response.status_code}'
+                )
+
+            # Check for blocks/captchas
+            lower_text = page_text.lower()
+            block_indicators = [
+                ('you have been blocked', 'WAF block'),
+                ('access denied', 'Access denied'),
+                ('captcha', 'CAPTCHA'),
+                ('just a moment', 'Cloudflare wait'),
+            ]
+
+            for indicator, block_type in block_indicators:
+                if indicator in lower_text:
+                    debug_info['blocked'] = True
+                    debug_info['block_type'] = block_type
+                    return self._ship24_oxylabs_error_response(
+                        tracking_number, tracking_url, debug_info,
+                        f'Blocked by {block_type}'
+                    )
+
+            # Parse the HTML content
+            tracking_data = self._parse_ship24_html(page_text, tracking_number)
+
+            debug_info['parsing'] = {
+                'status': tracking_data.get('status'),
+                'events_count': len(tracking_data.get('events', [])),
+                'carrier': tracking_data.get('carrier'),
+                'text_length': len(page_text)
+            }
+
+            # Add HTML sample for debugging
+            if page_text:
+                html_sample = page_text[:1500].replace('\x00', '').replace('\r', '\\r').replace('\n', '\\n').replace('\t', '\\t')
+                debug_info['parsing']['html_sample'] = html_sample
+                debug_info['parsing']['html_sample_length'] = len(html_sample)
+
+            debug_info['steps'].append({
+                'step': 4,
+                'action': 'parse_html',
+                'status': 'ok',
+                'parsed_status': tracking_data.get('status'),
+                'events_found': len(tracking_data.get('events', []))
+            })
+
+            if tracking_data.get('status') in ['Unknown', None, 'No tracking information found']:
+                return {
+                    'success': True,
+                    'tracking_number': tracking_number,
+                    'carrier': carrier or tracking_data.get('carrier') or self._detect_carrier(tracking_number) or 'Unknown',
+                    'status': 'Unable to Parse',
+                    'events': tracking_data.get('events', []),
+                    'current_location': tracking_data.get('location', 'Unknown'),
+                    'estimated_delivery': tracking_data.get('estimated_delivery'),
+                    'last_updated': datetime.utcnow().isoformat(),
+                    'tracking_url': tracking_url,
+                    'source': 'Ship24 (Oxylabs)',
+                    'warning': 'Page loaded but could not extract tracking data. The page may require more time to load.',
+                    'debug_info': debug_info
+                }
+
+            # Success!
+            logger.info(f"[Ship24-Oxylabs] Successfully parsed: status={tracking_data.get('status')}, events={len(tracking_data.get('events', []))}")
+            return {
+                'success': True,
+                'tracking_number': tracking_number,
+                'carrier': tracking_data.get('carrier') or carrier or self._detect_carrier(tracking_number) or 'Unknown',
+                'status': tracking_data.get('status', 'Unknown'),
+                'events': tracking_data.get('events', []),
+                'current_location': tracking_data.get('location', 'Unknown'),
+                'estimated_delivery': tracking_data.get('estimated_delivery'),
+                'last_updated': datetime.utcnow().isoformat(),
+                'tracking_url': tracking_url,
+                'source': 'Ship24 (Oxylabs)',
+                'debug_info': debug_info
+            }
+
+        except requests.exceptions.Timeout:
+            return self._ship24_oxylabs_error_response(
+                tracking_number, tracking_url, debug_info, 'Request timed out'
+            )
+        except requests.exceptions.ProxyError as e:
+            return self._ship24_oxylabs_error_response(
+                tracking_number, tracking_url, debug_info, f'Proxy error: {str(e)}'
+            )
+        except Exception as e:
+            import traceback
+            debug_info['traceback'] = traceback.format_exc()
+            return self._ship24_oxylabs_error_response(
+                tracking_number, tracking_url, debug_info, f'Error: {str(e)}'
+            )
+
+    def _ship24_oxylabs_error_response(self, tracking_number: str, tracking_url: str, debug_info: dict, error_message: str) -> dict:
+        """Generate Ship24 Oxylabs error response"""
+        debug_info['error_message'] = error_message
+        return {
+            'success': False,
+            'tracking_number': tracking_number,
+            'carrier': self._detect_carrier(tracking_number) or 'Unknown',
+            'status': 'Error',
+            'error': error_message,
+            'events': [],
+            'current_location': 'Unknown',
+            'last_updated': datetime.utcnow().isoformat(),
+            'tracking_url': tracking_url,
+            'source': 'Ship24 (Oxylabs)',
+            'debug_info': debug_info,
+            'message': 'Could not fetch tracking data. Use the tracking link to check manually.'
+        }
+
+    def _parse_ship24_html(self, html_content: str, tracking_number: str) -> Dict:
+        """Parse Ship24 HTML response and extract tracking data"""
+        from bs4 import BeautifulSoup
+
+        tracking_data = {
+            'carrier': 'Unknown',
+            'status': 'Unknown',
+            'location': 'Unknown',
+            'events': [],
+            'estimated_delivery': None
+        }
+
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            page_text = soup.get_text(separator='\n')
+            lower_text = page_text.lower()
+
+            logger.info(f"[Ship24-Oxylabs] Page text length: {len(page_text)}")
+
+            # Check for "no tracking found" messages
+            no_result_patterns = [
+                'no tracking information',
+                'no results found',
+                'tracking number not found',
+                'invalid tracking',
+                'we couldn\'t find',
+                'enter a tracking number'
+            ]
+            for pattern in no_result_patterns:
+                if pattern in lower_text:
+                    tracking_data['status'] = 'No tracking information found'
+                    return tracking_data
+
+            # Extract carrier name
+            carriers_to_check = [
+                'DHL Express', 'DHL', 'FedEx', 'UPS', 'USPS', 'TNT', 'Aramex',
+                'Singapore Post', 'SingPost', 'China Post', 'EMS', 'Royal Mail',
+                'Australia Post', 'Canada Post', 'Japan Post', 'Korea Post',
+                'Yanwen', 'Cainiao', '4PX', 'YunExpress', 'SF Express',
+                'Pos Malaysia', 'Thai Post', 'Vietnam Post', 'PostNL', 'Deutsche Post',
+                'HFD', 'Israel Post'
+            ]
+
+            for carrier in carriers_to_check:
+                if carrier.lower() in lower_text:
+                    tracking_data['carrier'] = carrier
+                    break
+
+            # Extract status
+            status_mapping = {
+                'delivered': 'Delivered',
+                'in transit': 'In Transit',
+                'out for delivery': 'Out for Delivery',
+                'at customs': 'At Customs',
+                'customs clearance': 'Customs Clearance',
+                'arrived at': 'Arrived',
+                'departed from': 'Departed',
+                'picked up': 'Picked Up',
+                'shipment information received': 'Info Received',
+                'pending': 'Pending',
+                'exception': 'Exception',
+                'return': 'Return',
+                'available for pickup': 'Ready for Pickup'
+            }
+
+            for keyword, status in status_mapping.items():
+                if keyword in lower_text:
+                    tracking_data['status'] = status
+                    break
+
+            # Set location based on status
+            if tracking_data['status'] == 'Delivered':
+                tracking_data['location'] = 'Delivered'
+            elif tracking_data['status'] in ['In Transit', 'Out for Delivery']:
+                tracking_data['location'] = tracking_data['status']
+
+            # Extract events from page text
+            events = []
+            lines = page_text.split('\n')
+            for line in lines:
+                line = line.strip()
+                if len(line) < 20 or len(line) > 300:
+                    continue
+
+                # Check for date patterns
+                has_date = bool(re.search(
+                    r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w{3}\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}',
+                    line
+                ))
+                if has_date:
+                    has_time = bool(re.search(r'\d{1,2}:\d{2}', line))
+                    if has_time:
+                        clean_text = ' '.join(line.split())
+                        # Skip UI elements
+                        if any(skip in clean_text.lower() for skip in ['cookie', 'privacy', 'subscribe', 'login', 'sign up']):
+                            continue
+                        if clean_text not in [e['description'] for e in events]:
+                            events.append({
+                                'description': clean_text,
+                                'timestamp': None
+                            })
+                            if len(events) >= 15:
+                                break
+
+            tracking_data['events'] = events
+            logger.info(f"[Ship24-Oxylabs] Parsed {len(events)} events, status: {tracking_data['status']}")
+
+        except Exception as e:
+            logger.error(f"[Ship24-Oxylabs] Error parsing HTML: {str(e)}")
 
         return tracking_data
 
@@ -1957,7 +2302,7 @@ class Ship24Tracker:
 
         return links
 
-    def track_parcel_sync(self, tracking_number: str, carrier: Optional[str] = None) -> Dict:
+    def track_parcel_sync(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None) -> Dict:
         """Synchronous wrapper for track_parcel"""
         try:
             try:
@@ -1968,10 +2313,10 @@ class Ship24Tracker:
             if loop and loop.is_running():
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(self._run_in_new_loop, tracking_number, carrier)
+                    future = executor.submit(self._run_in_new_loop, tracking_number, carrier, method)
                     return future.result(timeout=120)
             else:
-                return self._run_in_new_loop(tracking_number, carrier)
+                return self._run_in_new_loop(tracking_number, carrier, method)
 
         except Exception as e:
             logger.error(f"Error in sync track_parcel: {str(e)}")
@@ -1992,12 +2337,12 @@ class Ship24Tracker:
                 'source': 'fallback'
             }
 
-    def _run_in_new_loop(self, tracking_number: str, carrier: Optional[str] = None) -> Dict:
+    def _run_in_new_loop(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None) -> Dict:
         """Run async tracking in a new event loop"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(self.track_parcel(tracking_number, carrier))
+            result = loop.run_until_complete(self.track_parcel(tracking_number, carrier, method))
             return result
         finally:
             loop.close()

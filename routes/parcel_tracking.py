@@ -47,7 +47,8 @@ def track_parcel():
     Expected JSON:
     {
         "tracking_number": "1234567890",
-        "carrier": "auto"  // optional: auto, singpost, hfd, dhl, ups, fedex, etc.
+        "carrier": "auto",  // optional: auto, singpost, hfd, dhl, ups, fedex, etc.
+        "method": "auto"    // optional: auto, oxylabs, playwright, links_only
     }
     """
     try:
@@ -61,6 +62,7 @@ def track_parcel():
 
         tracking_number = data.get('tracking_number', '').strip() if data.get('tracking_number') else ''
         carrier = data.get('carrier', 'auto').lower()
+        method = data.get('method', 'auto').lower()
 
         if not tracking_number:
             return jsonify({
@@ -69,7 +71,11 @@ def track_parcel():
             }), 400
 
         # Use Ship24Tracker for multi-carrier support
-        result = ship24_tracker.track_parcel_sync(tracking_number, carrier if carrier != 'auto' else None)
+        result = ship24_tracker.track_parcel_sync(
+            tracking_number,
+            carrier if carrier != 'auto' else None,
+            method if method != 'auto' else None
+        )
 
         # Add tracking links for manual checking
         if 'tracking_links' not in result:
@@ -96,7 +102,8 @@ def track_multiple_parcels():
     Expected JSON:
     {
         "tracking_numbers": ["1234567890", "0987654321", ...],
-        "carrier": "auto"  // optional
+        "carrier": "auto",  // optional
+        "method": "auto"    // optional: auto, oxylabs, playwright, links_only
     }
     """
     try:
@@ -110,6 +117,7 @@ def track_multiple_parcels():
 
         tracking_numbers = data.get('tracking_numbers', [])
         carrier = data.get('carrier', 'auto').lower()
+        method = data.get('method', 'auto').lower()
 
         if not tracking_numbers or not isinstance(tracking_numbers, list):
             return jsonify({
@@ -130,7 +138,11 @@ def track_multiple_parcels():
         results = []
         for tn in tracking_numbers:
             try:
-                result = ship24_tracker.track_parcel_sync(tn, carrier if carrier != 'auto' else None)
+                result = ship24_tracker.track_parcel_sync(
+                    tn,
+                    carrier if carrier != 'auto' else None,
+                    method if method != 'auto' else None
+                )
                 if 'tracking_links' not in result:
                     result['tracking_links'] = ship24_tracker._get_all_tracking_links(tn)
                 results.append(result)

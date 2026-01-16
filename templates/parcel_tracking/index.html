@@ -554,6 +554,12 @@
                 <option value="australia_post">Australia Post</option>
                 <option value="japan_post">Japan Post</option>
             </select>
+            <select id="methodSelect" class="carrier-select" title="Tracking Method">
+                <option value="auto">Auto (Default)</option>
+                <option value="oxylabs">Oxylabs Proxy</option>
+                <option value="playwright">Playwright Browser</option>
+                <option value="links_only">Links Only (No Scrape)</option>
+            </select>
             <button id="trackButton" class="track-button" onclick="trackParcel()">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -777,6 +783,7 @@ function generateDebugHtml(result) {
 async function trackParcel() {
     const trackingNumber = document.getElementById('trackingNumber').value.trim();
     const carrier = document.getElementById('carrierSelect').value;
+    const method = document.getElementById('methodSelect').value;
 
     if (!trackingNumber) {
         alert('Please enter a tracking number');
@@ -795,7 +802,8 @@ async function trackParcel() {
             },
             body: JSON.stringify({
                 tracking_number: trackingNumber,
-                carrier: carrier
+                carrier: carrier,
+                method: method
             })
         });
 
@@ -820,6 +828,7 @@ async function trackParcel() {
 async function trackBulkParcels() {
     const textarea = document.getElementById('bulkTrackingNumbers');
     const carrier = document.getElementById('carrierSelect').value;
+    const method = document.getElementById('methodSelect').value;
     const trackingNumbers = textarea.value
         .split('\n')
         .map(tn => tn.trim())
@@ -843,7 +852,8 @@ async function trackBulkParcels() {
             },
             body: JSON.stringify({
                 tracking_numbers: trackingNumbers,
-                carrier: carrier
+                carrier: carrier,
+                method: method
             })
         });
 
