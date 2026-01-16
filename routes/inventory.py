@@ -19,7 +19,7 @@ from models.audit_session import AuditSession
 import os
 from werkzeug.utils import secure_filename
 import pandas as pd
-from sqlalchemy import func, case, or_, and_, text
+from sqlalchemy import func, case, or_, and_, text, false as sa_false
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import joinedload
 from utils.db_manager import DatabaseManager
@@ -4962,7 +4962,7 @@ def search():
                 asset_query = asset_query.filter(
                     or_(
                         Asset.company_id.in_(permitted_company_ids),
-                        Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                        Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                     )
                 )
             else:
@@ -5295,7 +5295,7 @@ def search_suggestions():
                 asset_query = asset_query.filter(
                     or_(
                         Asset.company_id.in_(permitted_company_ids),
-                        Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                        Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                     )
                 )
             else:
