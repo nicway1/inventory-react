@@ -1249,79 +1249,133 @@ class Ship24Tracker:
                     tracking_data['status'] = 'No tracking information found'
                     return tracking_data
 
-            # Extract carrier name
-            carriers_to_check = [
-                'DHL Express', 'DHL', 'FedEx', 'UPS', 'USPS', 'TNT', 'Aramex',
-                'Singapore Post', 'SingPost', 'China Post', 'EMS', 'Royal Mail',
-                'Australia Post', 'Canada Post', 'Japan Post', 'Korea Post',
-                'Yanwen', 'Cainiao', '4PX', 'YunExpress', 'SF Express',
-                'Pos Malaysia', 'Thai Post', 'Vietnam Post', 'PostNL', 'Deutsche Post',
-                'HFD', 'Israel Post'
-            ]
+            # FIRST: Try to detect carrier from tracking number format (more reliable)
+            detected_carrier = self._detect_carrier(tracking_number)
+            if detected_carrier:
+                tracking_data['carrier'] = detected_carrier
+            else:
+                # Fallback to page text detection
+                carriers_to_check = [
+                    'DHL Express', 'FedEx', 'UPS', 'USPS', 'TNT', 'Aramex',
+                    'Singapore Post', 'SingPost', 'China Post', 'EMS', 'Royal Mail',
+                    'Australia Post', 'Canada Post', 'Japan Post', 'Korea Post',
+                    'Yanwen', 'Cainiao', '4PX', 'YunExpress', 'SF Express',
+                    'Pos Malaysia', 'Thai Post', 'Vietnam Post', 'PostNL', 'Deutsche Post',
+                    'HFD', 'Israel Post', 'DHL'  # DHL last to avoid false positives
+                ]
+                for carrier in carriers_to_check:
+                    if carrier.lower() in lower_text:
+                        tracking_data['carrier'] = carrier
+                        break
 
-            for carrier in carriers_to_check:
-                if carrier.lower() in lower_text:
-                    tracking_data['carrier'] = carrier
-                    break
-
-            # Extract status
+            # Extended status mapping with more patterns
             status_mapping = {
                 'delivered': 'Delivered',
                 'in transit': 'In Transit',
+                'in-transit': 'In Transit',
+                'intransit': 'In Transit',
+                'on the way': 'In Transit',
                 'out for delivery': 'Out for Delivery',
+                'out_for_delivery': 'Out for Delivery',
                 'at customs': 'At Customs',
                 'customs clearance': 'Customs Clearance',
+                'held at customs': 'At Customs',
+                'import scan': 'At Customs',
                 'arrived at': 'Arrived',
+                'arrival scan': 'Arrived',
                 'departed from': 'Departed',
+                'departure scan': 'Departed',
                 'picked up': 'Picked Up',
+                'pickup scan': 'Picked Up',
                 'shipment information received': 'Info Received',
+                'label created': 'Info Received',
+                'shipping label created': 'Info Received',
+                'order processed': 'Info Received',
                 'pending': 'Pending',
                 'exception': 'Exception',
+                'delivery exception': 'Exception',
                 'return': 'Return',
-                'available for pickup': 'Ready for Pickup'
+                'returned': 'Returned',
+                'available for pickup': 'Ready for Pickup',
+                'ready for pickup': 'Ready for Pickup',
+                'held for pickup': 'Ready for Pickup',
+                'attempted delivery': 'Delivery Attempted',
+                'delivery attempted': 'Delivery Attempted',
+                'processing': 'Processing',
+                'processed': 'Processing',
+                'origin scan': 'In Transit',
+                'destination scan': 'In Transit',
+                'facility': 'In Transit',
             }
 
+            # First try to find status in page text
             for keyword, status in status_mapping.items():
                 if keyword in lower_text:
                     tracking_data['status'] = status
                     break
 
-            # Set location based on status
-            if tracking_data['status'] == 'Delivered':
-                tracking_data['location'] = 'Delivered'
-            elif tracking_data['status'] in ['In Transit', 'Out for Delivery']:
-                tracking_data['location'] = tracking_data['status']
+            # If still unknown, try looking in HTML class names and data attributes
+            if tracking_data['status'] == 'Unknown':
+                # Look for elements with status-related classes
+                status_elements = soup.select('[class*="status"], [class*="state"], [class*="milestone"], [data-status]')
+                for elem in status_elements:
+                    elem_text = elem.get_text().lower().strip()
+                    # Check data-status attribute
+                    data_status = elem.get('data-status', '').lower()
+                    check_text = f"{elem_text} {data_status}"
+                    for keyword, status in status_mapping.items():
+                        if keyword in check_text:
+                            tracking_data['status'] = status
+                            break
+                    if tracking_data['status'] != 'Unknown':
+                        break
 
             # Extract events from page text
             events = []
             lines = page_text.split('\n')
             for line in lines:
                 line = line.strip()
-                if len(line) < 20 or len(line) > 300:
+                if len(line) < 15 or len(line) > 300:
                     continue
 
-                # Check for date patterns
+                # Check for date patterns (more flexible)
                 has_date = bool(re.search(
-                    r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w{3}\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}',
+                    r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\w{3,9}\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\w{3,9},?\s+\w{3,9}\s+\d{1,2}',
                     line
                 ))
                 if has_date:
-                    has_time = bool(re.search(r'\d{1,2}:\d{2}', line))
-                    if has_time:
-                        clean_text = ' '.join(line.split())
-                        # Skip UI elements
-                        if any(skip in clean_text.lower() for skip in ['cookie', 'privacy', 'subscribe', 'login', 'sign up']):
-                            continue
-                        if clean_text not in [e['description'] for e in events]:
-                            events.append({
-                                'description': clean_text,
-                                'timestamp': None
-                            })
-                            if len(events) >= 15:
-                                break
+                    clean_text = ' '.join(line.split())
+                    # Skip UI elements
+                    if any(skip in clean_text.lower() for skip in ['cookie', 'privacy', 'subscribe', 'login', 'sign up', 'track another', 'help center']):
+                        continue
+                    if clean_text not in [e['description'] for e in events]:
+                        events.append({
+                            'description': clean_text,
+                            'timestamp': None
+                        })
+                        if len(events) >= 15:
+                            break
 
             tracking_data['events'] = events
-            logger.info(f"[Ship24-Oxylabs] Parsed {len(events)} events, status: {tracking_data['status']}")
+
+            # If status still unknown but we have events, try to extract from first event
+            if tracking_data['status'] == 'Unknown' and events:
+                first_event = events[0]['description'].lower()
+                for keyword, status in status_mapping.items():
+                    if keyword in first_event:
+                        tracking_data['status'] = status
+                        break
+                # If still unknown, set a reasonable default based on having events
+                if tracking_data['status'] == 'Unknown':
+                    tracking_data['status'] = 'In Transit'  # Default if we have tracking activity
+
+            # Set location based on status
+            if tracking_data['status'] == 'Delivered':
+                tracking_data['location'] = 'Delivered'
+            elif tracking_data['status'] in ['In Transit', 'Out for Delivery', 'Processing']:
+                tracking_data['location'] = tracking_data['status']
+
+            logger.info(f"[Ship24-Oxylabs] Parsed {len(events)} events, status: {tracking_data['status']}, carrier: {tracking_data['carrier']}")
 
         except Exception as e:
             logger.error(f"[Ship24-Oxylabs] Error parsing HTML: {str(e)}")
