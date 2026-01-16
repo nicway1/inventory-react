@@ -65,7 +65,7 @@ function checkMention(textarea) {
         setTimeout(() => {
             if (window.tabSystem) {
                 const ticketId = {{ ticket.id }};
-                const ticketSubject = "{{ ticket.subject|e }}";
+                const ticketSubject = {{ ticket.subject|tojson|safe }};
                 const tabId = `ticket-${ticketId}`;
                 
                 // Add this ticket to tabs if not already present
