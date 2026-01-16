@@ -29,6 +29,29 @@
     });
 </script>
 
+<!-- Comment textarea helper functions - must be defined before textarea uses them -->
+<script>
+// Auto-resize textarea for messenger-style comments
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+}
+
+// Handle Enter key (Shift+Enter for new line, Enter to submit)
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        const form = document.getElementById('commentFormMessenger');
+        if (form) form.submit();
+    }
+}
+
+// Placeholder for @mention check (actual implementation is in initializeMentionAutocomplete)
+function checkMention(textarea) {
+    // This triggers on input but the real @mention logic is handled by event listeners
+}
+</script>
+
 <!-- Initialize global variables -->
 <script>
     // Initialize global loadingIndicator to fix the "Cannot access before initialization" error
