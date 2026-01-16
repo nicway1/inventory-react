@@ -13,3 +13,17 @@ backups/
 # Log files
 csv_debug.log
 app_output.log
+
+# Scanned documents / temp files
+scanned_document_*.pdf
+models/scanned_document_*.pdf
+
+# Large binary files
+*.zip
+static/images/*.zip
+
+# Downloaded/cloned folders
+templates/apps.apple.com-main/
+
+# API documentation (keep in separate location)
+static/SingPost*.pdf
