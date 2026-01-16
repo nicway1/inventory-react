@@ -11366,6 +11366,8 @@ function initializeMentionAutocomplete(textarea) {
 
 // Enhanced Comment System JavaScript
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[COMMENT-SYSTEM] DOMContentLoaded fired');
+
     // Character counter for comment textarea
     const messageTextarea = document.getElementById('message');
     const commentTextarea = document.getElementById('commentTextarea');
@@ -11374,12 +11376,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelButton = document.getElementById('cancelComment');
     const commentForm = document.getElementById('commentForm');
 
+    console.log('[COMMENT-SYSTEM] Elements found:', {
+        messageTextarea: !!messageTextarea,
+        commentTextarea: !!commentTextarea,
+        mentionDropdown: !!document.getElementById('mentionDropdown'),
+        mentionList: !!document.getElementById('mentionList')
+    });
+
     // Initialize @mention for commentTextarea (messenger style)
     if (commentTextarea) {
-        console.log('Initializing @mention for commentTextarea');
-        initializeMentionAutocomplete(commentTextarea);
+        console.log('[COMMENT-SYSTEM] Initializing @mention for commentTextarea');
+        try {
+            initializeMentionAutocomplete(commentTextarea);
+            console.log('[COMMENT-SYSTEM] @mention initialized successfully');
+        } catch (e) {
+            console.error('[COMMENT-SYSTEM] Error initializing @mention:', e);
+        }
     } else {
-        console.warn('commentTextarea not found');
+        console.warn('[COMMENT-SYSTEM] commentTextarea not found');
     }
 
     if (messageTextarea && charCounter) {
