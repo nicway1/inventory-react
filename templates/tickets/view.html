@@ -9023,37 +9023,19 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Tab system removed - all sections now display sequentially
-    
+
     // ========================================
-    // @MENTION FUNCTIONALITY
+    // @MENTION FUNCTIONALITY (LEGACY - DISABLED)
+    // The new @mention system uses initializeMentionAutocomplete()
+    // which is initialized in the DOMContentLoaded handler below
     // ========================================
-    
-    // Store user data for @mentions
-    var userDataJson = '{{ users|tojson|safe }}';
-    var userData;
-    try {
-        userData = JSON.parse(userDataJson.replace(/&quot;/g, '"'));
-    } catch (e) {
-        userData = [];
-        console.error('Error parsing user data:', e);
-    }
-    
+    console.log('✅ @Mention: Using new initializeMentionAutocomplete system');
+
+    // Legacy @mention variables (kept for compatibility but not used)
     var currentMentionStart = -1;
     var selectedIndex = -1;
-    var textarea;
-    var suggestions;
-
-    // Initialize @mention functionality
-    textarea = document.getElementById('message');
-    suggestions = document.getElementById('mentionSuggestions');
-    
-    if (textarea && suggestions) {
-        textarea.addEventListener('input', handleInput);
-        textarea.addEventListener('keydown', handleKeydown);
-        console.log('✅ @Mention functionality initialized');
-    } else {
-        console.warn('❌ @Mention elements not found:', {textarea: !!textarea, suggestions: !!suggestions});
-    }
+    var textarea = null;
+    var suggestions = null;
 
     function handleInput(e) {
         var pos = textarea.selectionStart;
