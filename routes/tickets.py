@@ -6398,148 +6398,63 @@ def track_claw(ticket_id):
             )
         
         # If we get here, need to fetch fresh data
-        logger.info(f"Scraping ship24 for: {tracking_number}")
-        
-        # Use the centralized FirecrawlClient that automatically gets the active key from database
-        from utils.store_instances import firecrawl_client
-        
-        # Check if Firecrawl is available
-        if not firecrawl_client:
-            logger.info("Error: Firecrawl API client not available.")
-            return jsonify({
-                'success': False,
-                'error': 'Firecrawl API client not available',
-                'tracking_info': [],
-                'debug_info': {'error': 'Firecrawl API client not configured'}
-            }), 500
-    
+        logger.info(f"Tracking via Oxylabs proxy for: {tracking_number}")
+
+        # Use Ship24Tracker with Oxylabs proxy (replaces Firecrawl)
+        from utils.ship24_tracker import get_tracker
+        ship24_tracker = get_tracker()
+
         try:
-            # Define Ship24 URL for the tracking number
-            ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            logger.info(f"Scraping URL: {ship24_url}")
-            
+            # Use Ship24Tracker's Oxylabs-based tracking
+            logger.info(f"Fetching tracking data via Oxylabs for: {tracking_number}")
+
             try:
-                # Use Firecrawl to scrape the tracking page and extract structured data
-                scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                    'formats': ['json', 'markdown'],
-                    'jsonOptions': {
-                        'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
-
-Look for tracking events and status information on the page. Each tracking event typically shows:
-- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
-- A status message (like "Package delivered", "In transit", "Out for delivery")
-- A location (like "Singapore Delivery Centre", "Regional Hub")
-
-Extract ALL tracking events found on the page, starting with the most recent.
-
-Also look for the current/latest status of the shipment.
-
-If no tracking events are found, check if there's an error message or if the tracking number is invalid.
-
-Return the data in this exact JSON format:
-{{
-    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
-    "events": [
-        {{
-            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
-            "status": "actual status text from the page (e.g., 'Package delivered')",
-            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
-        }},
-        {{
-            "date": "next event date",
-            "status": "next event status", 
-            "location": "next event location"
-        }}
-    ]
-}}
-
-IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
-{{
-    "current_status": "No tracking information found",
-    "events": []
-}}"""
-                    },
-                    'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
-                    'timeout': 15000  # 15 second timeout
-                })
+                # Track using Oxylabs proxy method
+                result = ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier=None,  # Auto-detect carrier
+                    method='oxylabs',  # Use Oxylabs proxy
+                    provider='ship24'  # Use Ship24 provider
+                )
             except Exception as api_error:
-                # Check if this is a credit limit issue
-                error_msg = str(api_error).lower()
-                if "insufficient credits" in error_msg or "payment required" in error_msg:
-                    logger.info(f"API credit limitation encountered: {api_error}")
-                    return jsonify({
-                        'success': False,
-                        'error': 'Firecrawl API credits exhausted',
-                        'tracking_info': [],
-                        'debug_info': {'error': str(api_error)}
-                    }), 429
-                else:
-                    # Rethrow other API errors
-                    raise
-            
-            # Log the raw response for debugging
-            logger.info(f"Firecrawl Raw Response: {scrape_result}")
-            
+                logger.info(f"Error tracking via Oxylabs: {api_error}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Tracking API error: {str(api_error)}',
+                    'tracking_info': [],
+                    'debug_info': {'error': str(api_error)}
+                }), 500
+
+            # Log the response for debugging
+            logger.info(f"Ship24 Tracker Response: success={result.get('success')}, status={result.get('status')}, events={len(result.get('events', []))}")
+
             # Process the extracted data
             tracking_info = []
-            latest_status = "Unknown"
-            
+            latest_status = result.get('status', 'Unknown')
+
             try:
-                # Check for the correct Firecrawl response structure
-                if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
-                    data = scrape_result['data']['json']
-                    
-                    # Extract the latest status
-                    latest_status = data.get('current_status', 'Unknown')
-                    
-                    # Extract tracking events
-                    events = data.get('events', [])
-                    if events:
-                        logger.info(f"[DEBUG] Found {len(events)} tracking events")
-                        for event in events:
-                            tracking_info.append({
-                                'date': event.get('date', ''),
-                                'status': event.get('status', ''),
-                                'location': event.get('location', '')
-                            })
-                    
-                    # If no events were extracted but we have a current status,
-                    # create at least one event with the current status
-                    if not tracking_info and latest_status != "Unknown":
+                # Extract tracking events from the result
+                events = result.get('events', [])
+                if events:
+                    logger.info(f"[DEBUG] Found {len(events)} tracking events")
+                    for event in events:
                         tracking_info.append({
-                            'date': datetime.datetime.now().isoformat(),
-                            'status': latest_status,
-                            'location': 'Ship24 System'
+                            'date': event.get('timestamp', event.get('date', '')),
+                            'status': event.get('description', event.get('status', '')),
+                            'location': event.get('location', '')
                         })
-                        
-                    logger.info(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
-                
-                # Fallback: try old structure for backwards compatibility
-                elif 'json' in scrape_result and scrape_result['json']:
-                    data = scrape_result['json']
-                    
-                    # Extract the latest status
-                    latest_status = data.get('current_status', 'Unknown')
-                    
-                    # Extract tracking events
-                    events = data.get('events', [])
-                    if events:
-                        for event in events:
-                            tracking_info.append({
-                                'date': event.get('date', ''),
-                                'status': event.get('status', ''),
-                                'location': event.get('location', '')
-                            })
-                    
-                    # If no events were extracted but we have a current status,
-                    # create at least one event with the current status
-                    if not tracking_info and latest_status != "Unknown":
-                        tracking_info.append({
-                            'date': datetime.datetime.now().isoformat(),
-                            'status': latest_status,
-                            'location': 'Ship24 System'
-                        })
-                
+
+                # If no events were extracted but we have a current status,
+                # create at least one event with the current status
+                if not tracking_info and latest_status not in ["Unknown", "No tracking information found"]:
+                    tracking_info.append({
+                        'date': datetime.datetime.now().isoformat(),
+                        'status': latest_status,
+                        'location': result.get('current_location', 'Ship24 System')
+                    })
+
+                logger.info(f"[DEBUG] Successfully extracted status: {latest_status}, events: {len(tracking_info)}")
+
                 # Fallback if no tracking info was extracted
                 if not tracking_info:
                     logger.info("Warning: No tracking events extracted. Using fallback data.")
@@ -6578,17 +6493,17 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 from utils.tracking_cache import TrackingCache
                 TrackingCache.save_tracking_data(
                     db_session,
-                    tracking_number, 
-                    tracking_info, 
+                    tracking_number,
+                    tracking_info,
                     latest_status,
                     ticket_id=ticket_id,
                     tracking_type='primary',
-                    carrier="mock"
+                    carrier="oxylabs"
                 )
-                logger.info("Mock data saved to cache")
+                logger.info("Tracking data saved to cache")
             except Exception as cache_error:
-                logger.info(f"Warning: Could not save mock data to cache: {str(cache_error)}")
-            
+                logger.info(f"Warning: Could not save tracking data to cache: {str(cache_error)}")
+
             return jsonify({
                 'success': True,
                 'tracking_info': tracking_info,
@@ -6596,9 +6511,8 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 'is_real_data': True,
                 'is_cached': False,
                 'debug_info': {
-                    'source': 'mock_data_generated',
+                    'source': 'ship24_oxylabs',
                     'tracking_number': tracking_number,
-                    'reason': 'API unavailable or insufficient credits',
                     'status': latest_status
                 }
             })
@@ -6882,96 +6796,50 @@ def track_return(ticket_id):
                     }
                 })
 
-        # Make sure firecrawl_client is available (for non-SingPost tracking numbers)
-        if not firecrawl_client:
-            logger.info("Warning: firecrawl_client not available. Using mock data.")
-            # Return a simple mock response
-            return jsonify({
-                'success': True,
-                'tracking_info': [{
-                    'status': 'Pending (Mock Data)',
-                    'location': 'System',
-                                            'date': datetime.datetime.now().isoformat()
-                }],
-                'is_real_data': False,
-                'debug_info': {
-                    'source': 'mock_data',
-                    'tracking_number': tracking_number,
-                    'status': 'Pending (Mock Data)'
-                }
-            })
-
-        # Use Ship24 tracking via Firecrawl - COPY FROM WORKING OUTBOUND TRACKING
+        # Use Ship24 tracking via Oxylabs proxy (replaces Firecrawl)
         try:
-            ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            logger.info(f"Scraping URL for return tracking: {ship24_url}")
-            
-            scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                'formats': ['json', 'markdown'],
-                'jsonOptions': {
-                    'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
+            from utils.ship24_tracker import get_tracker
+            ship24_tracker = get_tracker()
 
-Look for tracking events and status information on the page. Each tracking event typically shows:
-- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
-- A status message (like "Package delivered", "In transit", "Out for delivery")
-- A location (like "Singapore Delivery Centre", "Regional Hub")
+            logger.info(f"Tracking return via Oxylabs for: {tracking_number}")
 
-Extract ALL tracking events found on the page, starting with the most recent.
+            try:
+                # Track using Oxylabs proxy method
+                result = ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier=None,  # Auto-detect carrier
+                    method='oxylabs',  # Use Oxylabs proxy
+                    provider='ship24'  # Use Ship24 provider
+                )
+            except Exception as api_error:
+                logger.info(f"Error tracking return via Oxylabs: {api_error}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Tracking API error: {str(api_error)}',
+                    'tracking_info': [],
+                    'debug_info': {'error': str(api_error)}
+                }), 500
 
-Also look for the current/latest status of the shipment.
+            logger.info(f"Ship24 Tracker Response for return: success={result.get('success')}, status={result.get('status')}, events={len(result.get('events', []))}")
 
-If no tracking events are found, check if there's an error message or if the tracking number is invalid.
-
-Return the data in this exact JSON format:
-{{
-    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
-    "events": [
-        {{
-            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
-            "status": "actual status text from the page (e.g., 'Package delivered')",
-            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
-        }},
-        {{
-            "date": "next event date",
-            "status": "next event status", 
-            "location": "next event location"
-        }}
-    ]
-}}
-
-IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
-{{
-    "current_status": "No tracking information found",
-    "events": []
-}}"""
-                },
-                'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
-                'timeout': 15000  # 15 second timeout
-            })
-            logger.info(f"Firecrawl Raw Response for return tracking: {scrape_result}")
-
-            # --- Process Result (FIXED JSON STRUCTURE) --- 
+            # Process the extracted data
             tracking_info = []
-            latest_status = "Unknown"
-            
-            # Check the correct Firecrawl response structure
-            if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
-                data = scrape_result['data']['json']
-                latest_status = data.get('current_status', 'Unknown')
-                events = data.get('events', [])
-                logger.info(f"[DEBUG] Extracted {len(events)} events with status: {latest_status}")
-                
-                if events:
-                    for event in events:
-                        tracking_info.append({
-                            'date': event.get('date', ''),
-                            'status': event.get('status', ''),
-                            'location': event.get('location', '')
-                        })
-                        
-                if not tracking_info and latest_status != "Unknown":
-                    tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': 'Ship24 System'})
-            
+            latest_status = result.get('status', 'Unknown')
+
+            # Extract tracking events from the result
+            events = result.get('events', [])
+            if events:
+                logger.info(f"[DEBUG] Extracted {len(events)} return tracking events with status: {latest_status}")
+                for event in events:
+                    tracking_info.append({
+                        'date': event.get('timestamp', event.get('date', '')),
+                        'status': event.get('description', event.get('status', '')),
+                        'location': event.get('location', '')
+                    })
+
+            if not tracking_info and latest_status not in ["Unknown", "No tracking information found"]:
+                tracking_info.append({'date': datetime.datetime.now().isoformat(), 'status': latest_status, 'location': result.get('current_location', 'Ship24 System')})
+
             if not tracking_info:
                 logger.info("Warning: No return tracking events extracted. Using fallback data.")
                 current_date = datetime.datetime.now()
@@ -7010,7 +6878,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 'is_real_data': True,
                 'is_cached': False,
                 'debug_info': {
-                    'source': 'ship24_firecrawl_return',
+                    'source': 'ship24_oxylabs_return',
                     'tracking_number': tracking_number,
                     'events_count': len(tracking_info),
                     'url': ship24_url
@@ -7492,306 +7360,70 @@ def track_package(ticket_id, package_number):
                     }
                 })
 
-        # For non-SingPost tracking numbers, use Firecrawl
-        # Use the centralized FirecrawlClient that automatically gets the active key from database
-        from utils.store_instances import firecrawl_client
-
-        # Check if Firecrawl is available
-        if not firecrawl_client:
-            logger.info("Error: Firecrawl API client not available.")
-            return jsonify({
-                'success': False,
-                'error': 'Firecrawl API client not available',
-                'tracking_info': [],
-                'debug_info': {'error': 'Firecrawl API client not configured'}
-            }), 500
-    
+        # For non-SingPost tracking numbers, use Ship24 via Oxylabs proxy
         try:
-            # Define Ship24 URL for the tracking number
-            ship24_url = f"https://www.ship24.com/tracking?p={tracking_number}"
-            logger.info(f"Scraping URL for package {package_number}: {ship24_url}")
-            
+            from utils.ship24_tracker import get_tracker
+            ship24_tracker = get_tracker()
+
+            logger.info(f"Tracking package {package_number} via Oxylabs for: {tracking_number}")
+
             try:
-                # Use Firecrawl to scrape the tracking page and extract structured data
-                scrape_result = firecrawl_client.scrape_url(ship24_url, {
-                    'formats': ['json', 'markdown'],
-                    'jsonOptions': {
-                        'prompt': f"""You are extracting tracking information from Ship24.com for tracking number {tracking_number}.
-
-Look for tracking events and status information on the page. Each tracking event typically shows:
-- A date/time (like "2025-01-15 10:30" or "Jan 15, 2025")
-- A status message (like "Package delivered", "In transit", "Out for delivery")
-- A location (like "Singapore Delivery Centre", "Regional Hub")
-
-Extract ALL tracking events found on the page, starting with the most recent.
-
-Also look for the current/latest status of the shipment.
-
-If no tracking events are found, check if there's an error message or if the tracking number is invalid.
-
-Return the data in this exact JSON format:
-{{
-    "current_status": "the most recent status (e.g., 'Out for delivery', 'Package delivered', 'In transit')",
-    "events": [
-        {{
-            "date": "actual date from the page (e.g., '2025-01-15 10:30')",
-            "status": "actual status text from the page (e.g., 'Package delivered')",
-            "location": "actual location from the page (e.g., 'Singapore Delivery Centre')"
-        }},
-        {{
-            "date": "next event date",
-            "status": "next event status", 
-            "location": "next event location"
-        }}
-    ]
-}}
-
-IMPORTANT: Only extract real data from the page. If no tracking information is found, return:
-{{
-    "current_status": "No tracking information found",
-    "events": []
-}}"""
-                    },
-                    'waitFor': 3000,  # Wait 3 seconds for dynamic content to load
-                    'timeout': 15000  # 15 second timeout
-                })
+                # Track using Oxylabs proxy method
+                result = ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier=carrier,  # Use carrier if provided
+                    method='oxylabs',  # Use Oxylabs proxy
+                    provider='ship24'  # Use Ship24 provider
+                )
             except Exception as api_error:
-                # Check if this is a credit limit issue
-                error_msg = str(api_error).lower()
-                if "insufficient credits" in error_msg or "payment required" in error_msg:
-                    logger.info(f"API credit limitation encountered for package {package_number}: {api_error}")
-                    return jsonify({
-                        'success': False,
-                        'error': 'Firecrawl API credits exhausted',
-                        'tracking_info': [],
-                        'debug_info': {'error': str(api_error)}
-                    }), 429
-                else:
-                    # Rethrow other API errors
-                    raise
-            
-            # Log the raw response for debugging
-            logger.info(f"Firecrawl Raw Response for package {package_number}: {scrape_result}")
-            
+                logger.info(f"Error tracking package {package_number} via Oxylabs: {api_error}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Tracking API error: {str(api_error)}',
+                    'tracking_info': [],
+                    'debug_info': {'error': str(api_error)}
+                }), 500
+
+            logger.info(f"Ship24 Tracker Response for package {package_number}: success={result.get('success')}, status={result.get('status')}, events={len(result.get('events', []))}")
+
             # Process the extracted data
             tracking_info = []
-            latest_status = "Unknown"
-            
+            latest_status = result.get('status', 'Unknown')
+
             try:
-                # PRIORITY 1: Check for the correct Firecrawl JSON response structure FIRST
-                if 'data' in scrape_result and 'json' in scrape_result['data'] and scrape_result['data']['json']:
-                    data = scrape_result['data']['json']
-                    
-                    # Extract the latest status
-                    latest_status = data.get('current_status', 'Unknown')
-                    
-                    # Check if Firecrawl returned placeholder data instead of real tracking information
-                    placeholder_indicators = [
-                        'Current status',
-                        'Current status of the shipment',
-                        'Status description',
-                        'Date of event',
-                        'Location',
-                        'Date',
-                        'Status',
-                        'No tracking information found'
-                    ]
-                    
-                    if latest_status in placeholder_indicators:
-                        logger.info(f"[DEBUG] Firecrawl returned placeholder data for package {package_number}. Status: '{latest_status}'")
-                        logger.info(f"[DEBUG] Full response: {data}")
-                        return jsonify({
-                            'success': False,
-                            'error': f'Firecrawl returned placeholder data: {latest_status}',
-                            'tracking_info': [],
-                            'debug_info': {'status': latest_status, 'response': data}
-                        }), 404
-                    
-                    # Extract tracking events
-                    events = data.get('events', [])
-                    if events:
-                        logger.info(f"[DEBUG] Found {len(events)} tracking events for package {package_number}")
-                        
-                        # Check if events contain placeholder data
-                        for event in events:
-                            event_status = event.get('status', '')
-                            event_location = event.get('location', '')
-                            event_date = event.get('date', '')
-                            
-                            # If we find placeholder text in events, fall back to mock data
-                            if (event_status in placeholder_indicators or 
-                                event_location in placeholder_indicators or 
-                                event_date in placeholder_indicators):
-                                logger.info(f"[DEBUG] Found placeholder event data for package {package_number}: {event}")
-                                return jsonify({
-                                    'success': False,
-                                    'error': f'Firecrawl returned placeholder event data',
-                                    'tracking_info': [],
-                                    'debug_info': {'placeholder_event': event}
-                                }), 404
-                            
-                            tracking_info.append({
-                                'date': event_date,
-                                'status': event_status,
-                                'location': event_location
-                            })
-                    
-                    # If no events were extracted but we have a current status,
-                    # create at least one event with the current status
-                    if not tracking_info and latest_status != "Unknown":
+                # Extract tracking events from the result
+                events = result.get('events', [])
+                if events:
+                    logger.info(f"[DEBUG] Found {len(events)} tracking events for package {package_number}")
+                    for event in events:
                         tracking_info.append({
-                            'date': datetime.datetime.now().isoformat(),
-                            'status': latest_status,
-                            'location': 'Ship24 System'
+                            'date': event.get('timestamp', event.get('date', '')),
+                            'status': event.get('description', event.get('status', '')),
+                            'location': event.get('location', '')
                         })
-                        
-                    logger.info(f"[DEBUG] Successfully extracted real status for package {package_number}: {latest_status}, events: {len(tracking_info)}")
-                
-                # PRIORITY 2: Check if only metadata exists (JSON extraction failed)
-                elif 'data' in scrape_result and 'metadata' in scrape_result['data']:
-                    logger.info(f"[DEBUG] JSON extraction failed for package {package_number}, trying markdown fallback")
-                    
-                    # Check if we have markdown content as a fallback
-                    if 'markdown' in scrape_result['data'] and scrape_result['data']['markdown']:
-                        markdown_content = scrape_result['data']['markdown']
-                        logger.info(f"[DEBUG] Attempting to parse markdown content for package {package_number}")
-                        
-                        # Look for tracking number in markdown to verify the page loaded correctly
-                        if tracking_number.lower() in markdown_content.lower():
-                            logger.info("[DEBUG] Tracking number found in markdown, attempting manual extraction")
-                            # Try to extract basic status from markdown
-                            import re
-                            
-                            # Look for common tracking status patterns
-                            status_patterns = [
-                                r'(?:status|current|delivered|transit|delivery|shipped|pending)[:\s]+([^\n\r]+)',
-                                r'(?:out for delivery|in transit|delivered|pending|shipped)',
-                                r'tracking.*?(\w+(?:\s+\w+)*)',
-                            ]
-                            
-                            found_status = None
-                            for pattern in status_patterns:
-                                matches = re.findall(pattern, markdown_content, re.IGNORECASE)
-                                if matches:
-                                    found_status = matches[0].strip()
-                                    break
-                            
-                            if found_status:
-                                logger.info(f"[DEBUG] Extracted status from markdown: {found_status}")
-                                tracking_info.append({
-                                    'date': datetime.datetime.now().isoformat(),
-                                    'status': found_status,
-                                    'location': 'Ship24 System'
-                                })
-                                latest_status = found_status
-                            else:
-                                logger.info(f"[DEBUG] No recognizable status found in markdown for package {package_number}")
-                                return jsonify({
-                                    'success': False,
-                                    'error': 'No recognizable status found in markdown content',
-                                    'tracking_info': [],
-                                    'debug_info': {'tracking_number': tracking_number}
-                                }), 404
-                        else:
-                            logger.info(f"[DEBUG] Tracking number not found in markdown content for package {package_number}")
-                            return jsonify({
-                                'success': False,
-                                'error': 'Tracking number not found in markdown content',
-                                'tracking_info': [],
-                                'debug_info': {'tracking_number': tracking_number}
-                            }), 404
-                    else:
-                        logger.info(f"[DEBUG] No markdown content available for package {package_number}")
-                        return jsonify({
-                            'success': False,
-                            'error': 'No markdown content available from Ship24',
-                            'tracking_info': [],
-                            'debug_info': {'tracking_number': tracking_number}
-                        }), 404
-                
-                # PRIORITY 3: Fallback for old structure compatibility
-                elif 'json' in scrape_result and scrape_result['json']:
-                    data = scrape_result['json']
-                    
-                    # Extract the latest status
-                    latest_status = data.get('current_status', 'Unknown')
-                    
-                    # Check if this is also placeholder data
-                    placeholder_indicators = [
-                        'Current status',
-                        'Current status of the shipment',
-                        'Status description',
-                        'Date of event',
-                        'Location',
-                        'Date',
-                        'Status'
-                    ]
-                    
-                    if latest_status in placeholder_indicators:
-                        logger.info(f"[DEBUG] Fallback structure also returned placeholder data for package {package_number}. Status: '{latest_status}'")
-                        return jsonify({
-                            'success': False,
-                            'error': f'Fallback structure returned placeholder data: {latest_status}',
-                            'tracking_info': [],
-                            'debug_info': {'status': latest_status}
-                        }), 404
-                    
-                    # Extract tracking events
-                    events = data.get('events', [])
-                    if events:
-                        for event in events:
-                            event_status = event.get('status', '')
-                            event_location = event.get('location', '')
-                            event_date = event.get('date', '')
-                            
-                            # Check for placeholder data in events
-                            if (event_status in placeholder_indicators or 
-                                event_location in placeholder_indicators or 
-                                event_date in placeholder_indicators):
-                                logger.info(f"[DEBUG] Found placeholder event data in fallback structure for package {package_number}: {event}")
-                                return jsonify({
-                                    'success': False,
-                                    'error': f'Fallback structure returned placeholder event data',
-                                    'tracking_info': [],
-                                    'debug_info': {'placeholder_event': event}
-                                }), 404
-                            
-                            tracking_info.append({
-                                'date': event_date,
-                                'status': event_status,
-                                'location': event_location
-                            })
-                    
-                    # If no events were extracted but we have a current status,
-                    # create at least one event with the current status
-                    if not tracking_info and latest_status != "Unknown":
-                        tracking_info.append({
-                            'date': datetime.datetime.now().isoformat(),
-                            'status': latest_status,
-                            'location': 'Ship24 System'
-                        })
-                
-                # PRIORITY 4: Handle completely unrecognized response format
-                else:
-                    logger.info(f"[DEBUG] Unrecognized Firecrawl response structure for package {package_number}")
-                    logger.info(f"[DEBUG] Response keys: {list(scrape_result.keys())}")
-                    return jsonify({
-                        'success': False,
-                        'error': 'Unrecognized Firecrawl response structure',
-                        'tracking_info': [],
-                        'debug_info': {'response_keys': list(scrape_result.keys())}
-                    }), 500
-                
-                # Error if no tracking info was extracted
+
+                # If no events were extracted but we have a current status,
+                # create at least one event with the current status
+                if not tracking_info and latest_status not in ["Unknown", "No tracking information found"]:
+                    tracking_info.append({
+                        'date': datetime.datetime.now().isoformat(),
+                        'status': latest_status,
+                        'location': result.get('current_location', 'Ship24 System')
+                    })
+
+                logger.info(f"[DEBUG] Successfully extracted status for package {package_number}: {latest_status}, events: {len(tracking_info)}")
+
+                # Use detected carrier from result if not specified
+                if not carrier or carrier == 'auto':
+                    carrier = result.get('carrier', 'Unknown')
+
+                # Fallback if no tracking info was extracted
                 if not tracking_info:
                     logger.info(f"Warning: No tracking events extracted for package {package_number}.")
-                    return jsonify({
-                        'success': False,
-                        'error': 'No tracking events extracted from Ship24',
-                        'tracking_info': [],
-                        'debug_info': {'tracking_number': tracking_number}
-                    }), 404
-                    
+                    current_date = datetime.datetime.now()
+                    tracking_info = [{"status": "Information Received", "location": "Ship24 System", "date": current_date.isoformat()}]
+                    latest_status = "Information Received"
+
             except Exception as parse_error:
                 logger.info(f"Error parsing tracking data for package {package_number}: {str(parse_error)}")
                 traceback.print_exc()
@@ -7856,7 +7488,7 @@ IMPORTANT: Only extract real data from the page. If no tracking information is f
                 'is_real_data': True,
                 'is_cached': False,
                 'debug_info': {
-                    'source': 'firecrawl_ship24',
+                    'source': 'oxylabs_ship24',
                     'tracking_number': tracking_number,
                     'package_number': package_number,
                     'status': latest_status
