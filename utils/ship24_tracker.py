@@ -154,7 +154,7 @@ class Ship24Tracker:
 
         return None
 
-    async def track_parcel(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None) -> Dict:
+    async def track_parcel(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None, provider: Optional[str] = None) -> Dict:
         """
         Track a parcel using multiple sources with fallbacks
 
@@ -162,6 +162,7 @@ class Ship24Tracker:
             tracking_number: The tracking number to search for
             carrier: Optional carrier name
             method: Optional tracking method - 'auto', 'oxylabs', 'playwright', or 'links_only'
+            provider: Optional tracking provider - 'auto', 'ship24', 'hfd', '17track', 'trackingmore'
 
         Returns:
             Dictionary containing tracking information
@@ -186,6 +187,14 @@ class Ship24Tracker:
                 'message': 'Click tracking links below to check status on carrier website.',
                 'source': 'links_only'
             }
+
+        # If specific provider is requested, use that provider directly
+        if provider and provider != 'auto':
+            logger.info(f"Using specific provider '{provider}' for {tracking_number}")
+            result = await self._track_with_provider(tracking_number, carrier, method, provider)
+            if result:
+                result['tracking_links'] = self._get_all_tracking_links(tracking_number)
+            return result
 
         # If method is 'oxylabs', use Ship24 Oxylabs directly
         if method == 'oxylabs':
@@ -348,6 +357,98 @@ class Ship24Tracker:
             'tracking_links': self._get_all_tracking_links(tracking_number),
             'message': message,
             'source': 'fallback'
+        }
+
+    async def _track_with_provider(self, tracking_number: str, carrier: Optional[str], method: Optional[str], provider: str) -> Dict:
+        """
+        Track with a specific provider
+
+        Args:
+            tracking_number: The tracking number
+            carrier: Optional carrier hint
+            method: Tracking method (oxylabs, playwright)
+            provider: The provider to use (ship24, hfd, 17track, trackingmore)
+        """
+        tracking_url = f"{self.base_url}/tracking?p={tracking_number}"
+
+        if provider == 'hfd':
+            # Use HFD tracking (always uses Oxylabs)
+            result = await self.track_with_hfd(tracking_number)
+            if result:
+                return result
+
+        elif provider == 'ship24':
+            # Use Ship24 with specified method
+            if method == 'oxylabs':
+                result = await self.track_with_ship24_oxylabs(tracking_number, carrier)
+                if result:
+                    return result
+            else:
+                # Use Playwright for Ship24
+                if PLAYWRIGHT_AVAILABLE:
+                    try:
+                        from playwright.async_api import async_playwright
+                        async with async_playwright() as p:
+                            launch_options = get_browser_launch_options()
+                            browser = await p.chromium.launch(**launch_options)
+                            proxy_config = get_proxy_config()
+                            context_options = {
+                                'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                                'viewport': {'width': 1920, 'height': 1080}
+                            }
+                            if proxy_config:
+                                context_options['proxy'] = proxy_config
+                            context = await browser.new_context(**context_options)
+                            page = await context.new_page()
+                            await page.goto(tracking_url, wait_until='domcontentloaded', timeout=30000)
+                            await page.wait_for_timeout(5000)
+                            try:
+                                await page.wait_for_selector('main, [class*="tracking"], [class*="result"]', timeout=10000)
+                            except:
+                                pass
+                            await page.wait_for_timeout(3000)
+                            tracking_info = await self._extract_ship24_data(page, tracking_number)
+                            await browser.close()
+                            return {
+                                'success': True,
+                                'tracking_number': tracking_number,
+                                'carrier': tracking_info.get('carrier', carrier or 'Unknown'),
+                                'status': tracking_info.get('status', 'Unknown'),
+                                'events': tracking_info.get('events', []),
+                                'current_location': tracking_info.get('location', 'Unknown'),
+                                'estimated_delivery': tracking_info.get('estimated_delivery'),
+                                'last_updated': datetime.utcnow().isoformat(),
+                                'tracking_url': tracking_url,
+                                'source': 'Ship24 (Playwright)'
+                            }
+                    except Exception as e:
+                        logger.error(f"Ship24 Playwright error: {str(e)}")
+
+        elif provider == '17track':
+            result = await self.track_with_17track(tracking_number, carrier)
+            if result:
+                return result
+
+        elif provider == 'trackingmore':
+            result = await self.track_with_trackingmore(tracking_number, carrier)
+            if result:
+                return result
+
+        # Fallback if provider failed
+        detected_carrier = carrier or self._detect_carrier(tracking_number) or 'Unknown'
+        return {
+            'success': True,
+            'tracking_number': tracking_number,
+            'carrier': detected_carrier,
+            'status': 'Check Links Below',
+            'events': [],
+            'current_location': detected_carrier if detected_carrier != 'Unknown' else 'Unknown',
+            'estimated_delivery': None,
+            'last_updated': datetime.utcnow().isoformat(),
+            'tracking_url': tracking_url,
+            'tracking_links': self._get_all_tracking_links(tracking_number),
+            'message': f'Provider {provider} could not retrieve tracking data. Use tracking links.',
+            'source': f'{provider} (fallback)'
         }
 
     async def _extract_ship24_data(self, page, tracking_number: str) -> Dict:
@@ -2302,7 +2403,7 @@ class Ship24Tracker:
 
         return links
 
-    def track_parcel_sync(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None) -> Dict:
+    def track_parcel_sync(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None, provider: Optional[str] = None) -> Dict:
         """Synchronous wrapper for track_parcel"""
         try:
             try:
@@ -2313,10 +2414,10 @@ class Ship24Tracker:
             if loop and loop.is_running():
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(self._run_in_new_loop, tracking_number, carrier, method)
+                    future = executor.submit(self._run_in_new_loop, tracking_number, carrier, method, provider)
                     return future.result(timeout=120)
             else:
-                return self._run_in_new_loop(tracking_number, carrier, method)
+                return self._run_in_new_loop(tracking_number, carrier, method, provider)
 
         except Exception as e:
             logger.error(f"Error in sync track_parcel: {str(e)}")
@@ -2337,12 +2438,12 @@ class Ship24Tracker:
                 'source': 'fallback'
             }
 
-    def _run_in_new_loop(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None) -> Dict:
+    def _run_in_new_loop(self, tracking_number: str, carrier: Optional[str] = None, method: Optional[str] = None, provider: Optional[str] = None) -> Dict:
         """Run async tracking in a new event loop"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(self.track_parcel(tracking_number, carrier, method))
+            result = loop.run_until_complete(self.track_parcel(tracking_number, carrier, method, provider))
             return result
         finally:
             loop.close()

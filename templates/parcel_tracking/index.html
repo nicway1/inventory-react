@@ -560,6 +560,13 @@
                 <option value="playwright">Playwright Browser</option>
                 <option value="links_only">Links Only (No Scrape)</option>
             </select>
+            <select id="providerSelect" class="carrier-select" title="Tracking Provider">
+                <option value="auto">Auto Provider</option>
+                <option value="ship24">Ship24</option>
+                <option value="hfd">HFD Israel</option>
+                <option value="17track">17track</option>
+                <option value="trackingmore">TrackingMore</option>
+            </select>
             <button id="trackButton" class="track-button" onclick="trackParcel()">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -784,6 +791,7 @@ async function trackParcel() {
     const trackingNumber = document.getElementById('trackingNumber').value.trim();
     const carrier = document.getElementById('carrierSelect').value;
     const method = document.getElementById('methodSelect').value;
+    const provider = document.getElementById('providerSelect').value;
 
     if (!trackingNumber) {
         alert('Please enter a tracking number');
@@ -803,7 +811,8 @@ async function trackParcel() {
             body: JSON.stringify({
                 tracking_number: trackingNumber,
                 carrier: carrier,
-                method: method
+                method: method,
+                provider: provider
             })
         });
 
@@ -829,6 +838,7 @@ async function trackBulkParcels() {
     const textarea = document.getElementById('bulkTrackingNumbers');
     const carrier = document.getElementById('carrierSelect').value;
     const method = document.getElementById('methodSelect').value;
+    const provider = document.getElementById('providerSelect').value;
     const trackingNumbers = textarea.value
         .split('\n')
         .map(tn => tn.trim())
@@ -853,7 +863,8 @@ async function trackBulkParcels() {
             body: JSON.stringify({
                 tracking_numbers: trackingNumbers,
                 carrier: carrier,
-                method: method
+                method: method,
+                provider: provider
             })
         });
 
