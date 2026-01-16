@@ -3092,7 +3092,26 @@ def view_ticket(ticket_id):
                 # Load package items (assets and accessories)
                 package_items = ticket.get_package_items(package_number, db_session=db_session)
                 packages_items_data[package_number] = package_items
-        
+
+        # Get service history - all tickets related to the same asset/serial number
+        service_history = []
+        if ticket.serial_number or ticket.asset_id:
+            service_query = db_session.query(Ticket).filter(
+                Ticket.id != ticket.id  # Exclude current ticket
+            )
+
+            # Build OR conditions for matching
+            from sqlalchemy import or_
+            conditions = []
+            if ticket.serial_number:
+                conditions.append(Ticket.serial_number == ticket.serial_number)
+            if ticket.asset_id:
+                conditions.append(Ticket.asset_id == ticket.asset_id)
+
+            if conditions:
+                service_query = service_query.filter(or_(*conditions))
+                service_history = service_query.order_by(Ticket.created_at.desc()).all()
+
         return render_template(
             'tickets/view.html',
             ticket=ticket,
@@ -3118,7 +3137,8 @@ def view_ticket(ticket_id):
             custom_statuses=custom_statuses_list,
             out_of_stock_accessories=out_of_stock_accessories,
             accessible_queue_ids=accessible_queue_ids,
-            checkin_data=checkin_data
+            checkin_data=checkin_data,
+            service_history=service_history
         )
         
     except Exception as e:

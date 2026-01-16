@@ -5414,6 +5414,78 @@ body.dark-theme .sf-card-body .sf-field-label {
                     {% endif %}
                 </div>
 
+                <!-- Service History - Related tickets for same asset -->
+                {% if service_history %}
+                <div id="service-history" class="mb-8">
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
+                            <h3 class="text-lg font-semibold text-white flex items-center">
+                                <i class="fas fa-history mr-2"></i>Service History ({{ service_history|length }})
+                            </h3>
+                            <p class="text-purple-200 text-sm mt-1">Other tickets related to this asset</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        {% for related_ticket in service_history %}
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="text-sm font-medium text-gray-900">#{{ related_ticket.id }}</span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                                    {% if related_ticket.category and 'REPAIR' in related_ticket.category.name %}bg-red-100 text-red-800
+                                                    {% elif related_ticket.category and 'RETURN' in related_ticket.category.name %}bg-yellow-100 text-yellow-800
+                                                    {% elif related_ticket.category and 'CHECKOUT' in related_ticket.category.name %}bg-blue-100 text-blue-800
+                                                    {% elif related_ticket.category and 'PIN' in related_ticket.category.name %}bg-purple-100 text-purple-800
+                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                    {{ related_ticket.category.value if related_ticket.category else 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="text-sm text-gray-900 max-w-xs truncate" title="{{ related_ticket.subject }}">
+                                                    {{ related_ticket.subject[:50] }}{% if related_ticket.subject|length > 50 %}...{% endif %}
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                                    {% if related_ticket.status and related_ticket.status.name == 'RESOLVED' %}bg-green-100 text-green-800
+                                                    {% elif related_ticket.status and related_ticket.status.name == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
+                                                    {% elif related_ticket.status and related_ticket.status.name == 'ON_HOLD' %}bg-yellow-100 text-yellow-800
+                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                    {{ related_ticket.status.value if related_ticket.status else 'N/A' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                {{ related_ticket.created_at | singapore_time if related_ticket.created_at else 'N/A' }}
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <a href="{{ url_for('tickets.view_ticket', ticket_id=related_ticket.id) }}"
+                                                   class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                                                    <i class="fas fa-eye mr-1"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Comments - Messenger Style -->
                 <div id="comments" class="mb-8">
                     <div class="bg-white rounded-lg shadow overflow-hidden">

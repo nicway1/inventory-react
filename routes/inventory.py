@@ -1707,8 +1707,37 @@ def view_asset_sf(asset_id):
                 flash('You do not have permission to view this asset.', 'error')
                 return redirect(url_for('inventory.view_inventory_sf'))
 
-        # Get related tickets/cases
-        related_tickets = asset.tickets if asset.tickets else []
+        # Get related tickets/cases - include tickets linked by relationship AND by serial number
+        from models.ticket import Ticket
+        related_tickets_set = set()
+
+        # Add tickets from relationship
+        if asset.tickets:
+            for t in asset.tickets:
+                related_tickets_set.add(t.id)
+
+        # Also find tickets by serial number
+        if asset.serial_num:
+            serial_tickets = db_session.query(Ticket).filter(
+                Ticket.serial_number == asset.serial_num
+            ).all()
+            for t in serial_tickets:
+                related_tickets_set.add(t.id)
+
+        # Also find tickets by asset_id
+        asset_id_tickets = db_session.query(Ticket).filter(
+            Ticket.asset_id == asset.id
+        ).all()
+        for t in asset_id_tickets:
+            related_tickets_set.add(t.id)
+
+        # Get full ticket objects, sorted by created_at desc
+        if related_tickets_set:
+            related_tickets = db_session.query(Ticket).filter(
+                Ticket.id.in_(related_tickets_set)
+            ).order_by(Ticket.created_at.desc()).all()
+        else:
+            related_tickets = []
 
         # Get asset history
         asset_history = asset.history[:10] if asset.history else []  # Last 10 entries
@@ -3300,12 +3329,45 @@ def view_asset(asset_id):
         
         # Get grouped display name for the asset company
         asset_company_display = get_customer_display_name(db_session, asset.customer)
-        
-        return render_template('inventory/asset_details.html', 
-                             asset=asset, 
+
+        # Get related tickets/cases - include tickets linked by relationship AND by serial number
+        from models.ticket import Ticket
+        related_tickets_set = set()
+
+        # Add tickets from relationship
+        if asset.tickets:
+            for t in asset.tickets:
+                related_tickets_set.add(t.id)
+
+        # Also find tickets by serial number
+        if asset.serial_num:
+            serial_tickets = db_session.query(Ticket).filter(
+                Ticket.serial_number == asset.serial_num
+            ).all()
+            for t in serial_tickets:
+                related_tickets_set.add(t.id)
+
+        # Also find tickets by asset_id
+        asset_id_tickets = db_session.query(Ticket).filter(
+            Ticket.asset_id == asset.id
+        ).all()
+        for t in asset_id_tickets:
+            related_tickets_set.add(t.id)
+
+        # Get full ticket objects, sorted by created_at desc
+        if related_tickets_set:
+            related_tickets = db_session.query(Ticket).filter(
+                Ticket.id.in_(related_tickets_set)
+            ).order_by(Ticket.created_at.desc()).all()
+        else:
+            related_tickets = []
+
+        return render_template('inventory/asset_details.html',
+                             asset=asset,
                              customers=customers,
                              user=user,
-                             asset_company_display=asset_company_display)
+                             asset_company_display=asset_company_display,
+                             related_tickets=related_tickets)
     finally:
         db_session.close()
 
