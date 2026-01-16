@@ -106,23 +106,29 @@ window.triggerMentionSearch = async function(textarea, query, mentionStart) {
 
             data.suggestions.forEach((item, index) => {
                 const div = document.createElement('div');
-                div.className = 'p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2';
+                div.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #eee; background: white;';
+                div.onmouseenter = () => div.style.backgroundColor = '#f3f4f6';
+                div.onmouseleave = () => div.style.backgroundColor = 'white';
+
+                const avatarColor = item.type === 'group' ? '#10b981' : '#3b82f6';
+                const avatarBg = item.type === 'group' ? '#d1fae5' : '#dbeafe';
+
                 div.innerHTML = `
-                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-sm font-medium">
-                        ${item.name.charAt(0).toUpperCase()}
+                    <span style="width: 36px; height: 36px; border-radius: 50%; background: ${avatarBg}; color: ${avatarColor}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0;">
+                        ${item.type === 'group' ? '👥' : item.name.charAt(0).toUpperCase()}
                     </span>
-                    <span class="font-medium">${item.name}</span>
-                    <span class="text-xs text-gray-500">${item.type}</span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; color: #1f2937; font-size: 14px;">@${item.name}</div>
+                        <div style="font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.type === 'group' ? 'Group' : (item.email || 'User')}</div>
+                    </div>
                 `;
                 div.onclick = () => window.selectMention(item);
                 mentionList.appendChild(div);
             });
 
-            // Show and position dropdown
+            // Show and position dropdown with better styling
             dropdown.classList.remove('hidden');
-            dropdown.style.bottom = '100%';
-            dropdown.style.left = '0';
-            dropdown.style.marginBottom = '4px';
+            dropdown.style.cssText = 'position: absolute; bottom: 100%; left: 0; width: 280px; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 8px; z-index: 9999;';
             console.log('[MENTION-GLOBAL] Dropdown shown with', data.suggestions.length, 'items');
         } else {
             dropdown.classList.add('hidden');
@@ -11306,23 +11312,29 @@ window.triggerMentionSearch = async function(textarea, query, mentionStart) {
 
             data.suggestions.forEach((item, index) => {
                 const div = document.createElement('div');
-                div.className = 'p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2';
+                div.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #eee; background: white;';
+                div.onmouseenter = () => div.style.backgroundColor = '#f3f4f6';
+                div.onmouseleave = () => div.style.backgroundColor = 'white';
+
+                const avatarColor = item.type === 'group' ? '#10b981' : '#3b82f6';
+                const avatarBg = item.type === 'group' ? '#d1fae5' : '#dbeafe';
+
                 div.innerHTML = `
-                    <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-sm font-medium">
-                        ${item.name.charAt(0).toUpperCase()}
+                    <span style="width: 36px; height: 36px; border-radius: 50%; background: ${avatarBg}; color: ${avatarColor}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0;">
+                        ${item.type === 'group' ? '👥' : item.name.charAt(0).toUpperCase()}
                     </span>
-                    <span class="font-medium">${item.name}</span>
-                    <span class="text-xs text-gray-500">${item.type}</span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; color: #1f2937; font-size: 14px;">@${item.name}</div>
+                        <div style="font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.type === 'group' ? 'Group' : (item.email || 'User')}</div>
+                    </div>
                 `;
                 div.onclick = () => window.selectMention(item);
                 mentionList.appendChild(div);
             });
 
-            // Show and position dropdown
+            // Show and position dropdown with better styling
             dropdown.classList.remove('hidden');
-            dropdown.style.bottom = '100%';
-            dropdown.style.left = '0';
-            dropdown.style.marginBottom = '4px';
+            dropdown.style.cssText = 'position: absolute; bottom: 100%; left: 0; width: 280px; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 8px; z-index: 9999;';
             console.log('[MENTION-GLOBAL] Dropdown shown with', data.suggestions.length, 'items');
         } else {
             dropdown.classList.add('hidden');
