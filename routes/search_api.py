@@ -11,7 +11,7 @@ This module provides comprehensive search functionality that matches the web ver
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 import logging
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, false as sa_false
 
 from models.user import User, UserType
 from models.asset import Asset, AssetStatus
@@ -235,12 +235,12 @@ def global_search():
                         asset_query = asset_query.filter(
                             or_(
                                 Asset.company_id.in_(permitted_company_ids),
-                                Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                                Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                             )
                         )
                     else:
                         asset_query = asset_query.filter(Asset.id == -1)
-                
+
                 # Apply search filters (matching web version)
                 assets = asset_query.filter(
                     or_(
@@ -580,7 +580,7 @@ def search_assets():
                     query = query.filter(
                         or_(
                             Asset.company_id.in_(permitted_company_ids),
-                            Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                            Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                         )
                     )
                 else:
@@ -954,12 +954,12 @@ def search_suggestions():
                         asset_query = asset_query.filter(
                             or_(
                                 Asset.company_id.in_(permitted_company_ids),
-                                Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                                Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                             )
                         )
                     else:
                         asset_query = asset_query.filter(Asset.id == -1)
-                
+
                 # Get distinct suggestions from various fields
                 from sqlalchemy import distinct
                 
@@ -1106,14 +1106,14 @@ def get_search_filters():
                         asset_query = asset_query.filter(
                             or_(
                                 Asset.company_id.in_(permitted_company_ids),
-                                Asset.customer.in_(permitted_company_names) if permitted_company_names else False
+                                Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                             )
                         )
                     else:
                         asset_query = asset_query.filter(Asset.id == -1)
-                
+
                 from sqlalchemy import distinct
-                
+
                 # Get unique values for filter options
                 statuses = [status.value for status in AssetStatus]
                 categories = [cat[0] for cat in asset_query.with_entities(distinct(Asset.asset_type)).filter(Asset.asset_type.isnot(None)).all() if cat[0]]

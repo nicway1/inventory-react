@@ -3096,21 +3096,60 @@ def view_ticket(ticket_id):
 
         # Get service history - all tickets related to the same asset/serial number
         service_history = []
-        if ticket.serial_number or ticket.asset_id:
-            service_query = db_session.query(Ticket).filter(
-                Ticket.id != ticket.id  # Exclude current ticket
-            )
 
-            # Build OR conditions for matching
+        # Collect all asset IDs and serial numbers from this ticket
+        asset_ids = set()
+        serial_numbers = set()
+
+        # From direct fields
+        if ticket.asset_id:
+            asset_ids.add(ticket.asset_id)
+        if ticket.serial_number:
+            serial_numbers.add(ticket.serial_number)
+
+        # From relationship (ticket.assets)
+        if ticket.assets:
+            for asset in ticket.assets:
+                asset_ids.add(asset.id)
+                if asset.serial_num:
+                    serial_numbers.add(asset.serial_num)
+
+        # Build query if we have any identifiers
+        if asset_ids or serial_numbers:
+            # Find all tickets that share these assets or serial numbers
             conditions = []
-            if ticket.serial_number:
-                conditions.append(Ticket.serial_number == ticket.serial_number)
-            if ticket.asset_id:
-                conditions.append(Ticket.asset_id == ticket.asset_id)
 
+            # Match by asset_id field
+            if asset_ids:
+                conditions.append(Ticket.asset_id.in_(asset_ids))
+
+            # Match by serial_number field
+            if serial_numbers:
+                conditions.append(Ticket.serial_number.in_(serial_numbers))
+
+            # First get tickets matching direct fields
+            related_ticket_ids = set()
             if conditions:
-                service_query = service_query.filter(or_(*conditions))
-                service_history = service_query.order_by(Ticket.created_at.desc()).all()
+                direct_matches = db_session.query(Ticket.id).filter(
+                    Ticket.id != ticket.id,
+                    or_(*conditions)
+                ).all()
+                related_ticket_ids.update(t.id for t in direct_matches)
+
+            # Also find tickets linked to same assets through relationship
+            if asset_ids:
+                from models.asset import ticket_assets
+                relationship_matches = db_session.query(ticket_assets.c.ticket_id).filter(
+                    ticket_assets.c.asset_id.in_(asset_ids),
+                    ticket_assets.c.ticket_id != ticket.id
+                ).all()
+                related_ticket_ids.update(t.ticket_id for t in relationship_matches)
+
+            # Get full ticket objects
+            if related_ticket_ids:
+                service_history = db_session.query(Ticket).filter(
+                    Ticket.id.in_(related_ticket_ids)
+                ).order_by(Ticket.created_at.desc()).all()
 
         return render_template(
             'tickets/view.html',
