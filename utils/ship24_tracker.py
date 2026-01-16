@@ -1376,10 +1376,20 @@ class Ship24Tracker:
                 'origin', 'destination', 'facility', 'hub', 'sorting', 'loaded'
             ]
 
+            # Carrier names to skip (not event descriptions)
+            carrier_names = [
+                'ups', 'fedex', 'dhl', 'usps', 'tnt', 'aramex', 'ems',
+                'singpost', 'singapore post', 'china post', 'royal mail',
+                'australia post', 'japan post', 'korea post', 'canada post',
+                'pos malaysia', 'thai post', 'hfd', 'israel post', 'postnl',
+                'deutsche post', 'yanwen', 'cainiao', '4px', 'yunexpress', 'sf express'
+            ]
+
             # Skip patterns for UI elements
             skip_patterns = ['cookie', 'privacy', 'subscribe', 'login', 'sign up',
                            'track another', 'help center', 'ship24', 'powered by',
-                           'more details', 'track on', 'tracking history', 'events']
+                           'more details', 'track on', 'tracking history', 'events',
+                           'delivered on', 'expected delivery', 'estimated delivery']
 
             i = 0
             while i < len(lines) and len(events) < 20:
@@ -1412,6 +1422,10 @@ class Ship24Tracker:
                         if any(skip in prev_lower for skip in skip_patterns):
                             continue
 
+                        # Skip if it's just a carrier name
+                        if prev_lower in carrier_names or prev_line.upper() in [c.upper() for c in carrier_names]:
+                            continue
+
                         # Check if it looks like a location
                         if location_pattern.match(prev_line):
                             if not location:
@@ -1423,13 +1437,20 @@ class Ship24Tracker:
                             description = prev_line
                             break
 
-                        # If it's ALL CAPS and short, likely a status
+                        # If it's ALL CAPS and short, likely a status (but not if it looks like location)
                         if prev_line.isupper() and len(prev_line) < 50:
-                            description = prev_line
-                            break
+                            # Make sure it's not a location like "VANCOUVER, CA"
+                            if ',' not in prev_line or not location_pattern.match(prev_line):
+                                description = prev_line
+                                break
 
                         # Otherwise, use it as description if we don't have one yet
                         if not description and len(prev_line) > 5:
+                            # But not if it looks like a location
+                            if ',' in prev_line and location_pattern.match(prev_line):
+                                if not location:
+                                    location = prev_line
+                                continue
                             description = prev_line
                             break
 
@@ -1444,17 +1465,34 @@ class Ship24Tracker:
                         ):
                             location = next_line
 
-                    # Create event
-                    if description or location:
-                        event_desc = description or location or 'Status Update'
-                        # Avoid duplicate events
-                        event_key = f"{event_desc}_{timestamp}"
-                        if event_key not in [f"{e['description']}_{e.get('timestamp', '')}" for e in events]:
+                    # Create event only if we have a proper description
+                    # Don't create events with just location as description
+                    if description:
+                        # Normalize description for deduplication
+                        desc_normalized = description.lower().strip()
+                        timestamp_normalized = timestamp.lower().strip() if timestamp else ''
+
+                        # Check for duplicates (same description or very similar)
+                        is_duplicate = False
+                        for existing in events:
+                            existing_desc = existing['description'].lower().strip()
+                            existing_ts = (existing.get('timestamp') or '').lower().strip()
+                            # Duplicate if same description with same or similar timestamp
+                            if desc_normalized == existing_desc:
+                                is_duplicate = True
+                                break
+                            # Also check if one contains the other (e.g., "DELIVERED" vs "Delivered")
+                            if desc_normalized in existing_desc or existing_desc in desc_normalized:
+                                if timestamp_normalized == existing_ts:
+                                    is_duplicate = True
+                                    break
+
+                        if not is_duplicate:
                             event = {
-                                'description': event_desc,
+                                'description': description,
                                 'timestamp': timestamp
                             }
-                            if location and location != event_desc:
+                            if location:
                                 event['location'] = location
                             events.append(event)
 
