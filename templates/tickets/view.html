@@ -57,9 +57,13 @@ function checkMention(textarea) {
 
     if (mentionMatch) {
         console.log('[MENTION-INLINE] Detected @mention:', mentionMatch[1]);
+        console.log('[MENTION-INLINE] triggerMentionSearch exists:', typeof window.triggerMentionSearch);
         // Trigger the search via global function if available
         if (typeof window.triggerMentionSearch === 'function') {
+            console.log('[MENTION-INLINE] Calling triggerMentionSearch...');
             window.triggerMentionSearch(textarea, mentionMatch[1], cursorPos - mentionMatch[0].length);
+        } else {
+            console.error('[MENTION-INLINE] triggerMentionSearch NOT FOUND!');
         }
     } else {
         // Hide dropdown if no mention pattern
