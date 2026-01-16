@@ -11167,13 +11167,17 @@ function initializeMentionAutocomplete(textarea) {
     console.log('[MENTION] Successfully initialized, adding input listener');
 
     // Handle input events
+    console.log('[MENTION] Adding input event listener to textarea:', textarea.id);
     textarea.addEventListener('input', function(e) {
+        console.log('[MENTION] Input event fired, value:', this.value);
         const value = this.value;
         const cursorPos = this.selectionStart;
         const textBeforeCursor = value.substring(0, cursorPos);
+        console.log('[MENTION] Text before cursor:', textBeforeCursor);
 
         // Look for @mention pattern
         const mentionMatch = textBeforeCursor.match(/@([a-zA-Z0-9._@-]*)$/);
+        console.log('[MENTION] Mention match result:', mentionMatch);
 
         if (mentionMatch) {
             console.log('[MENTION] Detected @ mention:', mentionMatch);
@@ -11188,6 +11192,7 @@ function initializeMentionAutocomplete(textarea) {
             hideMentionDropdown();
         }
     });
+    console.log('[MENTION] Input event listener added successfully');
 
     // Handle keyboard navigation
     textarea.addEventListener('keydown', function(e) {
