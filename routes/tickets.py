@@ -7936,6 +7936,75 @@ def get_customers():
         db_session.close()
 
 
+@tickets_bp.route('/api/mention-suggestions')
+@login_required
+def get_mention_suggestions():
+    """Get users and groups for @mention autocomplete"""
+    from models.group import Group
+
+    query = request.args.get('q', '').lower().strip()
+    db_session = db_manager.get_session()
+
+    try:
+        suggestions = []
+
+        # Get users (limit to 10 for performance)
+        users = db_session.query(User).filter(
+            User.username.ilike(f'%{query}%')
+        ).limit(10).all()
+
+        for user in users:
+            suggestions.append({
+                'type': 'user',
+                'id': user.id,
+                'name': user.username,
+                'display_name': user.username,
+                'email': user.email,
+                'avatar': user.username[0].upper() if user.username else 'U'
+            })
+
+        # Get active groups (limit to 10 for performance)
+        try:
+            groups = db_session.query(Group).filter(
+                Group.name.ilike(f'%{query}%'),
+                Group.is_active == True
+            ).limit(10).all()
+
+            for group in groups:
+                suggestions.append({
+                    'type': 'group',
+                    'id': group.id,
+                    'name': group.name,
+                    'display_name': f"@{group.name}",
+                    'description': group.description or f"Group with {group.member_count} members",
+                    'member_count': group.member_count,
+                    'avatar': 'G'
+                })
+        except Exception as e:
+            # Groups might not exist in all setups
+            logger.debug(f"Could not load groups: {e}")
+
+        # Sort by relevance (exact matches first, then partial matches)
+        def sort_key(item):
+            name = item['name'].lower()
+            if name == query:
+                return (0, name)
+            elif name.startswith(query):
+                return (1, name)
+            else:
+                return (2, name)
+
+        suggestions.sort(key=sort_key)
+
+        return jsonify({'suggestions': suggestions[:20]})
+
+    except Exception as e:
+        logger.error(f"Error getting mention suggestions: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
 @tickets_bp.route('/<int:ticket_id>/add_outbound_tracking', methods=['POST'])
 @login_required
 def add_outbound_tracking(ticket_id):

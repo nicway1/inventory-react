@@ -94,7 +94,7 @@ window.triggerMentionSearch = async function(textarea, query, mentionStart) {
     window.mentionState.currentMentionStart = mentionStart;
 
     try {
-        const url = `/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`;
+        const url = `/tickets/api/mention-suggestions?q=${encodeURIComponent(query)}`;
         console.log('[MENTION-GLOBAL] Fetching:', url);
         const response = await fetch(url);
         const data = await response.json();
@@ -11294,7 +11294,7 @@ window.triggerMentionSearch = async function(textarea, query, mentionStart) {
     window.mentionState.currentMentionStart = mentionStart;
 
     try {
-        const url = `/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`;
+        const url = `/tickets/api/mention-suggestions?q=${encodeURIComponent(query)}`;
         console.log('[MENTION-GLOBAL] Fetching:', url);
         const response = await fetch(url);
         const data = await response.json();
@@ -11434,7 +11434,7 @@ function initializeMentionAutocomplete(textarea) {
     async function searchMentions(query) {
         try {
             console.log('[MENTION] Fetching suggestions for query:', query);
-            const url = `/admin/api/mention-suggestions?q=${encodeURIComponent(query)}`;
+            const url = `/tickets/api/mention-suggestions?q=${encodeURIComponent(query)}`;
             console.log('[MENTION] Fetching from URL:', url);
 
             const response = await fetch(url);
