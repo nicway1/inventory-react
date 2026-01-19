@@ -8085,6 +8085,16 @@ def mark_return_received(ticket_id):
             if replacement_received:
                 ticket.status = TicketStatus.RESOLVED
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+
+                # Update linked assets to "In Stock" status when Asset Return is resolved
+                if ticket.assets:
+                    for asset in ticket.assets:
+                        if asset.status != AssetStatus.IN_STOCK:
+                            old_asset_status = asset.status
+                            asset.status = AssetStatus.IN_STOCK
+                            asset.current_holder = None  # Clear the holder since it's returned
+                            logger.info(f"Updated asset {asset.asset_tag} status from {old_asset_status} to IN_STOCK (Asset Return resolved)")
+
             # Set to IN_PROGRESS if status is NEW
             elif ticket.status == TicketStatus.NEW:
                 ticket.status = TicketStatus.IN_PROGRESS
@@ -8095,11 +8105,11 @@ def mark_return_received(ticket_id):
 
         # Check if ticket was auto-closed
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status == TicketStatus.RESOLVED:
-            flash('Return shipment marked as received - Ticket closed (both shipments received)')
+            flash('Return shipment marked as received - Ticket closed (both shipments received). Asset status updated to In Stock.')
         else:
             flash('Return shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
-                
+
     except Exception as e:
         db_session.rollback()
         logger.info(f"Error marking return as received: {str(e)}")
@@ -8138,6 +8148,16 @@ def mark_replacement_received(ticket_id):
             if return_received:
                 ticket.status = TicketStatus.RESOLVED
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+
+                # Update linked assets to "In Stock" status when Asset Return is resolved
+                if ticket.assets:
+                    for asset in ticket.assets:
+                        if asset.status != AssetStatus.IN_STOCK:
+                            old_asset_status = asset.status
+                            asset.status = AssetStatus.IN_STOCK
+                            asset.current_holder = None  # Clear the holder since it's returned
+                            logger.info(f"Updated asset {asset.asset_tag} status from {old_asset_status} to IN_STOCK (Asset Return resolved)")
+
             # Set to IN_PROGRESS if status is NEW
             elif ticket.status == TicketStatus.NEW:
                 ticket.status = TicketStatus.IN_PROGRESS
@@ -8148,7 +8168,7 @@ def mark_replacement_received(ticket_id):
 
         # Check if ticket was auto-closed
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status == TicketStatus.RESOLVED:
-            flash('Replacement shipment marked as received - Ticket closed (both shipments received)')
+            flash('Replacement shipment marked as received - Ticket closed (both shipments received). Asset status updated to In Stock.')
         else:
             flash('Replacement shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
