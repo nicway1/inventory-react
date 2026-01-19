@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -19,9 +20,10 @@ import Compliance from './pages/services/Compliance';
 
 function App() {
   return (
-    <Router basename={process.env.PUBLIC_URL}>
-      <div className="App">
-        <Header />
+    <ThemeProvider>
+      <Router basename={process.env.PUBLIC_URL}>
+        <div className="App min-h-screen bg-white dark:bg-slate-900 text-secondary-900 dark:text-gray-100 transition-colors duration-300">
+          <Header />
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -39,10 +41,11 @@ function App() {
             <Route path="/services/ior-eor-solutions" element={<IORSolutions />} />
             <Route path="/services/compliance" element={<Compliance />} />
           </Routes>
-        </main>
-        <Footer />
-      </div>
-    </Router>
+          </main>
+          <Footer />
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 

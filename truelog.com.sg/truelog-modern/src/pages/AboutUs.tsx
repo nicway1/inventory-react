@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const AboutUs: React.FC = () => {
   return (
-    <div className="pt-16">
+    <div className="pt-16 bg-slate-900">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -24,7 +24,7 @@ const AboutUs: React.FC = () => {
       </section>
 
       {/* Company Overview */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -33,25 +33,25 @@ const AboutUs: React.FC = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <h2 className="text-4xl font-heading font-bold text-gray-900 mb-6">
+              <h2 className="text-4xl font-heading font-bold text-white mb-6">
                 Our Story
               </h2>
-              <p className="text-lg text-gray-600 mb-6">
-                Truelog is Singapore's premier integrated logistics solutions provider, delivering comprehensive 
-                freight forwarding, warehousing, and specialized IT logistics services across the Asia-Pacific 
+              <p className="text-lg text-gray-300 mb-6">
+                Truelog is Singapore's premier integrated logistics solutions provider, delivering comprehensive
+                freight forwarding, warehousing, and specialized IT logistics services across the Asia-Pacific
                 region and beyond.
               </p>
-              <p className="text-lg text-gray-600 mb-6">
-                With over 15 years of industry expertise, we combine traditional logistics excellence with 
-                modern technology to provide seamless, efficient, and cost-effective supply chain solutions 
+              <p className="text-lg text-gray-300 mb-6">
+                With over 15 years of industry expertise, we combine traditional logistics excellence with
+                modern technology to provide seamless, efficient, and cost-effective supply chain solutions
                 for businesses of all sizes.
               </p>
-              <p className="text-lg text-gray-600">
-                Our commitment to innovation, reliability, and customer satisfaction has made us a trusted 
+              <p className="text-lg text-gray-300">
+                Our commitment to innovation, reliability, and customer satisfaction has made us a trusted
                 partner for companies looking to optimize their global supply chains.
               </p>
             </motion.div>
-            
+
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -70,7 +70,7 @@ const AboutUs: React.FC = () => {
       </section>
 
       {/* Values Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -79,10 +79,10 @@ const AboutUs: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-heading font-bold text-white mb-4">
               Our Values
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               The principles that guide everything we do
             </p>
           </motion.div>
@@ -111,11 +111,11 @@ const AboutUs: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.2 }}
-                className="bg-white rounded-2xl p-8 shadow-lg text-center"
+                className="bg-slate-700/50 backdrop-blur-sm rounded-2xl p-8 shadow-lg text-center border border-slate-600/50"
               >
                 <div className="text-4xl mb-4">{value.icon}</div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-4">{value.title}</h3>
-                <p className="text-gray-600">{value.description}</p>
+                <h3 className="text-2xl font-semibold text-white mb-4">{value.title}</h3>
+                <p className="text-gray-300">{value.description}</p>
               </motion.div>
             ))}
           </div>

@@ -82,7 +82,7 @@ const GlobalCoverage: React.FC = () => {
   ];
 
   return (
-    <div className="pt-16">
+    <div className="pt-16 bg-slate-900">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 py-20 relative overflow-hidden">
         {/* Background Elements */}
@@ -138,7 +138,7 @@ const GlobalCoverage: React.FC = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
@@ -150,11 +150,11 @@ const GlobalCoverage: React.FC = () => {
                 transition={{ duration: 0.8, delay: index * 0.1 }}
                 className="text-center"
               >
-                <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <stat.icon className="h-8 w-8 text-primary-600" />
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">{stat.number}</div>
-                <div className="text-gray-600">{stat.label}</div>
+                <div className="text-3xl font-bold text-white mb-2">{stat.number}</div>
+                <div className="text-gray-300">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -162,7 +162,7 @@ const GlobalCoverage: React.FC = () => {
       </section>
 
       {/* Regional Coverage */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -171,10 +171,10 @@ const GlobalCoverage: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-heading font-bold text-white mb-4">
               Regional Coverage
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Strategic presence across key global markets and trade corridors
             </p>
           </motion.div>
@@ -187,21 +187,21 @@ const GlobalCoverage: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-white rounded-2xl p-8 shadow-lg"
+                className="bg-slate-900 rounded-2xl p-8 border border-slate-700/50"
               >
                 <div className="flex items-center mb-6">
                   <div className="text-4xl mr-4">{region.flag}</div>
-                  <h3 className="text-2xl font-semibold text-gray-900">{region.name}</h3>
+                  <h3 className="text-2xl font-semibold text-white">{region.name}</h3>
                 </div>
                 
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Countries</h4>
+                    <h4 className="font-semibold text-white mb-2">Countries</h4>
                     <div className="flex flex-wrap gap-2">
                       {region.countries.map((country, countryIndex) => (
                         <span
                           key={countryIndex}
-                          className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                          className="px-3 py-1 bg-slate-700 text-gray-300 text-sm rounded-full"
                         >
                           {country}
                         </span>
@@ -210,12 +210,12 @@ const GlobalCoverage: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Key Hubs</h4>
+                    <h4 className="font-semibold text-white mb-2">Key Hubs</h4>
                     <div className="flex flex-wrap gap-2">
                       {region.hubs.map((hub, hubIndex) => (
                         <span
                           key={hubIndex}
-                          className="px-3 py-1 bg-primary-100 text-primary-700 text-sm rounded-full"
+                          className="px-3 py-1 bg-primary-500/20 text-primary-700 text-sm rounded-full"
                         >
                           {hub}
                         </span>
@@ -224,12 +224,12 @@ const GlobalCoverage: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Industry Specialties</h4>
+                    <h4 className="font-semibold text-white mb-2">Industry Specialties</h4>
                     <div className="flex flex-wrap gap-2">
                       {region.specialties.map((specialty, specialtyIndex) => (
                         <span
                           key={specialtyIndex}
-                          className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full"
+                          className="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full"
                         >
                           {specialty}
                         </span>
@@ -244,7 +244,7 @@ const GlobalCoverage: React.FC = () => {
       </section>
 
       {/* Service Coverage */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -253,10 +253,10 @@ const GlobalCoverage: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-heading font-bold text-white mb-4">
               Service Coverage
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Comprehensive logistics services across all major transportation modes
             </p>
           </motion.div>
@@ -269,23 +269,23 @@ const GlobalCoverage: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-gray-50 rounded-2xl p-8"
+                className="bg-slate-800 rounded-2xl p-8"
               >
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <service.icon className="h-6 w-6 text-primary-600" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
+                      <h3 className="text-xl font-semibold text-white">{service.title}</h3>
                       <span className="text-primary-600 font-semibold text-sm">{service.coverage}</span>
                     </div>
-                    <p className="text-gray-600 mb-4">{service.description}</p>
+                    <p className="text-gray-300 mb-4">{service.description}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {service.features.map((feature, featureIndex) => (
                         <div key={featureIndex} className="flex items-center text-sm">
                           <div className="w-1.5 h-1.5 rounded-full bg-primary-600 mr-2"></div>
-                          <span className="text-gray-700">{feature}</span>
+                          <span className="text-gray-300">{feature}</span>
                         </div>
                       ))}
                     </div>
@@ -298,7 +298,7 @@ const GlobalCoverage: React.FC = () => {
       </section>
 
       {/* Key Ports & Airports */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -307,10 +307,10 @@ const GlobalCoverage: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-heading font-bold text-white mb-4">
               Key Ports & Airports
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Strategic partnerships with major global transportation hubs
             </p>
           </motion.div>
@@ -323,19 +323,19 @@ const GlobalCoverage: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-white rounded-xl p-6 shadow-lg text-center"
+                className="bg-slate-900 rounded-xl p-6 shadow-lg text-center"
               >
-                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
                   {port.type === 'Sea Port' ? (
                     <span className="text-2xl">🚢</span>
                   ) : (
                     <span className="text-2xl">✈️</span>
                   )}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{port.name}</h3>
-                <div className="text-sm text-gray-600 mb-1">{port.type}</div>
+                <h3 className="text-lg font-semibold text-white mb-2">{port.name}</h3>
+                <div className="text-sm text-gray-300 mb-1">{port.type}</div>
                 <div className="text-primary-600 font-semibold text-sm mb-1">{port.rank}</div>
-                <div className="text-gray-500 text-sm">{port.volume}</div>
+                <div className="text-gray-400 text-sm">{port.volume}</div>
               </motion.div>
             ))}
           </div>
@@ -343,7 +343,7 @@ const GlobalCoverage: React.FC = () => {
       </section>
 
       {/* Contact Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -352,10 +352,10 @@ const GlobalCoverage: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-heading font-bold text-white mb-4">
               Global Support Network
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               24/7 support across all time zones with local expertise
             </p>
           </motion.div>
@@ -390,19 +390,19 @@ const GlobalCoverage: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-gray-50 rounded-xl p-6 text-center"
+                className="bg-slate-800 rounded-xl p-6 text-center"
               >
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">{contact.region}</h3>
+                <h3 className="text-xl font-semibold text-white mb-4">{contact.region}</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-center space-x-2">
-                    <ClockIcon className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-600">{contact.timezone}</span>
+                    <ClockIcon className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-300">{contact.timezone}</span>
                   </div>
                   <div className="flex items-center justify-center space-x-2">
-                    <PhoneIcon className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-600">{contact.phone}</span>
+                    <PhoneIcon className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-300">{contact.phone}</span>
                   </div>
-                  <div className="text-gray-600">{contact.email}</div>
+                  <div className="text-gray-300">{contact.email}</div>
                   <div className="text-primary-600 font-semibold">{contact.hours}</div>
                 </div>
               </motion.div>
@@ -429,7 +429,7 @@ const GlobalCoverage: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white text-primary-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="bg-slate-900 text-primary-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Explore Global Solutions
             </motion.button>

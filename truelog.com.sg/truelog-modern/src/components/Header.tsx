@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon, ChevronDownIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { MagneticButton } from './ui';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const location = useLocation();
+  const { toggleTheme, isDark } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,7 +49,7 @@ const Header: React.FC = () => {
       transition={{ type: 'spring', stiffness: 100, damping: 20 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/95 backdrop-blur-lg shadow-lg border-b border-secondary-100'
+          ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg shadow-lg border-b border-secondary-100 dark:border-slate-700'
           : 'bg-secondary-900/80 backdrop-blur-md'
       }`}
     >
@@ -149,13 +151,31 @@ const Header: React.FC = () => {
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-3">
+            {/* Theme Toggle */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl transition-all duration-200 ${
+                isScrolled
+                  ? 'text-secondary-700 hover:bg-secondary-100 dark:text-gray-300 dark:hover:bg-slate-700'
+                  : 'text-white hover:bg-white/10'
+              }`}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? (
+                <SunIcon className="h-5 w-5" />
+              ) : (
+                <MoonIcon className="h-5 w-5" />
+              )}
+            </motion.button>
             <a
               href="https://www.truelog.site/auth/login"
               target="_blank"
               rel="noopener noreferrer"
               className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 border ${
                 isScrolled
-                  ? 'border-primary-600 text-primary-600 hover:bg-primary-50'
+                  ? 'border-primary-600 text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/20'
                   : 'border-white/30 text-white hover:bg-white/10'
               }`}
             >

@@ -42,7 +42,7 @@ const Services: React.FC = () => {
   ];
 
   return (
-    <div className="pt-16">
+    <div className="pt-16 bg-slate-900">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 py-20 overflow-hidden">
         {/* Background with shipping boxes and network lines */}
@@ -131,7 +131,7 @@ const Services: React.FC = () => {
                 transition={{ duration: 0.8, delay: index * 0.2 }}
                 className="group"
               >
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700/50 hover:border-primary-500/50 transition-all duration-300">
                   <div className="relative h-64 overflow-hidden">
                     <img 
                       src={service.image} 
@@ -142,8 +142,8 @@ const Services: React.FC = () => {
                   </div>
                   
                   <div className="p-8">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">{service.title}</h3>
-                    <p className="text-gray-600 mb-6 leading-relaxed">{service.description}</p>
+                    <h3 className="text-2xl font-bold text-white mb-4">{service.title}</h3>
+                    <p className="text-gray-300 mb-6 leading-relaxed">{service.description}</p>
                     
                     <Link
                       to={service.link}
@@ -168,7 +168,7 @@ const Services: React.FC = () => {
                 transition={{ duration: 0.8, delay: index * 0.2 }}
                 className="group"
               >
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700/50 hover:border-primary-500/50 transition-all duration-300">
                   <div className="relative h-48 overflow-hidden">
                     <img 
                       src={service.image} 
@@ -179,8 +179,8 @@ const Services: React.FC = () => {
                   </div>
                   
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">{service.title}</h3>
-                    <p className="text-gray-600 mb-4 text-sm leading-relaxed">{service.description}</p>
+                    <h3 className="text-xl font-bold text-white mb-3">{service.title}</h3>
+                    <p className="text-gray-300 mb-4 text-sm leading-relaxed">{service.description}</p>
                     
                     <Link
                       to={service.link}
