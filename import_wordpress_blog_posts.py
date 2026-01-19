@@ -22,7 +22,24 @@ BLOG_POST_SLUGS = [
     'truelog-launches-ior-eor-services-into-la-reunion',
 ]
 
-TRUELOG_DIR = '/Users/user/invK/inventory/truelog.com.sg'
+def get_truelog_dir():
+    """Get the truelog.com.sg directory path"""
+    # Try multiple possible locations
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    local_path = os.path.join(base_dir, 'truelog.com.sg')
+
+    if os.path.exists(local_path):
+        return local_path
+
+    # Fallback for PythonAnywhere
+    home = os.path.expanduser('~')
+    pa_path = os.path.join(home, 'inventory', 'truelog.com.sg')
+    if os.path.exists(pa_path):
+        return pa_path
+
+    return local_path
+
+TRUELOG_DIR = get_truelog_dir()
 
 
 def extract_blog_post_from_html(html_path, slug):
@@ -212,6 +229,13 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1 and sys.argv[1] == '--list':
         list_available_posts()
+    elif len(sys.argv) > 1 and sys.argv[1] == '--yes':
+        # Auto-confirm for remote execution
+        print("WordPress Blog Post Importer")
+        print("=" * 50)
+        list_available_posts()
+        print("\n")
+        import_blog_posts()
     else:
         print("WordPress Blog Post Importer")
         print("=" * 50)
