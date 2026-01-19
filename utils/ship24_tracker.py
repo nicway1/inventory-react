@@ -2425,36 +2425,71 @@ class Ship24Tracker:
 
         try:
             async with async_playwright() as p:
-                launch_options = get_browser_launch_options()
+                # Use stealth settings to avoid bot detection
+                launch_options = {
+                    'headless': True,
+                    'args': [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-blink-features=AutomationControlled',  # Hide automation
+                        '--disable-infobars',
+                        '--window-size=1366,768',
+                    ]
+                }
+                # Check for PythonAnywhere
+                if is_pythonanywhere():
+                    launch_options['executable_path'] = '/usr/bin/chromium'
+
                 browser = await p.chromium.launch(**launch_options)
 
                 context_options = {
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'viewport': {'width': 1366, 'height': 768},
-                    'locale': 'he-IL'
+                    'locale': 'he-IL',
+                    'bypass_csp': True,  # Bypass Content Security Policy
                 }
 
                 context = await browser.new_context(**context_options)
                 page = await context.new_page()
 
+                # Add stealth scripts to hide automation
+                await page.add_init_script("""
+                    // Hide webdriver property
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                    // Hide automation
+                    window.chrome = { runtime: {} };
+                    // Hide plugins length
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5]
+                    });
+                    // Hide languages
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['he-IL', 'he', 'en-US', 'en']
+                    });
+                """)
+
                 # Navigate and wait for network to be idle (all API calls completed)
                 logger.info(f"[HFD Playwright] Navigating to page...")
                 await page.goto(tracking_url, wait_until='networkidle', timeout=60000)
 
-                # Wait additional time for React to render
-                logger.info(f"[HFD Playwright] Waiting for React to render...")
-                await page.wait_for_timeout(8000)
+                # Wait additional time for JS to render
+                logger.info(f"[HFD Playwright] Waiting for JS to render...")
+                await page.wait_for_timeout(10000)
 
-                # Try to wait for specific content elements
+                # Try to wait for specific content elements that HFD uses
                 try:
-                    await page.wait_for_selector('.hfd-title, [class*="shipment"], [class*="status"], [class*="delivery"]', timeout=10000)
-                    logger.info(f"[HFD Playwright] Found content selector")
+                    # Wait for any of these selectors that HFD uses
+                    await page.wait_for_selector('text=סטטוס משלוח, text=פרטי המשלוח, text=המשלוח', timeout=15000)
+                    logger.info(f"[HFD Playwright] Found HFD content")
                 except:
-                    logger.info(f"[HFD Playwright] Content selector not found, continuing anyway")
+                    logger.info(f"[HFD Playwright] HFD content selector not found, continuing anyway")
 
                 # Scroll to trigger any lazy loading
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-                await page.wait_for_timeout(2000)
+                await page.wait_for_timeout(3000)
                 await page.evaluate('window.scrollTo(0, 0)')
                 await page.wait_for_timeout(2000)
 
