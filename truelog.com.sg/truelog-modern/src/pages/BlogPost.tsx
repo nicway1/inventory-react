@@ -62,16 +62,16 @@ const BlogPost: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-secondary-900 via-secondary-800 to-secondary-900 pt-32">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-secondary-900 dark:via-secondary-800 dark:to-secondary-900 pt-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="animate-pulse">
-            <div className="bg-white/10 rounded h-12 w-3/4 mb-4"></div>
-            <div className="bg-white/10 rounded h-6 w-1/2 mb-8"></div>
-            <div className="bg-white/10 rounded-2xl h-96 mb-8"></div>
+            <div className="bg-gray-200 dark:bg-white/10 rounded h-12 w-3/4 mb-4"></div>
+            <div className="bg-gray-200 dark:bg-white/10 rounded h-6 w-1/2 mb-8"></div>
+            <div className="bg-gray-200 dark:bg-white/10 rounded-2xl h-96 mb-8"></div>
             <div className="space-y-4">
-              <div className="bg-white/10 rounded h-4 w-full"></div>
-              <div className="bg-white/10 rounded h-4 w-full"></div>
-              <div className="bg-white/10 rounded h-4 w-3/4"></div>
+              <div className="bg-gray-200 dark:bg-white/10 rounded h-4 w-full"></div>
+              <div className="bg-gray-200 dark:bg-white/10 rounded h-4 w-full"></div>
+              <div className="bg-gray-200 dark:bg-white/10 rounded h-4 w-3/4"></div>
             </div>
           </div>
         </div>
@@ -81,10 +81,10 @@ const BlogPost: React.FC = () => {
 
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-secondary-900 via-secondary-800 to-secondary-900 pt-32">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-secondary-900 dark:via-secondary-800 dark:to-secondary-900 pt-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">Post Not Found</h1>
-          <p className="text-secondary-400 mb-8">{error || 'The blog post you are looking for does not exist.'}</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Post Not Found</h1>
+          <p className="text-gray-600 dark:text-secondary-400 mb-8">{error || 'The blog post you are looking for does not exist.'}</p>
           <Link
             to="/blog"
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-500 transition-colors"
@@ -98,7 +98,7 @@ const BlogPost: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-secondary-900 via-secondary-800 to-secondary-900">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-secondary-900 dark:via-secondary-800 dark:to-secondary-900">
       {/* Article Header */}
       <article className="pt-32 pb-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -111,7 +111,7 @@ const BlogPost: React.FC = () => {
           >
             <Link
               to="/blog"
-              className="inline-flex items-center gap-2 text-secondary-400 hover:text-primary-400 transition-colors"
+              className="inline-flex items-center gap-2 text-gray-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
             >
               <ArrowLeftIcon className="w-5 h-5" />
               Back to Blog
@@ -123,7 +123,7 @@ const BlogPost: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight"
+            className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight"
           >
             {post.title}
           </motion.h1>
@@ -133,7 +133,7 @@ const BlogPost: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="flex flex-wrap items-center gap-6 text-secondary-400 mb-8"
+            className="flex flex-wrap items-center gap-6 text-gray-600 dark:text-secondary-400 mb-8"
           >
             {post.author && (
               <span className="flex items-center gap-2">
@@ -174,17 +174,17 @@ const BlogPost: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="prose prose-lg prose-invert max-w-none
-              prose-headings:text-white prose-headings:font-bold
-              prose-p:text-secondary-300 prose-p:leading-relaxed
-              prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-white
-              prose-ul:text-secondary-300
-              prose-ol:text-secondary-300
-              prose-li:text-secondary-300
-              prose-blockquote:border-primary-500 prose-blockquote:bg-white/5 prose-blockquote:rounded-r-xl prose-blockquote:py-2 prose-blockquote:px-4
-              prose-code:text-primary-400 prose-code:bg-white/10 prose-code:rounded prose-code:px-1
-              prose-pre:bg-secondary-800/50 prose-pre:border prose-pre:border-white/10"
+            className="prose prose-lg dark:prose-invert max-w-none
+              prose-headings:text-gray-900 dark:prose-headings:text-white prose-headings:font-bold
+              prose-p:text-gray-700 dark:prose-p:text-secondary-300 prose-p:leading-relaxed
+              prose-a:text-primary-600 dark:prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-gray-900 dark:prose-strong:text-white
+              prose-ul:text-gray-700 dark:prose-ul:text-secondary-300
+              prose-ol:text-gray-700 dark:prose-ol:text-secondary-300
+              prose-li:text-gray-700 dark:prose-li:text-secondary-300
+              prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 dark:prose-blockquote:bg-white/5 prose-blockquote:rounded-r-xl prose-blockquote:py-2 prose-blockquote:px-4
+              prose-code:text-primary-600 dark:prose-code:text-primary-400 prose-code:bg-gray-100 dark:prose-code:bg-white/10 prose-code:rounded prose-code:px-1
+              prose-pre:bg-gray-100 dark:prose-pre:bg-secondary-800/50 prose-pre:border prose-pre:border-gray-200 dark:prose-pre:border-white/10"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
 
@@ -193,15 +193,15 @@ const BlogPost: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-12 pt-8 border-t border-white/10"
+            className="mt-12 pt-8 border-t border-gray-200 dark:border-white/10"
           >
-            <h3 className="text-lg font-semibold text-white mb-4">Share this article</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Share this article</h3>
             <div className="flex gap-4">
               <a
                 href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(window.location.href)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-white"
+                className="p-3 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-gray-700 dark:text-white"
                 aria-label="Share on Twitter"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -212,7 +212,7 @@ const BlogPost: React.FC = () => {
                 href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(post.title)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-white"
+                className="p-3 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-gray-700 dark:text-white"
                 aria-label="Share on LinkedIn"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -221,7 +221,7 @@ const BlogPost: React.FC = () => {
               </a>
               <button
                 onClick={() => navigator.clipboard.writeText(window.location.href)}
-                className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-white"
+                className="p-3 bg-gray-100 dark:bg-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-gray-700 dark:text-white"
                 aria-label="Copy link"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
