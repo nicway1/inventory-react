@@ -1,0 +1,283 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { MagneticButton } from './ui';
+
+const Header: React.FC = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navigation = [
+    {
+      name: 'Services',
+      href: '/services',
+      dropdown: [
+        { name: 'Freight Forwarding', href: '/services/freight-forwarding', description: 'Air & sea freight solutions' },
+        { name: 'Global Fulfillment', href: '/services/global-fulfillment', description: 'End-to-end warehousing' },
+        { name: 'ICT Logistics', href: '/services/ict-logistics', description: 'Technology equipment shipping' },
+        { name: 'IOR/EOR Solutions', href: '/services/ior-eor-solutions', description: 'Import/export compliance' },
+        { name: 'Compliance', href: '/services/compliance', description: 'Regulatory support' },
+      ]
+    },
+    { name: 'About Us', href: '/about-us' },
+    { name: 'Global Coverage', href: '/global-coverage' },
+    { name: 'Blog', href: '/blog' },
+    { name: 'Resources', href: '/resources' },
+    { name: 'FAQ', href: '/faq' },
+    { name: 'Contact', href: '/contact-us' },
+  ];
+
+  const isActive = (href: string) => location.pathname === href;
+
+  return (
+    <motion.header
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled
+          ? 'bg-white/95 backdrop-blur-lg shadow-lg border-b border-secondary-100'
+          : 'bg-secondary-900/80 backdrop-blur-md'
+      }`}
+    >
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-20">
+          {/* Logo */}
+          <Link to="/" className="flex-shrink-0">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center cursor-pointer"
+            >
+              <img
+                src="/assets/images/truelog-logo.png"
+                alt="Truelog Logo"
+                className="h-10 w-auto"
+              />
+            </motion.div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center space-x-1">
+            {navigation.map((item) => (
+              <div
+                key={item.name}
+                className="relative"
+                onMouseEnter={() => item.dropdown && setActiveDropdown(item.name)}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
+                <Link
+                  to={item.href}
+                  className={`relative px-4 py-2 text-sm font-medium transition-colors duration-200 flex items-center gap-1 ${
+                    isActive(item.href)
+                      ? isScrolled ? 'text-primary-600' : 'text-primary-400'
+                      : isScrolled
+                      ? 'text-secondary-700 hover:text-primary-600'
+                      : 'text-white/90 hover:text-white'
+                  }`}
+                >
+                  <span className="relative">
+                    {item.name}
+                    {/* Animated underline */}
+                    <motion.span
+                      className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-cyan rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: isActive(item.href) ? '100%' : 0 }}
+                      whileHover={{ width: '100%' }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  </span>
+                  {item.dropdown && (
+                    <motion.span
+                      animate={{ rotate: activeDropdown === item.name ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </motion.span>
+                  )}
+                </Link>
+
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {item.dropdown && activeDropdown === item.name && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-secondary-100 overflow-hidden"
+                    >
+                      <div className="p-2">
+                        {item.dropdown.map((subItem, index) => (
+                          <motion.div
+                            key={subItem.name}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <Link
+                              to={subItem.href}
+                              className="flex flex-col px-4 py-3 rounded-xl text-secondary-700 hover:bg-primary-50 hover:text-primary-600 transition-all duration-200 group"
+                            >
+                              <span className="font-medium text-sm group-hover:translate-x-1 transition-transform duration-200">
+                                {subItem.name}
+                              </span>
+                              <span className="text-xs text-secondary-500 group-hover:text-primary-500">
+                                {subItem.description}
+                              </span>
+                            </Link>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="hidden lg:flex items-center gap-3">
+            <a
+              href="https://www.truelog.site/auth/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 border ${
+                isScrolled
+                  ? 'border-primary-600 text-primary-600 hover:bg-primary-50'
+                  : 'border-white/30 text-white hover:bg-white/10'
+              }`}
+            >
+              Client Login
+            </a>
+            <MagneticButton variant="primary" size="md" glow>
+              Get Quote
+            </MagneticButton>
+          </div>
+
+          {/* Mobile menu button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`lg:hidden p-2 rounded-xl transition-colors duration-200 ${
+              isScrolled
+                ? 'text-secondary-700 hover:bg-secondary-100'
+                : 'text-white hover:bg-white/20'
+            }`}
+          >
+            <AnimatePresence mode="wait">
+              {isMenuOpen ? (
+                <motion.div
+                  key="close"
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="menu"
+                  initial={{ rotate: 90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: -90, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Bars3Icon className="h-6 w-6" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.button>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="lg:hidden overflow-hidden"
+            >
+              <motion.div
+                initial={{ y: -20 }}
+                animate={{ y: 0 }}
+                className="px-2 pt-2 pb-6 space-y-1 bg-white/95 backdrop-blur-lg rounded-2xl mt-2 border border-secondary-100 shadow-xl"
+              >
+                {navigation.map((item, index) => (
+                  <motion.div
+                    key={item.name}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Link
+                      to={item.href}
+                      className={`block px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
+                        isActive(item.href)
+                          ? 'bg-primary-50 text-primary-600'
+                          : 'text-secondary-700 hover:bg-secondary-50 hover:text-primary-600'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {item.name}
+                    </Link>
+                    {/* Mobile dropdown items */}
+                    {item.dropdown && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {item.dropdown.map((subItem) => (
+                          <Link
+                            key={subItem.name}
+                            to={subItem.href}
+                            className="block px-4 py-2 text-sm text-secondary-600 hover:text-primary-600 transition-colors duration-200"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            {subItem.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="pt-4 px-2 space-y-2"
+                >
+                  <a
+                    href="https://www.truelog.site/auth/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full px-4 py-3 text-center font-medium rounded-xl border border-primary-600 text-primary-600 hover:bg-primary-50 transition-all duration-200"
+                  >
+                    Client Login
+                  </a>
+                  <MagneticButton variant="primary" size="md" className="w-full">
+                    Get Quote
+                  </MagneticButton>
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+    </motion.header>
+  );
+};
+
+export default Header;
