@@ -1938,25 +1938,31 @@ class Ship24Tracker:
                     'text_length': len(page_text)
                 }
 
-                # Add sample of text content for debugging (first 500 chars that aren't just whitespace)
-                clean_text = ' '.join(page_text.split())[:500] if page_text else 'EMPTY'
-                debug_info['parsing']['text_sample'] = clean_text
-
-                # Also add raw HTML sample for better debugging - sanitize for JSON
+                # Add FULL scraped content for debugging
                 if page_text:
-                    # Get a sample and make it JSON-safe
-                    html_sample = page_text[:1500]
+                    # Full raw HTML (up to 50KB to avoid huge responses)
+                    full_html = page_text[:50000] if len(page_text) > 50000 else page_text
                     # Replace control characters that break JSON
-                    html_sample = html_sample.replace('\x00', '').replace('\r', '\\r').replace('\n', '\\n').replace('\t', '\\t')
-                    debug_info['parsing']['html_sample'] = html_sample
-                    debug_info['parsing']['html_sample_length'] = len(html_sample)
-                    # Also show first Hebrew text found - search entire content
+                    full_html = full_html.replace('\x00', '').replace('\r', '\\r').replace('\n', '\\n').replace('\t', '\\t')
+                    debug_info['parsing']['full_scraped_html'] = full_html
+                    debug_info['parsing']['full_html_length'] = len(page_text)
+
+                    # Also extract just the visible text (no HTML tags)
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(page_text, 'html.parser')
+                    visible_text = soup.get_text(separator=' | ')
+                    visible_text = ' '.join(visible_text.split())  # Clean whitespace
+                    debug_info['parsing']['visible_text'] = visible_text[:10000] if len(visible_text) > 10000 else visible_text
+                    debug_info['parsing']['visible_text_length'] = len(visible_text)
+
+                    # Hebrew characters found
                     hebrew_chars = [c for c in page_text if '\u0590' <= c <= '\u05FF']
-                    debug_info['parsing']['hebrew_sample'] = ''.join(hebrew_chars[:200]) if hebrew_chars else 'NONE'
+                    debug_info['parsing']['hebrew_sample'] = ''.join(hebrew_chars[:500]) if hebrew_chars else 'NONE'
                     debug_info['parsing']['total_hebrew_chars'] = len(hebrew_chars)
                 else:
-                    debug_info['parsing']['html_sample'] = 'EMPTY'
-                    debug_info['parsing']['html_sample_length'] = 0
+                    debug_info['parsing']['full_scraped_html'] = 'EMPTY'
+                    debug_info['parsing']['full_html_length'] = 0
+                    debug_info['parsing']['visible_text'] = 'EMPTY'
                     debug_info['parsing']['hebrew_sample'] = 'NONE'
 
                 debug_info['steps'].append({
