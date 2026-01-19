@@ -5516,3 +5516,828 @@ def mobile_create_assets_bulk():
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# PDF ASSET EXTRACTION ENDPOINTS (for Intake Tickets)
+# ============================================================================
+
+@mobile_api_bp.route('/intake/tickets/<int:ticket_id>/pdf-attachments', methods=['GET'])
+@mobile_auth_required
+def mobile_get_pdf_attachments(ticket_id):
+    """
+    Get list of PDF attachments for an intake ticket that can be processed for asset extraction.
+
+    Response:
+        {
+            "success": true,
+            "ticket_id": 123,
+            "ticket_number": "INT-2025-001",
+            "attachments": [
+                {
+                    "id": 1,
+                    "filename": "delivery_order.pdf",
+                    "uploaded_at": "2025-01-15T10:30:00Z",
+                    "uploaded_by": "admin"
+                }
+            ]
+        }
+    """
+    from models.intake_ticket import IntakeTicket
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+
+            # Get PDF attachments only
+            pdf_attachments = []
+            for att in ticket.attachments:
+                if att.filename.lower().endswith('.pdf'):
+                    pdf_attachments.append({
+                        'id': att.id,
+                        'filename': att.filename,
+                        'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None,
+                        'uploaded_by': att.uploader.username if att.uploader else None
+                    })
+
+            return jsonify({
+                'success': True,
+                'ticket_id': ticket.id,
+                'ticket_number': ticket.ticket_number,
+                'attachments': pdf_attachments
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting PDF attachments: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/intake/tickets/<int:ticket_id>/extract-assets', methods=['GET'])
+@mobile_auth_required
+def mobile_extract_assets_from_pdfs(ticket_id):
+    """
+    Extract assets from all PDF attachments of an intake ticket.
+    Uses OCR to parse delivery orders (Success Tech, AsiaCloud, etc).
+
+    Response:
+        {
+            "success": true,
+            "ticket_id": 123,
+            "total_assets": 8,
+            "results": [
+                {
+                    "attachment_id": 1,
+                    "filename": "4500153441 SOPHOS.pdf",
+                    "po_number": "4500153441",
+                    "do_number": "SCT-DO250154",
+                    "customer": "Sophos Computer Security Pte Ltd",
+                    "ship_date": "13 Jan 2026",
+                    "assets": [
+                        {
+                            "serial_num": "0F3P86Y25463P7",
+                            "name": "Surface Laptop",
+                            "model": "Surface Laptop 7th Edition",
+                            "manufacturer": "Microsoft",
+                            "memory": "32GB",
+                            "storage": "512GB",
+                            "cpu_type": "Intel Core Ultra"
+                        }
+                    ],
+                    "error": null
+                }
+            ]
+        }
+    """
+    from models.intake_ticket import IntakeTicket
+    from utils.pdf_extractor import extract_assets_from_pdf
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+
+            # Get PDF attachments
+            pdf_attachments = [a for a in ticket.attachments if a.filename.lower().endswith('.pdf')]
+
+            if not pdf_attachments:
+                return jsonify({
+                    'success': False,
+                    'error': 'No PDF attachments found to process'
+                }), 400
+
+            all_results = []
+            total_assets = 0
+
+            for attachment in pdf_attachments:
+                try:
+                    result = extract_assets_from_pdf(attachment.file_path)
+                    if result:
+                        assets_data = []
+                        for asset in result.get('assets', []):
+                            assets_data.append({
+                                'serial_num': asset.get('serial_num'),
+                                'name': asset.get('name'),
+                                'model': asset.get('model'),
+                                'manufacturer': asset.get('manufacturer'),
+                                'category': asset.get('category'),
+                                'cpu_type': asset.get('cpu_type'),
+                                'cpu_cores': asset.get('cpu_cores'),
+                                'memory': asset.get('memory'),
+                                'storage': asset.get('harddrive'),
+                                'keyboard': asset.get('keyboard'),
+                                'condition': asset.get('condition', 'New')
+                            })
+
+                        all_results.append({
+                            'attachment_id': attachment.id,
+                            'filename': attachment.filename,
+                            'po_number': result.get('po_number'),
+                            'do_number': result.get('do_number'),
+                            'reference': result.get('reference'),
+                            'customer': result.get('customer'),
+                            'ship_date': result.get('ship_date'),
+                            'supplier': result.get('supplier'),
+                            'total_quantity': result.get('total_quantity', len(assets_data)),
+                            'assets': assets_data,
+                            'error': None
+                        })
+                        total_assets += len(assets_data)
+                        logger.info(f"Extracted {len(assets_data)} assets from {attachment.filename}")
+                    else:
+                        all_results.append({
+                            'attachment_id': attachment.id,
+                            'filename': attachment.filename,
+                            'assets': [],
+                            'error': 'Failed to extract data from PDF'
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing {attachment.filename}: {e}")
+                    all_results.append({
+                        'attachment_id': attachment.id,
+                        'filename': attachment.filename,
+                        'assets': [],
+                        'error': str(e)
+                    })
+
+            return jsonify({
+                'success': True,
+                'ticket_id': ticket.id,
+                'ticket_number': ticket.ticket_number,
+                'total_assets': total_assets,
+                'results': all_results
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error extracting assets from PDFs: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/intake/tickets/<int:ticket_id>/import-assets', methods=['POST'])
+@mobile_auth_required
+def mobile_import_extracted_assets(ticket_id):
+    """
+    Import extracted assets into inventory from PDF extraction results.
+
+    Request Body:
+        {
+            "company_id": 1,              // Optional: Company to assign assets to
+            "customer_name": "Sophos",    // Optional: Override customer name
+            "country": "Singapore",       // Optional: Country (default: Singapore)
+            "status": "Available",        // Optional: Asset status (default: Available)
+            "assets": [                   // Required: Array of assets to import
+                {
+                    "serial_num": "0F3P86Y25463P7",
+                    "name": "Surface Laptop",
+                    "model": "Surface Laptop 7th Edition",
+                    "manufacturer": "Microsoft",
+                    "memory": "32GB",
+                    "storage": "512GB",
+                    "cpu_type": "Intel Core Ultra",
+                    "po_number": "4500153441",
+                    "do_number": "SCT-DO250154"
+                }
+            ]
+        }
+
+    Response:
+        {
+            "success": true,
+            "imported_count": 7,
+            "skipped_count": 1,
+            "errors": ["Serial 0F3P86Y25463P7 already exists (Asset #123)"],
+            "imported_assets": [
+                {"id": 456, "serial_num": "0F36YW925483P7", "name": "Surface Laptop"}
+            ]
+        }
+    """
+    from models.intake_ticket import IntakeTicket, IntakeStatus
+    from models.company import Company
+
+    try:
+        user = request.current_mobile_user
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        assets_to_import = data.get('assets', [])
+        if not assets_to_import:
+            return jsonify({'success': False, 'error': 'No assets provided for import'}), 400
+
+        company_id = data.get('company_id')
+        customer_name = data.get('customer_name', '')
+        country = data.get('country', 'Singapore')
+        status = data.get('status', 'Available')
+
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+
+            imported_assets = []
+            skipped_count = 0
+            errors = []
+
+            for asset_data in assets_to_import:
+                try:
+                    serial_num = asset_data.get('serial_num')
+                    if not serial_num:
+                        errors.append('Missing serial number for an asset')
+                        continue
+
+                    # Check for duplicate
+                    existing = db_session.query(Asset).filter(
+                        Asset.serial_num == serial_num
+                    ).first()
+
+                    if existing:
+                        skipped_count += 1
+                        errors.append(f"Serial {serial_num} already exists (Asset #{existing.id})")
+                        continue
+
+                    # Create new asset
+                    new_asset = Asset(
+                        name=asset_data.get('name', 'Unknown'),
+                        model=asset_data.get('model', ''),
+                        serial_num=serial_num,
+                        manufacturer=asset_data.get('manufacturer', ''),
+                        category=asset_data.get('category', 'Laptop'),
+                        asset_type=asset_data.get('category', 'Laptop'),
+                        cpu_type=asset_data.get('cpu_type', ''),
+                        cpu_cores=asset_data.get('cpu_cores', ''),
+                        memory=asset_data.get('memory', ''),
+                        harddrive=asset_data.get('storage', ''),
+                        keyboard=asset_data.get('keyboard', ''),
+                        condition=asset_data.get('condition', 'New'),
+                        erased='COMPLETED',  # New assets from delivery orders are factory fresh
+                        status=AssetStatus(status) if status else AssetStatus.AVAILABLE,
+                        country=country,
+                        customer=customer_name or asset_data.get('customer', ''),
+                        po=asset_data.get('po_number', ''),
+                        notes=f"Imported via mobile from ticket #{ticket.ticket_number}. DO: {asset_data.get('do_number', '')}",
+                        company_id=int(company_id) if company_id else None,
+                    )
+
+                    db_session.add(new_asset)
+                    db_session.flush()  # Get the ID
+
+                    imported_assets.append({
+                        'id': new_asset.id,
+                        'serial_num': new_asset.serial_num,
+                        'name': new_asset.name,
+                        'model': new_asset.model
+                    })
+
+                except Exception as e:
+                    errors.append(f"Error importing {asset_data.get('serial_num', 'unknown')}: {str(e)}")
+                    logger.error(f"Error importing asset: {e}")
+
+            # Update ticket status if assets were imported
+            if imported_assets:
+                ticket.status = IntakeStatus.COMPLETED
+                ticket.completed_at = datetime.utcnow()
+
+            db_session.commit()
+
+            logger.info(f"Mobile API: User {user.username} imported {len(imported_assets)} assets from intake ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'imported_count': len(imported_assets),
+                'skipped_count': skipped_count,
+                'errors': errors[:10],  # Limit errors returned
+                'imported_assets': imported_assets,
+                'ticket_status': ticket.status.value
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error importing assets via mobile: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/intake/extract-single-pdf/<int:attachment_id>', methods=['GET'])
+@mobile_auth_required
+def mobile_extract_single_pdf(attachment_id):
+    """
+    Extract assets from a single PDF attachment.
+
+    Response:
+        {
+            "success": true,
+            "attachment_id": 1,
+            "filename": "delivery_order.pdf",
+            "po_number": "4500153441",
+            "do_number": "SCT-DO250154",
+            "customer": "Sophos Computer Security Pte Ltd",
+            "assets": [...],
+            "total_quantity": 7
+        }
+    """
+    from models.intake_ticket import IntakeAttachment
+    from utils.pdf_extractor import extract_assets_from_pdf
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            attachment = db_session.query(IntakeAttachment).filter(
+                IntakeAttachment.id == attachment_id
+            ).first()
+
+            if not attachment:
+                return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+
+            if not attachment.filename.lower().endswith('.pdf'):
+                return jsonify({'success': False, 'error': 'Not a PDF file'}), 400
+
+            result = extract_assets_from_pdf(attachment.file_path)
+
+            if result:
+                assets_data = []
+                for asset in result.get('assets', []):
+                    assets_data.append({
+                        'serial_num': asset.get('serial_num'),
+                        'name': asset.get('name'),
+                        'model': asset.get('model'),
+                        'manufacturer': asset.get('manufacturer'),
+                        'category': asset.get('category'),
+                        'cpu_type': asset.get('cpu_type'),
+                        'cpu_cores': asset.get('cpu_cores'),
+                        'memory': asset.get('memory'),
+                        'storage': asset.get('harddrive'),
+                        'keyboard': asset.get('keyboard'),
+                        'condition': asset.get('condition', 'New')
+                    })
+
+                return jsonify({
+                    'success': True,
+                    'attachment_id': attachment.id,
+                    'filename': attachment.filename,
+                    'po_number': result.get('po_number'),
+                    'do_number': result.get('do_number'),
+                    'reference': result.get('reference'),
+                    'customer': result.get('customer'),
+                    'ship_date': result.get('ship_date'),
+                    'supplier': result.get('supplier'),
+                    'total_quantity': result.get('total_quantity', len(assets_data)),
+                    'assets': assets_data
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to extract data from PDF'
+                }), 400
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error extracting single PDF: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# SERVICE RECORDS ENDPOINTS
+# =============================================================================
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/service-records', methods=['GET'])
+@mobile_auth_required
+def mobile_get_service_records(ticket_id):
+    """
+    Get all service records for a ticket.
+
+    Response:
+        {
+            "success": true,
+            "service_records": [
+                {
+                    "id": 1,
+                    "request_id": "SR-0001",
+                    "ticket_id": 123,
+                    "asset_id": 456,
+                    "asset_tag": "ASSET-001",
+                    "service_type": "OS Reinstall",
+                    "description": "Full OS reinstallation required",
+                    "status": "Requested",
+                    "requested_by_id": 1,
+                    "requested_by_name": "john.doe",
+                    "completed_by_id": null,
+                    "completed_by_name": null,
+                    "completed_at": null,
+                    "created_at": "2026-01-19T10:30:00"
+                }
+            ],
+            "service_types": ["OS Reinstall", "Hardware Repair", ...],
+            "status_options": ["Requested", "In Progress", "Completed"]
+        }
+    """
+    from models.service_record import ServiceRecord
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            records = db_session.query(ServiceRecord).filter(
+                ServiceRecord.ticket_id == ticket_id
+            ).order_by(ServiceRecord.created_at.desc()).all()
+
+            return jsonify({
+                'success': True,
+                'service_records': [r.to_dict() for r in records],
+                'service_types': ServiceRecord.SERVICE_TYPES,
+                'status_options': ServiceRecord.STATUS_OPTIONS
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting service records via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/service-records', methods=['POST'])
+@mobile_auth_required
+def mobile_add_service_record(ticket_id):
+    """
+    Add a new service record to a ticket.
+
+    Request body:
+        {
+            "service_type": "OS Reinstall",
+            "description": "Full OS reinstallation required",
+            "asset_id": 456,  // optional
+            "status": "Requested"  // optional, defaults to "Requested"
+        }
+
+    Response:
+        {
+            "success": true,
+            "message": "Service record added successfully",
+            "service_record": {
+                "id": 1,
+                "request_id": "SR-0001",
+                ...
+            }
+        }
+    """
+    from models.service_record import ServiceRecord
+
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if not ticket:
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+            data = request.get_json() or {}
+
+            service_type = data.get('service_type', '').strip()
+            if not service_type:
+                return jsonify({'success': False, 'error': 'Service type is required'}), 400
+
+            description = data.get('description', '').strip()
+            asset_id = data.get('asset_id')
+            status = data.get('status', 'Requested')
+
+            # Validate status
+            if status not in ServiceRecord.STATUS_OPTIONS:
+                status = 'Requested'
+
+            # Validate asset_id if provided
+            if asset_id:
+                asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+                if not asset:
+                    return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+            record = ServiceRecord(
+                ticket_id=ticket_id,
+                asset_id=asset_id if asset_id else None,
+                service_type=service_type,
+                description=description,
+                status=status,
+                requested_by_id=user.id,
+                created_at=datetime.utcnow()
+            )
+
+            # If status is Completed, set completed_by and completed_at
+            if status == 'Completed':
+                record.completed_by_id = user.id
+                record.completed_at = datetime.utcnow()
+
+            db_session.add(record)
+            db_session.commit()
+            db_session.refresh(record)
+
+            logger.info(f"User {user.username} added service record {record.request_id} for ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Service record added successfully',
+                'service_record': record.to_dict()
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error adding service record via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/service-records/<int:record_id>', methods=['GET'])
+@mobile_auth_required
+def mobile_get_service_record(ticket_id, record_id):
+    """
+    Get a specific service record.
+
+    Response:
+        {
+            "success": true,
+            "service_record": {
+                "id": 1,
+                "request_id": "SR-0001",
+                ...
+            }
+        }
+    """
+    from models.service_record import ServiceRecord
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            record = db_session.query(ServiceRecord).filter(
+                ServiceRecord.id == record_id,
+                ServiceRecord.ticket_id == ticket_id
+            ).first()
+
+            if not record:
+                return jsonify({'success': False, 'error': 'Service record not found'}), 404
+
+            return jsonify({
+                'success': True,
+                'service_record': record.to_dict()
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting service record via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/service-records/<int:record_id>/status', methods=['PUT'])
+@mobile_auth_required
+def mobile_update_service_record_status(ticket_id, record_id):
+    """
+    Update the status of a service record.
+
+    Request body:
+        {
+            "status": "In Progress"  // "Requested", "In Progress", or "Completed"
+        }
+
+    Response:
+        {
+            "success": true,
+            "message": "Service record status updated",
+            "service_record": {
+                "id": 1,
+                "request_id": "SR-0001",
+                "status": "In Progress",
+                ...
+            }
+        }
+    """
+    from models.service_record import ServiceRecord
+
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            record = db_session.query(ServiceRecord).filter(
+                ServiceRecord.id == record_id,
+                ServiceRecord.ticket_id == ticket_id
+            ).first()
+
+            if not record:
+                return jsonify({'success': False, 'error': 'Service record not found'}), 404
+
+            data = request.get_json() or {}
+            new_status = data.get('status', '').strip()
+
+            if not new_status:
+                return jsonify({'success': False, 'error': 'Status is required'}), 400
+
+            if new_status not in ServiceRecord.STATUS_OPTIONS:
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid status. Must be one of: {", ".join(ServiceRecord.STATUS_OPTIONS)}'
+                }), 400
+
+            old_status = record.status
+            record.status = new_status
+
+            # If changing to Completed, set completed_by and completed_at
+            if new_status == 'Completed' and old_status != 'Completed':
+                record.completed_by_id = user.id
+                record.completed_at = datetime.utcnow()
+
+            # If changing from Completed to something else, clear completed fields
+            if old_status == 'Completed' and new_status != 'Completed':
+                record.completed_by_id = None
+                record.completed_at = None
+
+            db_session.commit()
+            db_session.refresh(record)
+
+            logger.info(f"User {user.username} updated service record {record.request_id} status from {old_status} to {new_status}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Service record status updated',
+                'service_record': record.to_dict()
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error updating service record status via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/service-records/<int:record_id>', methods=['DELETE'])
+@mobile_auth_required
+def mobile_delete_service_record(ticket_id, record_id):
+    """
+    Delete a service record.
+
+    Response:
+        {
+            "success": true,
+            "message": "Service record deleted successfully"
+        }
+    """
+    from models.service_record import ServiceRecord
+
+    try:
+        user = request.current_mobile_user
+
+        db_session = db_manager.get_session()
+        try:
+            record = db_session.query(ServiceRecord).filter(
+                ServiceRecord.id == record_id,
+                ServiceRecord.ticket_id == ticket_id
+            ).first()
+
+            if not record:
+                return jsonify({'success': False, 'error': 'Service record not found'}), 404
+
+            request_id = record.request_id
+            db_session.delete(record)
+            db_session.commit()
+
+            logger.info(f"User {user.username} deleted service record {request_id} from ticket {ticket_id}")
+
+            return jsonify({
+                'success': True,
+                'message': 'Service record deleted successfully'
+            })
+
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error deleting service record via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@mobile_api_bp.route('/assets/<int:asset_id>/service-records', methods=['GET'])
+@mobile_auth_required
+def mobile_get_asset_service_records(asset_id):
+    """
+    Get all service records for a specific asset (across all tickets).
+
+    Response:
+        {
+            "success": true,
+            "asset": {
+                "id": 456,
+                "asset_tag": "ASSET-001",
+                "serial_num": "SN123456"
+            },
+            "service_records": [
+                {
+                    "id": 1,
+                    "request_id": "SR-0001",
+                    "ticket_id": 123,
+                    ...
+                }
+            ]
+        }
+    """
+    from models.service_record import ServiceRecord
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+            if not asset:
+                return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+            records = db_session.query(ServiceRecord).filter(
+                ServiceRecord.asset_id == asset_id
+            ).order_by(ServiceRecord.created_at.desc()).all()
+
+            return jsonify({
+                'success': True,
+                'asset': {
+                    'id': asset.id,
+                    'asset_tag': asset.asset_tag,
+                    'serial_num': asset.serial_num,
+                    'model': asset.model
+                },
+                'service_records': [r.to_dict() for r in records]
+            })
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting asset service records via mobile API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
