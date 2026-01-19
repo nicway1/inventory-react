@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Preview Assets - {{ ticket.ticket_number }}</h1>
+            <a href="{{ url_for('intake.view_ticket', ticket_id=ticket.id) }}" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Ticket
+            </a>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+            <div class="px-6 py-4 bg-blue-50 border-b border-blue-200">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                            Extracted from {{ results|length }} PDF(s)
+                        </h2>
+                        <p class="text-gray-600">Total assets found: <strong>{{ total_assets }}</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Form -->
+        <form method="POST" action="{{ url_for('intake.import_assets', ticket_id=ticket.id) }}">
+            <!-- Import Options -->
+            <div class="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Import Options</h2>
+                </div>
+                <div class="px-6 py-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                            <select name="company_id" class="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Select Company --</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                            <input type="text" name="customer_name"
+                                   value="{{ results[0].customer if results and results[0].customer else '' }}"
+                                   class="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="Override customer name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                            <select name="country" class="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="Singapore" selected>Singapore</option>
+                                <option value="Malaysia">Malaysia</option>
+                                <option value="Indonesia">Indonesia</option>
+                                <option value="Thailand">Thailand</option>
+                                <option value="Vietnam">Vietnam</option>
+                                <option value="Philippines">Philippines</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select name="status" class="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="Available" selected>Available</option>
+                                <option value="In Stock">In Stock</option>
+                                <option value="Deployed">Deployed</option>
+                                <option value="In Transit">In Transit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assets from each PDF -->
+            {% set global_idx = namespace(value=0) %}
+            {% for result in results %}
+            <div class="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">
+                                <i class="fas fa-file-pdf text-red-500 mr-2"></i>{{ result.filename }}
+                            </h3>
+                            {% if result.error %}
+                            <p class="text-red-600 text-sm mt-1">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>{{ result.error }}
+                            </p>
+                            {% else %}
+                            <div class="text-sm text-gray-600 mt-1">
+                                {% if result.po_number %}<span class="mr-4"><strong>PO:</strong> {{ result.po_number }}</span>{% endif %}
+                                {% if result.do_number %}<span class="mr-4"><strong>DO:</strong> {{ result.do_number }}</span>{% endif %}
+                                {% if result.ship_date %}<span class="mr-4"><strong>Date:</strong> {{ result.ship_date }}</span>{% endif %}
+                                {% if result.customer %}<span class="mr-4"><strong>Customer:</strong> {{ result.customer }}</span>{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if result.assets %}
+                        <div class="flex items-center space-x-4">
+                            <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                {{ result.assets|length }} assets
+                            </span>
+                            <button type="button" onclick="toggleAllInGroup(this, '{{ loop.index }}')"
+                                    class="text-blue-600 hover:text-blue-800 text-sm">
+                                Select All
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if result.assets %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Select</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serial Number</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manufacturer</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CPU</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Memory</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Storage</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for asset in result.assets %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3">
+                                    <input type="checkbox" name="selected_assets" value="{{ global_idx.value }}"
+                                           class="asset-checkbox group-{{ loop.index }} rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                           checked>
+                                </td>
+                                <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ asset.serial_num }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ asset.name }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">{{ asset.model }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">{{ asset.manufacturer }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">
+                                    {{ asset.cpu_type }}
+                                    {% if asset.cpu_cores %}({{ asset.cpu_cores }}C){% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-600">{{ asset.memory }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">{{ asset.harddrive }}</td>
+                            </tr>
+                            {% set global_idx.value = global_idx.value + 1 %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="px-6 py-8 text-center text-gray-500">
+                    <i class="fas fa-exclamation-circle text-4xl mb-2"></i>
+                    <p>No assets could be extracted from this PDF</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <!-- Submit Section -->
+            {% if total_assets > 0 %}
+            <div class="bg-white shadow-md rounded-lg overflow-hidden sticky bottom-4">
+                <div class="px-6 py-4 bg-green-50 flex justify-between items-center">
+                    <div>
+                        <span class="text-gray-700">
+                            Selected: <strong id="selectedCount">{{ total_assets }}</strong> of {{ total_assets }} assets
+                        </span>
+                    </div>
+                    <div class="space-x-4">
+                        <a href="{{ url_for('intake.view_ticket', ticket_id=ticket.id) }}"
+                           class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded">
+                            Cancel
+                        </a>
+                        <button type="submit"
+                                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-6 rounded">
+                            <i class="fas fa-download mr-2"></i>Import Selected Assets
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<script>
+// Update selected count when checkboxes change
+document.querySelectorAll('.asset-checkbox').forEach(function(checkbox) {
+    checkbox.addEventListener('change', updateSelectedCount);
+});
+
+function updateSelectedCount() {
+    const checked = document.querySelectorAll('.asset-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = checked;
+}
+
+function toggleAllInGroup(button, groupIndex) {
+    const checkboxes = document.querySelectorAll('.group-' + groupIndex);
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = !allChecked;
+    });
+
+    button.textContent = allChecked ? 'Select All' : 'Deselect All';
+    updateSelectedCount();
+}
+</script>
+{% endblock %}

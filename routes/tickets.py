@@ -12398,6 +12398,7 @@ def create_extracted_assets(ticket_id):
                     harddrive=asset_data.get('harddrive', ''),
                     hardware_type=asset_data.get('hardware_type', 'Laptop'),
                     condition=asset_data.get('condition', 'New'),
+                    erased='COMPLETED',  # New assets from delivery orders are factory fresh
                     company_id=company_id,
                     customer=customer_name,  # Set customer string field for display
                     country=country,

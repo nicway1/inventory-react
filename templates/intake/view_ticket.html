@@ -126,25 +126,52 @@
             <div class="px-6 py-4 border-b border-gray-200">
                 <h2 class="text-xl font-semibold text-gray-800">Import Assets</h2>
             </div>
-            
+
             <div class="px-6 py-4">
-                <form method="POST" action="{{ url_for('intake.import_assets', ticket_id=ticket.id) }}" 
-                      enctype="multipart/form-data">
-                    <div class="mb-4">
-                        <label class="block text-gray-700 text-sm font-bold mb-2" for="asset_file">
-                            Upload Asset CSV File
-                        </label>
-                        <input type="file" 
-                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                               id="asset_file" name="asset_file" accept=".csv">
-                        <p class="text-sm text-gray-500 mt-1">Upload a CSV file containing asset details</p>
-                    </div>
-                    
-                    <button type="submit" 
-                            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                        Import Assets
-                    </button>
-                </form>
+                <!-- PDF Extraction Option -->
+                {% set pdf_attachments = [] %}
+                {% for att in ticket.attachments %}
+                    {% if att.filename.lower().endswith('.pdf') %}
+                        {% set _ = pdf_attachments.append(att) %}
+                    {% endif %}
+                {% endfor %}
+                {% if pdf_attachments|length > 0 %}
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 class="font-semibold text-blue-800 mb-2">
+                        <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                        Extract from PDF Delivery Orders
+                    </h3>
+                    <p class="text-sm text-gray-600 mb-3">
+                        Found {{ pdf_attachments|length }} PDF attachment(s). Extract asset information automatically from delivery order documents (Success Tech, AsiaCloud, etc).
+                    </p>
+                    <a href="{{ url_for('intake.preview_assets', ticket_id=ticket.id) }}"
+                       class="inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        <i class="fas fa-search mr-2"></i>Preview & Extract Assets
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- CSV Import Option -->
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="font-semibold text-gray-800 mb-2">
+                        <i class="fas fa-file-csv text-green-500 mr-2"></i>
+                        Import from CSV File
+                    </h3>
+                    <form method="POST" action="{{ url_for('inventory.import_inventory') }}"
+                          enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <input type="file"
+                                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                   id="asset_file" name="file" accept=".csv">
+                            <p class="text-sm text-gray-500 mt-1">Upload a CSV file containing asset details</p>
+                        </div>
+                        <input type="hidden" name="import_type" value="tech_assets">
+                        <button type="submit"
+                                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            <i class="fas fa-upload mr-2"></i>Upload CSV
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
         {% endif %}

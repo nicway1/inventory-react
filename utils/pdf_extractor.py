@@ -173,12 +173,19 @@ def ocr_page(page, dpi=200):
              - 300: Best quality but causes timeout on shared hosting
     """
     import time
+    import os
     try:
         import pytesseract
         from PIL import Image
     except ImportError:
         logger.error("pytesseract or Pillow not installed")
         return None
+
+    # Configure tesseract path for macOS (Homebrew installation)
+    if os.path.exists('/opt/homebrew/bin/tesseract'):
+        pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
+    elif os.path.exists('/usr/local/bin/tesseract'):
+        pytesseract.pytesseract.tesseract_cmd = '/usr/local/bin/tesseract'
 
     try:
         ocr_start = time.time()
@@ -428,7 +435,10 @@ def extract_assets_from_pdf(pdf_path):
             return None
 
         # Detect document format and use appropriate parser
-        if is_asiacloud_delivery_order(all_text):
+        if is_success_tech_delivery_order(all_text):
+            logger.info("Detected Success Tech Delivery Order format")
+            return parse_success_tech_delivery_order(all_text)
+        elif is_asiacloud_delivery_order(all_text):
             logger.info("Detected AsiaCloud Delivery Order format")
             return parse_asiacloud_delivery_order(all_text)
         else:
@@ -438,6 +448,291 @@ def extract_assets_from_pdf(pdf_path):
     except Exception as e:
         logger.error(f"Error extracting PDF: {e}")
         return None
+
+
+def is_success_tech_delivery_order(text):
+    """
+    Detect if the document is a Success Tech Delivery Order format
+    """
+    text_upper = text.upper()
+    indicators = [
+        'SUCCESS TECH' in text_upper or 'SUCCESSTECH' in text_upper,
+        'DELIVERY ORDER' in text_upper,
+        'DO NUMBER' in text_upper or 'SCT-DO' in text_upper,
+        'GST REGISTRATION' in text_upper,
+    ]
+    # Need at least 2 indicators to confirm
+    return sum(indicators) >= 2
+
+
+def parse_success_tech_delivery_order(text):
+    """
+    Parse Success Tech Delivery Order format
+
+    Format:
+    - Header: DELIVERY ORDER with Success Tech Pte Ltd
+    - Delivery Date, DO Number (SCT-DO250XXX), Account Number
+    - Reference (PO Number like 4500153441)
+    - Deliver to section with "On Behalf of [Customer]"
+    - Description with product details
+    - S/N: section with serial numbers
+    - Quantity
+    """
+    result = {
+        'po_number': None,
+        'reference': None,
+        'do_number': None,
+        'ship_date': None,
+        'supplier': 'Success Tech Pte Ltd',
+        'receiver': None,
+        'customer': None,
+        'total_quantity': 0,
+        'assets': [],
+        'raw_text': text[:2000]
+    }
+
+    # Extract PO Number from Reference field (e.g., "Reference PO 4500153441")
+    po_match = re.search(r'Reference\s*(?:PO\s*)?(\d{10})', text, re.IGNORECASE)
+    if po_match:
+        result['po_number'] = po_match.group(1)
+
+    # Also check for "PO Number: 4500153441" at bottom
+    if not result['po_number']:
+        po_match2 = re.search(r'PO\s*Number[:\s]*(\d{10})', text, re.IGNORECASE)
+        if po_match2:
+            result['po_number'] = po_match2.group(1)
+
+    # Extract DO Number (e.g., "SCT-DO250154")
+    do_match = re.search(r'DO\s*Number\s*(SCT-DO\d+)', text, re.IGNORECASE)
+    if do_match:
+        result['do_number'] = do_match.group(1)
+    else:
+        # Try alternate pattern
+        do_match2 = re.search(r'(SCT-DO\d+)', text, re.IGNORECASE)
+        if do_match2:
+            result['do_number'] = do_match2.group(1)
+
+    result['reference'] = result['do_number']
+
+    # Extract Delivery Date (e.g., "13 Jan 2026")
+    date_match = re.search(r'Delivery\s*Date\s*(\d{1,2}\s+\w{3}\s+\d{4})', text, re.IGNORECASE)
+    if date_match:
+        result['ship_date'] = date_match.group(1)
+
+    # Extract Customer from "On Behalf of" line
+    customer_match = re.search(r'On\s*Behalf\s*of\s+([^\n]+)', text, re.IGNORECASE)
+    if customer_match:
+        result['customer'] = customer_match.group(1).strip()
+        result['receiver'] = result['customer']
+
+    # Extract Quantity (e.g., "1.00" or "7.00")
+    qty_match = re.search(r'Quantity\s*\n?\s*(\d+)\.?\d*', text, re.IGNORECASE)
+    if qty_match:
+        result['total_quantity'] = int(float(qty_match.group(1)))
+
+    # Extract product description
+    product_details = parse_success_tech_description(text)
+
+    # Extract serial numbers from S/N section
+    serials = extract_success_tech_serials(text)
+    logger.info(f"Success Tech: Found {len(serials)} serial numbers")
+
+    # Update quantity if we found more serials than expected
+    if len(serials) > result['total_quantity']:
+        result['total_quantity'] = len(serials)
+
+    # Create assets for each serial
+    for serial in serials:
+        asset = {
+            'serial_num': serial,
+            'name': product_details.get('name', 'Surface Laptop'),
+            'model': product_details.get('model', ''),
+            'manufacturer': product_details.get('manufacturer', 'Microsoft'),
+            'category': 'Laptop',
+            'cpu_type': product_details.get('cpu_type', ''),
+            'cpu_cores': product_details.get('cpu_cores', ''),
+            'gpu_cores': product_details.get('gpu_cores', ''),
+            'memory': product_details.get('memory', ''),
+            'harddrive': product_details.get('storage', ''),
+            'hardware_type': 'Laptop',
+            'condition': 'New',
+            'keyboard': product_details.get('keyboard', ''),
+            'notes': f"PO: {result['po_number']}, DO: {result['do_number']}",
+        }
+        result['assets'].append(asset)
+
+    return result
+
+
+def parse_success_tech_description(text):
+    """
+    Parse the Description field from Success Tech Delivery Order
+
+    Examples:
+    - "EP2-22236, Surface Laptop (7th Edition) Intel Core Ultra 512GB CU5 32GB 3.8" Black (Windows 11 Pro) Keyboard Layout: US - English"
+    - "Surface Laptop (7th Edition) Intel Core Ultra 512GB CU5 32GB 13.8" Black (Windows 11 Pro) Keyboard Layout: US - English"
+    """
+    details = {
+        'name': 'Surface Laptop',
+        'model': '',
+        'manufacturer': 'Microsoft',
+        'cpu_type': '',
+        'cpu_cores': '',
+        'gpu_cores': '',
+        'memory': '',
+        'storage': '',
+        'keyboard': '',
+        'color': '',
+    }
+
+    text_upper = text.upper()
+
+    # Extract product name - Surface Laptop
+    if 'SURFACE LAPTOP' in text_upper:
+        details['name'] = 'Surface Laptop'
+        details['model'] = 'Surface Laptop'
+        details['manufacturer'] = 'Microsoft'
+
+        # Get edition (e.g., "7th Edition")
+        edition_match = re.search(r'Surface\s+Laptop\s*\((\d+\w*\s*Edition)\)', text, re.IGNORECASE)
+        if edition_match:
+            details['model'] = f"Surface Laptop {edition_match.group(1)}"
+    elif 'SURFACE PRO' in text_upper:
+        details['name'] = 'Surface Pro'
+        details['model'] = 'Surface Pro'
+        details['manufacturer'] = 'Microsoft'
+    elif 'MACBOOK' in text_upper:
+        details['manufacturer'] = 'Apple'
+        if 'MACBOOK PRO' in text_upper:
+            details['name'] = 'MacBook Pro'
+            details['model'] = 'MacBook Pro'
+        elif 'MACBOOK AIR' in text_upper:
+            details['name'] = 'MacBook Air'
+            details['model'] = 'MacBook Air'
+
+    # Extract CPU type (e.g., "Intel Core Ultra")
+    cpu_match = re.search(r'(Intel\s+Core\s+(?:Ultra|i\d))', text, re.IGNORECASE)
+    if cpu_match:
+        details['cpu_type'] = cpu_match.group(1)
+
+    # Extract Memory (e.g., "32GB" - usually appears after storage in this format)
+    # Pattern: "512GB CU5 32GB" - storage first, then code, then memory
+    mem_match = re.search(r'(?:CU\d|SSD|GB)\s+(\d+)GB(?:\s+\d|"|\s+Black|\s+Silver)', text, re.IGNORECASE)
+    if mem_match:
+        details['memory'] = mem_match.group(1) + 'GB'
+    else:
+        # Fallback: find all GB values and take the smaller one as RAM
+        gb_values = re.findall(r'(\d+)GB', text, re.IGNORECASE)
+        if len(gb_values) >= 2:
+            # Convert to integers and sort
+            gb_ints = sorted([int(v) for v in gb_values])
+            # Smaller value is usually RAM, larger is storage
+            if gb_ints[0] <= 64:  # RAM is typically <= 64GB
+                details['memory'] = str(gb_ints[0]) + 'GB'
+            if gb_ints[-1] >= 128:  # Storage is typically >= 128GB
+                details['storage'] = str(gb_ints[-1]) + 'GB'
+
+    # Extract Storage (e.g., "512GB")
+    if not details['storage']:
+        storage_match = re.search(r'(\d+)GB\s*(?:CU\d|SSD)', text, re.IGNORECASE)
+        if storage_match:
+            details['storage'] = storage_match.group(1) + 'GB'
+
+    # Extract Keyboard Layout (e.g., "US - English")
+    keyboard_match = re.search(r'Keyboard\s*Layout[:\s]*([^\n\(]+)', text, re.IGNORECASE)
+    if keyboard_match:
+        details['keyboard'] = keyboard_match.group(1).strip()
+
+    # Extract Color (e.g., "Black", "Silver", "Platinum")
+    colors = ['BLACK', 'SILVER', 'PLATINUM', 'SAPPHIRE', 'GRAPHITE']
+    for color in colors:
+        if color in text_upper:
+            details['color'] = color.title()
+            break
+
+    # Extract screen size if present
+    size_match = re.search(r'(\d+\.?\d*)["\']', text)
+    if size_match:
+        size = size_match.group(1)
+        if float(size) > 10:  # Screen size, not something else
+            details['name'] = f'{size}" {details["name"]}'
+
+    logger.info(f"Success Tech description parsed: {details}")
+    return details
+
+
+def extract_success_tech_serials(text):
+    """
+    Extract serial numbers from Success Tech Delivery Order format
+
+    Serial numbers appear after "S/N:" and can be:
+    - Single: "S/N: 0F3P86Y25463P7"
+    - Multiple lines:
+        S/N:
+        0F36YW925483P7
+        0F3P87C25463P7
+        ...
+    """
+    serials = []
+
+    # Find the S/N section
+    sn_section_match = re.search(r'S/N[:\s]*([\s\S]*?)(?:PO\s*Number|We\s*confirm|Customer|$)', text, re.IGNORECASE)
+    if sn_section_match:
+        sn_section = sn_section_match.group(1)
+    else:
+        # Fallback to searching whole text
+        sn_section = text
+
+    # Microsoft Surface serial patterns - alphanumeric, typically start with 0F or similar
+    # Format: 0F3P86Y25463P7 (14 chars, alphanumeric)
+    # Note: OCR may render "0F" as "OF" (zero to letter O), so we accept both
+    serial_pattern = r'\b([0O]F[A-Z0-9]{12})\b'
+
+    # Find all matches
+    for match in re.finditer(serial_pattern, sn_section, re.IGNORECASE):
+        serial = match.group(1).upper()
+        # Normalize OCR variation: "OF" -> "0F" (letter O to zero)
+        if serial.startswith('OF'):
+            serial = '0F' + serial[2:]
+        if serial not in serials:
+            serials.append(serial)
+
+    # If no Microsoft serials found, try a more generic pattern
+    if not serials:
+        # Generic alphanumeric serial pattern (10-14 chars starting with digit or letter)
+        generic_pattern = r'\b([A-Z0-9]{10,14})\b'
+
+        # Exclude patterns
+        exclude_patterns = [
+            r'^\d+$',  # Pure numbers
+            r'^SCT',  # DO numbers
+            r'^450\d+',  # PO numbers
+            r'^GST',  # GST numbers
+            r'^S\d{6}$',  # Postal codes
+            r'^\d{9}[A-Z]',  # UEN numbers
+        ]
+
+        for match in re.finditer(generic_pattern, sn_section):
+            serial = match.group(1).upper()
+
+            # Skip excluded patterns
+            skip = False
+            for exc in exclude_patterns:
+                if re.match(exc, serial, re.IGNORECASE):
+                    skip = True
+                    break
+
+            if skip:
+                continue
+
+            # Must have mix of letters and numbers
+            has_letters = sum(1 for c in serial if c.isalpha()) >= 2
+            has_numbers = sum(1 for c in serial if c.isdigit()) >= 2
+
+            if has_letters and has_numbers and serial not in serials:
+                serials.append(serial)
+
+    return serials
 
 
 def is_asiacloud_delivery_order(text):

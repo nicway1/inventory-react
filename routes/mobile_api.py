@@ -3601,6 +3601,7 @@ def create_asset_from_spec(spec_id):
                 harddrive=f"{spec.storage_gb} GB {spec.storage_type or ''}".strip() if spec.storage_gb else '',
                 status=AssetStatus[data.get('status', 'IN_STOCK')],
                 condition=data.get('condition', ''),
+                erased='COMPLETED',  # New assets are factory fresh
                 customer=data.get('customer', ''),
                 country=data.get('country', ''),
                 notes=data.get('notes', ''),
@@ -3883,6 +3884,7 @@ def create_asset_from_spec_with_ticket(spec_id):
                 harddrive=f"{spec.storage_gb} GB {spec.storage_type or ''}".strip() if spec.storage_gb else '',
                 status=AssetStatus[data.get('status', 'IN_STOCK')],
                 condition=data.get('condition', ''),
+                erased='COMPLETED',  # New assets are factory fresh
                 notes=data.get('notes', ''),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()

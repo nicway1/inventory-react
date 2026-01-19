@@ -7171,7 +7171,7 @@ def update_erase_status():
         history_entry = asset.track_change(
             user_id=session.get('user_id'),
             action="UPDATE",
-            changes={'erased': {'from': old_erased_status, 'to': erased_status}},
+            changes={'erased': {'old': old_erased_status, 'new': erased_status}},
             notes=f"Erase status updated to {erased_status}"
         )
         db_session.add(history_entry)
