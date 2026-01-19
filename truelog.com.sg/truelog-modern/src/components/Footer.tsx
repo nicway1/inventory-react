@@ -79,7 +79,7 @@ const Footer: React.FC = () => {
                 className="flex items-center"
               >
                 <img
-                  src="/assets/images/truelog-logo.png"
+                  src={`${process.env.PUBLIC_URL}/assets/images/truelog-logo.png`}
                   alt="Truelog Logo"
                   className="h-10 w-auto"
                 />

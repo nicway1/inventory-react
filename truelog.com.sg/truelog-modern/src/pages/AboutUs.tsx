@@ -59,9 +59,9 @@ const AboutUs: React.FC = () => {
               transition={{ duration: 0.8 }}
               className="relative"
             >
-              <img 
-                src="/assets/images/hero-bg.jpg" 
-                alt="Truelog Operations" 
+              <img
+                src={`${process.env.PUBLIC_URL}/assets/images/hero-bg.jpg`}
+                alt="Truelog Operations"
                 className="rounded-2xl shadow-2xl"
               />
             </motion.div>

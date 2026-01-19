@@ -16,7 +16,7 @@ const Services: React.FC = () => {
   const services = [
     {
       icon: TruckIcon,
-      image: '/assets/images/Air-Frieght-Services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/Air-Frieght-Services.jpg`,
       title: 'Freight Forwarding',
       description: 'Comprehensive air and sea freight services with global reach and competitive rates.',
       features: ['Air Freight', 'Sea Freight', 'Customs Clearance', 'Cargo Insurance'],
@@ -25,7 +25,7 @@ const Services: React.FC = () => {
     },
     {
       icon: BuildingStorefrontIcon,
-      image: '/assets/images/containerized-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/containerized-services.jpg`,
       title: 'Global Fulfillment',
       description: 'End-to-end warehousing and distribution solutions for seamless supply chain management.',
       features: ['3PL Warehousing', 'Distribution', 'Inventory Management', 'Order Fulfillment'],
@@ -34,7 +34,7 @@ const Services: React.FC = () => {
     },
     {
       icon: ComputerDesktopIcon,
-      image: '/assets/images/trucking-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/trucking-services.jpg`,
       title: 'IT Logistics',
       description: 'Specialized logistics solutions for technology equipment and sensitive electronics.',
       features: ['IT Asset Management', 'Tech Equipment Shipping', 'Secure Handling', 'White Glove Service'],
@@ -43,7 +43,7 @@ const Services: React.FC = () => {
     },
     {
       icon: ClipboardDocumentCheckIcon,
-      image: '/assets/images/Air-Frieght-Services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/Air-Frieght-Services.jpg`,
       title: 'IOR/EOR Solutions',
       description: 'Importer and Exporter of Record services for seamless international trade.',
       features: ['Import Compliance', 'Export Documentation', 'Trade Regulations', 'Risk Management'],
@@ -52,7 +52,7 @@ const Services: React.FC = () => {
     },
     {
       icon: GlobeAltIcon,
-      image: '/assets/images/containerized-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/containerized-services.jpg`,
       title: 'Global Coverage',
       description: 'Worldwide logistics network with local expertise in key markets.',
       features: ['International Network', 'Local Partners', 'Regional Expertise', 'Global Standards'],
@@ -61,7 +61,7 @@ const Services: React.FC = () => {
     },
     {
       icon: ShieldCheckIcon,
-      image: '/assets/images/trucking-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/trucking-services.jpg`,
       title: 'Compliance',
       description: 'Regulatory compliance and documentation services for international trade.',
       features: ['Import Licenses', 'Trade Compliance', 'Documentation', 'Regulatory Support'],

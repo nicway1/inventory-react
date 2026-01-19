@@ -7,35 +7,35 @@ const Services: React.FC = () => {
     {
       title: 'FREIGHT FORWARDING',
       description: 'Comprehensive sea and air freight services ensuring safe, efficient transportation.',
-      image: '/assets/images/Air-Frieght-Services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/Air-Frieght-Services.jpg`,
       link: '/services/freight-forwarding',
       features: ['Sea Freight Services', 'Air Freight Services', 'Cargo Insurance', 'Customs Clearance']
     },
     {
       title: 'GLOBAL FULFILLMENT',
       description: 'Efficient, end-to-end supply chain management ensuring timely and accurate worldwide delivery.',
-      image: '/assets/images/containerized-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/containerized-services.jpg`,
       link: '/services/global-fulfillment',
       features: ['Singapore Flagship Warehouse', '3PL Warehousing Solutions', 'Return Merchandise Authorization', 'Distribution Services']
     },
     {
       title: 'ICT LOGISTICS',
       description: 'Specialized logistics solutions for technology hardware, ensuring compliance and efficiency.',
-      image: '/assets/images/trucking-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/trucking-services.jpg`,
       link: '/services/ict-logistics',
       features: ['IT Asset Management (ITAM)', 'Tech Equipment Shipping', 'Secure Handling', 'White Glove Service']
     },
     {
       title: 'IOR/EOR',
       description: 'Complete Importer of Record services ensuring legal compliance and seamless customs clearance for global IT shipments.',
-      image: '/assets/images/Air-Frieght-Services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/Air-Frieght-Services.jpg`,
       link: '/services/ior-eor-solutions',
       features: ['Customs Classification & HS Codes', 'Document Preparation & Submission', 'Duties & Taxes Management', 'Licenses & Regulatory Compliance']
     },
     {
       title: 'COMPLIANCE',
       description: 'Specialized logistics solutions for technology hardware, ensuring compliance and efficiency.',
-      image: '/assets/images/containerized-services.jpg',
+      image: `${process.env.PUBLIC_URL}/assets/images/containerized-services.jpg`,
       link: '/services/compliance',
       features: ['Import Licenses', 'Trade Compliance', 'Documentation', 'Regulatory Support']
     }

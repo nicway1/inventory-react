@@ -91,9 +91,9 @@ const GlobalCoverage: React.FC = () => {
           
           {/* World map overlay */}
           <div className="absolute inset-0 opacity-10">
-            <img 
-              src="/assets/images/world-map.png" 
-              alt="World Map" 
+            <img
+              src={`${process.env.PUBLIC_URL}/assets/images/world-map.png`}
+              alt="World Map"
               className="w-full h-full object-cover"
             />
           </div>
