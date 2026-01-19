@@ -515,23 +515,37 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
-    # Get folders data for SUPER_ADMIN/DEVELOPER
-    folders_data = None
-    if user.is_super_admin or user.is_developer:
-        folders_data = queue_store.get_queues_with_folders()
-        # Calculate aggregate ticket counts for each folder
+    # Get folders data for all users (filtered by accessible queues for non-admins)
+    folders_data = queue_store.get_queues_with_folders()
+
+    # For non-admin users, filter folders to only show queues they have access to
+    if not user.is_super_admin and not user.is_developer:
+        filtered_folders = []
         for folder in folders_data.get('folders', []):
-            folder_open = 0
-            folder_total = 0
-            folder_queue_ids = []
-            for q in folder.get('queues', []):
-                counts = queue_ticket_counts.get(q['id'], {'open': 0, 'total': 0})
-                folder_open += counts['open']
-                folder_total += counts['total']
-                folder_queue_ids.append(q['id'])
-            folder['open_count'] = folder_open
-            folder['total_count'] = folder_total
-            folder['queue_ids'] = folder_queue_ids
+            # Filter queues in this folder to only those the user can access
+            accessible_folder_queues = [q for q in folder.get('queues', []) if q['id'] in accessible_queue_ids]
+            if accessible_folder_queues:  # Only include folder if it has accessible queues
+                folder['queues'] = accessible_folder_queues
+                folder['queue_count'] = len(accessible_folder_queues)
+                filtered_folders.append(folder)
+        folders_data['folders'] = filtered_folders
+
+        # Filter unfiled queues to only those the user can access
+        folders_data['unfiled_queues'] = [q for q in folders_data.get('unfiled_queues', []) if q['id'] in accessible_queue_ids]
+
+    # Calculate aggregate ticket counts for each folder
+    for folder in folders_data.get('folders', []):
+        folder_open = 0
+        folder_total = 0
+        folder_queue_ids = []
+        for q in folder.get('queues', []):
+            counts = queue_ticket_counts.get(q['id'], {'open': 0, 'total': 0})
+            folder_open += counts['open']
+            folder_total += counts['total']
+            folder_queue_ids.append(q['id'])
+        folder['open_count'] = folder_open
+        folder['total_count'] = folder_total
+        folder['queue_ids'] = folder_queue_ids
 
     # Get custom ticket statuses
     from models.custom_ticket_status import CustomTicketStatus

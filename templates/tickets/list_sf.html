@@ -1220,8 +1220,8 @@
                         <span class="queue-name">All Queues</span>
                         <span class="queue-count" id="allQueuesCount">0</span>
                     </button>
-                    {% if folders_data and (current_user.is_super_admin or current_user.is_developer) %}
-                        {# Show folders for SUPER_ADMIN/DEVELOPER #}
+                    {% if folders_data and (folders_data.folders or folders_data.unfiled_queues) %}
+                        {# Show folders and queues organized by folder #}
                         {% for folder in folders_data.folders %}
                         {% set folder_queue_names = folder.queues | map(attribute='name') | list | join('|||') %}
                         <button type="button" class="sf-queue-tab sf-folder-tab" data-folder-id="{{ folder.id }}" data-queue-names="{{ folder_queue_names }}" onclick="expandFolder(this)">
