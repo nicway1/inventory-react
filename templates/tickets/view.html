@@ -2461,6 +2461,20 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     {% set tracking_url = '' %}
                                     {% if ticket.shipping_carrier == 'hfd' %}
                                         {% set tracking_url = 'https://run.hfd.co.il/info/' ~ ticket.shipping_tracking %}
+                                    {% elif 'hfd.sh/' in ticket.shipping_tracking|lower %}
+                                        {# HFD short URL - add http if missing #}
+                                        {% if ticket.shipping_tracking.startswith('http') %}
+                                            {% set tracking_url = ticket.shipping_tracking %}
+                                        {% else %}
+                                            {% set tracking_url = 'http://' ~ ticket.shipping_tracking %}
+                                        {% endif %}
+                                    {% elif 'hfd.co.il' in ticket.shipping_tracking|lower or 'run.hfd' in ticket.shipping_tracking|lower %}
+                                        {# HFD full URL #}
+                                        {% if ticket.shipping_tracking.startswith('http') %}
+                                            {% set tracking_url = ticket.shipping_tracking %}
+                                        {% else %}
+                                            {% set tracking_url = 'https://' ~ ticket.shipping_tracking %}
+                                        {% endif %}
                                     {% elif ticket.shipping_carrier == 'dhl' %}
                                         {% set tracking_url = 'https://www.dhl.com/en/express/tracking.html?AWB=' ~ ticket.shipping_tracking %}
                                     {% elif ticket.shipping_carrier == 'ups' %}
@@ -2506,7 +2520,27 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 <h5 class="text-sm font-medium text-gray-900 mb-2">Return Tracking</h5>
                                 <div class="space-y-1">
                                     <p class="text-xs text-gray-600">Tracking Number:</p>
+                                    {% set return_url = '' %}
+                                    {% if 'hfd.sh/' in ticket.return_tracking|lower %}
+                                        {% if ticket.return_tracking.startswith('http') %}
+                                            {% set return_url = ticket.return_tracking %}
+                                        {% else %}
+                                            {% set return_url = 'http://' ~ ticket.return_tracking %}
+                                        {% endif %}
+                                    {% elif 'hfd.co.il' in ticket.return_tracking|lower or 'run.hfd' in ticket.return_tracking|lower %}
+                                        {% if ticket.return_tracking.startswith('http') %}
+                                            {% set return_url = ticket.return_tracking %}
+                                        {% else %}
+                                            {% set return_url = 'https://' ~ ticket.return_tracking %}
+                                        {% endif %}
+                                    {% elif ticket.return_tracking.startswith('http') %}
+                                        {% set return_url = ticket.return_tracking %}
+                                    {% endif %}
+                                    {% if return_url %}
+                                    <a href="{{ return_url }}" target="_blank" class="text-sm font-mono text-blue-600 hover:text-blue-800 underline">{{ ticket.return_tracking[:20] }}{% if ticket.return_tracking|length > 20 %}...{% endif %} ↗</a>
+                                    {% else %}
                                     <p class="text-sm font-mono text-blue-600">{{ ticket.return_tracking }}</p>
+                                    {% endif %}
                                     <p class="text-xs text-gray-600">Status:</p>
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                         {% if ticket.return_status and ('delivered' in ticket.return_status.lower() or 'received' in ticket.return_status.lower()) %}
@@ -6631,6 +6665,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <select id="carrier" name="carrier" required
                                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                         <option value="auto">Auto-Detect</option>
+                                        <option value="hfd">HFD (Israel)</option>
                                         <option value="singpost">SingPost</option>
                                         <option value="dhl">DHL</option>
                                         <option value="ups">UPS</option>
@@ -6699,6 +6734,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <select id="return_carrier" name="return_carrier" required
                                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
                                         <option value="auto">Auto-Detect</option>
+                                        <option value="hfd">HFD (Israel)</option>
                                         <option value="singpost">SingPost</option>
                                         <option value="dhl">DHL</option>
                                         <option value="ups">UPS</option>
@@ -6768,6 +6804,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <select id="package_carrier" name="carrier" required
                                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500">
                                         <option value="auto">Auto-Detect</option>
+                                        <option value="hfd">HFD (Israel)</option>
                                         <option value="singpost">SingPost</option>
                                         <option value="dhl">DHL</option>
                                         <option value="ups">UPS</option>
