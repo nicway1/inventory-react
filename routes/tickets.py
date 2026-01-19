@@ -6300,7 +6300,14 @@ def track_auto(ticket_id):
         logger.info(f"Auto-detecting carrier for tracking number: {tracking_number}")
         
         # Auto-detect carrier based on tracking number format
-        if tracking_number.startswith('1Z'):
+        tn_lower = tracking_number.lower()
+
+        # HFD Israel tracking (short URLs like hfd.sh/xxx or full URLs)
+        if 'hfd.sh/' in tn_lower or 'hfd.co.il' in tn_lower or 'run.hfd' in tn_lower:
+            logger.info(f"Detected HFD Israel URL format: {tracking_number}")
+            tracking_carrier = 'hfd'
+            return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
+        elif tracking_number.startswith('1Z'):
             logger.info("Detected UPS format")
             tracking_carrier = 'ups'
             return redirect(url_for('tickets.track_ups', ticket_id=ticket_id))
@@ -6321,14 +6328,21 @@ def track_auto(ticket_id):
             logger.info("Detected DTDC format based on 10-digit number")
             tracking_carrier = 'dtdc'
             return redirect(url_for('tickets.track_dtdc', ticket_id=ticket_id))
+        # HFD Israel tracking numbers (12-16 digit numbers starting with 5 or 7)
+        elif len(tracking_number) >= 12 and len(tracking_number) <= 16 and tracking_number.isdigit():
+            if tracking_number.startswith('5') or tracking_number.startswith('7'):
+                logger.info(f"Detected HFD Israel numeric format: {tracking_number}")
+                tracking_carrier = 'hfd'
+                return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
         elif tracking_number.startswith('D'):
             logger.info("Detected D-prefix format, using Claw tracking")
             tracking_carrier = 'claw'
             return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
-        else:
-            logger.info("Unknown format, defaulting to Claw tracking for best coverage")
-            tracking_carrier = 'claw'
-            return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
+
+        # Default to Claw tracking for unknown formats
+        logger.info("Unknown format, defaulting to Claw tracking for best coverage")
+        tracking_carrier = 'claw'
+        return redirect(url_for('tickets.track_claw', ticket_id=ticket_id))
     
     except Exception as e:
         logger.info(f"Error in track_auto: {str(e)}")
