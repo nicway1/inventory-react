@@ -77,7 +77,8 @@ class Asset(Base):
     history = relationship("AssetHistory", back_populates="asset", order_by="desc(AssetHistory.created_at)")
     transactions = relationship("AssetTransaction", back_populates="asset", order_by="desc(AssetTransaction.transaction_date)")
     checkins = relationship("TicketAssetCheckin", back_populates="asset", cascade="all, delete-orphan")
-    
+    service_records = relationship("ServiceRecord", back_populates="asset", order_by="desc(ServiceRecord.performed_at)")
+
     def track_change(self, user_id, action, changes, notes=None):
         """Create a history entry for asset changes
         

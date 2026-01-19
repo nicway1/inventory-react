@@ -162,6 +162,7 @@ class Ticket(Base):
     tracking_histories = relationship('TrackingHistory', back_populates='ticket', cascade='all, delete-orphan')
     accessories = relationship('TicketAccessory', back_populates='ticket', cascade='all, delete-orphan')
     asset_checkins = relationship('TicketAssetCheckin', back_populates='ticket', cascade='all, delete-orphan')
+    service_records = relationship('ServiceRecord', back_populates='ticket', cascade='all, delete-orphan')
     # Remove non-existent relationships
     # shipments, rma_pickups, and rma_replacements are not defined in the model
 
