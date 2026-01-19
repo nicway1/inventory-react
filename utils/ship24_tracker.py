@@ -2457,12 +2457,23 @@ class Ship24Tracker:
 
                 browser = await p.chromium.launch(**launch_options)
 
+                # Use Oxylabs residential proxy to bypass Cloudflare
+                oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
+                oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+
                 context_options = {
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'viewport': {'width': 1366, 'height': 768},
                     'locale': 'he-IL',
                     'bypass_csp': True,  # Bypass Content Security Policy
+                    # Route through Oxylabs residential proxy to bypass Cloudflare
+                    'proxy': {
+                        'server': 'http://pr.oxylabs.io:7777',
+                        'username': f'customer-{oxylabs_username}-cc-il',  # Israel residential IP
+                        'password': oxylabs_password
+                    }
                 }
+                logger.info(f"[HFD Playwright] Using Oxylabs residential proxy (Israel)")
 
                 context = await browser.new_context(**context_options)
                 page = await context.new_page()
