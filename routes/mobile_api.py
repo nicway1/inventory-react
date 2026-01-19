@@ -5975,16 +5975,23 @@ def mobile_get_service_records(ticket_id):
                     "created_at": "2026-01-19T10:30:00"
                 }
             ],
+            "assets": [
+                {"id": 456, "asset_tag": "ASSET-001", "serial_num": "SN123", "model": "MacBook Pro"}
+            ],
             "service_types": ["OS Reinstall", "Hardware Repair", ...],
             "status_options": ["Requested", "In Progress", "Completed"]
         }
     """
     from models.service_record import ServiceRecord
+    from sqlalchemy.orm import joinedload
 
     try:
         db_session = db_manager.get_session()
         try:
-            ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+            ticket = db_session.query(Ticket).options(
+                joinedload(Ticket.assets),
+                joinedload(Ticket.asset)
+            ).filter(Ticket.id == ticket_id).first()
             if not ticket:
                 return jsonify({'success': False, 'error': 'Ticket not found'}), 404
 
@@ -5992,9 +5999,35 @@ def mobile_get_service_records(ticket_id):
                 ServiceRecord.ticket_id == ticket_id
             ).order_by(ServiceRecord.created_at.desc()).all()
 
+            # Build list of assets available for this ticket
+            assets_list = []
+            seen_ids = set()
+
+            # Add assets from ticket.assets (many-to-many)
+            if ticket.assets:
+                for asset in ticket.assets:
+                    if asset.id not in seen_ids:
+                        assets_list.append({
+                            'id': asset.id,
+                            'asset_tag': asset.asset_tag,
+                            'serial_num': asset.serial_num,
+                            'model': asset.model
+                        })
+                        seen_ids.add(asset.id)
+
+            # Add single asset if exists and not already in list
+            if ticket.asset and ticket.asset.id not in seen_ids:
+                assets_list.append({
+                    'id': ticket.asset.id,
+                    'asset_tag': ticket.asset.asset_tag,
+                    'serial_num': ticket.asset.serial_num,
+                    'model': ticket.asset.model
+                })
+
             return jsonify({
                 'success': True,
                 'service_records': [r.to_dict() for r in records],
+                'assets': assets_list,
                 'service_types': ServiceRecord.SERVICE_TYPES,
                 'status_options': ServiceRecord.STATUS_OPTIONS
             })
