@@ -38,6 +38,11 @@ class ServiceRecord(Base):
     # Status options
     STATUS_OPTIONS = ['Requested', 'In Progress', 'Completed']
 
+    @property
+    def request_id(self):
+        """Generate a readable request ID like SR-0001"""
+        return f"SR-{self.id:04d}" if self.id else None
+
     # Common service types for reference
     SERVICE_TYPES = [
         "OS Reinstall",
@@ -57,6 +62,7 @@ class ServiceRecord(Base):
     def to_dict(self):
         return {
             'id': self.id,
+            'request_id': self.request_id,
             'ticket_id': self.ticket_id,
             'asset_id': self.asset_id,
             'service_type': self.service_type,
