@@ -1794,20 +1794,22 @@ class Ship24Tracker:
             debug_info['steps'].append({'step': 4, 'action': 'request_started', 'url': tracking_url})
 
             # Use JavaScript instructions to ensure page fully loads
+            # HFD is a React SPA that loads tracking data asynchronously
             import json as json_module
             js_instructions = json_module.dumps([
-                {"action": "wait", "timeout": 5000},  # Initial wait for page load
-                {"action": "scroll", "direction": "down", "value": 500},  # Scroll to trigger lazy loading
-                {"action": "wait", "timeout": 3000},  # Wait for content after scroll
-                {"action": "scroll", "direction": "up", "value": 500},  # Scroll back up
-                {"action": "wait", "timeout": 2000},  # Final wait
+                {"action": "wait", "timeout": 8000},  # Initial wait for React to hydrate
+                {"action": "wait_for_selector", "selector": ".hfd-title, .b-shipmentStatus, [class*='status'], [class*='delivery']", "timeout": 15000},  # Wait for tracking content
+                {"action": "scroll", "direction": "down", "value": 800},  # Scroll to trigger lazy loading
+                {"action": "wait", "timeout": 5000},  # Wait for content after scroll
+                {"action": "scroll", "direction": "up", "value": 800},  # Scroll back up
+                {"action": "wait", "timeout": 3000},  # Final wait for any remaining content
             ])
 
             response = requests.get(
                 tracking_url,
                 proxies=proxies,
                 verify=False,
-                timeout=180,  # Increased timeout for JS rendering
+                timeout=300,  # Increased timeout for longer JS rendering
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -1819,8 +1821,8 @@ class Ship24Tracker:
                     # This is required for JavaScript-rendered pages like HFD
                     'x-oxylabs-render': 'html',
                     # Wait for async content to load (in milliseconds)
-                    # HFD uses React and loads data asynchronously - need more time
-                    'x-oxylabs-render-wait': '20000',
+                    # HFD uses React and loads data asynchronously - need significantly more time
+                    'x-oxylabs-render-wait': '30000',
                     # JavaScript instructions to interact with page and trigger content load
                     'x-oxylabs-js-instructions': js_instructions,
                 },
