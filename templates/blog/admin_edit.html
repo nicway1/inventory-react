@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Blog Post - {{ post.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">
+                        <i class="fas fa-edit me-2"></i>Edit Blog Post
+                    </h3>
+                    <a href="{{ url_for('blog.admin_blog_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('blog.admin_edit_post', post_id=post.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Title -->
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title" name="title" required value="{{ post.title }}">
+                                </div>
+
+                                <!-- Slug (read-only) -->
+                                <div class="mb-3">
+                                    <label class="form-label">Slug</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">/blog/</span>
+                                        <input type="text" class="form-control" value="{{ post.slug }}" readonly>
+                                    </div>
+                                </div>
+
+                                <!-- Content -->
+                                <div class="mb-3">
+                                    <label for="content" class="form-label">Content <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="content" name="content" rows="15" required>{{ post.content }}</textarea>
+                                    <small class="text-muted">You can use HTML for formatting.</small>
+                                </div>
+
+                                <!-- Excerpt -->
+                                <div class="mb-3">
+                                    <label for="excerpt" class="form-label">Excerpt</label>
+                                    <textarea class="form-control" id="excerpt" name="excerpt" rows="3">{{ post.excerpt or '' }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- Status -->
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="draft" {% if post.status.value == 'draft' %}selected{% endif %}>Draft</option>
+                                        <option value="published" {% if post.status.value == 'published' %}selected{% endif %}>Published</option>
+                                        <option value="archived" {% if post.status.value == 'archived' %}selected{% endif %}>Archived</option>
+                                    </select>
+                                </div>
+
+                                <!-- Featured Image -->
+                                <div class="mb-3">
+                                    <label for="featured_image" class="form-label">Featured Image URL</label>
+                                    <input type="url" class="form-control" id="featured_image" name="featured_image" value="{{ post.featured_image or '' }}">
+                                    {% if post.featured_image %}
+                                    <div class="mt-2">
+                                        <img src="{{ post.featured_image }}" alt="Preview" class="img-thumbnail" style="max-height: 150px;">
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Stats -->
+                                <div class="card bg-light mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-muted">Statistics</h6>
+                                        <p class="mb-1"><i class="fas fa-eye me-1"></i> {{ post.view_count }} views</p>
+                                        <p class="mb-1"><i class="fas fa-calendar me-1"></i> Created: {{ post.created_at.strftime('%Y-%m-%d') }}</p>
+                                        {% if post.published_at %}
+                                        <p class="mb-0"><i class="fas fa-check-circle me-1"></i> Published: {{ post.published_at.strftime('%Y-%m-%d') }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- SEO Section -->
+                                <hr>
+                                <h5 class="text-muted mb-3"><i class="fas fa-search me-1"></i> SEO Settings</h5>
+
+                                <div class="mb-3">
+                                    <label for="meta_title" class="form-label">Meta Title</label>
+                                    <input type="text" class="form-control" id="meta_title" name="meta_title" value="{{ post.meta_title or '' }}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="meta_description" class="form-label">Meta Description</label>
+                                    <textarea class="form-control" id="meta_description" name="meta_description" rows="3">{{ post.meta_description or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <form action="{{ url_for('blog.admin_delete_post', post_id=post.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this post?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fas fa-trash me-1"></i> Delete Post
+                                </button>
+                            </form>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('blog.admin_blog_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Update Post
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

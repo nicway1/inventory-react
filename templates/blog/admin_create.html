@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Create Blog Post{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus me-2"></i>Create New Blog Post
+                    </h3>
+                    <a href="{{ url_for('blog.admin_blog_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('blog.admin_create_post') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Title -->
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title" name="title" required placeholder="Enter post title">
+                                </div>
+
+                                <!-- Content -->
+                                <div class="mb-3">
+                                    <label for="content" class="form-label">Content <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="content" name="content" rows="15" required placeholder="Write your blog post content here... (HTML supported)"></textarea>
+                                    <small class="text-muted">You can use HTML for formatting.</small>
+                                </div>
+
+                                <!-- Excerpt -->
+                                <div class="mb-3">
+                                    <label for="excerpt" class="form-label">Excerpt</label>
+                                    <textarea class="form-control" id="excerpt" name="excerpt" rows="3" placeholder="Brief summary for blog listing (optional - will be auto-generated if empty)"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- Status -->
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="draft">Draft</option>
+                                        <option value="published">Published</option>
+                                    </select>
+                                </div>
+
+                                <!-- Featured Image -->
+                                <div class="mb-3">
+                                    <label for="featured_image" class="form-label">Featured Image URL</label>
+                                    <input type="url" class="form-control" id="featured_image" name="featured_image" placeholder="https://example.com/image.jpg">
+                                    <small class="text-muted">Enter the full URL of the featured image.</small>
+                                </div>
+
+                                <!-- SEO Section -->
+                                <hr>
+                                <h5 class="text-muted mb-3"><i class="fas fa-search me-1"></i> SEO Settings</h5>
+
+                                <div class="mb-3">
+                                    <label for="meta_title" class="form-label">Meta Title</label>
+                                    <input type="text" class="form-control" id="meta_title" name="meta_title" placeholder="SEO title (optional)">
+                                    <small class="text-muted">If empty, post title will be used.</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="meta_description" class="form-label">Meta Description</label>
+                                    <textarea class="form-control" id="meta_description" name="meta_description" rows="3" placeholder="SEO description (optional)"></textarea>
+                                    <small class="text-muted">If empty, excerpt will be used.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('blog.admin_blog_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Create Post
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

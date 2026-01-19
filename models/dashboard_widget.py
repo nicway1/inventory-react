@@ -617,6 +617,25 @@ register_widget(WidgetDefinition(
 ))
 
 register_widget(WidgetDefinition(
+    id='blog_manager',
+    name='Blog Manager',
+    description='Manage TrueLog website blog posts',
+    long_description='Create, edit, and manage blog posts for the TrueLog public website. Monitor post statistics, publish drafts, and manage content directly from the dashboard.',
+    category=WidgetCategory.ACTIONS,
+    default_size=WidgetSize.SMALL,
+    min_size=WidgetSize.SMALL,
+    template='widgets/blog_manager.html',
+    icon='fas fa-blog',
+    color='blue',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER'],
+    data_loader='load_blog_stats',
+    configurable=True,
+    default_config={'style': 'photo'},
+    screenshot='blog_manager.png'
+))
+
+register_widget(WidgetDefinition(
     id='shipment_history',
     name='Shipment History',
     description='Track shipments via SingPost API',
