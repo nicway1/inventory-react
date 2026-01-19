@@ -1988,13 +1988,42 @@ class Ship24Tracker:
                 )
 
             # Step 9: Validate parsed data
+            visible_text_length = debug_info.get('parsing', {}).get('visible_text_length', 0)
+
+            # If visible text is too short (< 200 chars), Oxylabs didn't render the JS properly
+            # Fall back to Playwright for better JS execution
+            if visible_text_length < 200:
+                logger.info(f"[HFD] Oxylabs returned insufficient content ({visible_text_length} chars), trying Playwright fallback")
+                debug_info['steps'].append({
+                    'step': 9,
+                    'action': 'oxylabs_insufficient',
+                    'visible_text_length': visible_text_length,
+                    'fallback': 'playwright'
+                })
+
+                # Try Playwright fallback
+                try:
+                    playwright_result = await self._track_hfd_playwright(tracking_number, tracking_url)
+                    if playwright_result and playwright_result.get('status') not in ['Unknown', None, 'Unable to Parse']:
+                        playwright_result['source'] = 'HFD (Playwright fallback)'
+                        playwright_result['debug_info'] = debug_info
+                        playwright_result['debug_info']['playwright_fallback'] = True
+                        return playwright_result
+                    else:
+                        logger.info(f"[HFD] Playwright fallback also failed")
+                        debug_info['steps'].append({'step': 10, 'action': 'playwright_fallback', 'status': 'failed'})
+                except Exception as pw_error:
+                    logger.error(f"[HFD] Playwright fallback error: {str(pw_error)}")
+                    debug_info['steps'].append({'step': 10, 'action': 'playwright_fallback', 'status': 'error', 'error': str(pw_error)})
+
             if tracking_data.get('status') in ['Unknown', None]:
                 # Check what content we got
                 has_hebrew = debug_info.get('parsing', {}).get('has_hebrew_content', False)
-                text_sample = debug_info.get('parsing', {}).get('text_sample', '')
 
                 # Determine likely reason for failure
-                if not has_hebrew and 'script' in page_text.lower()[:1000]:
+                if visible_text_length < 200:
+                    warning_msg = 'Page loaded but JavaScript content did not render. Both Oxylabs and Playwright failed to get tracking data.'
+                elif not has_hebrew and 'script' in page_text.lower()[:1000]:
                     warning_msg = 'Page loaded but content appears to be JavaScript-rendered. The actual tracking data may load dynamically.'
                 elif not has_hebrew:
                     warning_msg = 'Page loaded but no Hebrew content found. The page may have changed or tracking number may be invalid.'
@@ -2002,7 +2031,7 @@ class Ship24Tracker:
                     warning_msg = 'Page loaded with Hebrew content but status keywords not found. Check the tracking link manually.'
 
                 debug_info['steps'].append({
-                    'step': 9,
+                    'step': 11,
                     'action': 'validate_parsed',
                     'status': 'warning',
                     'reason': 'Could not extract status from page',
@@ -2392,39 +2421,84 @@ class Ship24Tracker:
         """Fallback: Track HFD using Playwright (no proxy)"""
         from playwright.async_api import async_playwright
 
-        async with async_playwright() as p:
-            launch_options = get_browser_launch_options()
-            browser = await p.chromium.launch(**launch_options)
+        logger.info(f"[HFD Playwright] Starting Playwright for: {tracking_url}")
 
-            context_options = {
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'viewport': {'width': 1366, 'height': 768},
-                'locale': 'he-IL'
-            }
+        try:
+            async with async_playwright() as p:
+                launch_options = get_browser_launch_options()
+                browser = await p.chromium.launch(**launch_options)
 
-            context = await browser.new_context(**context_options)
-            page = await context.new_page()
+                context_options = {
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'viewport': {'width': 1366, 'height': 768},
+                    'locale': 'he-IL'
+                }
 
-            await page.goto(tracking_url, wait_until='domcontentloaded', timeout=30000)
-            await page.wait_for_timeout(5000)
+                context = await browser.new_context(**context_options)
+                page = await context.new_page()
 
-            tracking_data = await self._extract_hfd_data(page, tracking_number)
-            await browser.close()
+                # Navigate and wait for network to be idle (all API calls completed)
+                logger.info(f"[HFD Playwright] Navigating to page...")
+                await page.goto(tracking_url, wait_until='networkidle', timeout=60000)
 
-            if tracking_data.get('status') not in ['Unknown', None]:
+                # Wait additional time for React to render
+                logger.info(f"[HFD Playwright] Waiting for React to render...")
+                await page.wait_for_timeout(8000)
+
+                # Try to wait for specific content elements
+                try:
+                    await page.wait_for_selector('.hfd-title, [class*="shipment"], [class*="status"], [class*="delivery"]', timeout=10000)
+                    logger.info(f"[HFD Playwright] Found content selector")
+                except:
+                    logger.info(f"[HFD Playwright] Content selector not found, continuing anyway")
+
+                # Scroll to trigger any lazy loading
+                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                await page.wait_for_timeout(2000)
+                await page.evaluate('window.scrollTo(0, 0)')
+                await page.wait_for_timeout(2000)
+
+                # Get page content for debugging
+                page_content = await page.content()
+                page_text = await page.evaluate('() => document.body.innerText')
+                logger.info(f"[HFD Playwright] Page text length: {len(page_text)}")
+                logger.info(f"[HFD Playwright] Page text preview: {page_text[:500] if page_text else 'EMPTY'}")
+
+                tracking_data = await self._extract_hfd_data(page, tracking_number)
+                await browser.close()
+
+                if tracking_data.get('status') not in ['Unknown', None]:
+                    return {
+                        'success': True,
+                        'tracking_number': tracking_number,
+                        'carrier': 'HFD Israel',
+                        'status': tracking_data.get('status', 'Unknown'),
+                        'events': tracking_data.get('events', []),
+                        'current_location': tracking_data.get('location', 'Israel'),
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'tracking_url': tracking_url,
+                        'source': 'HFD (Playwright)',
+                        'playwright_page_text_length': len(page_text)
+                    }
+
+                # Return partial result with debug info
                 return {
                     'success': True,
                     'tracking_number': tracking_number,
                     'carrier': 'HFD Israel',
-                    'status': tracking_data.get('status', 'Unknown'),
-                    'events': tracking_data.get('events', []),
-                    'current_location': tracking_data.get('location', 'Israel'),
+                    'status': 'Unable to Parse',
+                    'events': [],
+                    'current_location': 'Israel',
                     'last_updated': datetime.utcnow().isoformat(),
                     'tracking_url': tracking_url,
-                    'source': 'HFD'
+                    'source': 'HFD (Playwright)',
+                    'playwright_page_text': page_text[:5000] if page_text else 'EMPTY',
+                    'playwright_page_text_length': len(page_text) if page_text else 0
                 }
 
-        return None
+        except Exception as e:
+            logger.error(f"[HFD Playwright] Error: {str(e)}")
+            return None
 
     async def _extract_hfd_data(self, page, tracking_number: str) -> Dict:
         """Extract tracking data from HFD Israel page (Hebrew content)"""
