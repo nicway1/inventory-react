@@ -1211,6 +1211,7 @@ def execute_action():
 
                 # Handle image uploads
                 if files:
+                    # Physical path includes 'static/' for saving the file
                     upload_folder = os.path.join('static', 'uploads', 'bugs', str(bug.id))
                     os.makedirs(upload_folder, exist_ok=True)
 
@@ -1224,7 +1225,10 @@ def execute_action():
                             filename = f"{timestamp}_{filename}"
                             filepath = os.path.join(upload_folder, filename)
                             file.save(filepath)
-                            saved_paths.append(filepath)
+                            # Store path relative to static/ folder (without 'static/' prefix)
+                            # This is what url_for('static', filename=...) expects
+                            relative_path = os.path.join('uploads', 'bugs', str(bug.id), filename)
+                            saved_paths.append(relative_path)
 
                     if saved_paths:
                         # Store paths as comma-separated string
