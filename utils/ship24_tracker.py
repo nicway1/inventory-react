@@ -2003,18 +2003,32 @@ class Ship24Tracker:
 
                 # Try Playwright fallback
                 try:
+                    logger.info(f"[HFD] Attempting Playwright fallback...")
                     playwright_result = await self._track_hfd_playwright(tracking_number, tracking_url)
+
+                    # Always add Playwright result to debug info
+                    if playwright_result:
+                        debug_info['playwright_result'] = {
+                            'status': playwright_result.get('status'),
+                            'source': playwright_result.get('source'),
+                            'page_text_length': playwright_result.get('playwright_page_text_length'),
+                            'page_text_preview': playwright_result.get('playwright_page_text', '')[:1000] if playwright_result.get('playwright_page_text') else None
+                        }
+
                     if playwright_result and playwright_result.get('status') not in ['Unknown', None, 'Unable to Parse']:
                         playwright_result['source'] = 'HFD (Playwright fallback)'
                         playwright_result['debug_info'] = debug_info
                         playwright_result['debug_info']['playwright_fallback'] = True
+                        logger.info(f"[HFD] Playwright fallback SUCCESS: {playwright_result.get('status')}")
                         return playwright_result
                     else:
-                        logger.info(f"[HFD] Playwright fallback also failed")
-                        debug_info['steps'].append({'step': 10, 'action': 'playwright_fallback', 'status': 'failed'})
+                        logger.info(f"[HFD] Playwright fallback returned: {playwright_result.get('status') if playwright_result else 'None'}")
+                        debug_info['steps'].append({'step': 10, 'action': 'playwright_fallback', 'status': 'failed', 'playwright_status': playwright_result.get('status') if playwright_result else 'None'})
                 except Exception as pw_error:
+                    import traceback
                     logger.error(f"[HFD] Playwright fallback error: {str(pw_error)}")
-                    debug_info['steps'].append({'step': 10, 'action': 'playwright_fallback', 'status': 'error', 'error': str(pw_error)})
+                    logger.error(f"[HFD] Playwright traceback: {traceback.format_exc()}")
+                    debug_info['steps'].append({'step': 10, 'action': 'playwright_fallback', 'status': 'error', 'error': str(pw_error), 'traceback': traceback.format_exc()[:500]})
 
             if tracking_data.get('status') in ['Unknown', None]:
                 # Check what content we got
