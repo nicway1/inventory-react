@@ -2199,31 +2199,43 @@ class Ship24Tracker:
                     return tracking_data
 
             # Extended Hebrew status keywords - check in both HTML and text
+            # These are the EXACT phrases from HFD's React app (found in their JavaScript bundle)
             status_keywords = [
-                # Delivered variations
+                # Delivered - exact HFD phrase: "המשלוח נמסר" = "The shipment has been delivered"
+                ('המשלוח נמסר', 'Delivered'),
                 ('נמסר', 'Delivered'),
                 ('נמסרה', 'Delivered'),
                 ('סופק', 'Delivered'),
                 ('delivered', 'Delivered'),
                 ('DELIVERED', 'Delivered'),
-                # In Transit variations
-                ('בדרך ללקוח', 'In Transit'),
+                # In Transit - exact HFD phrase: "המשלוח בדרך ללקוח" = "The shipment is on its way to the customer"
+                ('המשלוח בדרך ללקוח', 'Out for Delivery'),
+                ('בדרך ללקוח', 'Out for Delivery'),
                 ('בדרך', 'In Transit'),
                 ('במשלוח', 'In Transit'),
                 ('in transit', 'In Transit'),
                 ('IN_TRANSIT', 'In Transit'),
+                # On way to Israel - exact HFD phrase: "המשלוח בדרכו לישראל/למחסן המיון"
+                ('המשלוח בדרכו לישראל', 'In Transit to Israel'),
+                ('בדרכו לישראל', 'In Transit to Israel'),
                 # Out for Delivery
                 ('יצא לחלוקה', 'Out for Delivery'),
                 ('בחלוקה', 'Out for Delivery'),
                 ('פרטי נהג', 'Out for Delivery'),
                 ('out for delivery', 'Out for Delivery'),
-                # At Warehouse
+                # At HFD Warehouse - exact HFD phrase: "המשלוח במחסני HFD" = "Delivery in HFD warehouses"
+                ('המשלוח במחסני HFD', 'At HFD Warehouse'),
+                ('במחסני HFD', 'At HFD Warehouse'),
+                # At Sorting Warehouse - exact phrase from HFD
+                ('המשלוח במחסני המיון', 'At Sorting Warehouse'),
+                ('במחסני המיון', 'At Sorting Warehouse'),
                 ('במחסן', 'At Warehouse'),
                 ('במחסני', 'At Warehouse'),
                 ('at warehouse', 'At Warehouse'),
-                # Sorting/Processing at HFD
-                ('במחסני המיון', 'At Sorting Warehouse'),
                 ('מיון', 'Sorting'),
+                # Received/Created - exact HFD phrase: "המשלוח הוקם במערכת" = "The shipment has been established in the system"
+                ('המשלוח הוקם במערכת', 'Shipment Created'),
+                ('הוקם במערכת', 'Shipment Created'),
                 # Received/Created
                 ('התקבל', 'Received'),
                 ('נקלט', 'Received'),
@@ -2701,14 +2713,20 @@ class Ship24Tracker:
             import requests
             logger.info(f"[HFD] Resolving short URL: {short_url}")
 
-            # Use a simple HEAD request to follow redirects and get final URL
-            # Don't use proxy for this - short URL service is usually not blocked
-            response = requests.head(
+            # Ensure URL starts with https
+            if short_url.startswith('http://'):
+                short_url = 'https://' + short_url[7:]
+
+            # HFD returns 405 for HEAD requests, so use GET directly with allow_redirects
+            # The redirect chain is: hfd.sh/xxx -> run.hfd.co.il/info/TRACKING_NUMBER
+            response = requests.get(
                 short_url,
                 allow_redirects=True,
                 timeout=15,
                 headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
                 }
             )
 
@@ -2719,22 +2737,11 @@ class Ship24Tracker:
             if 'hfd.co.il' in final_url or 'run.hfd' in final_url:
                 return final_url
 
-            # If HEAD didn't work, try GET
-            response = requests.get(
-                short_url,
-                allow_redirects=True,
-                timeout=15,
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            )
-
-            final_url = response.url
-            logger.info(f"[HFD] Short URL (GET) resolved to: {final_url}")
-
-            if 'hfd.co.il' in final_url or 'run.hfd' in final_url:
+            # Also check for tracking number in URL path (format: /info/XXXXXXXX)
+            if '/info/' in final_url:
                 return final_url
 
+            logger.warning(f"[HFD] Short URL did not resolve to HFD tracking page: {final_url}")
             return None
 
         except Exception as e:
