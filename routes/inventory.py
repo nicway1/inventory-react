@@ -8382,3 +8382,33 @@ def debug_audit_data():
         return jsonify({'error': f'Debug error: {str(e)}'}), 500
     finally:
         db_session.close()
+
+
+@inventory_bp.route('/api/assets/<int:asset_id>/service-records', methods=['GET'])
+@login_required
+def get_asset_service_records(asset_id):
+    """Get all service records for an asset"""
+    from database import SessionLocal
+    from models.service_record import ServiceRecord
+
+    db_session = SessionLocal()
+    try:
+        asset = db_session.query(Asset).get(asset_id)
+        if not asset:
+            return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+        records = db_session.query(ServiceRecord).filter(
+            ServiceRecord.asset_id == asset_id
+        ).order_by(ServiceRecord.performed_at.desc()).all()
+
+        return jsonify({
+            'success': True,
+            'service_records': [r.to_dict() for r in records]
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f"Error getting asset service records: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()

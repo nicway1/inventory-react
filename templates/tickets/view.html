@@ -5564,77 +5564,423 @@ body.dark-theme .sf-card-body .sf-field-label {
                     {% endif %}
                 </div>
 
-                <!-- Service History - Related tickets for same asset -->
-                {% if service_history %}
-                <div id="service-history" class="mb-8">
+                <!-- Service Records Section -->
+                <div id="service-records" class="mb-8">
                     <div class="bg-white rounded-lg shadow overflow-hidden">
                         <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
                             <h3 class="text-lg font-semibold text-white flex items-center">
-                                <i class="fas fa-history mr-2"></i>Service History ({{ service_history|length }})
+                                <i class="fas fa-tools mr-2"></i>Service Records
                             </h3>
-                            <p class="text-purple-200 text-sm mt-1">Other tickets related to this asset</p>
+                            <p class="text-purple-200 text-sm mt-1">Record services performed on assets in this ticket</p>
                         </div>
                         <div class="p-4">
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        {% for related_ticket in service_history %}
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <span class="text-sm font-medium text-gray-900">#{{ related_ticket.id }}</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                    {% if related_ticket.category and 'REPAIR' in related_ticket.category.name %}bg-red-100 text-red-800
-                                                    {% elif related_ticket.category and 'RETURN' in related_ticket.category.name %}bg-yellow-100 text-yellow-800
-                                                    {% elif related_ticket.category and 'CHECKOUT' in related_ticket.category.name %}bg-blue-100 text-blue-800
-                                                    {% elif related_ticket.category and 'PIN' in related_ticket.category.name %}bg-purple-100 text-purple-800
-                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                                    {{ related_ticket.category.value if related_ticket.category else 'N/A' }}
-                                                </span>
-                                            </td>
-                                            <td class="px-4 py-3">
-                                                <div class="text-sm text-gray-900 max-w-xs truncate" title="{{ related_ticket.subject }}">
-                                                    {{ related_ticket.subject[:50] }}{% if related_ticket.subject|length > 50 %}...{% endif %}
-                                                </div>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                    {% if related_ticket.status and related_ticket.status.name == 'RESOLVED' %}bg-green-100 text-green-800
-                                                    {% elif related_ticket.status and related_ticket.status.name == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
-                                                    {% elif related_ticket.status and related_ticket.status.name == 'ON_HOLD' %}bg-yellow-100 text-yellow-800
-                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                                    {{ related_ticket.status.value if related_ticket.status else 'N/A' }}
-                                                </span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                                {{ related_ticket.created_at | singapore_time if related_ticket.created_at else 'N/A' }}
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <a href="{{ url_for('tickets.view_ticket', ticket_id=related_ticket.id) }}"
-                                                   class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
-                                                    <i class="fas fa-eye mr-1"></i> View
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <!-- Add Service Record Form -->
+                            <form id="addServiceRecordForm" class="mb-6 p-4 bg-gray-50 rounded-lg">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Service Type *</label>
+                                        <select id="serviceType" name="service_type" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                            <option value="">Select service type...</option>
+                                            <option value="OS Reinstall">OS Reinstall</option>
+                                            <option value="Hardware Repair">Hardware Repair</option>
+                                            <option value="Screen Replacement">Screen Replacement</option>
+                                            <option value="Battery Replacement">Battery Replacement</option>
+                                            <option value="Keyboard Replacement">Keyboard Replacement</option>
+                                            <option value="Data Backup">Data Backup</option>
+                                            <option value="Data Wipe">Data Wipe</option>
+                                            <option value="Software Installation">Software Installation</option>
+                                            <option value="Firmware Update">Firmware Update</option>
+                                            <option value="Diagnostic Test">Diagnostic Test</option>
+                                            <option value="Cleaning">Cleaning</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Asset (Optional)</label>
+                                        <select id="serviceAssetId" name="asset_id"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                            <option value="">No specific asset</option>
+                                            {% if ticket.assets %}
+                                                {% for asset in ticket.assets %}
+                                                <option value="{{ asset.id }}">{{ asset.asset_tag }} - {{ asset.serial_num or 'No Serial' }}</option>
+                                                {% endfor %}
+                                            {% endif %}
+                                            {% if ticket.asset and ticket.asset not in ticket.assets %}
+                                            <option value="{{ ticket.asset.id }}">{{ ticket.asset.asset_tag }} - {{ ticket.asset.serial_num or 'No Serial' }}</option>
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                        <select id="serviceStatus" name="status"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                            <option value="Requested" selected>Requested</option>
+                                            <option value="In Progress">In Progress</option>
+                                            <option value="Completed">Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Description / Notes</label>
+                                    <textarea id="serviceDescription" name="description" rows="2"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        placeholder="Describe what service is needed or was performed..."></textarea>
+                                </div>
+                                <div class="mt-4 flex justify-end">
+                                    <button type="submit"
+                                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                                        <i class="fas fa-plus mr-2"></i>Add Service Request
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Service Records List -->
+                            <div id="serviceRecordsList">
+                                <div class="text-center py-8 text-gray-500" id="noServiceRecords">
+                                    <i class="fas fa-clipboard-list text-4xl mb-2 text-gray-300"></i>
+                                    <p>No service records yet</p>
+                                    <p class="text-sm">Add a service record to track work done on assets</p>
+                                </div>
+                                <div class="overflow-x-auto hidden" id="serviceRecordsTable">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200" id="serviceRecordsBody">
+                                            <!-- Records will be loaded dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endif %}
+
+                <script>
+                    // Service Records functionality
+                    document.addEventListener('DOMContentLoaded', function() {
+                        loadServiceRecords();
+
+                        document.getElementById('addServiceRecordForm').addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            addServiceRecord();
+                        });
+                    });
+
+                    function loadServiceRecords() {
+                        fetch('/tickets/{{ ticket.id }}/service-records')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success && data.service_records.length > 0) {
+                                    document.getElementById('noServiceRecords').classList.add('hidden');
+                                    document.getElementById('serviceRecordsTable').classList.remove('hidden');
+                                    renderServiceRecords(data.service_records);
+                                } else {
+                                    document.getElementById('noServiceRecords').classList.remove('hidden');
+                                    document.getElementById('serviceRecordsTable').classList.add('hidden');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error loading service records:', error);
+                            });
+                    }
+
+                    // Store records globally for modal access
+                    let serviceRecordsData = [];
+
+                    function getStatusBadgeClass(status) {
+                        switch(status) {
+                            case 'Requested': return 'bg-yellow-100 text-yellow-800';
+                            case 'In Progress': return 'bg-blue-100 text-blue-800';
+                            case 'Completed': return 'bg-green-100 text-green-800';
+                            default: return 'bg-gray-100 text-gray-800';
+                        }
+                    }
+
+                    function renderServiceRecords(records) {
+                        serviceRecordsData = records;
+                        const tbody = document.getElementById('serviceRecordsBody');
+                        tbody.innerHTML = '';
+
+                        records.forEach((record, index) => {
+                            const row = document.createElement('tr');
+                            row.className = 'hover:bg-purple-50 cursor-pointer transition-colors';
+                            row.onclick = function(e) {
+                                // Don't open modal if clicking the delete button or select
+                                if (e.target.closest('button') || e.target.closest('select')) return;
+                                showServiceRecordModal(index);
+                            };
+                            const statusClass = getStatusBadgeClass(record.status);
+                            row.innerHTML = `
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        ${escapeHtml(record.service_type)}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                                        ${escapeHtml(record.status || 'Requested')}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                    ${record.asset_tag ? escapeHtml(record.asset_tag) : '<span class="text-gray-400">N/A</span>'}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                    ${escapeHtml(record.requested_by_name || record.performed_by_name || 'Unknown')}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                    ${record.created_at ? formatDate(record.created_at) : 'N/A'}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <button onclick="event.stopPropagation(); deleteServiceRecord(${record.id})"
+                                        class="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash mr-1"></i> Delete
+                                    </button>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+
+                    function showServiceRecordModal(index) {
+                        const record = serviceRecordsData[index];
+                        if (!record) return;
+
+                        document.getElementById('modalServiceType').textContent = record.service_type;
+                        document.getElementById('modalServiceAsset').textContent = record.asset_tag || 'N/A';
+                        document.getElementById('modalServiceRequestedBy').textContent = record.requested_by_name || record.performed_by_name || 'Unknown';
+                        document.getElementById('modalServiceDate').textContent = record.created_at ? formatDate(record.created_at) : 'N/A';
+                        document.getElementById('modalServiceDescription').textContent = record.description || 'No description provided';
+                        document.getElementById('modalServiceRecordId').value = record.id;
+                        document.getElementById('modalServiceStatus').value = record.status || 'Requested';
+
+                        // Show/hide completed info
+                        const completedInfo = document.getElementById('modalCompletedInfo');
+                        if (record.status === 'Completed' && record.completed_by_name) {
+                            document.getElementById('modalServiceCompletedBy').textContent = record.completed_by_name;
+                            document.getElementById('modalServiceCompletedAt').textContent = record.completed_at ? formatDate(record.completed_at) : 'N/A';
+                            completedInfo.classList.remove('hidden');
+                        } else {
+                            completedInfo.classList.add('hidden');
+                        }
+
+                        document.getElementById('serviceRecordModal').classList.remove('hidden');
+                    }
+
+                    function closeServiceRecordModal() {
+                        document.getElementById('serviceRecordModal').classList.add('hidden');
+                    }
+
+                    function deleteFromModal() {
+                        const recordId = document.getElementById('modalServiceRecordId').value;
+                        closeServiceRecordModal();
+                        deleteServiceRecord(recordId);
+                    }
+
+                    function updateServiceRecordStatus() {
+                        const recordId = document.getElementById('modalServiceRecordId').value;
+                        const newStatus = document.getElementById('modalServiceStatus').value;
+
+                        fetch(`/tickets/{{ ticket.id }}/service-records/${recordId}/status`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ status: newStatus })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                closeServiceRecordModal();
+                                loadServiceRecords();
+                            } else {
+                                alert('Error: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error updating status:', error);
+                            alert('Error updating status');
+                        });
+                    }
+
+                    function addServiceRecord() {
+                        const serviceType = document.getElementById('serviceType').value;
+                        const assetId = document.getElementById('serviceAssetId').value;
+                        const description = document.getElementById('serviceDescription').value;
+                        const status = document.getElementById('serviceStatus').value;
+
+                        if (!serviceType) {
+                            alert('Please select a service type');
+                            return;
+                        }
+
+                        fetch('/tickets/{{ ticket.id }}/service-records', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                service_type: serviceType,
+                                asset_id: assetId || null,
+                                description: description,
+                                status: status
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Reset form
+                                document.getElementById('serviceType').value = '';
+                                document.getElementById('serviceAssetId').value = '';
+                                document.getElementById('serviceDescription').value = '';
+                                document.getElementById('serviceStatus').value = 'Requested';
+                                // Reload records
+                                loadServiceRecords();
+                            } else {
+                                alert('Error: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error adding service record:', error);
+                            alert('Error adding service record');
+                        });
+                    }
+
+                    function deleteServiceRecord(recordId) {
+                        if (!confirm('Are you sure you want to delete this service record?')) {
+                            return;
+                        }
+
+                        fetch(`/tickets/{{ ticket.id }}/service-records/${recordId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                loadServiceRecords();
+                            } else {
+                                alert('Error: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deleting service record:', error);
+                            alert('Error deleting service record');
+                        });
+                    }
+
+                    function escapeHtml(text) {
+                        if (!text) return '';
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    }
+
+                    function formatDate(dateString) {
+                        const date = new Date(dateString);
+                        return date.toLocaleString('en-SG', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                </script>
+
+                <!-- Service Record Detail Modal -->
+                <div id="serviceRecordModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <!-- Background overlay -->
+                        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeServiceRecordModal()"></div>
+
+                        <!-- Modal panel -->
+                        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <input type="hidden" id="modalServiceRecordId" value="">
+                            <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-white flex items-center">
+                                        <i class="fas fa-tools mr-2"></i>Service Record Details
+                                    </h3>
+                                    <button onclick="closeServiceRecordModal()" class="text-white hover:text-gray-200">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="bg-white px-6 py-4">
+                                <div class="space-y-4">
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Service Type:</div>
+                                        <div class="flex-1">
+                                            <span id="modalServiceType" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-purple-100 text-purple-800"></span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Status:</div>
+                                        <div class="flex-1">
+                                            <select id="modalServiceStatus" class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                <option value="Requested">Requested</option>
+                                                <option value="In Progress">In Progress</option>
+                                                <option value="Completed">Completed</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Asset:</div>
+                                        <div id="modalServiceAsset" class="flex-1 text-sm text-gray-900"></div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Requested By:</div>
+                                        <div id="modalServiceRequestedBy" class="flex-1 text-sm text-gray-900"></div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Requested On:</div>
+                                        <div id="modalServiceDate" class="flex-1 text-sm text-gray-900"></div>
+                                    </div>
+                                    <div id="modalCompletedInfo" class="hidden">
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Completed By:</div>
+                                            <div id="modalServiceCompletedBy" class="flex-1 text-sm text-gray-900"></div>
+                                        </div>
+                                        <div class="flex items-start mt-2">
+                                            <div class="flex-shrink-0 w-32 text-sm font-medium text-gray-500">Completed On:</div>
+                                            <div id="modalServiceCompletedAt" class="flex-1 text-sm text-gray-900"></div>
+                                        </div>
+                                    </div>
+                                    <div class="border-t pt-4">
+                                        <div class="text-sm font-medium text-gray-500 mb-2">Description:</div>
+                                        <div id="modalServiceDescription" class="text-sm text-gray-900 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 px-6 py-3 flex justify-between">
+                                <button onclick="deleteFromModal()" class="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash mr-1"></i> Delete
+                                </button>
+                                <div class="flex gap-2">
+                                    <button onclick="updateServiceRecordStatus()" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700">
+                                        <i class="fas fa-save mr-1"></i> Update Status
+                                    </button>
+                                    <button onclick="closeServiceRecordModal()" class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Comments - Messenger Style -->
                 <div id="comments" class="mb-8">

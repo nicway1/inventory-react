@@ -3094,63 +3094,6 @@ def view_ticket(ticket_id):
                 package_items = ticket.get_package_items(package_number, db_session=db_session)
                 packages_items_data[package_number] = package_items
 
-        # Get service history - all tickets related to the same asset/serial number
-        service_history = []
-
-        # Collect all asset IDs and serial numbers from this ticket
-        asset_ids = set()
-        serial_numbers = set()
-
-        # From direct fields
-        if ticket.asset_id:
-            asset_ids.add(ticket.asset_id)
-        if ticket.serial_number:
-            serial_numbers.add(ticket.serial_number)
-
-        # From relationship (ticket.assets)
-        if ticket.assets:
-            for asset in ticket.assets:
-                asset_ids.add(asset.id)
-                if asset.serial_num:
-                    serial_numbers.add(asset.serial_num)
-
-        # Build query if we have any identifiers
-        if asset_ids or serial_numbers:
-            # Find all tickets that share these assets or serial numbers
-            conditions = []
-
-            # Match by asset_id field
-            if asset_ids:
-                conditions.append(Ticket.asset_id.in_(asset_ids))
-
-            # Match by serial_number field
-            if serial_numbers:
-                conditions.append(Ticket.serial_number.in_(serial_numbers))
-
-            # First get tickets matching direct fields
-            related_ticket_ids = set()
-            if conditions:
-                direct_matches = db_session.query(Ticket.id).filter(
-                    Ticket.id != ticket.id,
-                    or_(*conditions)
-                ).all()
-                related_ticket_ids.update(t.id for t in direct_matches)
-
-            # Also find tickets linked to same assets through relationship
-            if asset_ids:
-                from models.asset import ticket_assets
-                relationship_matches = db_session.query(ticket_assets.c.ticket_id).filter(
-                    ticket_assets.c.asset_id.in_(asset_ids),
-                    ticket_assets.c.ticket_id != ticket.id
-                ).all()
-                related_ticket_ids.update(t.ticket_id for t in relationship_matches)
-
-            # Get full ticket objects
-            if related_ticket_ids:
-                service_history = db_session.query(Ticket).filter(
-                    Ticket.id.in_(related_ticket_ids)
-                ).order_by(Ticket.created_at.desc()).all()
-
         return render_template(
             'tickets/view.html',
             ticket=ticket,
@@ -3176,8 +3119,7 @@ def view_ticket(ticket_id):
             custom_statuses=custom_statuses_list,
             out_of_stock_accessories=out_of_stock_accessories,
             accessible_queue_ids=accessible_queue_ids,
-            checkin_data=checkin_data,
-            service_history=service_history
+            checkin_data=checkin_data
         )
         
     except Exception as e:
@@ -13263,6 +13205,189 @@ def remediate_assets_update(ticket_id):
         logger.error(f"Error applying remediation updates: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+# ============================================
+# SERVICE RECORD ROUTES
+# ============================================
+
+@tickets_bp.route('/<int:ticket_id>/service-records', methods=['GET'])
+@login_required
+def get_service_records(ticket_id):
+    """Get all service records for a ticket"""
+    from database import SessionLocal
+    from models.service_record import ServiceRecord
+
+    db_session = SessionLocal()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        records = db_session.query(ServiceRecord).filter(
+            ServiceRecord.ticket_id == ticket_id
+        ).order_by(ServiceRecord.performed_at.desc()).all()
+
+        return jsonify({
+            'success': True,
+            'service_records': [r.to_dict() for r in records]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting service records: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/service-records', methods=['POST'])
+@login_required
+def add_service_record(ticket_id):
+    """Add a new service record to a ticket"""
+    from database import SessionLocal
+    from models.service_record import ServiceRecord
+
+    db_session = SessionLocal()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        data = request.get_json() or request.form.to_dict()
+
+        service_type = data.get('service_type')
+        if not service_type:
+            return jsonify({'success': False, 'error': 'Service type is required'}), 400
+
+        description = data.get('description', '')
+        asset_id = data.get('asset_id')
+
+        # If asset_id is provided, verify it exists
+        if asset_id:
+            asset = db_session.query(Asset).get(asset_id)
+            if not asset:
+                return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+        status = data.get('status', 'Requested')
+
+        # Create the service record
+        service_record = ServiceRecord(
+            ticket_id=ticket_id,
+            asset_id=int(asset_id) if asset_id else None,
+            service_type=service_type,
+            description=description,
+            status=status,
+            requested_by_id=current_user.id
+        )
+
+        db_session.add(service_record)
+        db_session.commit()
+
+        # Refresh to get the relationships
+        db_session.refresh(service_record)
+
+        return jsonify({
+            'success': True,
+            'message': 'Service record added successfully',
+            'service_record': service_record.to_dict()
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error adding service record: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/service-records/<int:record_id>', methods=['DELETE'])
+@login_required
+def delete_service_record(ticket_id, record_id):
+    """Delete a service record"""
+    from database import SessionLocal
+    from models.service_record import ServiceRecord
+
+    db_session = SessionLocal()
+    try:
+        record = db_session.query(ServiceRecord).filter(
+            ServiceRecord.id == record_id,
+            ServiceRecord.ticket_id == ticket_id
+        ).first()
+
+        if not record:
+            return jsonify({'success': False, 'error': 'Service record not found'}), 404
+
+        db_session.delete(record)
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Service record deleted successfully'
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error deleting service record: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/<int:ticket_id>/service-records/<int:record_id>/status', methods=['PUT'])
+@login_required
+def update_service_record_status(ticket_id, record_id):
+    """Update the status of a service record"""
+    from database import SessionLocal
+    from models.service_record import ServiceRecord
+    from datetime import datetime
+
+    db_session = SessionLocal()
+    try:
+        record = db_session.query(ServiceRecord).filter(
+            ServiceRecord.id == record_id,
+            ServiceRecord.ticket_id == ticket_id
+        ).first()
+
+        if not record:
+            return jsonify({'success': False, 'error': 'Service record not found'}), 404
+
+        data = request.get_json() or request.form.to_dict()
+        new_status = data.get('status')
+
+        if not new_status:
+            return jsonify({'success': False, 'error': 'Status is required'}), 400
+
+        if new_status not in ['Requested', 'In Progress', 'Completed']:
+            return jsonify({'success': False, 'error': 'Invalid status'}), 400
+
+        record.status = new_status
+
+        # If marking as completed, record who completed it and when
+        if new_status == 'Completed':
+            record.completed_by_id = current_user.id
+            record.completed_at = datetime.utcnow()
+        elif new_status != 'Completed':
+            # If status changed from Completed to something else, clear completion info
+            record.completed_by_id = None
+            record.completed_at = None
+
+        db_session.commit()
+        db_session.refresh(record)
+
+        return jsonify({
+            'success': True,
+            'message': f'Status updated to {new_status}',
+            'service_record': record.to_dict()
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error updating service record status: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()

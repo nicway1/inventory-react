@@ -802,6 +802,119 @@
 </div>
 {% endif %}
 
+<!-- Service Records Section (actual services performed on this asset) -->
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Service Records
+    </h2>
+    <div id="assetServiceRecordsList">
+        <div class="text-center py-8 text-gray-500" id="noAssetServiceRecords">
+            <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <p class="mt-2">No service records found for this asset</p>
+            <p class="text-sm">Service records are added from related tickets</p>
+        </div>
+        <div class="overflow-x-auto hidden" id="assetServiceRecordsTable">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performed By</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="assetServiceRecordsBody">
+                    <!-- Records will be loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load service records for this asset
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAssetServiceRecords();
+    });
+
+    function loadAssetServiceRecords() {
+        fetch('/api/assets/{{ asset.id }}/service-records')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.service_records.length > 0) {
+                    document.getElementById('noAssetServiceRecords').classList.add('hidden');
+                    document.getElementById('assetServiceRecordsTable').classList.remove('hidden');
+                    renderAssetServiceRecords(data.service_records);
+                } else {
+                    document.getElementById('noAssetServiceRecords').classList.remove('hidden');
+                    document.getElementById('assetServiceRecordsTable').classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading service records:', error);
+            });
+    }
+
+    function renderAssetServiceRecords(records) {
+        const tbody = document.getElementById('assetServiceRecordsBody');
+        tbody.innerHTML = '';
+
+        records.forEach(record => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        ${escapeHtmlAsset(record.service_type)}
+                    </span>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="text-sm text-gray-900 max-w-xs truncate" title="${escapeHtmlAsset(record.description || '')}">
+                        ${record.description ? escapeHtmlAsset(record.description.substring(0, 50)) + (record.description.length > 50 ? '...' : '') : '<span class="text-gray-400">-</span>'}
+                    </div>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <a href="/tickets/${record.ticket_id}" class="text-sm text-purple-600 hover:text-purple-800">
+                        #${record.ticket_id}
+                    </a>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    ${escapeHtmlAsset(record.performed_by_name || 'Unknown')}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    ${record.performed_at ? formatDateAsset(record.performed_at) : 'N/A'}
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function escapeHtmlAsset(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDateAsset(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('en-SG', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+</script>
+
 <!-- Add the Erase Status Action Modal -->
 <div id="eraseStatusModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
     <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">

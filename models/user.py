@@ -51,6 +51,7 @@ class User(Base, UserMixin):
     queue_permissions = relationship("UserQueuePermission", back_populates="user", cascade="all, delete-orphan")
     visibility_permissions = relationship("UserVisibilityPermission", foreign_keys="UserVisibilityPermission.user_id", back_populates="user", cascade="all, delete-orphan")
     import_permissions = relationship("UserImportPermission", foreign_keys="UserImportPermission.user_id", back_populates="user", cascade="all, delete-orphan")
+    service_records = relationship("ServiceRecord", back_populates="performed_by")
     # Temporarily commenting out SavedInvoice relationship to fix import order
     # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")
 

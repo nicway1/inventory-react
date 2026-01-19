@@ -57,6 +57,7 @@ from models.dev_blog_entry import DevBlogEntry
 from models.user_session import UserSession, parse_user_agent
 from models.notification_user_group import NotificationUserGroup, notification_user_group_members
 from models.ticket_asset_checkin import TicketAssetCheckin
+from models.service_record import ServiceRecord
 
 __all__ = [
     "Base",
@@ -141,5 +142,6 @@ __all__ = [
     "parse_user_agent",
     "NotificationUserGroup",
     "notification_user_group_members",
-    "TicketAssetCheckin"
+    "TicketAssetCheckin",
+    "ServiceRecord"
 ]
