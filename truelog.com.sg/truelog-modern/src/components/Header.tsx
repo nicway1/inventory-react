@@ -50,7 +50,7 @@ const Header: React.FC = () => {
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
           ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg shadow-lg border-b border-secondary-100 dark:border-slate-700'
-          : 'bg-secondary-900/80 backdrop-blur-md'
+          : 'bg-white/95 dark:bg-secondary-900/80 backdrop-blur-md shadow-lg border-b border-secondary-100 dark:border-transparent'
       }`}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -83,10 +83,8 @@ const Header: React.FC = () => {
                   to={item.href}
                   className={`relative px-4 py-2 text-sm font-medium transition-colors duration-200 flex items-center gap-1 ${
                     isActive(item.href)
-                      ? isScrolled ? 'text-primary-600' : 'text-primary-400'
-                      : isScrolled
-                      ? 'text-secondary-700 hover:text-primary-600'
-                      : 'text-white/90 hover:text-white'
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : 'text-secondary-700 hover:text-primary-600 dark:text-white/90 dark:hover:text-white'
                   }`}
                 >
                   <span className="relative">
@@ -156,11 +154,7 @@ const Header: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={toggleTheme}
-              className={`p-2 rounded-xl transition-all duration-200 ${
-                isScrolled
-                  ? 'text-secondary-700 hover:bg-secondary-100 dark:text-gray-300 dark:hover:bg-slate-700'
-                  : 'text-white hover:bg-white/10'
-              }`}
+              className={`p-2 rounded-xl transition-all duration-200 text-secondary-700 hover:bg-secondary-100 dark:text-gray-300 dark:hover:bg-slate-700`}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDark ? (
@@ -173,11 +167,7 @@ const Header: React.FC = () => {
               href="https://www.truelog.site/auth/login"
               target="_blank"
               rel="noopener noreferrer"
-              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 border ${
-                isScrolled
-                  ? 'border-primary-600 text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/20'
-                  : 'border-white/30 text-white hover:bg-white/10'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 border border-primary-600 text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/20`}
             >
               Client Login
             </a>
@@ -191,11 +181,7 @@ const Header: React.FC = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`lg:hidden p-2 rounded-xl transition-colors duration-200 ${
-              isScrolled
-                ? 'text-secondary-700 hover:bg-secondary-100'
-                : 'text-white hover:bg-white/20'
-            }`}
+            className={`lg:hidden p-2 rounded-xl transition-colors duration-200 text-secondary-700 hover:bg-secondary-100 dark:text-white dark:hover:bg-white/20`}
           >
             <AnimatePresence mode="wait">
               {isMenuOpen ? (
