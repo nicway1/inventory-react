@@ -974,6 +974,394 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
+
+    /* ============================================
+       Monday.com-style Board Module
+       ============================================ */
+    .monday-board {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .monday-board-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .monday-board-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .monday-board-title i {
+        color: var(--sf-blue);
+    }
+
+    .monday-board-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .monday-board-toggle {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+        background: white;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+        cursor: pointer;
+        color: var(--sf-gray-600);
+        transition: all 0.15s ease;
+    }
+
+    .monday-board-toggle:hover {
+        background: var(--sf-gray-100);
+        color: var(--sf-blue);
+    }
+
+    .monday-board-toggle.active {
+        background: var(--sf-blue);
+        color: white;
+        border-color: var(--sf-blue);
+    }
+
+    .monday-board-content {
+        overflow-x: auto;
+    }
+
+    .monday-board-table {
+        width: 100%;
+        min-width: 1200px;
+        border-collapse: collapse;
+    }
+
+    .monday-board-table th {
+        background: var(--sf-gray-100);
+        padding: 0.625rem 0.75rem;
+        text-align: left;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sf-gray-600);
+        border-bottom: 1px solid var(--sf-gray-200);
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .monday-board-table th:first-child {
+        background: var(--sf-gray-100);
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        min-width: 250px;
+    }
+
+    /* Group Row */
+    .monday-group-row {
+        background: linear-gradient(90deg, var(--group-color, var(--sf-blue)) 4px, white 4px);
+    }
+
+    .monday-group-row td {
+        padding: 0;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .monday-group-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .monday-group-header:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .monday-group-chevron {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sf-gray-500);
+        transition: transform 0.2s ease;
+    }
+
+    .monday-group-chevron.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .monday-group-name {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        color: var(--group-color, var(--sf-blue));
+    }
+
+    .monday-group-count {
+        font-size: 0.75rem;
+        color: var(--sf-gray-500);
+        background: var(--sf-gray-100);
+        padding: 0.125rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    /* Item Row */
+    .monday-item-row {
+        background: linear-gradient(90deg, var(--group-color, var(--sf-blue)) 4px, white 4px);
+        transition: background 0.15s ease;
+    }
+
+    .monday-item-row:hover {
+        background: linear-gradient(90deg, var(--group-color, var(--sf-blue)) 4px, var(--sf-gray-100) 4px);
+    }
+
+    .monday-item-row td {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        color: var(--sf-gray-800);
+        border-bottom: 1px solid var(--sf-gray-200);
+        vertical-align: middle;
+    }
+
+    .monday-item-row td:first-child {
+        background: inherit;
+        position: sticky;
+        left: 0;
+        z-index: 5;
+    }
+
+    .monday-item-row.collapsed {
+        display: none;
+    }
+
+    .monday-item-name {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding-left: 2rem;
+    }
+
+    .monday-item-link {
+        color: var(--sf-blue);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .monday-item-link:hover {
+        text-decoration: underline;
+    }
+
+    .monday-item-subject {
+        color: var(--sf-gray-700);
+        font-size: 0.75rem;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Date Pill Styles */
+    .monday-date-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.625rem;
+        border-radius: 1rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .monday-date-pill.blue {
+        background: #e0f0ff;
+        color: #0066cc;
+    }
+
+    .monday-date-pill.green {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .monday-date-pill.orange {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .monday-date-pill.red {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .monday-date-pill.purple {
+        background: #e8daff;
+        color: #6f42c1;
+    }
+
+    .monday-date-pill.gray {
+        background: var(--sf-gray-200);
+        color: var(--sf-gray-600);
+    }
+
+    /* Status Cell */
+    .monday-status-cell {
+        display: flex;
+        justify-content: center;
+    }
+
+    .monday-status {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-align: center;
+        min-width: 80px;
+        white-space: nowrap;
+    }
+
+    .monday-status.pending {
+        background: #e5e5e5;
+        color: #706e6b;
+    }
+
+    .monday-status.in-transit {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .monday-status.delivered {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .monday-status.failed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .monday-status.out-for-delivery {
+        background: #e0f0ff;
+        color: #0066cc;
+    }
+
+    /* Label Cell */
+    .monday-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: var(--sf-gray-100);
+        border: 1px solid var(--sf-gray-200);
+        border-radius: 0.25rem;
+        font-size: 0.6875rem;
+        color: var(--sf-gray-700);
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .monday-label i {
+        font-size: 0.625rem;
+        color: var(--sf-gray-500);
+    }
+
+    /* Progress Bar */
+    .monday-progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--sf-gray-200);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .monday-progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .monday-progress-fill.green {
+        background: linear-gradient(90deg, #2e844a, #45b86c);
+    }
+
+    .monday-progress-fill.blue {
+        background: linear-gradient(90deg, #0176d3, #45a4ff);
+    }
+
+    /* Empty State */
+    .monday-empty-cell {
+        color: var(--sf-gray-400);
+        font-style: italic;
+        font-size: 0.75rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .monday-board-table {
+            min-width: 800px;
+        }
+    }
+
+    /* Board collapsed state */
+    .monday-board.collapsed .monday-board-content {
+        display: none;
+    }
+
+    /* Group colors */
+    .monday-group-row[data-group-color="blue"], .monday-item-row[data-group-color="blue"] {
+        --group-color: #0176d3;
+    }
+    .monday-group-row[data-group-color="green"], .monday-item-row[data-group-color="green"] {
+        --group-color: #2e844a;
+    }
+    .monday-group-row[data-group-color="orange"], .monday-item-row[data-group-color="orange"] {
+        --group-color: #fe9339;
+    }
+    .monday-group-row[data-group-color="purple"], .monday-item-row[data-group-color="purple"] {
+        --group-color: #9050e9;
+    }
+    .monday-group-row[data-group-color="red"], .monday-item-row[data-group-color="red"] {
+        --group-color: #ea001e;
+    }
+    .monday-group-row[data-group-color="teal"], .monday-item-row[data-group-color="teal"] {
+        --group-color: #0b827c;
+    }
+    .monday-group-row[data-group-color="pink"], .monday-item-row[data-group-color="pink"] {
+        --group-color: #e91e63;
+    }
+    .monday-group-row[data-group-color="indigo"], .monday-item-row[data-group-color="indigo"] {
+        --group-color: #3f51b5;
+    }
+
+    /* Folder and Queue row styles */
+    .monday-folder-row .monday-group-header {
+        font-weight: 600;
+    }
+
+    .monday-queue-row {
+        background: linear-gradient(90deg, var(--group-color, var(--sf-blue)) 4px, #fafafa 4px);
+    }
+
+    .monday-queue-row.collapsed,
+    .monday-group-row.collapsed {
+        display: none;
+    }
 </style>
 {% endblock %}
 
@@ -1201,6 +1589,50 @@
                     <div class="sf-chart-body">
                         <canvas id="trendChart"></canvas>
                     </div>
+                </div>
+            </div>
+
+            <!-- Monday.com-style Board -->
+            <div class="monday-board" id="mondayBoard">
+                <div class="monday-board-header">
+                    <span class="monday-board-title">
+                        <i class="fas fa-th-large"></i>
+                        Ticket Progress Overview
+                    </span>
+                    <div class="monday-board-actions">
+                        <button class="monday-board-toggle active" onclick="toggleBoardGrouping('folder')" id="groupByFolderBtn">
+                            <i class="fas fa-folder"></i> By Folder
+                        </button>
+                        <button class="monday-board-toggle" onclick="toggleBoardGrouping('queue')" id="groupByQueueBtn">
+                            <i class="fas fa-layer-group"></i> By Queue
+                        </button>
+                        <button class="monday-board-toggle" onclick="toggleBoardGrouping('category')" id="groupByCategoryBtn">
+                            <i class="fas fa-tags"></i> By Category
+                        </button>
+                        <button class="monday-board-toggle" onclick="toggleBoardCollapse()" id="collapseBoardBtn">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="monday-board-content">
+                    <table class="monday-board-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket / Service Job</th>
+                                <th>Outbound Initiated</th>
+                                <th>Outbound Label</th>
+                                <th>Outbound Status</th>
+                                <th>Inbound Initiated</th>
+                                <th>Inbound Label</th>
+                                <th>Inbound Status</th>
+                                <th>Received Date</th>
+                                <th>Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mondayBoardBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -1523,14 +1955,27 @@
             {
                 id: {{ ticket.id }},
                 subject: {{ ticket.subject | tojson }},
-                category: {{ (ticket.category.value if ticket.category else null) | tojson }},
+                category: {{ (ticket.category.value if ticket.category else None) | tojson }},
                 priority: {{ (ticket.priority.value if ticket.priority else 'MEDIUM') | tojson }},
                 status: {{ (ticket.custom_status if ticket.custom_status else (ticket.status.value if ticket.status else 'NEW')) | tojson }},
                 queue: {{ (ticket.queue.name if ticket.queue else 'Unassigned') | tojson }},
-                queue_id: {{ ticket.queue_id | tojson if ticket.queue_id else 'null' }},
-                created_at: {{ (ticket.created_at.isoformat() if ticket.created_at else null) | tojson }},
+                queue_id: {{ (ticket.queue_id if ticket.queue_id else None) | tojson }},
+                created_at: {{ (ticket.created_at.isoformat() if ticket.created_at else None) | tojson }},
+                updated_at: {{ (ticket.updated_at.isoformat() if ticket.updated_at else None) | tojson }},
                 customer_name: {{ (ticket.customer.name if ticket.customer else '') | tojson }},
-                assignee: {{ (ticket.assigned_to.username if ticket.assigned_to else '') | tojson }}
+                assignee: {{ (ticket.assigned_to.username if ticket.assigned_to else '') | tojson }},
+                // Outbound (shipping) tracking fields
+                shipping_tracking: {{ (ticket.shipping_tracking if ticket.shipping_tracking else None) | tojson }},
+                shipping_carrier: {{ (ticket.shipping_carrier if ticket.shipping_carrier else None) | tojson }},
+                shipping_status: {{ (ticket.shipping_status if ticket.shipping_status else None) | tojson }},
+                shipping_tracking_created_at: {{ (ticket.shipping_tracking_created_at.isoformat() if ticket.shipping_tracking_created_at else None) | tojson }},
+                // Inbound (return) tracking fields
+                return_tracking: {{ (ticket.return_tracking if ticket.return_tracking else None) | tojson }},
+                return_carrier: {{ (ticket.return_carrier if ticket.return_carrier else None) | tojson }},
+                return_status: {{ (ticket.return_status if ticket.return_status else None) | tojson }},
+                // Case progress fields
+                item_packed: {{ (ticket.item_packed if ticket.item_packed else False) | tojson }},
+                item_packed_at: {{ (ticket.item_packed_at.isoformat() if ticket.item_packed_at else None) | tojson }}
             }{% if not loop.last %},{% endif %}
             {% endfor %}
         ];
@@ -1544,6 +1989,7 @@
         buildFilters();
         applyFilters();
         updateCharts();
+        populateMondayBoard();
     }
 
     // Build filter checkboxes
@@ -1694,6 +2140,7 @@
         currentPage = 1;
         updateSummaryCards();
         sortAndRender();
+        populateMondayBoard();
 
         // Update bulk search match indicator
         const matchesElement = document.getElementById('bulkSearchMatches');
@@ -2232,6 +2679,439 @@
                 }
             }
         });
+    }
+
+    // ============================================
+    // Monday.com-style Board Functions
+    // ============================================
+
+    let mondayBoardGrouping = 'folder'; // 'folder', 'queue' or 'category'
+    const groupColors = ['blue', 'green', 'orange', 'purple', 'teal', 'pink', 'indigo', 'red'];
+    let groupColorMap = {};
+
+    // Folder data from server
+    const foldersData = {{ folders_data | tojson | safe }};
+
+    function populateMondayBoard() {
+        const tbody = document.getElementById('mondayBoardBody');
+        if (!tbody) return;
+
+        let html = '';
+
+        if (mondayBoardGrouping === 'folder') {
+            html = buildFolderGroupedBoard();
+        } else {
+            html = buildSimpleGroupedBoard();
+        }
+
+        if (html === '') {
+            html = `
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 2rem; color: var(--sf-gray-500);">
+                        <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                        <p>No tickets to display</p>
+                    </td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+
+        // Update button states
+        document.getElementById('groupByFolderBtn')?.classList.toggle('active', mondayBoardGrouping === 'folder');
+        document.getElementById('groupByQueueBtn').classList.toggle('active', mondayBoardGrouping === 'queue');
+        document.getElementById('groupByCategoryBtn').classList.toggle('active', mondayBoardGrouping === 'category');
+    }
+
+    function buildFolderGroupedBoard() {
+        let html = '';
+        let colorIdx = 0;
+
+        // Group tickets by queue
+        const ticketsByQueue = {};
+        filteredTickets.forEach(ticket => {
+            const queueName = ticket.queue || 'Unassigned';
+            if (!ticketsByQueue[queueName]) {
+                ticketsByQueue[queueName] = [];
+            }
+            ticketsByQueue[queueName].push(ticket);
+        });
+
+        // Process folders
+        if (foldersData && foldersData.folders && foldersData.folders.length > 0) {
+            foldersData.folders.forEach(folder => {
+                const folderColor = groupColors[colorIdx % groupColors.length];
+                colorIdx++;
+
+                // Count tickets in this folder
+                let folderTicketCount = 0;
+                const folderQueues = folder.queues || [];
+                folderQueues.forEach(q => {
+                    folderTicketCount += (ticketsByQueue[q.name] || []).length;
+                });
+
+                if (folderTicketCount === 0) return; // Skip empty folders
+
+                // Folder header row
+                const folderId = 'folder-' + folder.id;
+                html += `
+                    <tr class="monday-group-row monday-folder-row" data-group-color="${folderColor}" data-folder="${folderId}">
+                        <td colspan="9">
+                            <div class="monday-group-header" onclick="toggleMondayFolder('${folderId}')">
+                                <span class="monday-group-chevron collapsed" id="chevron-${folderId}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </span>
+                                <i class="fas fa-folder" style="color: var(--group-color); margin-right: 0.25rem;"></i>
+                                <span class="monday-group-name" style="color: var(--group-color);">${folder.name}</span>
+                                <span class="monday-group-count">${folderTicketCount} Service Jobs / ${folderQueues.length} Queues</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+
+                // Queue rows within folder (collapsed by default)
+                folderQueues.forEach(queue => {
+                    const queueTickets = ticketsByQueue[queue.name] || [];
+                    if (queueTickets.length === 0) return;
+
+                    const queueId = folderId + '-queue-' + queue.name.replace(/[^a-zA-Z0-9]/g, '_');
+
+                    // Queue header (sub-group)
+                    html += `
+                        <tr class="monday-group-row monday-queue-row collapsed" data-group-color="${folderColor}" data-folder="${folderId}" data-queue="${queueId}">
+                            <td colspan="9">
+                                <div class="monday-group-header" onclick="toggleMondayGroup('${queueId}')" style="padding-left: 2.5rem;">
+                                    <span class="monday-group-chevron collapsed" id="chevron-${queueId}">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                    <span class="monday-group-name" style="color: var(--group-color); font-size: 0.8125rem;">${queue.name}</span>
+                                    <span class="monday-group-count">${queueTickets.length} Service Jobs</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+
+                    // Ticket rows (collapsed by default)
+                    queueTickets.slice(0, 10).forEach(ticket => {
+                        html += buildMondayItemRow(ticket, folderColor, queueId, true);
+                    });
+
+                    if (queueTickets.length > 10) {
+                        html += `
+                            <tr class="monday-item-row collapsed" data-group-color="${folderColor}" data-group="${queueId}">
+                                <td colspan="9" style="text-align: center; padding: 0.5rem;">
+                                    <span class="monday-empty-cell">+ ${queueTickets.length - 10} more tickets</span>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    // Mark queue as processed
+                    delete ticketsByQueue[queue.name];
+                });
+            });
+        }
+
+        // Process unfiled queues
+        const unfiledQueues = Object.keys(ticketsByQueue).sort();
+        unfiledQueues.forEach(queueName => {
+            const tickets = ticketsByQueue[queueName];
+            if (tickets.length === 0) return;
+
+            const groupColor = groupColors[colorIdx % groupColors.length];
+            colorIdx++;
+            const groupId = 'queue-' + queueName.replace(/[^a-zA-Z0-9]/g, '_');
+
+            // Queue header row
+            html += `
+                <tr class="monday-group-row" data-group-color="${groupColor}" data-group="${groupId}">
+                    <td colspan="9">
+                        <div class="monday-group-header" onclick="toggleMondayGroup('${groupId}')">
+                            <span class="monday-group-chevron collapsed" id="chevron-${groupId}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                            <span class="monday-group-name" style="color: var(--group-color);">${queueName}</span>
+                            <span class="monday-group-count">${tickets.length} Service Jobs</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            // Ticket rows (collapsed by default)
+            tickets.slice(0, 10).forEach(ticket => {
+                html += buildMondayItemRow(ticket, groupColor, groupId, true);
+            });
+
+            if (tickets.length > 10) {
+                html += `
+                    <tr class="monday-item-row collapsed" data-group-color="${groupColor}" data-group="${groupId}">
+                        <td colspan="9" style="text-align: center; padding: 0.5rem;">
+                            <span class="monday-empty-cell">+ ${tickets.length - 10} more tickets</span>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+
+        return html;
+    }
+
+    function buildSimpleGroupedBoard() {
+        const groups = {};
+        const groupField = mondayBoardGrouping === 'queue' ? 'queue' : 'category';
+
+        filteredTickets.forEach(ticket => {
+            const groupName = ticket[groupField] || 'Unassigned';
+            if (!groups[groupName]) {
+                groups[groupName] = [];
+            }
+            groups[groupName].push(ticket);
+        });
+
+        const groupNames = Object.keys(groups).sort();
+        groupNames.forEach((name, idx) => {
+            if (!groupColorMap[name]) {
+                groupColorMap[name] = groupColors[idx % groupColors.length];
+            }
+        });
+
+        let html = '';
+
+        groupNames.forEach(groupName => {
+            const tickets = groups[groupName];
+            const groupColor = groupColorMap[groupName];
+            const groupId = groupName.replace(/[^a-zA-Z0-9]/g, '_');
+
+            // Group header row - collapsed by default
+            html += `
+                <tr class="monday-group-row" data-group-color="${groupColor}" data-group="${groupId}">
+                    <td colspan="9">
+                        <div class="monday-group-header" onclick="toggleMondayGroup('${groupId}')">
+                            <span class="monday-group-chevron collapsed" id="chevron-${groupId}">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                            <span class="monday-group-name" style="color: var(--group-color);">${groupName}</span>
+                            <span class="monday-group-count">${tickets.length} ${mondayBoardGrouping === 'queue' ? 'Service Jobs' : 'Tickets'}</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            // Item rows - collapsed by default
+            tickets.slice(0, 10).forEach(ticket => {
+                html += buildMondayItemRow(ticket, groupColor, groupId, true);
+            });
+
+            if (tickets.length > 10) {
+                html += `
+                    <tr class="monday-item-row collapsed" data-group-color="${groupColor}" data-group="${groupId}">
+                        <td colspan="9" style="text-align: center; padding: 0.5rem;">
+                            <span class="monday-empty-cell">+ ${tickets.length - 10} more tickets</span>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+
+        return html;
+    }
+
+    function buildMondayItemRow(ticket, groupColor, groupName, collapsed = true) {
+        const ticketUrl = `{{ url_for('tickets.view_ticket', ticket_id=0) }}`.replace('/0', '/' + ticket.id);
+        const collapsedClass = collapsed ? 'collapsed' : '';
+
+        // Format dates
+        const createdDate = ticket.created_at ? formatMondayDate(ticket.created_at) : null;
+        const updatedDate = ticket.updated_at ? formatMondayDate(ticket.updated_at) : null;
+        const shippingCreatedDate = ticket.shipping_tracking_created_at ? formatMondayDate(ticket.shipping_tracking_created_at) : null;
+        const itemPackedDate = ticket.item_packed_at ? formatMondayDate(ticket.item_packed_at) : null;
+
+        // Calculate progress
+        const progress = calculateTicketProgress(ticket);
+
+        return `
+            <tr class="monday-item-row ${collapsedClass}" data-group-color="${groupColor}" data-group="${groupName}">
+                <td>
+                    <div class="monday-item-name">
+                        <a href="${ticketUrl}" class="monday-item-link">TICK-${String(ticket.id).padStart(4, '0')}</a>
+                        <span class="monday-item-subject" title="${ticket.subject}">${ticket.subject}</span>
+                    </div>
+                </td>
+                <td>
+                    ${shippingCreatedDate || createdDate ?
+                        `<span class="monday-date-pill blue">${shippingCreatedDate || createdDate}</span>` :
+                        '<span class="monday-empty-cell">-</span>'}
+                </td>
+                <td>
+                    ${ticket.shipping_tracking ?
+                        `<span class="monday-label" title="${ticket.shipping_tracking}">
+                            <i class="fas fa-shipping-fast"></i>
+                            ${ticket.shipping_tracking.substring(0, 12)}${ticket.shipping_tracking.length > 12 ? '...' : ''}
+                        </span>` :
+                        '<span class="monday-empty-cell">-</span>'}
+                </td>
+                <td>
+                    <div class="monday-status-cell">
+                        ${buildMondayStatus(ticket.shipping_status)}
+                    </div>
+                </td>
+                <td>
+                    ${itemPackedDate ?
+                        `<span class="monday-date-pill green">${itemPackedDate}</span>` :
+                        '<span class="monday-empty-cell">-</span>'}
+                </td>
+                <td>
+                    ${ticket.return_tracking ?
+                        `<span class="monday-label" title="${ticket.return_tracking}">
+                            <i class="fas fa-undo"></i>
+                            ${ticket.return_tracking.substring(0, 12)}${ticket.return_tracking.length > 12 ? '...' : ''}
+                        </span>` :
+                        '<span class="monday-empty-cell">-</span>'}
+                </td>
+                <td>
+                    <div class="monday-status-cell">
+                        ${buildMondayStatus(ticket.return_status)}
+                    </div>
+                </td>
+                <td>
+                    ${updatedDate && (ticket.status === 'Resolved' || ticket.status === 'RESOLVED' || ticket.status === 'Resolved (All Package Delivered)') ?
+                        `<span class="monday-date-pill green">${updatedDate}</span>` :
+                        '<span class="monday-empty-cell">-</span>'}
+                </td>
+                <td>
+                    <div class="monday-progress-bar" title="${progress}% complete">
+                        <div class="monday-progress-fill ${progress >= 100 ? 'green' : 'blue'}" style="width: ${progress}%;"></div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    function formatMondayDate(isoString) {
+        if (!isoString) return null;
+        const date = new Date(isoString);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[date.getMonth()]} ${date.getDate()}, '${String(date.getFullYear()).slice(-2)}`;
+    }
+
+    function buildMondayStatus(status) {
+        if (!status || status === 'Pending') {
+            return '<span class="monday-status pending">Pending</span>';
+        }
+
+        const statusLower = status.toLowerCase();
+
+        if (statusLower.includes('deliver') && !statusLower.includes('out')) {
+            return '<span class="monday-status delivered">Delivered</span>';
+        } else if (statusLower.includes('out for delivery')) {
+            return '<span class="monday-status out-for-delivery">Out for Delivery</span>';
+        } else if (statusLower.includes('transit') || statusLower.includes('shipping') || statusLower.includes('dispatched')) {
+            return '<span class="monday-status in-transit">In Transit</span>';
+        } else if (statusLower.includes('fail') || statusLower.includes('exception') || statusLower.includes('return')) {
+            return '<span class="monday-status failed">Exception</span>';
+        } else {
+            return `<span class="monday-status pending">${status}</span>`;
+        }
+    }
+
+    function calculateTicketProgress(ticket) {
+        let progress = 0;
+
+        // Basic progress based on status
+        if (ticket.status === 'New' || ticket.status === 'NEW') {
+            progress = 10;
+        } else if (ticket.status === 'In Progress' || ticket.status === 'IN_PROGRESS') {
+            progress = 30;
+        } else if (ticket.status === 'Processing' || ticket.status === 'PROCESSING') {
+            progress = 50;
+        } else if (ticket.status === 'On Hold' || ticket.status === 'ON_HOLD') {
+            progress = 40;
+        } else if (ticket.status === 'Resolved' || ticket.status === 'RESOLVED') {
+            progress = 90;
+        } else if (ticket.status === 'Resolved (All Package Delivered)' || ticket.status === 'RESOLVED_DELIVERED') {
+            progress = 100;
+        } else {
+            progress = 20; // Custom status
+        }
+
+        // Bonus progress for tracking
+        if (ticket.shipping_tracking) progress = Math.min(progress + 10, 100);
+        if (ticket.shipping_status && ticket.shipping_status !== 'Pending') progress = Math.min(progress + 10, 100);
+        if (ticket.return_tracking) progress = Math.min(progress + 10, 100);
+        if (ticket.return_status && ticket.return_status !== 'Pending') progress = Math.min(progress + 10, 100);
+        if (ticket.item_packed) progress = Math.min(progress + 5, 100);
+
+        return progress;
+    }
+
+    function toggleMondayGroup(groupId) {
+        const chevron = document.getElementById('chevron-' + groupId);
+        const isCollapsed = chevron && chevron.classList.contains('collapsed');
+
+        // Toggle chevron
+        if (chevron) {
+            chevron.classList.toggle('collapsed');
+        }
+
+        // Toggle item rows
+        const itemRows = document.querySelectorAll(`.monday-item-row[data-group="${groupId}"]`);
+        itemRows.forEach(row => {
+            row.classList.toggle('collapsed', !isCollapsed);
+        });
+    }
+
+    function toggleMondayFolder(folderId) {
+        const chevron = document.getElementById('chevron-' + folderId);
+        const isCollapsed = chevron && chevron.classList.contains('collapsed');
+
+        // Toggle chevron
+        if (chevron) {
+            chevron.classList.toggle('collapsed');
+        }
+
+        // Toggle queue rows within this folder
+        const queueRows = document.querySelectorAll(`.monday-queue-row[data-folder="${folderId}"]`);
+        queueRows.forEach(row => {
+            row.classList.toggle('collapsed', !isCollapsed);
+        });
+
+        // If expanding folder, keep item rows collapsed (user needs to click queue to expand items)
+        // If collapsing folder, collapse all item rows within
+        if (!isCollapsed) {
+            // Collapsing folder - hide all items in all queues of this folder
+            queueRows.forEach(queueRow => {
+                const queueId = queueRow.getAttribute('data-queue');
+                const itemRows = document.querySelectorAll(`.monday-item-row[data-group="${queueId}"]`);
+                itemRows.forEach(row => row.classList.add('collapsed'));
+
+                // Also collapse the queue chevrons
+                const queueChevron = document.getElementById('chevron-' + queueId);
+                if (queueChevron) queueChevron.classList.add('collapsed');
+            });
+        }
+    }
+
+    function toggleBoardGrouping(groupBy) {
+        if (mondayBoardGrouping !== groupBy) {
+            mondayBoardGrouping = groupBy;
+            populateMondayBoard();
+        }
+    }
+
+    function toggleBoardCollapse() {
+        const board = document.getElementById('mondayBoard');
+        const btn = document.getElementById('collapseBoardBtn');
+
+        board.classList.toggle('collapsed');
+
+        const icon = btn.querySelector('i');
+        if (board.classList.contains('collapsed')) {
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        }
     }
 
     function changeChartType(chartId, type, btn) {
