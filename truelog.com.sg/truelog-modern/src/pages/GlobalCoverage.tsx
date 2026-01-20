@@ -1,240 +1,299 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { GlobeAltIcon, MapPinIcon, TruckIcon, BuildingOfficeIcon, ClockIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  GlobeAltIcon,
+  MapPinIcon,
+  TruckIcon,
+  BuildingOfficeIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
+import InteractiveWorldMap, { Region, REGIONS } from '../components/InteractiveWorldMap';
+
+// Country flag component using flag-icons CDN or emoji fallback
+const CountryFlag: React.FC<{ code: string; name: string; size?: 'sm' | 'md' | 'lg' }> = ({
+  code,
+  name,
+  size = 'md'
+}) => {
+  const sizeClasses = {
+    sm: 'w-5 h-4',
+    md: 'w-6 h-5',
+    lg: 'w-8 h-6',
+  };
+
+  return (
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      srcSet={`https://flagcdn.com/w80/${code.toLowerCase()}.png 2x`}
+      alt={`${name} flag`}
+      className={`${sizeClasses[size]} object-cover rounded-sm shadow-sm`}
+      onError={(e) => {
+        // Fallback to placeholder if flag not found
+        (e.target as HTMLImageElement).style.display = 'none';
+      }}
+    />
+  );
+};
 
 const GlobalCoverage: React.FC = () => {
-  const regions = [
-    {
-      name: 'Southeast Asia',
-      countries: ['Singapore', 'Malaysia', 'Thailand', 'Vietnam', 'Indonesia', 'Philippines'],
-      hubs: ['Singapore Hub', 'Kuala Lumpur', 'Bangkok', 'Ho Chi Minh City'],
-      specialties: ['Electronics', 'Manufacturing', 'Automotive', 'Pharmaceuticals'],
-      flag: '🌏'
-    },
-    {
-      name: 'East Asia',
-      countries: ['China', 'Hong Kong', 'Taiwan', 'South Korea', 'Japan'],
-      hubs: ['Hong Kong Hub', 'Shanghai', 'Shenzhen', 'Seoul'],
-      specialties: ['Technology', 'Electronics', 'Textiles', 'Machinery'],
-      flag: '🏯'
-    },
-    {
-      name: 'Europe',
-      countries: ['Germany', 'Netherlands', 'United Kingdom', 'France', 'Belgium'],
-      hubs: ['Amsterdam Hub', 'Hamburg', 'London', 'Rotterdam'],
-      specialties: ['Automotive', 'Chemicals', 'Machinery', 'Pharmaceuticals'],
-      flag: '🇪🇺'
-    },
-    {
-      name: 'North America',
-      countries: ['United States', 'Canada', 'Mexico'],
-      hubs: ['Los Angeles Hub', 'New York', 'Chicago', 'Vancouver'],
-      specialties: ['Technology', 'Aerospace', 'Automotive', 'Healthcare'],
-      flag: '🇺🇸'
-    }
+  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
+
+  const globalStats = [
+    { number: '200+', label: 'Markets', icon: GlobeAltIcon, color: 'from-teal-500 to-emerald-500' },
+    { number: '240+', label: 'Partners', icon: MapPinIcon, color: 'from-cyan-500 to-teal-500' },
+    { number: '6', label: 'Continents', icon: TruckIcon, color: 'from-emerald-500 to-green-500' },
+    { number: '24/7', label: 'Support', icon: BuildingOfficeIcon, color: 'from-teal-400 to-cyan-500' },
   ];
 
   const services = [
     {
-      icon: TruckIcon,
-      title: 'Land Transportation',
-      description: 'Comprehensive trucking and rail services across regional networks.',
-      coverage: '15+ countries',
-      features: ['Cross-border trucking', 'Rail freight', 'Last-mile delivery', 'Intermodal solutions']
-    },
-    {
-      icon: GlobeAltIcon,
-      title: 'Ocean Freight',
-      description: 'Global sea freight services connecting major ports worldwide.',
-      coverage: '200+ ports',
-      features: ['FCL & LCL services', 'Port-to-port', 'Door-to-door', 'Project cargo']
-    },
-    {
-      icon: BuildingOfficeIcon,
       title: 'Air Freight',
-      description: 'Fast and reliable air cargo services to global destinations.',
-      coverage: '500+ airports',
-      features: ['Express delivery', 'Charter services', 'Temperature control', 'Dangerous goods']
+      description: 'Express and standard air cargo services to any destination worldwide.',
+      icon: '✈️',
     },
     {
-      icon: MapPinIcon,
-      title: 'Warehousing',
-      description: 'Strategic warehouse locations for optimal supply chain efficiency.',
-      coverage: '50+ facilities',
-      features: ['Distribution centers', '3PL services', 'Cross-docking', 'Value-added services']
-    }
-  ];
-
-  const keyPorts = [
-    { name: 'Singapore', type: 'Sea Port', rank: '#2 Global', volume: '37.2M TEU' },
-    { name: 'Shanghai', type: 'Sea Port', rank: '#1 Global', volume: '47.0M TEU' },
-    { name: 'Rotterdam', type: 'Sea Port', rank: '#10 Global', volume: '14.8M TEU' },
-    { name: 'Los Angeles', type: 'Sea Port', rank: '#9 Global', volume: '10.7M TEU' },
-    { name: 'Changi Airport', type: 'Air Port', rank: '#7 Global', volume: '2.0M tonnes' },
-    { name: 'Hong Kong Airport', type: 'Air Port', rank: '#8 Global', volume: '4.8M tonnes' }
-  ];
-
-  const stats = [
-    { number: '50+', label: 'Countries Served', icon: GlobeAltIcon },
-    { number: '200+', label: 'Partner Locations', icon: MapPinIcon },
-    { number: '24/7', label: 'Global Support', icon: ClockIcon },
-    { number: '99.5%', label: 'On-time Delivery', icon: TruckIcon }
+      title: 'Ocean Freight',
+      description: 'FCL and LCL sea freight solutions with competitive rates.',
+      icon: '🚢',
+    },
+    {
+      title: 'Road Transport',
+      description: 'Cross-border trucking and last-mile delivery services.',
+      icon: '🚚',
+    },
+    {
+      title: 'Customs Brokerage',
+      description: 'Expert customs clearance and compliance services.',
+      icon: '📋',
+    },
   ];
 
   return (
     <div className="pt-16 bg-white dark:bg-slate-900">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 via-blue-600 to-primary-700 dark:from-slate-900 dark:via-blue-900 dark:to-slate-800 py-20 relative overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20"></div>
-          
-          {/* World map overlay */}
-          <div className="absolute inset-0 opacity-10">
-            <img
-              src={`${process.env.PUBLIC_URL}/assets/images/world-map.png`}
-              alt="World Map"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          
-          {/* Global network lines */}
-          <div className="absolute inset-0 opacity-20">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path d="M10 30 Q30 20 50 30 Q70 40 90 25" stroke="#06b6d4" strokeWidth="0.5" fill="none">
-                <animate attributeName="stroke-dasharray" values="0,200;100,100;200,0;0,200" dur="10s" repeatCount="indefinite"/>
-              </path>
-              <path d="M5 70 Q25 60 45 70 Q65 80 85 65" stroke="#3b82f6" strokeWidth="0.5" fill="none">
-                <animate attributeName="stroke-dasharray" values="200,0;100,100;0,200;200,0" dur="8s" repeatCount="indefinite"/>
-              </path>
-              <path d="M20 50 Q40 40 60 50 Q80 60 95 45" stroke="#00d4ff" strokeWidth="0.3" fill="none">
-                <animate attributeName="stroke-dasharray" values="0,150;75,75;150,0;0,150" dur="12s" repeatCount="indefinite"/>
-              </path>
-            </svg>
-          </div>
-          
-          {/* Connection nodes */}
-          <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></div>
-          <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-          <div className="absolute bottom-1/3 left-1/3 w-2.5 h-2.5 bg-cyan-300 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
-          <div className="absolute bottom-1/4 right-1/4 w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{animationDelay: '3s'}}></div>
+      {/* Hero Section with Interactive Map */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 md:py-20 overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-teal-500 rounded-full filter blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500 rounded-full filter blur-3xl translate-x-1/2 translate-y-1/2" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center"
+            className="text-center mb-8 md:mb-12"
           >
-            <h1 className="text-5xl font-heading font-bold text-white mb-6">
-              Global Coverage
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-white mb-4">
+              Global <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Coverage</span>
             </h1>
-            <p className="text-xl text-gray-100 dark:text-gray-200 max-w-3xl mx-auto">
-              Worldwide logistics network spanning major trade routes and destinations
+            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+              Instant access to over 200 markets worldwide. Click on any region to explore our coverage.
             </p>
+          </motion.div>
+
+          {/* Interactive Map */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.2 }}
+          >
+            <InteractiveWorldMap
+              selectedRegion={selectedRegion}
+              onRegionSelect={setSelectedRegion}
+              showOfficeMarkers={true}
+              className="mb-8"
+            />
           </motion.div>
         </div>
       </section>
 
+      {/* Region Detail Panel - Shows when a region is selected */}
+      <AnimatePresence>
+        {selectedRegion && (
+          <motion.section
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-gradient-to-r from-teal-600 to-emerald-600 overflow-hidden"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+              <div className="flex flex-col lg:flex-row gap-8 items-start">
+                {/* Region Info */}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-3xl md:text-4xl font-bold text-white">
+                      {selectedRegion.name}
+                    </h2>
+                    <button
+                      onClick={() => setSelectedRegion(null)}
+                      className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                    >
+                      <XMarkIcon className="h-6 w-6 text-white" />
+                    </button>
+                  </div>
+                  <p className="text-lg text-teal-100 mb-6">
+                    {selectedRegion.description}
+                  </p>
+
+                  {/* Region Stats */}
+                  <div className="flex gap-8 mb-6">
+                    <div>
+                      <div className="text-4xl font-bold text-white">{selectedRegion.stats.markets}</div>
+                      <div className="text-teal-200 text-sm">Markets</div>
+                    </div>
+                    <div>
+                      <div className="text-4xl font-bold text-white">{selectedRegion.stats.partners}</div>
+                      <div className="text-teal-200 text-sm">Partners</div>
+                    </div>
+                  </div>
+
+                  {/* CTA Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="inline-flex items-center px-6 py-3 bg-white text-teal-700 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
+                  >
+                    Get a Quote for {selectedRegion.name}
+                    <ArrowRightIcon className="ml-2 h-5 w-5" />
+                  </motion.button>
+                </div>
+
+                {/* Countries List */}
+                <div className="lg:w-1/2">
+                  <h3 className="text-lg font-semibold text-white mb-4">Key Markets</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {selectedRegion.countries.map((country) => (
+                      <motion.div
+                        key={country.name}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2"
+                      >
+                        <CountryFlag code={country.code} name={country.name} size="sm" />
+                        <span className="text-white text-sm truncate">{country.name}</span>
+                        {country.hasOffice && (
+                          <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" title="TrueLog Office" />
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
       {/* Stats Section */}
       <section className="py-16 bg-white dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+            {globalStats.map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="text-center"
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="relative group"
               >
-                <div className="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <stat.icon className="h-8 w-8 text-primary-600" />
+                <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 rounded-2xl transition-opacity duration-300"
+                  style={{ backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))` }}
+                />
+                <div className="text-center p-6 rounded-2xl border border-gray-100 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-700 transition-all duration-300 hover:shadow-lg">
+                  <div className={`w-14 h-14 mx-auto mb-4 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center shadow-lg`}>
+                    <stat.icon className="h-7 w-7 text-white" />
+                  </div>
+                  <div className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">
+                    {stat.number}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 font-medium">
+                    {stat.label}
+                  </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.number}</div>
-                <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Regional Coverage */}
-      <section className="py-20 bg-gray-50 dark:bg-slate-800">
+      {/* Regional Coverage Grid */}
+      <section className="py-16 md:py-24 bg-gray-50 dark:bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-12 md:mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mb-4">
-              Regional Coverage
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-gray-900 dark:text-white mb-4">
+              Coverage by Region
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Strategic presence across key global markets and trade corridors
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Explore our strategic presence across all continents with local expertise and customs knowledge.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {regions.map((region, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {REGIONS.map((region, index) => (
               <motion.div
-                key={region.name}
+                key={region.id}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-700/50 shadow-lg"
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                onClick={() => {
+                  setSelectedRegion(region);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer group border border-gray-100 dark:border-slate-700"
               >
-                <div className="flex items-center mb-6">
-                  <div className="text-4xl mr-4">{region.flag}</div>
-                  <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{region.name}</h3>
+                {/* Region Header */}
+                <div
+                  className="p-6 text-white"
+                  style={{ backgroundColor: region.color }}
+                >
+                  <h3 className="text-2xl font-bold mb-1">{region.name}</h3>
+                  <div className="flex gap-6 text-sm opacity-90">
+                    <span>{region.stats.markets} Markets</span>
+                    <span>{region.stats.partners} Partners</span>
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Countries</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {region.countries.map((country, countryIndex) => (
-                        <span
-                          key={countryIndex}
-                          className="px-3 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 text-sm rounded-full"
-                        >
-                          {country}
-                        </span>
-                      ))}
-                    </div>
+                {/* Region Content */}
+                <div className="p-6">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+                    {region.description}
+                  </p>
+
+                  {/* Countries Preview */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {region.countries.slice(0, 5).map((country) => (
+                      <div
+                        key={country.name}
+                        className="flex items-center space-x-1.5 bg-gray-100 dark:bg-slate-800 rounded-full px-3 py-1"
+                      >
+                        <CountryFlag code={country.code} name={country.name} size="sm" />
+                        <span className="text-xs text-gray-700 dark:text-gray-300">{country.name}</span>
+                      </div>
+                    ))}
+                    {region.countries.length > 5 && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 self-center">
+                        +{region.countries.length - 5} more
+                      </span>
+                    )}
                   </div>
 
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Key Hubs</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {region.hubs.map((hub, hubIndex) => (
-                        <span
-                          key={hubIndex}
-                          className="px-3 py-1 bg-primary-500/20 text-primary-700 text-sm rounded-full"
-                        >
-                          {hub}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Industry Specialties</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {region.specialties.map((specialty, specialtyIndex) => (
-                        <span
-                          key={specialtyIndex}
-                          className="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full"
-                        >
-                          {specialty}
-                        </span>
-                      ))}
-                    </div>
+                  {/* View Details Link */}
+                  <div className="flex items-center text-teal-600 dark:text-teal-400 font-medium text-sm group-hover:translate-x-1 transition-transform">
+                    Explore {region.name}
+                    <ArrowRightIcon className="ml-1 h-4 w-4" />
                   </div>
                 </div>
               </motion.div>
@@ -243,176 +302,133 @@ const GlobalCoverage: React.FC = () => {
         </div>
       </section>
 
-      {/* Service Coverage */}
-      <section className="py-20 bg-white dark:bg-slate-900">
+      {/* Services Section */}
+      <section className="py-16 md:py-24 bg-white dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-12 md:mb-16"
           >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mb-4">
-              Service Coverage
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-gray-900 dark:text-white mb-4">
+              Global Services
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Comprehensive logistics services across all major transportation modes
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Comprehensive logistics services available across all our markets.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, index) => (
               <motion.div
                 key={service.title}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-8 shadow-lg"
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-slate-700"
               >
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <service.icon className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{service.title}</h3>
-                      <span className="text-primary-600 font-semibold text-sm">{service.coverage}</span>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">{service.description}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {service.features.map((feature, featureIndex) => (
-                        <div key={featureIndex} className="flex items-center text-sm">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary-600 mr-2"></div>
-                          <span className="text-gray-600 dark:text-gray-300">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <div className="text-4xl mb-4">{service.icon}</div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  {service.title}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  {service.description}
+                </p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Key Ports & Airports */}
-      <section className="py-20 bg-gray-50 dark:bg-slate-800">
+      {/* Why Choose Us Section */}
+      <section className="py-16 md:py-24 bg-gray-50 dark:bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mb-4">
-              Key Ports & Airports
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Strategic partnerships with major global transportation hubs
-            </p>
-          </motion.div>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-gray-900 dark:text-white mb-6">
+                Why Choose TrueLog for{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-500">
+                  Global Logistics
+                </span>
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+                With strategic locations across 6 continents, we offer unparalleled access to global markets
+                with local expertise and streamlined customs clearance.
+              </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {keyPorts.map((port, index) => (
-              <motion.div
-                key={port.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-lg text-center border border-gray-200 dark:border-slate-700/50"
-              >
-                <div className="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  {port.type === 'Sea Port' ? (
-                    <span className="text-2xl">🚢</span>
-                  ) : (
-                    <span className="text-2xl">✈️</span>
-                  )}
+              <ul className="space-y-4">
+                {[
+                  'Local expertise in over 200 markets',
+                  'Customs brokerage and compliance support',
+                  '24/7 shipment tracking and visibility',
+                  'Dedicated account management',
+                  'Competitive rates with no hidden fees',
+                  'End-to-end supply chain solutions',
+                ].map((feature, index) => (
+                  <motion.li
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="flex items-start space-x-3"
+                  >
+                    <CheckCircleIcon className="h-6 w-6 text-teal-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+                  </motion.li>
+                ))}
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="relative"
+            >
+              <div className="bg-gradient-to-br from-teal-500 to-emerald-600 rounded-3xl p-8 md:p-10 text-white">
+                <h3 className="text-2xl font-bold mb-4">Ready to Go Global?</h3>
+                <p className="text-teal-100 mb-6">
+                  Get a customized logistics solution for your international shipping needs.
+                  Our experts are ready to help you navigate global trade.
+                </p>
+                <div className="space-y-4">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full bg-white text-teal-700 font-semibold py-3 px-6 rounded-xl hover:shadow-lg transition-all"
+                  >
+                    Get a Free Quote
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full bg-teal-700/50 text-white font-semibold py-3 px-6 rounded-xl hover:bg-teal-700/70 transition-all"
+                  >
+                    Contact Sales Team
+                  </motion.button>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{port.name}</h3>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">{port.type}</div>
-                <div className="text-primary-600 font-semibold text-sm mb-1">{port.rank}</div>
-                <div className="text-gray-500 dark:text-gray-400 text-sm">{port.volume}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Contact Section */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mb-4">
-              Global Support Network
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              24/7 support across all time zones with local expertise
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                region: 'Asia Pacific',
-                timezone: 'GMT+8',
-                phone: '+65 6123 4567',
-                email: 'apac@truelog.com.sg',
-                hours: '24/7 Operations'
-              },
-              {
-                region: 'Europe',
-                timezone: 'GMT+1',
-                phone: '+31 20 123 4567',
-                email: 'europe@truelog.com.sg',
-                hours: '24/7 Operations'
-              },
-              {
-                region: 'Americas',
-                timezone: 'GMT-5',
-                phone: '+1 555 123 4567',
-                email: 'americas@truelog.com.sg',
-                hours: '24/7 Operations'
-              }
-            ].map((contact, index) => (
-              <motion.div
-                key={contact.region}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                className="bg-gray-50 dark:bg-slate-800 rounded-xl p-6 text-center shadow-lg border border-gray-200 dark:border-slate-700/50"
-              >
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{contact.region}</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-center space-x-2">
-                    <ClockIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-300">{contact.timezone}</span>
-                  </div>
-                  <div className="flex items-center justify-center space-x-2">
-                    <PhoneIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-300">{contact.phone}</span>
-                  </div>
-                  <div className="text-gray-600 dark:text-gray-300">{contact.email}</div>
-                  <div className="text-primary-600 font-semibold">{contact.hours}</div>
-                </div>
-              </motion.div>
-            ))}
+                {/* Decorative elements */}
+                <div className="absolute -top-4 -right-4 w-24 h-24 bg-emerald-400/30 rounded-full blur-2xl" />
+                <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-teal-400/30 rounded-full blur-2xl" />
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary-600">
+      <section className="py-16 md:py-20 bg-gradient-to-r from-teal-600 to-emerald-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -420,19 +436,28 @@ const GlobalCoverage: React.FC = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-heading font-bold text-white mb-4">
-              Ready to Go Global?
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-4">
+              Ship Anywhere in the World
             </h2>
-            <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
-              Leverage our worldwide network to expand your business reach and optimize your supply chain.
+            <p className="text-lg text-teal-100 mb-8 max-w-2xl mx-auto">
+              From Singapore to every corner of the globe. Start shipping today with TrueLog's global network.
             </p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-slate-900 text-primary-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              Explore Global Solutions
-            </motion.button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-white text-teal-700 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all"
+              >
+                Get Started
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-teal-700/50 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-teal-700/70 transition-all border border-white/20"
+              >
+                Contact Us
+              </motion.button>
+            </div>
           </motion.div>
         </div>
       </section>
