@@ -1912,13 +1912,16 @@ class Ship24Tracker:
             })
 
         # Build response
+        address = data.get('address', 'Israel')
+        translated_address = self._translate_hfd_address(address)
+
         result = {
             'success': True,
             'tracking_number': tracking_number,
             'carrier': 'HFD Israel',
             'status': status,
             'events': events,
-            'current_location': data.get('address', 'Israel'),
+            'current_location': translated_address,
             'estimated_delivery': data.get('due_date'),
             'last_updated': datetime.utcnow().isoformat(),
             'tracking_url': tracking_url,
@@ -2014,6 +2017,83 @@ class Ship24Tracker:
             cleaned = ' '.join(cleaned.split())  # Clean up extra spaces
             if cleaned.strip():
                 result = cleaned.strip()
+
+        return result
+
+    def _translate_hfd_address(self, address: str) -> str:
+        """Translate Hebrew address to English"""
+        if not address:
+            return 'Israel'
+
+        result = address
+
+        # Israeli city names (Hebrew -> English)
+        cities = [
+            ('תל אביב', 'Tel Aviv'),
+            ('ירושלים', 'Jerusalem'),
+            ('חיפה', 'Haifa'),
+            ('באר שבע', 'Beer Sheva'),
+            ('רעננה', "Ra'anana"),
+            ('הרצליה', 'Herzliya'),
+            ('נתניה', 'Netanya'),
+            ('פתח תקווה', 'Petah Tikva'),
+            ('ראשון לציון', 'Rishon LeZion'),
+            ('אשדוד', 'Ashdod'),
+            ('אשקלון', 'Ashkelon'),
+            ('רמת גן', 'Ramat Gan'),
+            ('בני ברק', 'Bnei Brak'),
+            ('חולון', 'Holon'),
+            ('בת ים', 'Bat Yam'),
+            ('כפר סבא', 'Kfar Saba'),
+            ('הוד השרון', 'Hod HaSharon'),
+            ('רמת השרון', 'Ramat HaSharon'),
+            ('גבעתיים', 'Givatayim'),
+            ('נהריה', 'Nahariya'),
+            ('עכו', 'Acre'),
+            ('קריית שמונה', 'Kiryat Shmona'),
+            ('טבריה', 'Tiberias'),
+            ('צפת', 'Safed'),
+            ('אילת', 'Eilat'),
+            ('נצרת', 'Nazareth'),
+            ('עפולה', 'Afula'),
+            ('כרמיאל', 'Karmiel'),
+            ('קיסריה', 'Caesarea'),
+            ('מודיעין', "Modi'in"),
+            ('רחובות', 'Rehovot'),
+            ('לוד', 'Lod'),
+            ('רמלה', 'Ramla'),
+            ('יבנה', 'Yavne'),
+        ]
+
+        # Common street name words
+        street_words = [
+            ('הר סיני', 'Har Sinai'),
+            ('הר הצופים', 'Mount Scopus'),
+            ('הרצל', 'Herzl'),
+            ('רוטשילד', 'Rothschild'),
+            ('דיזנגוף', 'Dizengoff'),
+            ('אלנבי', 'Allenby'),
+            ('בן גוריון', 'Ben Gurion'),
+            ('בן יהודה', 'Ben Yehuda'),
+            ('ז\'בוטינסקי', 'Jabotinsky'),
+            ('ויצמן', 'Weizmann'),
+            ('סוקולוב', 'Sokolov'),
+            ('ביאליק', 'Bialik'),
+            ('אחד העם', 'Ahad Ha\'am'),
+            ('בלפור', 'Balfour'),
+            ('קפלן', 'Kaplan'),
+            ('ארלוזורוב', 'Arlozorov'),
+            ('נמל', 'Port'),
+            ('התעשייה', 'HaTaasia'),
+            ('רחוב', 'St.'),
+            ('שדרות', 'Blvd.'),
+            ('כיכר', 'Square'),
+        ]
+
+        # Apply translations
+        for hebrew, english in cities + street_words:
+            if hebrew in result:
+                result = result.replace(hebrew, english)
 
         return result
 
