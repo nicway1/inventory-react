@@ -31,6 +31,141 @@
 
 <!-- Comment textarea helper functions - must be defined before textarea uses them -->
 <script>
+// Toggle issue report form - defined early for onclick handlers in Asset Return section
+function toggleIssueReportForm() {
+    var form = document.getElementById('issueReportForm');
+    if (!form) {
+        console.error('toggleIssueReportForm: issueReportForm element not found');
+        return;
+    }
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+        // Reset form fields
+        var issueType = document.getElementById('issueType');
+        var issueDescription = document.getElementById('issueDescription');
+        if (issueType) issueType.value = '';
+        if (issueDescription) issueDescription.value = '';
+        // Reset custom issue type
+        var customContainer = document.getElementById('customIssueTypeContainer');
+        var customInput = document.getElementById('customIssueType');
+        if (customContainer) customContainer.style.display = 'none';
+        if (customInput) customInput.value = '';
+    }
+}
+
+// Submit issue report - defined early as fallback
+async function submitIssueReport(event, ticketId) {
+    event.preventDefault();
+
+    var issueTypeEl = document.getElementById('issueType');
+    var descriptionEl = document.getElementById('issueDescription');
+    var issueType = issueTypeEl ? issueTypeEl.value : '';
+    var description = descriptionEl ? descriptionEl.value : '';
+
+    // Use custom issue type if "Other" is selected
+    if (issueType === 'Other') {
+        var customIssueType = document.getElementById('customIssueType');
+        if (customIssueType && customIssueType.value.trim()) {
+            issueType = customIssueType.value.trim();
+        } else {
+            alert('Please enter a custom issue type');
+            return;
+        }
+    }
+
+    if (!issueType || !description) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+    try {
+        var response = await fetch('/tickets/' + ticketId + '/issues', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                issue_type: issueType,
+                description: description
+            })
+        });
+
+        var data = await response.json();
+
+        if (data.success) {
+            alert('Issue reported successfully');
+            toggleIssueReportForm();
+            // Reload issues display
+            loadTicketIssuesEarly(ticketId);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error submitting issue:', error);
+        alert('Failed to submit issue: ' + error.message);
+    }
+}
+
+// Load and display issues - early fallback version
+async function loadTicketIssuesEarly(ticketId) {
+    try {
+        var response = await fetch('/tickets/' + ticketId + '/issues');
+        var data = await response.json();
+        if (data.success) {
+            displayIssuesEarly(data.issues, ticketId);
+        }
+    } catch (error) {
+        console.error('Error loading issues:', error);
+    }
+}
+
+// Display issues - early fallback version
+function displayIssuesEarly(issues, ticketId) {
+    var container = document.getElementById('issuesDisplay');
+    if (!container) return;
+
+    if (issues.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-500 italic">No issues reported</p>';
+        return;
+    }
+
+    var html = issues.map(function(issue) {
+        var bgClass = issue.is_resolved ? 'bg-green-50' : 'bg-red-50';
+        var badgeClass = issue.is_resolved ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800';
+        var dateStr = issue.reported_at ? new Date(issue.reported_at).toLocaleString() : 'Unknown';
+
+        return '<div class="border border-gray-300 rounded-lg mb-3 p-3 ' + bgClass + '">' +
+            '<div class="flex items-center gap-2 mb-2">' +
+                '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ' + badgeClass + '">' +
+                    (issue.issue_type || 'Issue') +
+                '</span>' +
+                (issue.is_resolved ? '<span class="text-xs text-green-600 font-medium">✓ Resolved</span>' : '') +
+            '</div>' +
+            '<p class="text-sm text-gray-700 mb-1"><strong>Description:</strong> ' + (issue.description || '') + '</p>' +
+            '<p class="text-xs text-gray-500">Reported by ' + (issue.reported_by_name || 'Unknown') + ' on ' + dateStr + '</p>' +
+        '</div>';
+    }).join('');
+
+    container.innerHTML = html;
+}
+
+// Load issues on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Extract ticket ID from URL
+    var match = window.location.pathname.match(/\/tickets\/(\d+)/);
+    if (match) {
+        loadTicketIssuesEarly(parseInt(match[1]));
+    }
+});
+
 // Auto-resize textarea for messenger-style comments
 function autoResize(textarea) {
     textarea.style.height = 'auto';
@@ -3839,25 +3974,25 @@ body.dark-theme .sf-card-body .sf-field-label {
                             {% for asset in ticket.assets %}
                             {
                                 id: {{ asset.id }},
-                                name: "{{ asset.name }}",
-                                asset_tag: "{{ asset.asset_tag or '' }}"
+                                name: {{ asset.name|tojson|safe }},
+                                asset_tag: {{ (asset.asset_tag or '')|tojson|safe }}
                             }{% if not loop.last %},{% endif %}
                             {% endfor %}
                         ];
                     }
-                    
+
                     if (typeof ticketAccessories === 'undefined') {
                         window.ticketAccessories = [
                             {% for accessory in ticket.accessories %}
                             {
                                 id: {{ accessory.id }},
-                                name: "{{ accessory.name }}",
-                                category: "{{ accessory.category or '' }}"
+                                name: {{ accessory.name|tojson|safe }},
+                                category: {{ (accessory.category or '')|tojson|safe }}
                             }{% if not loop.last %},{% endif %}
                             {% endfor %}
                         ];
                     }
-                    
+
                     // All modal functions will be defined at the bottom of the file to avoid conflicts
                     </script>
                     
@@ -10347,6 +10482,19 @@ function updateAccessoryTable(accessory) {
 {% endif %}
 
 <script>
+console.log('🟢 Main script block starting...');
+
+// Define critical functions early to ensure they're available
+// Toggle issue report form - defined early for onclick handlers
+window.toggleIssueReportForm = window.toggleIssueReportForm || function() {
+    const form = document.getElementById('issueReportForm');
+    if (!form) {
+        console.error('issueReportForm element not found');
+        return;
+    }
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+};
+
 // Assign Customer Modal Functions
 function showAssignCustomerModal() {
     document.getElementById('assignCustomerModal').style.display = 'flex';
@@ -10434,9 +10582,9 @@ function switchCustomerTab(tab) {
 // Create new customer - try to pre-fill from available ticket data
 function cloneAndEditCustomer() {
     // Get available data from ticket
-    const shippingAddress = {{ ticket.shipping_address | tojson | safe if ticket.shipping_address else '""' }};
-    const description = {{ ticket.description | tojson | safe if ticket.description else '""' }};
-    const subject = {{ ticket.subject | tojson | safe if ticket.subject else '""' }};
+    const shippingAddress = {{ (ticket.shipping_address or "")|tojson|safe }};
+    const description = {{ (ticket.description or "")|tojson|safe }};
+    const subject = {{ (ticket.subject or "")|tojson|safe }};
 
     // Open modal and switch to Create New tab
     document.getElementById('assignCustomerModal').style.display = 'flex';
@@ -11365,8 +11513,8 @@ const ticketAssets = [
     {% for asset in ticket.assets %}
     {
         id: {{ asset.id }},
-        name: "{{ asset.name }}",
-        asset_tag: "{{ asset.asset_tag or '' }}"
+        name: {{ asset.name|tojson|safe }},
+        asset_tag: {{ (asset.asset_tag or '')|tojson|safe }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
@@ -11375,8 +11523,8 @@ const ticketAccessories = [
     {% for accessory in ticket.accessories %}
     {
         id: {{ accessory.id }},
-        name: "{{ accessory.name }}",
-        category: "{{ accessory.category or '' }}"
+        name: {{ accessory.name|tojson|safe }},
+        category: {{ (accessory.category or '')|tojson|safe }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
@@ -12417,25 +12565,33 @@ async function loadCustomIssueTypes() {
     }
 }
 
-// Toggle issue report form
-function toggleIssueReportForm() {
+// Toggle issue report form - explicitly global for onclick handlers
+window.toggleIssueReportForm = function() {
     const form = document.getElementById('issueReportForm');
+    if (!form) {
+        console.error('issueReportForm element not found');
+        return;
+    }
     if (form.style.display === 'none') {
         form.style.display = 'block';
     } else {
         form.style.display = 'none';
         // Reset form
-        document.getElementById('issueType').value = '';
-        document.getElementById('issueDescription').value = '';
+        const issueType = document.getElementById('issueType');
+        const issueDescription = document.getElementById('issueDescription');
+        if (issueType) issueType.value = '';
+        if (issueDescription) issueDescription.value = '';
         // Reset custom issue type
         const customContainer = document.getElementById('customIssueTypeContainer');
         const customInput = document.getElementById('customIssueType');
         if (customContainer) customContainer.style.display = 'none';
         if (customInput) customInput.value = '';
         // Hide mention dropdown
-        hideIssueMentionDropdown();
+        if (typeof hideIssueMentionDropdown === 'function') {
+            hideIssueMentionDropdown();
+        }
     }
-}
+};
 
 // Toggle custom issue type input visibility
 function toggleCustomIssueType(selectElement) {
@@ -12506,6 +12662,8 @@ async function submitIssueReport(event, ticketId) {
     }
 }
 
+console.log('🟢 Checkpoint: Before @mention system');
+
 // @mention system for issue description
 let issueMentionStartPos = -1;
 let issueCurrentMentionText = '';
@@ -12514,6 +12672,8 @@ const issueAvailableUsers = [
     { id: {{ user_id }}, username: {{ user_info.username|tojson|safe }}, email: {{ (user_info.email or "")|tojson|safe }} },
     {% endfor %}
 ];
+
+console.log('🟢 Checkpoint: After @mention users array');
 
 function checkIssueMention(textarea) {
     const cursorPos = textarea.selectionStart;
@@ -12599,6 +12759,8 @@ document.addEventListener('click', function(event) {
         hideIssueMentionDropdown();
     }
 });
+
+console.log('🟢 Checkpoint: Before loadTicketIssues');
 
 // Load and display ticket issues
 async function loadTicketIssues(ticketId) {
@@ -13173,5 +13335,6 @@ function updateShipmentProgress(progressType, ticketId) {
     });
 }
 
+console.log('🟢 Main script block complete!');
 </script>
 {% endblock %}
