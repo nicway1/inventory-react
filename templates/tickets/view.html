@@ -9355,9 +9355,10 @@ function fetchShippingTracking() {
             }
             
             if (data.success && data.tracking_info && data.tracking_info.length > 0) {
-                // Format tracking events
+                // Format tracking events (reverse to show newest first)
                 var eventsHtml = '';
-                data.tracking_info.forEach(function(event) {
+                var sortedEvents = data.tracking_info.slice().reverse();
+                sortedEvents.forEach(function(event) {
                     var date = formatTrackingDate(event.date);
                     var status = event.status || 'Status unavailable';
                     var location = event.location || 'Location unavailable';
@@ -10070,7 +10071,9 @@ function refreshOutboundTracking() {
         .then(response => response.json())
         .then(data => {
             if (data.success && data.tracking_info && data.tracking_info.length > 0) {
-                const trackingHtml = data.tracking_info.map((entry, index) => `
+                // Reverse to show newest events first (most recent at top)
+                const sortedEvents = [...data.tracking_info].reverse();
+                const trackingHtml = sortedEvents.map((entry, index) => `
                     <div class="p-4 relative hover:bg-gray-50 transition-colors duration-150">
                         <div class="flex items-start space-x-4">
                             <div class="flex-shrink-0">
