@@ -13346,6 +13346,20 @@ def add_service_record(ticket_id):
         # Refresh to get the relationships
         db_session.refresh(service_record)
 
+        # Send notification to assigned person if someone was assigned
+        if assigned_to_id and int(assigned_to_id) != current_user.id:
+            from models.notification import Notification
+            notification = Notification(
+                user_id=int(assigned_to_id),
+                type='service_record_assignment',
+                title=f'New Service Request Assigned - {service_record.request_id}',
+                message=f'{current_user.username} assigned you a service request: "{service_type}" on ticket #{ticket_id}',
+                reference_type='ticket',
+                reference_id=ticket_id
+            )
+            db_session.add(notification)
+            db_session.commit()
+
         return jsonify({
             'success': True,
             'message': 'Service record added successfully',
@@ -13401,6 +13415,7 @@ def update_service_record_status(ticket_id, record_id):
     """Update the status of a service record"""
     from database import SessionLocal
     from models.service_record import ServiceRecord
+    from models.notification import Notification
     from datetime import datetime
 
     db_session = SessionLocal()
@@ -13415,6 +13430,7 @@ def update_service_record_status(ticket_id, record_id):
 
         data = request.get_json() or request.form.to_dict()
         new_status = data.get('status')
+        old_status = record.status
 
         if not new_status:
             return jsonify({'success': False, 'error': 'Status is required'}), 400
@@ -13432,6 +13448,48 @@ def update_service_record_status(ticket_id, record_id):
             # If status changed from Completed to something else, clear completion info
             record.completed_by_id = None
             record.completed_at = None
+
+        # Send notifications when status changes
+        notifications_to_create = []
+
+        # Notify the requester when status changes (if they're not the one making the change)
+        if record.requested_by_id and record.requested_by_id != current_user.id:
+            notifications_to_create.append(Notification(
+                user_id=record.requested_by_id,
+                type='service_record_update',
+                title=f'Service Request {record.request_id} - {new_status}',
+                message=f'{current_user.username} updated your service request "{record.service_type}" to {new_status}',
+                reference_type='ticket',
+                reference_id=ticket_id
+            ))
+
+        # Notify assigned person when status changes (if they exist and aren't the one making the change)
+        if record.assigned_to_id and record.assigned_to_id != current_user.id and record.assigned_to_id != record.requested_by_id:
+            notifications_to_create.append(Notification(
+                user_id=record.assigned_to_id,
+                type='service_record_update',
+                title=f'Service Request {record.request_id} - {new_status}',
+                message=f'{current_user.username} updated the assigned service request "{record.service_type}" to {new_status}',
+                reference_type='ticket',
+                reference_id=ticket_id
+            ))
+
+        # Special notification when completed
+        if new_status == 'Completed' and old_status != 'Completed':
+            # If requester is different from completer, send completion notification
+            if record.requested_by_id and record.requested_by_id != current_user.id:
+                notifications_to_create.append(Notification(
+                    user_id=record.requested_by_id,
+                    type='service_record_completed',
+                    title=f'Service Request Completed - {record.request_id}',
+                    message=f'{current_user.username} has completed your service request "{record.service_type}"',
+                    reference_type='ticket',
+                    reference_id=ticket_id
+                ))
+
+        # Add all notifications
+        for notification in notifications_to_create:
+            db_session.add(notification)
 
         db_session.commit()
         db_session.refresh(record)
