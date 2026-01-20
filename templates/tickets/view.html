@@ -3545,7 +3545,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                     <!-- Professional Timeline -->
                                                     <div id="trackingEvents-{{ package.package_number }}" class="space-y-4">
                                                         {% if packages_tracking_data.get(package.package_number) %}
-                                                            {% for event in packages_tracking_data[package.package_number] %}
+                                                            {% for event in packages_tracking_data[package.package_number]|reverse %}
                                                             <div class="relative flex items-start pb-3 {% if not loop.last %}border-l-2 border-blue-200 ml-4{% endif %}">
                                                                 <!-- Timeline Icon -->
                                                                 <div class="absolute -left-6 top-0 flex items-center justify-center w-8 h-8 rounded-full
