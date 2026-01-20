@@ -12376,6 +12376,14 @@ document.addEventListener('DOMContentLoaded', function() {
     updateDaysOpenCounter();
     // Update counter every hour (optional - keeps it current if page is left open)
     setInterval(updateDaysOpenCounter, 3600000);
+});
+</script>
+{% endif %}
+
+{# Issue Reporting Functions - Available to all users #}
+<script>
+// Initialize issue functions on page load
+document.addEventListener('DOMContentLoaded', function() {
     // Load issues on page load
     loadTicketIssues({{ ticket.id }});
     // Load custom issue types to populate dropdown
