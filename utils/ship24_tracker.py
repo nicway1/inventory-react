@@ -1724,8 +1724,20 @@ class Ship24Tracker:
         """
         Track a parcel using HFD Israel direct API
         Uses the HFD REST API at api.hfd.co.il instead of scraping
+        Supports: tracking numbers, full URLs, and short URLs (hfd.sh/xxx)
         """
         original_input = tracking_number.strip()
+
+        # Handle short URLs (hfd.sh/xxx) - need to resolve to get actual tracking number
+        if 'hfd.sh/' in original_input.lower():
+            logger.info(f"[HFD] Resolving short URL: {original_input}")
+            short_url = original_input if original_input.startswith('http') else f'https://{original_input}'
+            resolved_url = await self._resolve_hfd_short_url(short_url)
+            if resolved_url:
+                logger.info(f"[HFD] Short URL resolved to: {resolved_url}")
+                original_input = resolved_url
+            else:
+                logger.warning(f"[HFD] Could not resolve short URL: {original_input}")
 
         # Extract the actual tracking number from various input formats
         actual_tracking_number = self._extract_hfd_tracking_number(original_input)
