@@ -1571,7 +1571,69 @@ def get_ticket_tracking(ticket_id):
                     }), 404
 
             else:
-                # Non-SingPost tracking - return basic info
+                # Non-SingPost tracking - use Ship24Tracker (handles HFD, UPS, etc.)
+                try:
+                    from utils.ship24_tracker import get_tracker
+
+                    tracker = get_tracker()
+                    result = tracker.track_parcel_sync(
+                        tracking_number,
+                        carrier=ticket.shipping_carrier,
+                        method='oxylabs'  # HFD uses direct API automatically
+                    )
+
+                    if result and result.get('success'):
+                        # Format events for mobile
+                        events = []
+                        for evt in result.get('events', [])[:10]:  # Limit to 10 events
+                            events.append({
+                                'timestamp': evt.get('timestamp') or evt.get('date', ''),
+                                'location': evt.get('location', 'Unknown'),
+                                'description': evt.get('description') or evt.get('status', ''),
+                                'status': evt.get('status', '')
+                            })
+
+                        # Reverse events to show newest first
+                        events = list(reversed(events))
+
+                        # Update ticket status
+                        if slot == 1 and result.get('status'):
+                            ticket.shipping_status = result.get('status')
+                            ticket.shipping_carrier = result.get('carrier', ticket.shipping_carrier)
+                        ticket.updated_at = datetime.utcnow()
+                        db_session.commit()
+
+                        # Save to cache
+                        TrackingCache.save_tracking_data(
+                            db_session,
+                            tracking_number,
+                            events,
+                            result.get('status', 'Unknown'),
+                            ticket_id=ticket_id,
+                            tracking_type='primary',
+                            carrier=result.get('carrier', 'ship24')
+                        )
+
+                        return jsonify({
+                            'success': True,
+                            'tracking': {
+                                'tracking_number': tracking_number,
+                                'carrier': result.get('carrier', ticket.shipping_carrier or 'Unknown'),
+                                'status': result.get('status', current_status or 'Unknown'),
+                                'was_pushed': None,
+                                'events': events,
+                                'is_cached': False,
+                                'last_updated': result.get('last_updated'),
+                                'current_location': result.get('current_location'),
+                                'estimated_delivery': result.get('estimated_delivery'),
+                                'source': result.get('source')
+                            }
+                        })
+
+                except Exception as tracker_err:
+                    logger.warning(f"Ship24Tracker failed for {tracking_number}: {str(tracker_err)}")
+
+                # Fallback - return basic info if tracking failed
                 return jsonify({
                     'success': True,
                     'tracking': {
@@ -1581,7 +1643,7 @@ def get_ticket_tracking(ticket_id):
                         'was_pushed': None,
                         'events': [],
                         'is_cached': False,
-                        'message': 'Non-SingPost tracking - live tracking not available'
+                        'message': 'Live tracking temporarily unavailable'
                     }
                 })
 
@@ -2424,19 +2486,15 @@ def refresh_ticket_tracking(ticket_id):
 
             try:
                 from utils.ship24_tracker import get_tracker
-                import asyncio
 
                 tracker = get_tracker()
 
-                # Run async tracking lookup
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    tracking_result = loop.run_until_complete(
-                        tracker.track_shipment(tracking_number)
-                    )
-                finally:
-                    loop.close()
+                # Use sync method which handles HFD and other carriers automatically
+                tracking_result = tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier=carrier,
+                    method='oxylabs'  # HFD uses direct API automatically
+                )
 
                 if tracking_result and tracking_result.get('success'):
                     # Extract events from tracking result
@@ -2449,6 +2507,9 @@ def refresh_ticket_tracking(ticket_id):
                             'description': evt.get('description') or evt.get('status', ''),
                             'status': evt.get('status_code', 'unknown')
                         })
+
+                    # Reverse events to show newest first (delivered at top)
+                    events = list(reversed(events))
 
                     # Determine status
                     latest_status = tracking_result.get('status', '').lower()
