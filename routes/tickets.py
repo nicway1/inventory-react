@@ -6423,8 +6423,7 @@ def track_claw(ticket_id):
                 result = ship24_tracker.track_parcel_sync(
                     tracking_number,
                     carrier=None,  # Auto-detect carrier
-                    method='oxylabs',  # Use Oxylabs proxy
-                    provider='ship24'  # Use Ship24 provider
+                    method='oxylabs'  # Use Oxylabs proxy (HFD uses direct API)
                 )
             except Exception as api_error:
                 logger.info(f"Error tracking via Oxylabs: {api_error}")
@@ -6819,8 +6818,7 @@ def track_return(ticket_id):
                 result = ship24_tracker.track_parcel_sync(
                     tracking_number,
                     carrier=None,  # Auto-detect carrier
-                    method='oxylabs',  # Use Oxylabs proxy
-                    provider='ship24'  # Use Ship24 provider
+                    method='oxylabs'  # Use Oxylabs proxy (HFD uses direct API)
                 )
             except Exception as api_error:
                 logger.info(f"Error tracking return via Oxylabs: {api_error}")
@@ -7386,8 +7384,7 @@ def track_package(ticket_id, package_number):
                 result = ship24_tracker.track_parcel_sync(
                     tracking_number,
                     carrier=carrier,  # Use carrier if provided
-                    method='oxylabs',  # Use Oxylabs proxy
-                    provider='ship24'  # Use Ship24 provider
+                    method='oxylabs'  # Use Oxylabs proxy (HFD uses direct API)
                 )
             except Exception as api_error:
                 logger.info(f"Error tracking package {package_number} via Oxylabs: {api_error}")
