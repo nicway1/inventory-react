@@ -1,160 +1,597 @@
 {% extends "base.html" %}
 
-{% block title %}Blog Admin - Dashboard{% endblock %}
+{% block title %}Blog Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Salesforce Lightning Design System Inspired Styles */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-green: #2e844a;
+        --sf-orange: #dd7a01;
+        --sf-red: #c23934;
+        --sf-purple: #730394;
+        --sf-gray-1: #f3f3f3;
+        --sf-gray-2: #e5e5e5;
+        --sf-gray-3: #c9c9c9;
+        --sf-text-default: #181818;
+        --sf-text-weak: #706e6b;
+        --sf-border-radius: 0.25rem;
+        --sf-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        --sf-shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .sf-page-header {
+        background: linear-gradient(135deg, var(--sf-blue) 0%, var(--sf-blue-dark) 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        margin: -1rem -1rem 1.5rem -1rem;
+        border-radius: 0;
+    }
+
+    .sf-page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-page-header .header-subtitle {
+        font-size: 0.875rem;
+        opacity: 0.85;
+        margin-top: 0.25rem;
+    }
+
+    .sf-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.9;
+    }
+
+    .sf-breadcrumb a {
+        color: white;
+        text-decoration: none;
+    }
+
+    .sf-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-breadcrumb .separator {
+        opacity: 0.6;
+    }
+
+    .sf-header-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .sf-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: var(--sf-border-radius);
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+    }
+
+    .sf-btn-primary {
+        background: white;
+        color: var(--sf-blue);
+    }
+
+    .sf-btn-primary:hover {
+        background: var(--sf-gray-1);
+        color: var(--sf-blue-dark);
+        transform: translateY(-1px);
+        box-shadow: var(--sf-shadow);
+    }
+
+    .sf-btn-outline {
+        background: transparent;
+        color: white;
+        border: 1px solid rgba(255,255,255,0.5);
+    }
+
+    .sf-btn-outline:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: white;
+    }
+
+    /* Stats Cards */
+    .sf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: var(--sf-shadow);
+        border-left: 4px solid var(--sf-blue);
+        transition: all 0.2s ease;
+    }
+
+    .sf-stat-card:hover {
+        box-shadow: var(--sf-shadow-hover);
+        transform: translateY(-2px);
+    }
+
+    .sf-stat-card.green { border-left-color: var(--sf-green); }
+    .sf-stat-card.orange { border-left-color: var(--sf-orange); }
+    .sf-stat-card.purple { border-left-color: var(--sf-purple); }
+
+    .sf-stat-card .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+        font-size: 1rem;
+    }
+
+    .sf-stat-card .stat-icon.blue { background: rgba(1, 118, 211, 0.1); color: var(--sf-blue); }
+    .sf-stat-card .stat-icon.green { background: rgba(46, 132, 74, 0.1); color: var(--sf-green); }
+    .sf-stat-card .stat-icon.orange { background: rgba(221, 122, 1, 0.1); color: var(--sf-orange); }
+    .sf-stat-card .stat-icon.purple { background: rgba(115, 3, 148, 0.1); color: var(--sf-purple); }
+
+    .sf-stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sf-text-default);
+        line-height: 1;
+    }
+
+    .sf-stat-card .stat-label {
+        font-size: 0.75rem;
+        color: var(--sf-text-weak);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+
+    /* Data Table */
+    .sf-card {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: var(--sf-shadow);
+        overflow: hidden;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.25rem;
+        background: var(--sf-gray-1);
+        border-bottom: 1px solid var(--sf-gray-2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-header h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--sf-text-default);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-card-header .record-count {
+        font-weight: 400;
+        color: var(--sf-text-weak);
+        font-size: 0.875rem;
+    }
+
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table thead {
+        background: var(--sf-gray-1);
+    }
+
+    .sf-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--sf-text-weak);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--sf-gray-2);
+    }
+
+    .sf-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--sf-gray-2);
+        vertical-align: middle;
+    }
+
+    .sf-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .sf-table tbody tr:hover {
+        background: rgba(1, 118, 211, 0.04);
+    }
+
+    .sf-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .sf-post-title {
+        font-weight: 600;
+        color: var(--sf-blue);
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .sf-post-title:hover {
+        color: var(--sf-blue-dark);
+        text-decoration: underline;
+    }
+
+    .sf-post-slug {
+        font-size: 0.75rem;
+        color: var(--sf-text-weak);
+        font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+    }
+
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.625rem;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 3px;
+    }
+
+    .sf-badge-success {
+        background: rgba(46, 132, 74, 0.1);
+        color: var(--sf-green);
+    }
+
+    .sf-badge-warning {
+        background: rgba(221, 122, 1, 0.1);
+        color: var(--sf-orange);
+    }
+
+    .sf-badge-neutral {
+        background: var(--sf-gray-2);
+        color: var(--sf-text-weak);
+    }
+
+    .sf-author {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--sf-blue) 0%, var(--sf-purple) 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6875rem;
+        font-weight: 700;
+    }
+
+    .sf-author-name {
+        font-size: 0.875rem;
+        color: var(--sf-text-default);
+    }
+
+    .sf-views {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: var(--sf-text-weak);
+        font-size: 0.875rem;
+    }
+
+    .sf-date {
+        font-size: 0.8125rem;
+        color: var(--sf-text-weak);
+    }
+
+    .sf-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .sf-action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--sf-border-radius);
+        border: 1px solid var(--sf-gray-3);
+        background: white;
+        color: var(--sf-text-weak);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+    }
+
+    .sf-action-btn:hover {
+        border-color: var(--sf-blue);
+        color: var(--sf-blue);
+        background: rgba(1, 118, 211, 0.05);
+    }
+
+    .sf-action-btn.danger:hover {
+        border-color: var(--sf-red);
+        color: var(--sf-red);
+        background: rgba(194, 57, 52, 0.05);
+    }
+
+    .sf-action-btn.view:hover {
+        border-color: var(--sf-green);
+        color: var(--sf-green);
+        background: rgba(46, 132, 74, 0.05);
+    }
+
+    /* Empty State */
+    .sf-empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .sf-empty-state .empty-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--sf-gray-1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2rem;
+        color: var(--sf-text-weak);
+    }
+
+    .sf-empty-state h3 {
+        font-size: 1.125rem;
+        color: var(--sf-text-default);
+        margin-bottom: 0.5rem;
+    }
+
+    .sf-empty-state p {
+        color: var(--sf-text-weak);
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-empty-state .sf-btn {
+        background: var(--sf-blue);
+        color: white;
+    }
+
+    .sf-empty-state .sf-btn:hover {
+        background: var(--sf-blue-dark);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .sf-page-header {
+            padding: 1rem;
+        }
+
+        .sf-page-header h1 {
+            font-size: 1.25rem;
+        }
+
+        .sf-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .sf-table {
+            font-size: 0.875rem;
+        }
+
+        .sf-table th,
+        .sf-table td {
+            padding: 0.75rem 0.5rem;
+        }
+
+        .sf-post-slug {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="card-title">
-                        <i class="fas fa-blog me-2"></i>Blog Administration
-                    </h3>
-                    <div>
-                        <a href="{{ url_for('blog.admin_create_post') }}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-plus"></i> Create Post
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- Statistics -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h4 class="mb-0">{{ stats.total }}</h4>
-                                            <small>Total Posts</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-file-alt fa-2x"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h4 class="mb-0">{{ stats.published }}</h4>
-                                            <small>Published</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-check-circle fa-2x"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h4 class="mb-0">{{ stats.drafts }}</h4>
-                                            <small>Drafts</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-edit fa-2x"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card bg-secondary text-white">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h4 class="mb-0">{{ stats.archived }}</h4>
-                                            <small>Archived</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-archive fa-2x"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Posts Table -->
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Status</th>
-                                    <th>Author</th>
-                                    <th>Views</th>
-                                    <th>Published</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for post in posts %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ post.title }}</strong>
-                                        <br>
-                                        <small class="text-muted">{{ post.slug }}</small>
-                                    </td>
-                                    <td>
-                                        {% if post.status.value == 'published' %}
-                                            <span class="badge bg-success">Published</span>
-                                        {% elif post.status.value == 'draft' %}
-                                            <span class="badge bg-warning text-dark">Draft</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Archived</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ post.author.username if post.author else 'Unknown' }}</td>
-                                    <td>{{ post.view_count }}</td>
-                                    <td>
-                                        {% if post.published_at %}
-                                            {{ post.published_at.strftime('%Y-%m-%d %H:%M') }}
-                                        {% else %}
-                                            <span class="text-muted">Not published</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('blog.admin_edit_post', post_id=post.id) }}" class="btn btn-outline-primary" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            {% if post.status.value == 'published' %}
-                                            <a href="https://truelog.com.sg/blog/{{ post.slug }}" target="_blank" class="btn btn-outline-info" title="View">
-                                                <i class="fas fa-external-link-alt"></i>
-                                            </a>
-                                            {% endif %}
-                                            <form action="{{ url_for('blog.admin_delete_post', post_id=post.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this post?');">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <button type="submit" class="btn btn-outline-danger" title="Delete">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        <i class="fas fa-inbox fa-2x mb-2"></i>
-                                        <br>
-                                        No blog posts yet. <a href="{{ url_for('blog.admin_create_post') }}">Create your first post</a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+<!-- Page Header -->
+<div class="sf-page-header">
+    <div class="sf-breadcrumb">
+        <a href="{{ url_for('admin.admin_home') }}">Admin</a>
+        <span class="separator">/</span>
+        <span>Blog Management</span>
+    </div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1>
+                <i class="fas fa-newspaper"></i>
+                Blog Administration
+            </h1>
+            <div class="header-subtitle">Manage your blog posts and content</div>
+        </div>
+        <div class="sf-header-actions">
+            <a href="https://truelog.com.sg/blog" target="_blank" class="sf-btn sf-btn-outline">
+                <i class="fas fa-external-link-alt"></i>
+                View Blog
+            </a>
+            <a href="{{ url_for('blog.admin_create_post') }}" class="sf-btn sf-btn-primary">
+                <i class="fas fa-plus"></i>
+                New Post
+            </a>
         </div>
     </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="sf-stats-grid">
+    <div class="sf-stat-card">
+        <div class="stat-icon blue">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Posts</div>
+    </div>
+    <div class="sf-stat-card green">
+        <div class="stat-icon green">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-value">{{ stats.published }}</div>
+        <div class="stat-label">Published</div>
+    </div>
+    <div class="sf-stat-card orange">
+        <div class="stat-icon orange">
+            <i class="fas fa-pencil-alt"></i>
+        </div>
+        <div class="stat-value">{{ stats.drafts }}</div>
+        <div class="stat-label">Drafts</div>
+    </div>
+    <div class="sf-stat-card purple">
+        <div class="stat-icon purple">
+            <i class="fas fa-archive"></i>
+        </div>
+        <div class="stat-value">{{ stats.archived }}</div>
+        <div class="stat-label">Archived</div>
+    </div>
+</div>
+
+<!-- Posts Table -->
+<div class="sf-card">
+    <div class="sf-card-header">
+        <h2>
+            <i class="fas fa-list"></i>
+            All Posts
+            <span class="record-count">({{ posts|length }} records)</span>
+        </h2>
+    </div>
+
+    {% if posts %}
+    <table class="sf-table">
+        <thead>
+            <tr>
+                <th>Post</th>
+                <th>Status</th>
+                <th>Author</th>
+                <th>Views</th>
+                <th>Published Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for post in posts %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('blog.admin_edit_post', post_id=post.id) }}" class="sf-post-title">
+                        {{ post.title }}
+                    </a>
+                    <span class="sf-post-slug">/{{ post.slug }}</span>
+                </td>
+                <td>
+                    {% if post.status.value == 'published' %}
+                        <span class="sf-badge sf-badge-success">
+                            <i class="fas fa-circle" style="font-size: 6px;"></i>
+                            Published
+                        </span>
+                    {% elif post.status.value == 'draft' %}
+                        <span class="sf-badge sf-badge-warning">
+                            <i class="fas fa-circle" style="font-size: 6px;"></i>
+                            Draft
+                        </span>
+                    {% else %}
+                        <span class="sf-badge sf-badge-neutral">
+                            <i class="fas fa-circle" style="font-size: 6px;"></i>
+                            Archived
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="sf-author">
+                        <div class="sf-avatar">
+                            {{ (post.author.username[0] if post.author else 'U')|upper }}
+                        </div>
+                        <span class="sf-author-name">{{ post.author.username if post.author else 'Unknown' }}</span>
+                    </div>
+                </td>
+                <td>
+                    <span class="sf-views">
+                        <i class="fas fa-eye"></i>
+                        {{ post.view_count }}
+                    </span>
+                </td>
+                <td>
+                    {% if post.published_at %}
+                        <span class="sf-date">{{ post.published_at.strftime('%b %d, %Y') }}</span>
+                    {% else %}
+                        <span class="sf-date text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="sf-actions">
+                        <a href="{{ url_for('blog.admin_edit_post', post_id=post.id) }}" class="sf-action-btn" title="Edit">
+                            <i class="fas fa-pen"></i>
+                        </a>
+                        {% if post.status.value == 'published' %}
+                        <a href="https://truelog.com.sg/blog/{{ post.slug }}" target="_blank" class="sf-action-btn view" title="View Live">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        {% endif %}
+                        <form action="{{ url_for('blog.admin_delete_post', post_id=post.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this post? This action cannot be undone.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="sf-action-btn danger" title="Delete">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="sf-empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-newspaper"></i>
+        </div>
+        <h3>No Blog Posts Yet</h3>
+        <p>Get started by creating your first blog post to engage with your audience.</p>
+        <a href="{{ url_for('blog.admin_create_post') }}" class="sf-btn">
+            <i class="fas fa-plus"></i>
+            Create Your First Post
+        </a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
