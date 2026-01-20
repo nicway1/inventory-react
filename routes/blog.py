@@ -470,7 +470,8 @@ def api_admin_import_truelog():
 <li><strong>ST Permit</strong> — Storage/handling in transit</li>
 </ul>
 <h2>Controlled Item Categories</h2>
-<p>The Strategic Goods (Control) List includes electronics and semiconductors, computers and sensors, lasers and aerospace technology, and encryption products.</p>"""
+<p>The Strategic Goods (Control) List includes electronics and semiconductors, computers and sensors, lasers and aerospace technology, and encryption products.</p>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/10/image.png"
             },
             {
                 "title": "TrueLog Expands IT Asset Management (ITAM) Services to China and South Korea",
@@ -484,7 +485,8 @@ def api_admin_import_truelog():
 <li>Secure data destruction and certification</li>
 <li>Compliance with local regulations</li>
 <li>Reverse logistics and disposition</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/08/Post-3-Sept.png"
             },
             {
                 "title": "IOR/EOR Compliance in Emerging Markets: What 2025 Tells Us About Risk and Readiness",
@@ -498,7 +500,8 @@ def api_admin_import_truelog():
 <li>Changing tariff structures and trade agreements</li>
 <li>Local entity requirements for import licenses</li>
 <li>Documentation and certification needs</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/08/Post-2-Sept.png"
             },
             {
                 "title": "Navigating India's New Logistics Policy: VAT, Customs & Licensing Implications for ICT Imports",
@@ -512,7 +515,8 @@ def api_admin_import_truelog():
 <li>New customs clearance procedures</li>
 <li>Revised licensing requirements for IT equipment</li>
 <li>Environmental compliance for e-waste</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/08/Post-1-Sept-.png"
             },
             {
                 "title": "TrueLog Launches IOR & EOR Services into La Reunion",
@@ -526,7 +530,8 @@ def api_admin_import_truelog():
 <li>Exporter of Record (EOR) services</li>
 <li>Customs clearance and documentation</li>
 <li>IT asset logistics management</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/08/New-Country-Post-la-Reunion.png"
             },
             {
                 "title": "Navigating U.S. Tariff Volatility: What ICT Logistics Leaders Need to Know",
@@ -540,7 +545,8 @@ def api_admin_import_truelog():
 <li>Ensure robust country-of-origin documentation</li>
 <li>Consider duty drawback opportunities</li>
 <li>Work with experienced customs brokers</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/08/59c14091-d435-448f-84f6-b0cd529cccf7.png"
             },
             {
                 "title": "How Geo-Economic Shifts Are Reshaping ICT Supply Chains in 2025",
@@ -554,7 +560,8 @@ def api_admin_import_truelog():
 <li>Nearshoring and friend-shoring strategies</li>
 <li>Increased inventory buffers for critical components</li>
 <li>Investment in supply chain visibility tools</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/08/Truelog-Blog-post-August-.png"
             },
             {
                 "title": "Kazakhstan's Middle Corridor: What It Means for ICT Logistics in Eurasia",
@@ -568,7 +575,8 @@ def api_admin_import_truelog():
 <li>Reduced transit times for certain markets</li>
 <li>Growing infrastructure investment</li>
 <li>Favorable customs arrangements</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/07/Kazakastan-post.png"
             },
             {
                 "title": "TrueLog Expands to Jordan",
@@ -583,7 +591,8 @@ def api_admin_import_truelog():
 <li>Customs clearance</li>
 <li>IT asset management</li>
 <li>Reverse logistics</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/07/Jordan-Service-Launch-.png"
             },
             {
                 "title": "ATA Carnet for Broadcasting & Professional Equipment: Why Pre-Planning Is Crucial",
@@ -597,7 +606,8 @@ def api_admin_import_truelog():
 <li>Accurate valuation documentation</li>
 <li>Understanding of destination country requirements</li>
 <li>Sufficient lead time for processing (minimum 2-3 weeks)</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/07/Linkedin-post.png"
             },
             {
                 "title": "Expansion Update: Solomon Islands",
@@ -611,7 +621,8 @@ def api_admin_import_truelog():
 <li>Customs clearance</li>
 <li>Air and sea freight coordination</li>
 <li>IT equipment deployment support</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/06/8.png"
             },
             {
                 "title": "DP World's $2.5B Bet on UAE Logistics - What It Means for ICT Deployments",
@@ -625,7 +636,8 @@ def api_admin_import_truelog():
 <li>Improved connectivity for technology deployments</li>
 <li>Faster customs clearance processes</li>
 <li>Better warehousing for sensitive equipment</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/06/12.png"
             },
             {
                 "title": "India's Logistics Infrastructure: Hosur's Emerging ICT Corridor",
@@ -639,7 +651,8 @@ def api_admin_import_truelog():
 <li>Excellent road and rail connectivity</li>
 <li>Competitive land and labor costs</li>
 <li>Supportive state government policies</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/06/9.png"
             },
             {
                 "title": "UK-EU Trade Reset - A New Era for ICT Logistics",
@@ -653,7 +666,8 @@ def api_admin_import_truelog():
 <li>Mutual recognition of certifications</li>
 <li>Improved data flow arrangements</li>
 <li>Streamlined documentation requirements</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/06/7.png"
             },
             {
                 "title": "WiseTech's e2open Acquisition - A Signal for Digital Supply Chain Maturity",
@@ -667,7 +681,8 @@ def api_admin_import_truelog():
 <li>More comprehensive end-to-end visibility</li>
 <li>Potential for improved automation</li>
 <li>Greater data standardization across platforms</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/06/6.png"
             },
             {
                 "title": "New Coverage Alert: American Samoa",
@@ -696,7 +711,8 @@ def api_admin_import_truelog():
 <li>Faster turnaround times</li>
 <li>Secure storage for high-value equipment</li>
 <li>24/7 operations capability</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/06/Sg-airport-e1748918146261.jpg"
             },
             {
                 "title": "Huawei's Malaysia GPU Centre: A Strategic Shift and What It Means for ICT Supply Chains",
@@ -710,7 +726,8 @@ def api_admin_import_truelog():
 <li>Specialized customs handling for sensitive technology</li>
 <li>Increased regional connectivity requirements</li>
 <li>Opportunities for value-added services</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/05/e88ae173-adobestock_388092570_cropped_1600x1000_1.webp"
             },
             {
                 "title": "Exporter of Record (EOR) for IT & Telecom: Why It's Critical for Global Sales",
@@ -724,7 +741,8 @@ def api_admin_import_truelog():
 <li>Reduced compliance risk</li>
 <li>Lower operational costs</li>
 <li>Expert navigation of regulations</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/05/ChatGPT-Image-Apr-17-2025-02_41_42-PM.png"
             },
             {
                 "title": "Understanding Compliance & Regulatory Requirements for IT Equipment Imports",
@@ -738,7 +756,8 @@ def api_admin_import_truelog():
 <li><strong>CE (EU)</strong> - European conformity marking</li>
 <li><strong>BIS (India)</strong> - Bureau of Indian Standards compliance</li>
 <li><strong>CCC (China)</strong> - China Compulsory Certification</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/04/FCC.png"
             },
             {
                 "title": "The Future of IT & Telecom Supply Chains: Trends & Challenges in 2025",
@@ -752,7 +771,8 @@ def api_admin_import_truelog():
 <li><strong>Digital Customs</strong> - Electronic documentation and automated clearance</li>
 <li><strong>Supply Chain Security</strong> - Enhanced tracking and verification</li>
 <li><strong>Sustainability</strong> - Green logistics and circular economy initiatives</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/04/StockCake-Automated-Warehouse-Circle_1744803613.jpg"
             },
             {
                 "title": "IOR vs. Traditional Importing: What IT & Telecom Companies Need to Know",
@@ -766,7 +786,8 @@ def api_admin_import_truelog():
 <li>Immediate market access</li>
 <li>Expert compliance handling</li>
 <li>Reduced administrative burden</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/04/ChatGPT-Image-Apr-7-2025-11_35_46-PM.png"
             },
             {
                 "title": "How to Overcome Customs Challenges When Shipping IT Equipment Internationally",
@@ -781,7 +802,8 @@ def api_admin_import_truelog():
 <li>Pre-clearance communication with customs</li>
 <li>Working with experienced customs brokers</li>
 <li>Understanding local regulations</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/04/DALL%C2%B7E-2025-04-07-17.59.44-A-digital-illustration-for-a-logistics-blog-post-about-overcoming-customs-challenges-when-shipping-IT-equipment-internationally.-Show-a-mix-of-customs-copy.jpg"
             },
             {
                 "title": "How Current U.S. Tariffs Are Shaping the Future of IT Asset Logistics",
@@ -795,7 +817,8 @@ def api_admin_import_truelog():
 <li>Explore free trade agreement benefits</li>
 <li>Consider bonded warehouse strategies</li>
 <li>Evaluate alternative supply sources</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/04/5-e1744717505635.png"
             },
             {
                 "title": "The Role of Importer of Record (IOR) in Global IT & Telecom Expansion",
@@ -809,7 +832,8 @@ def api_admin_import_truelog():
 <li>Reduced compliance risk</li>
 <li>Cost-effective expansion</li>
 <li>Expert regulatory navigation</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2025/04/DALL%C2%B7E-2025-04-07-17.59.22-A-professional-modern-digital-illustration-showing-global-IT-and-telecom-infrastructure-expansion.-Include-elements-like-data-centers-satellite-dish.jpg"
             },
             {
                 "title": "Global Shipping Solutions at Competitive Rates",
@@ -823,7 +847,8 @@ def api_admin_import_truelog():
 <li>Full regulatory compliance</li>
 <li>Transparent pricing</li>
 <li>Real-time tracking and updates</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2024/08/Freight-Sensitive-Equipment.jpg"
             },
             {
                 "title": "Leveraging Technology for Seamless Logistics Documentation",
@@ -838,7 +863,8 @@ def api_admin_import_truelog():
 <li>Certificates of origin</li>
 <li>Customs declarations</li>
 <li>Compliance certifications</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2024/08/In-House-Framework-Cargo-1.jpg"
             },
             {
                 "title": "Navigating Compliance with Lithium Ion Battery Shipments",
@@ -852,7 +878,8 @@ def api_admin_import_truelog():
 <li>UN 3480 - Lithium ion batteries alone</li>
 <li>IATA Dangerous Goods Regulations</li>
 <li>IMDG Code for sea freight</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2024/08/All-Risk-Coverage-Cargo.jpg"
             },
             {
                 "title": "Efficient Breakbulk Services: Ensuring Seamless Logistics",
@@ -866,7 +893,8 @@ def api_admin_import_truelog():
 <li>Specialized handling equipment</li>
 <li>Route surveys and feasibility studies</li>
 <li>Customs clearance support</li>
-</ul>"""
+</ul>""",
+                "featured_image": "https://truelog.com.sg/wp-content/uploads/2024/08/import_licence_singapore-compliance-8.jpg"
             },
         ]
 
