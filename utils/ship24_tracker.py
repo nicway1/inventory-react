@@ -1943,24 +1943,77 @@ class Ship24Tracker:
 
     def _translate_hfd_status(self, text: str) -> str:
         """Translate HFD Hebrew status to English"""
+
+        # HFD often returns bilingual text like "Hebrew text / English text" or "English/Hebrew"
+        # Try to extract just the English part
+        if '/' in text:
+            parts = text.split('/')
+            for part in parts:
+                part = part.strip()
+                # Check if this part is mostly English (more ASCII letters than Hebrew)
+                ascii_letters = sum(1 for c in part if c.isalpha() and ord(c) < 128)
+                hebrew_letters = sum(1 for c in part if '\u0590' <= c <= '\u05FF')
+                if ascii_letters > 0 and ascii_letters >= hebrew_letters:
+                    return part.strip()
+
+        # Hebrew to English translations (longest first to avoid partial matches)
         translations = [
+            # Collection/Pickup
             ('נאסף מהספק - בדרך למחסן המיון', 'Collected from supplier - On way to sorting warehouse'),
+            ('נאסף מהספק', 'Collected from supplier'),
+
+            # Warehouse statuses
             ('חבילה נקלטה במחסן HFD', 'Package received at HFD warehouse'),
-            ('המשלוח במחסני HFD', 'Shipment at HFD warehouses'),
-            ('כתובת שגויה', 'Wrong address'),
+            ('חבילה לפני הפצה', 'Preparing for delivery'),
+            ('המשלוח במחסני המיון', 'Shipment at sorting warehouse'),
+            ('המשלוח במחסני HFD', 'Shipment at HFD warehouse'),
+            ('במחסני המיון', 'At sorting warehouse'),
+            ('במחסני HFD', 'At HFD warehouse'),
+            ('במחסן', 'At warehouse'),
+
+            # In transit / Out for delivery
+            ('שליחות בהפצה - בדרכה ללקוח קצה', 'Out for delivery - On way to customer'),
+            ('שליחות בהפצה', 'Out for delivery'),
+            ('המשלוח בדרך ללקוח', 'Shipment on its way to customer'),
+            ('בדרכה ללקוח קצה', 'On way to customer'),
+            ('בדרך ללקוח', 'On way to customer'),
+            ('המשלוח בדרך', 'Shipment in transit'),
+            ('בדרך', 'In transit'),
+
+            # Delivered
             ('הזמנה נמסרה', 'Order delivered'),
             ('המשלוח נמסר', 'Shipment delivered'),
-            ('המשלוח בדרך ללקוח', 'Shipment on its way to customer'),
+            ('נמסר', 'Delivered'),
+
+            # Issues
+            ('כתובת שגויה', 'Wrong address'),
+            ('לא נמצא בכתובת', 'Not found at address'),
+            ('סירוב קבלה', 'Refused delivery'),
+
+            # System statuses
             ('המשלוח הוקם במערכת', 'Shipment created in system'),
-            ('collected- on the way to the warehouse', 'Collected - On way to warehouse'),
-            ('at the warehouse', 'At warehouse'),
-            ('Parcel delivered', 'Delivered'),
+            ('הוקם במערכת', 'Created in system'),
+
+            # Common words
+            ('משלוח', 'shipment'),
+            ('חבילה', 'package'),
+            ('לקוח', 'customer'),
+            ('הפצה', 'delivery'),
         ]
 
         result = text
         for hebrew, english in translations:
             if hebrew in result:
                 result = result.replace(hebrew, english)
+
+        # Clean up any remaining Hebrew characters for cleaner output
+        # Only if we have some English content
+        if any(c.isalpha() and ord(c) < 128 for c in result):
+            # Remove Hebrew characters but keep punctuation and English
+            cleaned = ''.join(c for c in result if ord(c) < 0x0590 or ord(c) > 0x05FF or c in ' -/')
+            cleaned = ' '.join(cleaned.split())  # Clean up extra spaces
+            if cleaned.strip():
+                result = cleaned.strip()
 
         return result
 
