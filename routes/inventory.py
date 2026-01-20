@@ -1789,7 +1789,9 @@ def view_asset_sf(asset_id):
                 )
 
         # Get filtered asset IDs for dropdown queries
-        filtered_ids = dropdown_query.with_entities(Asset.id).subquery()
+        from sqlalchemy import select
+        filtered_ids_subq = dropdown_query.with_entities(Asset.id).subquery()
+        filtered_ids = select(filtered_ids_subq.c.id)
 
         # Get unique values for edit dropdowns from filtered assets
         models = db_session.query(Asset.model).distinct().filter(Asset.id.in_(filtered_ids), Asset.model.isnot(None)).all()
