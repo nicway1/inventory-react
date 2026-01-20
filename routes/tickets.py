@@ -13313,12 +13313,19 @@ def add_service_record(ticket_id):
 
         description = data.get('description', '')
         asset_id = data.get('asset_id')
+        assigned_to_id = data.get('assigned_to_id')
 
         # If asset_id is provided, verify it exists
         if asset_id:
             asset = db_session.query(Asset).get(asset_id)
             if not asset:
                 return jsonify({'success': False, 'error': 'Asset not found'}), 404
+
+        # If assigned_to_id is provided, verify user exists
+        if assigned_to_id:
+            assigned_user = db_session.query(User).get(assigned_to_id)
+            if not assigned_user:
+                return jsonify({'success': False, 'error': 'Assigned user not found'}), 404
 
         status = data.get('status', 'Requested')
 
@@ -13329,7 +13336,8 @@ def add_service_record(ticket_id):
             service_type=service_type,
             description=description,
             status=status,
-            requested_by_id=current_user.id
+            requested_by_id=current_user.id,
+            assigned_to_id=int(assigned_to_id) if assigned_to_id else None
         )
 
         db_session.add(service_record)

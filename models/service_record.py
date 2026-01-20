@@ -20,6 +20,9 @@ class ServiceRecord(Base):
     requested_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Who is assigned to do the work (via @mention)
+    assigned_to_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
     # Who completed and when (for completed services)
     completed_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -32,6 +35,7 @@ class ServiceRecord(Base):
     ticket = relationship("Ticket", back_populates="service_records")
     asset = relationship("Asset", back_populates="service_records")
     requested_by = relationship("User", foreign_keys=[requested_by_id])
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id])
     completed_by = relationship("User", foreign_keys=[completed_by_id])
     performed_by = relationship("User", foreign_keys=[performed_by_id])
 
@@ -70,6 +74,8 @@ class ServiceRecord(Base):
             'status': self.status or 'Requested',
             'requested_by_id': self.requested_by_id,
             'requested_by_name': self.requested_by.username if self.requested_by else None,
+            'assigned_to_id': self.assigned_to_id,
+            'assigned_to_name': self.assigned_to.username if self.assigned_to else None,
             'completed_by_id': self.completed_by_id,
             'completed_by_name': self.completed_by.username if self.completed_by else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
