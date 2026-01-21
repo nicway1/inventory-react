@@ -365,11 +365,32 @@
         Showing <span id="visibleCount">{{ users|length }}</span> of <span id="totalCount">{{ users|length }}</span> users
     </div>
 
+    <!-- Bulk Action Bar (hidden by default) -->
+    <div id="bulkActionBar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span class="text-sm font-medium text-blue-800">
+                <span id="selectedCount">0</span> user(s) selected
+            </span>
+            <button onclick="clearSelection()" class="text-sm text-blue-600 hover:text-blue-800 underline">Clear selection</button>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="sendBulkWelcomeEmail()" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Send Welcome Email
+            </button>
+        </div>
+    </div>
+
     <!-- Users Table with Expandable Rows -->
     <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="w-10 px-3 py-4">
+                        <input type="checkbox" id="selectAllUsers" onclick="toggleSelectAll()" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                    </th>
                     <th class="w-12 px-4 py-4"></th>
                     <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ID</th>
                     <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Username</th>
@@ -388,6 +409,14 @@
                     data-email="{{ user.email|lower if user.email else '' }}"
                     data-user-type="{{ user.user_type.value if user.user_type else 'N/A' }}"
                     data-is-deleted="{{ 'true' if user.is_deleted else 'false' }}">
+                    <td class="px-3 py-4">
+                        <input type="checkbox" class="user-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                               data-user-id="{{ user.id }}"
+                               data-username="{{ user.username }}"
+                               data-email="{{ user.email if user.email else '' }}"
+                               onclick="updateSelection(event)"
+                               {% if user.is_deleted %}disabled{% endif %}>
+                    </td>
                     <td class="px-4 py-4">
                         <button class="expand-btn" onclick="toggleUserDetails({{ user.id }}, event)" id="expand-btn-{{ user.id }}" title="Click to expand">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,7 +483,7 @@
                 </tr>
                 <!-- Expandable Details Row -->
                 <tr class="user-details-row" id="details-row-{{ user.id }}">
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="user-details-content" id="details-content-{{ user.id }}">
                             <div class="flex items-center justify-center py-4">
                                 <div class="loading-spinner"></div>
@@ -810,6 +839,158 @@ function restoreUser(userId, username) {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+// ============================================
+// Bulk Selection and Welcome Email Functions
+// ============================================
+
+let selectedUsers = new Map(); // Map of userId -> {username, email}
+
+function updateSelection(event) {
+    event.stopPropagation();
+    const checkbox = event.target;
+    const userId = checkbox.dataset.userId;
+    const username = checkbox.dataset.username;
+    const email = checkbox.dataset.email;
+
+    if (checkbox.checked) {
+        selectedUsers.set(userId, { username, email });
+    } else {
+        selectedUsers.delete(userId);
+    }
+
+    updateBulkActionBar();
+    updateSelectAllCheckbox();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllUsers');
+    const visibleCheckboxes = getVisibleCheckboxes();
+
+    visibleCheckboxes.forEach(checkbox => {
+        if (!checkbox.disabled) {
+            checkbox.checked = selectAllCheckbox.checked;
+            const userId = checkbox.dataset.userId;
+            const username = checkbox.dataset.username;
+            const email = checkbox.dataset.email;
+
+            if (selectAllCheckbox.checked) {
+                selectedUsers.set(userId, { username, email });
+            } else {
+                selectedUsers.delete(userId);
+            }
+        }
+    });
+
+    updateBulkActionBar();
+}
+
+function getVisibleCheckboxes() {
+    const allCheckboxes = document.querySelectorAll('.user-checkbox');
+    return Array.from(allCheckboxes).filter(checkbox => {
+        const row = checkbox.closest('.user-row');
+        return row && row.style.display !== 'none';
+    });
+}
+
+function updateSelectAllCheckbox() {
+    const selectAllCheckbox = document.getElementById('selectAllUsers');
+    const visibleCheckboxes = getVisibleCheckboxes().filter(cb => !cb.disabled);
+    const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+
+    if (checkedCount === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === visibleCheckboxes.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function updateBulkActionBar() {
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const selectedCount = document.getElementById('selectedCount');
+
+    if (selectedUsers.size > 0) {
+        bulkActionBar.classList.remove('hidden');
+        selectedCount.textContent = selectedUsers.size;
+    } else {
+        bulkActionBar.classList.add('hidden');
+    }
+}
+
+function clearSelection() {
+    selectedUsers.clear();
+    document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllUsers').checked = false;
+    document.getElementById('selectAllUsers').indeterminate = false;
+    updateBulkActionBar();
+}
+
+async function sendBulkWelcomeEmail() {
+    if (selectedUsers.size === 0) {
+        alert('No users selected');
+        return;
+    }
+
+    const userList = Array.from(selectedUsers.values())
+        .map(u => `• ${u.username} (${u.email || 'no email'})`)
+        .join('\n');
+
+    const confirmMsg = `Send welcome email to ${selectedUsers.size} user(s)?\n\nThis will reset their passwords and send new credentials to:\n${userList}`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    const userIds = Array.from(selectedUsers.keys());
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    // Show loading state
+    const btn = document.querySelector('#bulkActionBar button[onclick="sendBulkWelcomeEmail()"]');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending...`;
+
+    try {
+        const response = await fetch('{{ url_for("admin.bulk_resend_welcome_email") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ user_ids: userIds })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`Success!\n\n${result.sent} welcome email(s) sent successfully.${result.failed > 0 ? `\n${result.failed} failed.` : ''}`);
+            clearSelection();
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error sending bulk welcome emails:', error);
+        alert('An error occurred while sending emails. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+// Clear selection when filters change
+const originalApplyFilters = typeof applyFilters === 'function' ? applyFilters : null;
+if (originalApplyFilters) {
+    window.applyFilters = function() {
+        originalApplyFilters();
+        // Update select all checkbox based on visible rows
+        setTimeout(updateSelectAllCheckbox, 100);
+    };
 }
 </script>
 {% endblock %}

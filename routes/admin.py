@@ -1569,8 +1569,65 @@ def resend_welcome_email(user_id):
         flash(f'Error resending welcome email: {str(e)}', 'error')
     finally:
         db_session.close()
-    
+
     return redirect(url_for('admin.manage_users'))
+
+@admin_bp.route('/users/bulk-resend-welcome', methods=['POST'])
+@admin_required
+def bulk_resend_welcome_email():
+    """Resend welcome email to multiple users"""
+    from flask import request, jsonify
+
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        user_ids = data.get('user_ids', [])
+
+        if not user_ids:
+            return jsonify({'success': False, 'message': 'No users specified'})
+
+        sent_count = 0
+        failed_count = 0
+
+        for user_id in user_ids:
+            try:
+                user = db_session.query(User).get(int(user_id))
+                if not user or user.is_deleted:
+                    failed_count += 1
+                    continue
+
+                if not user.email:
+                    failed_count += 1
+                    continue
+
+                # Generate a new password for the user
+                new_password = str(uuid.uuid4())[:8]
+                user.password_hash = safe_generate_password_hash(new_password)
+                db_session.commit()
+
+                # Send welcome email with new credentials
+                if send_welcome_email(user.email, user.username, new_password):
+                    sent_count += 1
+                else:
+                    failed_count += 1
+
+            except Exception as e:
+                print(f"Error sending welcome email to user {user_id}: {str(e)}")
+                failed_count += 1
+                db_session.rollback()
+
+        return jsonify({
+            'success': True,
+            'sent': sent_count,
+            'failed': failed_count,
+            'message': f'Sent {sent_count} emails, {failed_count} failed'
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        db_session.close()
 
 @admin_bp.route('/history')
 @super_admin_required
