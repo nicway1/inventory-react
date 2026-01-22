@@ -14,6 +14,10 @@ class AssetStatus(enum.Enum):
     REPAIR = "REPAIR"
     ARCHIVED = "ARCHIVED"
     DISPOSED = "DISPOSED"
+    LOCKED = "LOCKED"
+    ON_HOLD = "ON HOLD"
+    DAMAGED = "DAMAGED"
+    PROCESSING = "PROCESSING"
 
 class Asset(Base):
     __tablename__ = 'assets'

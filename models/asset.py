@@ -13,6 +13,10 @@ class AssetStatus(enum.Enum):
     REPAIR = "Repair"
     ARCHIVED = "Archived"
     DISPOSED = "Disposed"
+    LOCKED = "Locked"
+    ON_HOLD = "On Hold"
+    DAMAGED = "Damaged"
+    PROCESSING = "Processing"
 
 # Association table for many-to-many relationship between tickets and assets
 ticket_assets = Table(
