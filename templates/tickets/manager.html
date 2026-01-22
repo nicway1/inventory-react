@@ -641,14 +641,15 @@
                         <label>Status</label>
                         <select id="filterStatus" onchange="applyFilters()" class="sf-select" style="width: 100%;">
                             <option value="">All Status</option>
-                            <option value="New">New</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Processing">Processing</option>
-                            <option value="On Hold">On Hold</option>
-                            <option value="Resolved">Resolved</option>
-                            <option value="Resolved (All Package Delivered)">Resolved (Delivered)</option>
+                            <option value="NEW">New</option>
+                            <option value="OPEN">Open</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="PROCESSING">Processing</option>
+                            <option value="ON_HOLD">On Hold</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="RESOLVED_DELIVERED">Resolved (Delivered)</option>
                             {% for status in custom_statuses %}
-                            <option value="{{ status.name }}">{{ status.name }}</option>
+                            <option value="{{ status.name }}">{{ status.name.replace('_', ' ').title() }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -702,7 +703,7 @@
                             data-ticket-id="{{ ticket.id }}"
                             data-queue-id="{{ ticket.queue_id if ticket.queue_id else 'null' }}"
                             data-user-id="{{ ticket.assigned_to_id if ticket.assigned_to_id else 'null' }}"
-                            data-status="{{ ticket.status.value if ticket.status else '' }}"
+                            data-status="{{ ticket.custom_status if ticket.custom_status else (ticket.status.value if ticket.status else '') }}"
                             data-subject="{{ ticket.subject or '' }}">
                             <td>
                                 <input type="checkbox" class="ticket-checkbox sf-checkbox" value="{{ ticket.id }}" onchange="updateSelectedCount()">
@@ -716,13 +717,17 @@
                                 <div class="sf-truncate">{{ ticket.subject or 'Untitled' }}</div>
                             </td>
                             <td>
+                                {% set display_status = ticket.custom_status if ticket.custom_status else (ticket.status.value if ticket.status else 'Unknown') %}
                                 <span class="sf-badge
-                                    {% if ticket.status.value == 'NEW' or ticket.status.value == 'OPEN' %}sf-badge-blue
-                                    {% elif ticket.status.value == 'IN_PROGRESS' %}sf-badge-yellow
-                                    {% elif ticket.status.value == 'ON_HOLD' %}sf-badge-red
-                                    {% elif ticket.status.value == 'RESOLVED' or ticket.status.value == 'RESOLVED_DELIVERED' %}sf-badge-green
+                                    {% if display_status in ['NEW', 'OPEN'] %}sf-badge-blue
+                                    {% elif display_status == 'IN_PROGRESS' %}sf-badge-yellow
+                                    {% elif display_status == 'ON_HOLD' %}sf-badge-red
+                                    {% elif display_status in ['RESOLVED', 'RESOLVED_DELIVERED', 'DELIVERED'] %}sf-badge-green
+                                    {% elif display_status in ['PENDING_USER', 'PENDING_CLIENT_INFO', 'PENDING_PICKUP'] %}sf-badge-yellow
+                                    {% elif display_status == 'OUT_FOR_DELIVERY' %}sf-badge-purple
+                                    {% elif display_status in ['ORDER_CANCELLED_CLIENT', 'DUPLICATE_ORDER'] %}sf-badge-red
                                     {% else %}sf-badge-gray{% endif %}">
-                                    {{ ticket.status.value if ticket.status else 'Unknown' }}
+                                    {{ display_status.replace('_', ' ').title() if display_status else 'Unknown' }}
                                 </span>
                             </td>
                             <td>
