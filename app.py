@@ -289,6 +289,10 @@ def create_app():
         from utils.timezone_utils import format_singapore_time
         return format_singapore_time(dt)
 
+    # Register configurable timezone filters
+    from utils.timezone_helper import register_jinja_filters
+    register_jinja_filters(app)
+
     @app.template_filter('from_json')
     def from_json_filter(json_string):
         """Template filter to parse JSON string"""

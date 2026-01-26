@@ -34,7 +34,7 @@
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
             <div class="text-3xl font-bold text-purple-500">
-                {% if specs %}{{ specs[0].submitted_at.strftime('%H:%M') if specs[0].submitted_at else '--' }}{% else %}--{% endif %}
+                {% if specs %}{{ specs[0].submitted_at|localtime('%H:%M') if specs[0].submitted_at else '--' }}{% else %}--{% endif %}
             </div>
             <div class="text-sm text-gray-500 dark:text-gray-400">Last Submission</div>
         </div>
@@ -90,7 +90,7 @@
                 </div>
                 <div class="flex justify-between py-2">
                     <span class="text-gray-500 dark:text-gray-400 text-sm"><i class="fas fa-clock mr-2 w-4"></i>Submitted</span>
-                    <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.submitted_at.strftime('%b %d, %H:%M') if spec.submitted_at else 'Unknown' }}</span>
+                    <span class="text-gray-800 dark:text-white text-sm font-medium">{{ spec.submitted_at|localtime('%b %d, %H:%M') if spec.submitted_at else 'Unknown' }}</span>
                 </div>
 
                 <!-- Actions -->

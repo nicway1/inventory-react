@@ -2316,6 +2316,22 @@ def system_config():
         except Exception as e:
             logger.warning(f"Could not load default_inventory_view setting: {str(e)}")
 
+        # Get system timezone setting
+        system_timezone = 'Asia/Singapore'
+        try:
+            from models.system_settings import SystemSettings
+            timezone_setting = db_session.query(SystemSettings).filter_by(
+                setting_key='system_timezone'
+            ).first()
+            if timezone_setting:
+                system_timezone = timezone_setting.get_value()
+        except Exception as e:
+            logger.warning(f"Could not load system_timezone setting: {str(e)}")
+
+        # Get timezone choices
+        from utils.timezone_helper import get_timezone_choices
+        timezone_choices = get_timezone_choices()
+
         return render_template('admin/system_config.html',
                              user=user,
                              firecrawl_keys=firecrawl_keys,
@@ -2325,7 +2341,9 @@ def system_config():
                              config=config_with_ms,
                              default_homepage=default_homepage,
                              default_ticket_view=default_ticket_view,
-                             default_inventory_view=default_inventory_view)
+                             default_inventory_view=default_inventory_view,
+                             system_timezone=system_timezone,
+                             timezone_choices=timezone_choices)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
@@ -2442,6 +2460,52 @@ def update_default_inventory_view():
     except Exception as e:
         db_session.rollback()
         flash(f'Error updating inventory view setting: {str(e)}', 'error')
+    finally:
+        db_session.close()
+
+    return redirect(url_for('admin.system_config'))
+
+
+@admin_bp.route('/update-system-timezone', methods=['POST'])
+@super_admin_required
+def update_system_timezone():
+    """Update the system timezone setting"""
+    db_session = db_manager.get_session()
+    try:
+        from models.system_settings import SystemSettings
+
+        timezone_value = request.form.get('timezone', 'Asia/Singapore')
+
+        # Validate timezone
+        import pytz
+        try:
+            pytz.timezone(timezone_value)
+        except pytz.exceptions.UnknownTimeZoneError:
+            flash(f'Invalid timezone: {timezone_value}', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        # Get or create the setting
+        timezone_setting = db_session.query(SystemSettings).filter_by(
+            setting_key='system_timezone'
+        ).first()
+
+        if timezone_setting:
+            timezone_setting.setting_value = timezone_value
+        else:
+            timezone_setting = SystemSettings(
+                setting_key='system_timezone',
+                setting_value=timezone_value,
+                setting_type='string',
+                description='System timezone for displaying dates and times'
+            )
+            db_session.add(timezone_setting)
+
+        db_session.commit()
+        flash(f'System timezone updated to {timezone_value}', 'success')
+
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error updating timezone setting: {str(e)}', 'error')
     finally:
         db_session.close()
 
