@@ -3676,8 +3676,10 @@ def user_profiles():
             'active': len([u for u in users if not getattr(u, 'is_deleted', False)]),
             'deleted': len([u for u in users if getattr(u, 'is_deleted', False)]),
             'developers': len([u for u in users if getattr(u, 'user_type', None) == UserType.DEVELOPER]),
-            'admins': len([u for u in users if getattr(u, 'user_type', None) == UserType.ADMIN]),
+            'supervisors': len([u for u in users if getattr(u, 'user_type', None) == UserType.SUPERVISOR]),
+            'country_admins': len([u for u in users if getattr(u, 'user_type', None) == UserType.COUNTRY_ADMIN]),
             'super_admins': len([u for u in users if getattr(u, 'user_type', None) == UserType.SUPER_ADMIN]),
+            'clients': len([u for u in users if getattr(u, 'user_type', None) == UserType.CLIENT]),
         }
 
         return render_template('development/user_profiles.html',

@@ -296,7 +296,7 @@
     }
 
     .sf-badge-developer { background: rgba(115, 3, 148, 0.1); color: var(--sf-purple); }
-    .sf-badge-admin { background: rgba(1, 118, 211, 0.1); color: var(--sf-blue); }
+    .sf-badge-client { background: rgba(1, 118, 211, 0.1); color: var(--sf-blue); }
     .sf-badge-super-admin { background: rgba(194, 57, 52, 0.1); color: var(--sf-red); }
     .sf-badge-supervisor { background: rgba(221, 122, 1, 0.1); color: var(--sf-orange); }
     .sf-badge-country-admin { background: rgba(46, 132, 74, 0.1); color: var(--sf-green); }
@@ -424,10 +424,17 @@
     </div>
     <div class="sf-stat-card orange">
         <div class="stat-icon orange">
-            <i class="fas fa-user-shield"></i>
+            <i class="fas fa-user-tie"></i>
         </div>
-        <div class="stat-value">{{ stats.admins }}</div>
-        <div class="stat-label">Admins</div>
+        <div class="stat-value">{{ stats.supervisors }}</div>
+        <div class="stat-label">Supervisors</div>
+    </div>
+    <div class="sf-stat-card green">
+        <div class="stat-icon green">
+            <i class="fas fa-globe"></i>
+        </div>
+        <div class="stat-value">{{ stats.country_admins }}</div>
+        <div class="stat-label">Country Admins</div>
     </div>
     <div class="sf-stat-card" style="border-left-color: var(--sf-red);">
         <div class="stat-icon red">
@@ -435,6 +442,13 @@
         </div>
         <div class="stat-value">{{ stats.super_admins }}</div>
         <div class="stat-label">Super Admins</div>
+    </div>
+    <div class="sf-stat-card">
+        <div class="stat-icon blue">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="stat-value">{{ stats.clients }}</div>
+        <div class="stat-label">Clients</div>
     </div>
 </div>
 
@@ -444,10 +458,10 @@
     <select id="typeFilter" class="sf-filter-select">
         <option value="">All User Types</option>
         <option value="SUPER_ADMIN">Super Admin</option>
-        <option value="ADMIN">Admin</option>
         <option value="DEVELOPER">Developer</option>
         <option value="COUNTRY_ADMIN">Country Admin</option>
         <option value="SUPERVISOR">Supervisor</option>
+        <option value="CLIENT">Client</option>
     </select>
     <select id="statusFilter" class="sf-filter-select">
         <option value="">All Status</option>
@@ -504,14 +518,14 @@
                     {% if user.user_type %}
                         {% if user.user_type.name == 'DEVELOPER' %}
                             <span class="sf-badge sf-badge-developer">Developer</span>
-                        {% elif user.user_type.name == 'ADMIN' %}
-                            <span class="sf-badge sf-badge-admin">Admin</span>
                         {% elif user.user_type.name == 'SUPER_ADMIN' %}
                             <span class="sf-badge sf-badge-super-admin">Super Admin</span>
                         {% elif user.user_type.name == 'SUPERVISOR' %}
                             <span class="sf-badge sf-badge-supervisor">Supervisor</span>
                         {% elif user.user_type.name == 'COUNTRY_ADMIN' %}
                             <span class="sf-badge sf-badge-country-admin">Country Admin</span>
+                        {% elif user.user_type.name == 'CLIENT' %}
+                            <span class="sf-badge sf-badge-client">Client</span>
                         {% else %}
                             <span class="sf-badge sf-badge-default">{{ user.user_type.name }}</span>
                         {% endif %}
