@@ -1505,6 +1505,23 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 {% endif %}
                             </div>
                         </div>
+                        {% if ticket.offboarding_customer.email or ticket.offboarding_customer.contact_number %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Contact Details</div>
+                            <div class="sf-field-value">
+                                {% if ticket.offboarding_customer.email %}
+                                <a href="mailto:{{ ticket.offboarding_customer.email }}" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-envelope mr-1"></i>{{ ticket.offboarding_customer.email }}
+                                </a><br>
+                                {% endif %}
+                                {% if ticket.offboarding_customer.contact_number %}
+                                <a href="tel:{{ ticket.offboarding_customer.contact_number }}" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-phone mr-1"></i>{{ ticket.offboarding_customer.contact_number }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                         {% if ticket.offboarding_details %}
                         <div class="sf-field-row">
                             <div class="sf-field-label">Device Details</div>
@@ -1530,6 +1547,23 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 {% endif %}
                             </div>
                         </div>
+                        {% if ticket.onboarding_customer.email or ticket.onboarding_customer.contact_number %}
+                        <div class="sf-field-row">
+                            <div class="sf-field-label">Contact Details</div>
+                            <div class="sf-field-value">
+                                {% if ticket.onboarding_customer.email %}
+                                <a href="mailto:{{ ticket.onboarding_customer.email }}" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-envelope mr-1"></i>{{ ticket.onboarding_customer.email }}
+                                </a><br>
+                                {% endif %}
+                                {% if ticket.onboarding_customer.contact_number %}
+                                <a href="tel:{{ ticket.onboarding_customer.contact_number }}" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-phone mr-1"></i>{{ ticket.onboarding_customer.contact_number }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                         {% if ticket.onboarding_address %}
                         <div class="sf-field-row">
                             <div class="sf-field-label">Onboarding Address</div>
