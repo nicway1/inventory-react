@@ -1,4 +1,15 @@
 {% set data = widget_data.get('weekly_tickets', {}) %}
+<div class="flex items-center gap-3 mb-4 px-2">
+    <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+    </div>
+    <div>
+        <h3 class="text-base font-bold text-gray-900">Weekly Tickets</h3>
+        <p class="text-xs text-gray-500">This Week (Mon-Fri)</p>
+    </div>
+</div>
 <div style="height: 180px;">
     <canvas id="weeklyTicketsChart"></canvas>
 </div>
