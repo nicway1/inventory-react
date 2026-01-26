@@ -1,0 +1,590 @@
+{% extends "base.html" %}
+
+{% block title %}User Profiles - Developer{% endblock %}
+
+{% block head %}
+<style>
+    /* Salesforce Lightning Design System Inspired Styles */
+    :root {
+        --sf-blue: #0176d3;
+        --sf-blue-dark: #014486;
+        --sf-blue-light: #1b96ff;
+        --sf-green: #2e844a;
+        --sf-orange: #dd7a01;
+        --sf-red: #c23934;
+        --sf-purple: #730394;
+        --sf-gray-1: #f3f3f3;
+        --sf-gray-2: #e5e5e5;
+        --sf-gray-3: #c9c9c9;
+        --sf-text-default: #181818;
+        --sf-text-weak: #706e6b;
+        --sf-border-radius: 0.25rem;
+        --sf-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        --sf-shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .sf-page-header {
+        background: linear-gradient(135deg, var(--sf-purple) 0%, #4a0066 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        margin: -1rem -1rem 1.5rem -1rem;
+        border-radius: 0;
+    }
+
+    .sf-page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-page-header .header-subtitle {
+        font-size: 0.875rem;
+        opacity: 0.85;
+        margin-top: 0.25rem;
+    }
+
+    .sf-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.9;
+    }
+
+    .sf-breadcrumb a {
+        color: white;
+        text-decoration: none;
+    }
+
+    .sf-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    .sf-breadcrumb .separator {
+        opacity: 0.6;
+    }
+
+    /* Stats Grid */
+    .sf-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sf-stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: var(--sf-shadow);
+        border-left: 4px solid var(--sf-blue);
+        transition: all 0.2s ease;
+    }
+
+    .sf-stat-card:hover {
+        box-shadow: var(--sf-shadow-hover);
+        transform: translateY(-2px);
+    }
+
+    .sf-stat-card.green { border-left-color: var(--sf-green); }
+    .sf-stat-card.orange { border-left-color: var(--sf-orange); }
+    .sf-stat-card.purple { border-left-color: var(--sf-purple); }
+    .sf-stat-card.red { border-left-color: var(--sf-red); }
+
+    .sf-stat-card .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .sf-stat-card .stat-icon.blue { background: rgba(1, 118, 211, 0.1); color: var(--sf-blue); }
+    .sf-stat-card .stat-icon.green { background: rgba(46, 132, 74, 0.1); color: var(--sf-green); }
+    .sf-stat-card .stat-icon.orange { background: rgba(221, 122, 1, 0.1); color: var(--sf-orange); }
+    .sf-stat-card .stat-icon.purple { background: rgba(115, 3, 148, 0.1); color: var(--sf-purple); }
+    .sf-stat-card .stat-icon.red { background: rgba(194, 57, 52, 0.1); color: var(--sf-red); }
+
+    .sf-stat-card .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--sf-text-default);
+        line-height: 1;
+    }
+
+    .sf-stat-card .stat-label {
+        font-size: 0.6875rem;
+        color: var(--sf-text-weak);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+
+    /* Search & Filter */
+    .sf-search-bar {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1rem 1.25rem;
+        box-shadow: var(--sf-shadow);
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .sf-search-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--sf-gray-3);
+        border-radius: var(--sf-border-radius);
+        font-size: 0.875rem;
+    }
+
+    .sf-search-input:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.15);
+    }
+
+    .sf-filter-select {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--sf-gray-3);
+        border-radius: var(--sf-border-radius);
+        font-size: 0.875rem;
+        background: white;
+    }
+
+    /* Data Table */
+    .sf-card {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: var(--sf-shadow);
+        overflow: hidden;
+    }
+
+    .sf-card-header {
+        padding: 1rem 1.25rem;
+        background: var(--sf-gray-1);
+        border-bottom: 1px solid var(--sf-gray-2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sf-card-header h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--sf-text-default);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-card-header .record-count {
+        font-weight: 400;
+        color: var(--sf-text-weak);
+        font-size: 0.875rem;
+    }
+
+    .sf-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sf-table thead {
+        background: var(--sf-gray-1);
+    }
+
+    .sf-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--sf-text-weak);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--sf-gray-2);
+    }
+
+    .sf-table td {
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--sf-gray-2);
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+
+    .sf-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .sf-table tbody tr:hover {
+        background: rgba(115, 3, 148, 0.04);
+    }
+
+    .sf-table tbody tr.deleted {
+        opacity: 0.5;
+        background: rgba(194, 57, 52, 0.05);
+    }
+
+    .sf-user-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sf-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--sf-purple) 0%, var(--sf-blue) 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .sf-user-info {
+        min-width: 0;
+    }
+
+    .sf-user-name {
+        font-weight: 600;
+        color: var(--sf-purple);
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sf-user-name:hover {
+        color: var(--sf-blue);
+        text-decoration: underline;
+    }
+
+    .sf-user-email {
+        font-size: 0.75rem;
+        color: var(--sf-text-weak);
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sf-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.625rem;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 3px;
+    }
+
+    .sf-badge-developer { background: rgba(115, 3, 148, 0.1); color: var(--sf-purple); }
+    .sf-badge-admin { background: rgba(1, 118, 211, 0.1); color: var(--sf-blue); }
+    .sf-badge-super-admin { background: rgba(194, 57, 52, 0.1); color: var(--sf-red); }
+    .sf-badge-supervisor { background: rgba(221, 122, 1, 0.1); color: var(--sf-orange); }
+    .sf-badge-country-admin { background: rgba(46, 132, 74, 0.1); color: var(--sf-green); }
+    .sf-badge-default { background: var(--sf-gray-2); color: var(--sf-text-weak); }
+
+    .sf-badge-deleted {
+        background: rgba(194, 57, 52, 0.1);
+        color: var(--sf-red);
+    }
+
+    .sf-company {
+        font-size: 0.8125rem;
+        color: var(--sf-text-default);
+    }
+
+    .sf-date {
+        font-size: 0.8125rem;
+        color: var(--sf-text-weak);
+    }
+
+    .sf-action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--sf-border-radius);
+        border: 1px solid var(--sf-gray-3);
+        background: white;
+        color: var(--sf-text-weak);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+    }
+
+    .sf-action-btn:hover {
+        border-color: var(--sf-purple);
+        color: var(--sf-purple);
+        background: rgba(115, 3, 148, 0.05);
+    }
+
+    /* ID Column */
+    .sf-id {
+        font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+        font-size: 0.75rem;
+        color: var(--sf-text-weak);
+        background: var(--sf-gray-1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .sf-table th:nth-child(5),
+        .sf-table td:nth-child(5),
+        .sf-table th:nth-child(6),
+        .sf-table td:nth-child(6) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sf-page-header {
+            padding: 1rem;
+        }
+
+        .sf-stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .sf-table th:nth-child(4),
+        .sf-table td:nth-child(4) {
+            display: none;
+        }
+    }
+</style>
+{% endblock head %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="sf-page-header">
+    <div class="sf-breadcrumb">
+        <a href="{{ url_for('development.dashboard') }}">Development</a>
+        <span class="separator">/</span>
+        <span>User Profiles</span>
+    </div>
+    <div>
+        <h1>
+            <i class="fas fa-users-cog"></i>
+            User Profiles
+        </h1>
+        <div class="header-subtitle">View all system users and their configurations</div>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="sf-stats-grid">
+    <div class="sf-stat-card">
+        <div class="stat-icon blue">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Users</div>
+    </div>
+    <div class="sf-stat-card green">
+        <div class="stat-icon green">
+            <i class="fas fa-user-check"></i>
+        </div>
+        <div class="stat-value">{{ stats.active }}</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="sf-stat-card red">
+        <div class="stat-icon red">
+            <i class="fas fa-user-times"></i>
+        </div>
+        <div class="stat-value">{{ stats.deleted }}</div>
+        <div class="stat-label">Deleted</div>
+    </div>
+    <div class="sf-stat-card purple">
+        <div class="stat-icon purple">
+            <i class="fas fa-code"></i>
+        </div>
+        <div class="stat-value">{{ stats.developers }}</div>
+        <div class="stat-label">Developers</div>
+    </div>
+    <div class="sf-stat-card orange">
+        <div class="stat-icon orange">
+            <i class="fas fa-user-shield"></i>
+        </div>
+        <div class="stat-value">{{ stats.admins }}</div>
+        <div class="stat-label">Admins</div>
+    </div>
+    <div class="sf-stat-card" style="border-left-color: var(--sf-red);">
+        <div class="stat-icon red">
+            <i class="fas fa-crown"></i>
+        </div>
+        <div class="stat-value">{{ stats.super_admins }}</div>
+        <div class="stat-label">Super Admins</div>
+    </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="sf-search-bar">
+    <input type="text" id="searchInput" class="sf-search-input" placeholder="Search by username, email, or company...">
+    <select id="typeFilter" class="sf-filter-select">
+        <option value="">All User Types</option>
+        <option value="SUPER_ADMIN">Super Admin</option>
+        <option value="ADMIN">Admin</option>
+        <option value="DEVELOPER">Developer</option>
+        <option value="COUNTRY_ADMIN">Country Admin</option>
+        <option value="SUPERVISOR">Supervisor</option>
+    </select>
+    <select id="statusFilter" class="sf-filter-select">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="deleted">Deleted</option>
+    </select>
+</div>
+
+<!-- Users Table -->
+<div class="sf-card">
+    <div class="sf-card-header">
+        <h2>
+            <i class="fas fa-list"></i>
+            All Users
+            <span class="record-count" id="recordCount">({{ users|length }} records)</span>
+        </h2>
+    </div>
+
+    <table class="sf-table" id="usersTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Type</th>
+                <th>Company</th>
+                <th>Country</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr class="{% if user.is_deleted %}deleted{% endif %}"
+                data-username="{{ user.username|lower }}"
+                data-email="{{ user.email|lower }}"
+                data-company="{{ (user.company.name if user.company else '')|lower }}"
+                data-type="{{ user.user_type.name if user.user_type else '' }}"
+                data-status="{{ 'deleted' if user.is_deleted else 'active' }}">
+                <td><span class="sf-id">#{{ user.id }}</span></td>
+                <td>
+                    <div class="sf-user-cell">
+                        <div class="sf-avatar">
+                            {{ user.username[0]|upper }}
+                        </div>
+                        <div class="sf-user-info">
+                            <a href="{{ url_for('development.view_user_profile', user_id=user.id) }}" class="sf-user-name">
+                                {{ user.username }}
+                            </a>
+                            <span class="sf-user-email">{{ user.email }}</span>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    {% if user.user_type %}
+                        {% if user.user_type.name == 'DEVELOPER' %}
+                            <span class="sf-badge sf-badge-developer">Developer</span>
+                        {% elif user.user_type.name == 'ADMIN' %}
+                            <span class="sf-badge sf-badge-admin">Admin</span>
+                        {% elif user.user_type.name == 'SUPER_ADMIN' %}
+                            <span class="sf-badge sf-badge-super-admin">Super Admin</span>
+                        {% elif user.user_type.name == 'SUPERVISOR' %}
+                            <span class="sf-badge sf-badge-supervisor">Supervisor</span>
+                        {% elif user.user_type.name == 'COUNTRY_ADMIN' %}
+                            <span class="sf-badge sf-badge-country-admin">Country Admin</span>
+                        {% else %}
+                            <span class="sf-badge sf-badge-default">{{ user.user_type.name }}</span>
+                        {% endif %}
+                    {% endif %}
+                    {% if user.is_deleted %}
+                        <span class="sf-badge sf-badge-deleted" style="margin-left: 0.25rem;">Deleted</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="sf-company">{{ user.company.name if user.company else '—' }}</span>
+                </td>
+                <td>
+                    <span class="sf-date">{{ user.assigned_country or '—' }}</span>
+                </td>
+                <td>
+                    <span class="sf-date">{{ user.created_at.strftime('%b %d, %Y') if user.created_at else '—' }}</span>
+                </td>
+                <td>
+                    <a href="{{ url_for('development.view_user_profile', user_id=user.id) }}" class="sf-action-btn" title="View Profile">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+// Search and filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const typeFilter = document.getElementById('typeFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const table = document.getElementById('usersTable');
+    const rows = table.querySelectorAll('tbody tr');
+    const recordCount = document.getElementById('recordCount');
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const typeValue = typeFilter.value;
+        const statusValue = statusFilter.value;
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const username = row.dataset.username || '';
+            const email = row.dataset.email || '';
+            const company = row.dataset.company || '';
+            const type = row.dataset.type || '';
+            const status = row.dataset.status || '';
+
+            const matchesSearch = !searchTerm ||
+                username.includes(searchTerm) ||
+                email.includes(searchTerm) ||
+                company.includes(searchTerm);
+
+            const matchesType = !typeValue || type === typeValue;
+            const matchesStatus = !statusValue || status === statusValue;
+
+            if (matchesSearch && matchesType && matchesStatus) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        recordCount.textContent = `(${visibleCount} records)`;
+    }
+
+    searchInput.addEventListener('input', filterTable);
+    typeFilter.addEventListener('change', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+});
+</script>
+{% endblock %}

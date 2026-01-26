@@ -3652,3 +3652,93 @@ def user_activity_detail(user_id):
         return redirect(url_for('development.user_analytics'))
     finally:
         db_session.close()
+
+
+# ============================================================================
+# User Profiles - Developer View
+# ============================================================================
+
+@development_bp.route('/user-profiles')
+@login_required
+@permission_required('can_view_bugs')  # Reuse developer permission
+def user_profiles():
+    """View all user profiles - developer only"""
+    db_session = SessionLocal()
+    try:
+        # Get all users with their companies
+        users = db_session.query(User).options(
+            joinedload(User.company)
+        ).order_by(User.id).all()
+
+        # Get stats
+        stats = {
+            'total': len(users),
+            'active': len([u for u in users if not u.is_deleted]),
+            'deleted': len([u for u in users if u.is_deleted]),
+            'developers': len([u for u in users if u.user_type == UserType.DEVELOPER]),
+            'admins': len([u for u in users if u.user_type == UserType.ADMIN]),
+            'super_admins': len([u for u in users if u.user_type == UserType.SUPER_ADMIN]),
+        }
+
+        return render_template('development/user_profiles.html',
+            users=users,
+            stats=stats,
+            UserType=UserType
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading user profiles: {str(e)}")
+        flash('Error loading user profiles', 'error')
+        return redirect(url_for('development.dashboard'))
+    finally:
+        db_session.close()
+
+
+@development_bp.route('/user-profiles/<int:user_id>')
+@login_required
+@permission_required('can_view_bugs')  # Reuse developer permission
+def view_user_profile(user_id):
+    """View detailed user profile - developer only"""
+    db_session = SessionLocal()
+    try:
+        user = db_session.query(User).options(
+            joinedload(User.company),
+            joinedload(User.country_permissions),
+            joinedload(User.company_permissions),
+            joinedload(User.queue_permissions)
+        ).filter_by(id=user_id).first()
+
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('development.user_profiles'))
+
+        # Get ticket counts
+        from models.ticket import Ticket
+        tickets_requested = db_session.query(func.count(Ticket.id)).filter(
+            Ticket.requester_id == user_id
+        ).scalar() or 0
+
+        tickets_assigned = db_session.query(func.count(Ticket.id)).filter(
+            Ticket.assigned_to_id == user_id
+        ).scalar() or 0
+
+        # Get recent activities
+        from models.activity import Activity
+        recent_activities = db_session.query(Activity).filter(
+            Activity.user_id == user_id
+        ).order_by(desc(Activity.created_at)).limit(20).all()
+
+        return render_template('development/user_profile_detail.html',
+            user=user,
+            tickets_requested=tickets_requested,
+            tickets_assigned=tickets_assigned,
+            recent_activities=recent_activities,
+            UserType=UserType
+        )
+
+    except Exception as e:
+        logger.error(f"Error loading user profile: {str(e)}")
+        flash('Error loading user profile', 'error')
+        return redirect(url_for('development.user_profiles'))
+    finally:
+        db_session.close()
