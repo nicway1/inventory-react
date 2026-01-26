@@ -70,7 +70,10 @@ class Asset(Base):
     memory = Column(String(100))
     harddrive = Column(String(100))
     charger = Column(String(100))
-    
+
+    # Legal hold - prevents asset from being wiped/disposed
+    legal_hold = Column(Boolean, default=False)
+
     # Relationships
     location = relationship("Location", back_populates="assets")
     company = relationship("Company", back_populates="assets")

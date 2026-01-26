@@ -14,6 +14,7 @@ from werkzeug.security import check_password_hash
 from datetime import datetime, timedelta
 import jwt
 import logging
+import os
 
 from models.user import User, UserType
 from models.ticket import Ticket, TicketStatus, TicketPriority, TicketCategory
@@ -411,7 +412,7 @@ def get_tickets():
 @mobile_auth_required
 def get_ticket_detail(ticket_id):
     """
-    Get detailed ticket information including Case Progress, Customer Info, and Tech Assets
+    Get detailed ticket information including Case Progress, Customer Info, Tech Assets, and Attachments
 
     GET /api/mobile/v1/tickets/<ticket_id>
     Headers: Authorization: Bearer <token>
@@ -440,7 +441,18 @@ def get_ticket_detail(ticket_id):
                 "delivered": false
             },
             "tracking": {...},
-            "comments": [...]
+            "comments": [...],
+            "attachments": [
+                {
+                    "id": 123,
+                    "filename": "invoice.pdf",
+                    "content_type": "application/pdf",
+                    "url": "https://domain.com/tickets/123/attachments/456/download",
+                    "thumbnail_url": null,
+                    "size": 245678,
+                    "created_at": "2023-10-01T10:35:00"
+                }
+            ]
         }
     }
     """
@@ -459,7 +471,8 @@ def get_ticket_detail(ticket_id):
                 joinedload(Ticket.queue),
                 joinedload(Ticket.customer),
                 joinedload(Ticket.assets),
-                joinedload(Ticket.comments)
+                joinedload(Ticket.comments),
+                joinedload(Ticket.attachments)
             )
 
             if can_view_all_tickets(user):
@@ -558,7 +571,18 @@ def get_ticket_detail(ticket_id):
                         'name': comment.user.username,  # Use username as display name
                         'username': comment.user.username
                     } if comment.user else None
-                } for comment in ticket.comments] if hasattr(ticket, 'comments') and ticket.comments else []
+                } for comment in ticket.comments] if hasattr(ticket, 'comments') and ticket.comments else [],
+
+                # Attachments
+                'attachments': [{
+                    'id': attachment.id,
+                    'filename': attachment.filename,
+                    'content_type': attachment.file_type,
+                    'url': get_attachment_url(attachment),
+                    'thumbnail_url': None,  # Thumbnail support can be added later
+                    'size': attachment.file_size,
+                    'created_at': attachment.created_at.isoformat() if attachment.created_at else None
+                } for attachment in ticket.attachments] if hasattr(ticket, 'attachments') and ticket.attachments else []
             }
 
             return jsonify({
@@ -4309,50 +4333,65 @@ def get_ticket_attachments(ticket_id):
 
             attachments_list = []
             for att in attachments:
-                # Build URLs
-                filename = os.path.basename(att.file_path) if att.file_path else None
-                attachment_url = f"/uploads/tickets/{ticket_id}/{filename}" if filename else None
+                try:
+                    # Build URLs
+                    filename = os.path.basename(att.file_path) if att.file_path else None
+                    attachment_url = f"/uploads/tickets/{ticket_id}/{filename}" if filename else None
 
-                # Check for thumbnail (images and PDFs)
-                thumbnail_url = None
-                if att.file_type and att.file_type.lower() in ('jpg', 'jpeg', 'png', 'gif', 'pdf') and filename:
-                    # Thumbnail is always .jpg
-                    base_filename = filename.rsplit('.', 1)[0] if '.' in filename else filename
-                    thumb_filename = f"thumb_{base_filename}.jpg"
-                    thumb_path = os.path.join(os.path.dirname(att.file_path), thumb_filename) if att.file_path else None
-                    if thumb_path and os.path.exists(thumb_path):
-                        thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
+                    # Check for thumbnail (images and PDFs)
+                    thumbnail_url = None
+                    file_type_lower = att.file_type.lower() if att.file_type else None
+                    if file_type_lower in ('jpg', 'jpeg', 'png', 'gif', 'pdf') and filename:
+                        # Thumbnail is always .jpg
+                        base_filename = filename.rsplit('.', 1)[0] if '.' in filename else filename
+                        thumb_filename = f"thumb_{base_filename}.jpg"
+                        thumb_path = os.path.join(os.path.dirname(att.file_path), thumb_filename) if att.file_path else None
+                        if thumb_path and os.path.exists(thumb_path):
+                            thumbnail_url = f"/uploads/tickets/{ticket_id}/{thumb_filename}"
 
-                # Determine content type
-                content_type_map = {
-                    'jpg': 'image/jpeg',
-                    'jpeg': 'image/jpeg',
-                    'png': 'image/png',
-                    'gif': 'image/gif',
-                    'pdf': 'application/pdf',
-                    'doc': 'application/msword',
-                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'xls': 'application/vnd.ms-excel',
-                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'txt': 'text/plain',
-                    'csv': 'text/csv'
-                }
-                content_type = content_type_map.get(att.file_type, 'application/octet-stream') if att.file_type else 'application/octet-stream'
+                    # Determine content type
+                    content_type_map = {
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'pdf': 'application/pdf',
+                        'doc': 'application/msword',
+                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'xls': 'application/vnd.ms-excel',
+                        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'txt': 'text/plain',
+                        'csv': 'text/csv'
+                    }
+                    content_type = content_type_map.get(file_type_lower, 'application/octet-stream') if file_type_lower else 'application/octet-stream'
 
-                attachment_data = {
-                    'id': att.id,
-                    'filename': att.filename,
-                    'content_type': content_type,
-                    'size': att.file_size,
-                    'url': f"{base_url}{attachment_url}" if attachment_url else None,
-                    'thumbnail_url': f"{base_url}{thumbnail_url}" if thumbnail_url else None,
-                    'created_at': att.created_at.isoformat() + 'Z' if att.created_at else None,
-                    'uploaded_by': {
-                        'id': att.uploader.id,
-                        'name': att.uploader.username
-                    } if att.uploader else None
-                }
-                attachments_list.append(attachment_data)
+                    attachment_data = {
+                        'id': att.id,
+                        'filename': att.filename,
+                        'content_type': content_type,
+                        'size': att.file_size,
+                        'url': f"{base_url}{attachment_url}" if attachment_url else None,
+                        'thumbnail_url': f"{base_url}{thumbnail_url}" if thumbnail_url else None,
+                        'created_at': att.created_at.isoformat() + 'Z' if att.created_at else None,
+                        'uploaded_by': {
+                            'id': att.uploader.id,
+                            'name': att.uploader.username
+                        } if att.uploader else None
+                    }
+                    attachments_list.append(attachment_data)
+                except Exception as att_error:
+                    logger.warning(f"Error processing attachment {att.id}: {str(att_error)}")
+                    # Include basic info even if processing fails
+                    attachments_list.append({
+                        'id': att.id,
+                        'filename': getattr(att, 'filename', 'Unknown'),
+                        'content_type': 'application/octet-stream',
+                        'size': getattr(att, 'file_size', 0),
+                        'url': None,
+                        'thumbnail_url': None,
+                        'created_at': None,
+                        'uploaded_by': None
+                    })
 
             return jsonify({
                 'success': True,
@@ -4364,10 +4403,13 @@ def get_ticket_attachments(ticket_id):
             db_session.close()
 
     except Exception as e:
+        import traceback
         logger.error(f"Error getting ticket attachments: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': 'Failed to get attachments'
+            'error': 'Failed to get attachments',
+            'debug': str(e)
         }), 500
 
 

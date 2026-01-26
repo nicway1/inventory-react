@@ -46,12 +46,21 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for asset in assets %}
-                <tr>
+                <tr class="{% if asset.legal_hold %}bg-red-50 border-l-4 border-red-600{% endif %}">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <input type="checkbox" name="selected_assets" value="{{ asset.id }}" 
+                        <input type="checkbox" name="selected_assets" value="{{ asset.id }}"
                                class="asset-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.asset_tag }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ asset.asset_tag }}
+                        {% if asset.legal_hold %}
+                        <div class="mt-1">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-red-600 text-white text-xs font-bold uppercase animate-pulse">
+                                ⚠️ LEGAL HOLD - DO NOT WIPE
+                            </span>
+                        </div>
+                        {% endif %}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ asset.name }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 

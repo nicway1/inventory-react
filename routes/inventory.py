@@ -3961,8 +3961,9 @@ def add_asset():
                     charger=request.form.get('charger', ''),
                     country=request.form.get('country', ''),
                     status=status,
-                    notes=request.form.get('notes', ''), 
-                    tech_notes=request.form.get('tech_notes', '') 
+                    notes=request.form.get('notes', ''),
+                    tech_notes=request.form.get('tech_notes', ''),
+                    legal_hold=request.form.get('legal_hold') == 'true'
                 )
 
                 # Handle ticket linking (for regular Tickets via many-to-many relationship)
@@ -4303,7 +4304,8 @@ def edit_asset(asset_id):
                     'diag': asset.diag,
                     'keyboard': asset.keyboard,
                     'notes': asset.notes,
-                    'tech_notes': asset.tech_notes
+                    'tech_notes': asset.tech_notes,
+                    'legal_hold': asset.legal_hold
                 }
                 
                 logger.info("Old values stored")  # Debug log
@@ -4370,7 +4372,10 @@ def edit_asset(asset_id):
                 asset.keyboard = request.form.get('keyboard')
                 asset.notes = request.form.get('notes')
                 asset.tech_notes = request.form.get('tech_notes')
-                
+
+                # Handle legal hold - checkbox will be 'true' if checked, None if not
+                asset.legal_hold = request.form.get('legal_hold') == 'true'
+
                 # Track changes
                 changes = {}
                 for field in old_values:

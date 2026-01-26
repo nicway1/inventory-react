@@ -318,14 +318,34 @@
 
                     <div class="col-span-2">
                         <label class="flex items-center space-x-2">
-                            <input type="checkbox" 
-                                   id="erased" 
-                                   name="erased" 
+                            <input type="checkbox"
+                                   id="erased"
+                                   name="erased"
                                    value="true"
                                    class="rounded border-gray-300 text-blue-600 shadow-sm">
                             <span class="text-sm text-gray-700">Data Erased</span>
                         </label>
                     </div>
+                </div>
+
+                <!-- Legal Hold Section -->
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-red-700 mb-2 flex items-center">
+                        <i class="fas fa-gavel mr-2"></i>
+                        Legal Hold Status
+                    </h3>
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox"
+                               id="legal_hold"
+                               name="legal_hold"
+                               value="true"
+                               class="w-5 h-5 rounded border-red-300 text-red-600 shadow-sm focus:ring-red-500">
+                        <span class="text-sm font-semibold text-red-800">PLACE ASSET UNDER LEGAL HOLD</span>
+                    </label>
+                    <p class="mt-2 text-xs text-red-600 ml-8">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        When enabled, a prominent warning will prevent the asset from being wiped or disposed.
+                    </p>
                 </div>
 
                 <!-- Submit Button -->
