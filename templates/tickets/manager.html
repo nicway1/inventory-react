@@ -641,15 +641,14 @@
                         <label>Status</label>
                         <select id="filterStatus" onchange="applyFilters()" class="sf-select" style="width: 100%;">
                             <option value="">All Status</option>
-                            <option value="NEW">New</option>
-                            <option value="OPEN">Open</option>
-                            <option value="IN_PROGRESS">In Progress</option>
-                            <option value="PROCESSING">Processing</option>
-                            <option value="ON_HOLD">On Hold</option>
-                            <option value="RESOLVED">Resolved</option>
-                            <option value="RESOLVED_DELIVERED">Resolved (Delivered)</option>
+                            <option value="New">New</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Processing">Processing</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Resolved (All Package Delivered)">Resolved (Delivered)</option>
                             {% for status in custom_statuses %}
-                            <option value="{{ status.name }}">{{ status.name.replace('_', ' ').title() }}</option>
+                            <option value="{{ status.name }}">{{ status.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
