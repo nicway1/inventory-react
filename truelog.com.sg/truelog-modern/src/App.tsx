@@ -17,6 +17,7 @@ import GlobalFulfillment from './pages/services/GlobalFulfillment';
 import ICTLogistics from './pages/services/ICTLogistics';
 import IORSolutions from './pages/services/IORSolutions';
 import Compliance from './pages/services/Compliance';
+import CountryDetail from './pages/CountryDetail';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="/services/ict-logistics" element={<ICTLogistics />} />
             <Route path="/services/ior-eor-solutions" element={<IORSolutions />} />
             <Route path="/services/compliance" element={<Compliance />} />
+            <Route path="/countries/:slug" element={<CountryDetail />} />
           </Routes>
           </main>
           <Footer />

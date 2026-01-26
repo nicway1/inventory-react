@@ -96,13 +96,13 @@ const COUNTRY_REGIONS: { [key: string]: string } = {
   'Tuvalu': 'oceania', 'Vanuatu': 'oceania',
 };
 
-// Region data with TecEx-inspired teal-green gradient colors
+// Region data with blue gradient colors
 export const REGIONS: Region[] = [
   {
     id: 'africa',
     name: 'Africa',
-    color: '#0d9488', // teal-600
-    hoverColor: '#0f766e', // teal-700
+    color: '#2563eb', // blue-600
+    hoverColor: '#1d4ed8', // blue-700
     description: 'Strategic logistics solutions across the African continent with local expertise and customs knowledge.',
     countries: [
       { name: 'South Africa', code: 'ZA', hasOffice: true },
@@ -119,8 +119,8 @@ export const REGIONS: Region[] = [
   {
     id: 'asia',
     name: 'Asia',
-    color: '#14b8a6', // teal-500
-    hoverColor: '#0d9488', // teal-600
+    color: '#3b82f6', // blue-500
+    hoverColor: '#2563eb', // blue-600
     description: 'Comprehensive coverage across Asia with headquarters in Singapore and offices throughout the region.',
     countries: [
       { name: 'Singapore', code: 'SG', hasOffice: true },
@@ -141,8 +141,8 @@ export const REGIONS: Region[] = [
   {
     id: 'europe',
     name: 'Europe',
-    color: '#2dd4bf', // teal-400
-    hoverColor: '#14b8a6', // teal-500
+    color: '#60a5fa', // blue-400
+    hoverColor: '#3b82f6', // blue-500
     description: 'Pan-European logistics network with strategic hubs and customs expertise for seamless cross-border operations.',
     countries: [
       { name: 'Belgium', code: 'BE', hasOffice: true },
@@ -160,8 +160,8 @@ export const REGIONS: Region[] = [
   {
     id: 'northAmerica',
     name: 'North America',
-    color: '#5eead4', // teal-300
-    hoverColor: '#2dd4bf', // teal-400
+    color: '#93c5fd', // blue-300
+    hoverColor: '#60a5fa', // blue-400
     description: 'Full coverage across North America with integrated cross-border solutions for US, Canada, and Mexico.',
     countries: [
       { name: 'Canada', code: 'CA', isPartner: true },
@@ -175,8 +175,8 @@ export const REGIONS: Region[] = [
   {
     id: 'southAmerica',
     name: 'South America',
-    color: '#99f6e4', // teal-200
-    hoverColor: '#5eead4', // teal-300
+    color: '#bfdbfe', // blue-200
+    hoverColor: '#93c5fd', // blue-300
     description: 'Growing presence across South American markets with local partners and expertise in complex customs procedures.',
     countries: [
       { name: 'Brazil', code: 'BR', isPartner: true },
@@ -190,8 +190,8 @@ export const REGIONS: Region[] = [
   {
     id: 'oceania',
     name: 'Oceania',
-    color: '#ccfbf1', // teal-100
-    hoverColor: '#99f6e4', // teal-200
+    color: '#dbeafe', // blue-100
+    hoverColor: '#bfdbfe', // blue-200
     description: 'Reliable logistics solutions for Australia, New Zealand, and Pacific Island nations.',
     countries: [
       { name: 'Australia', code: 'AU', isPartner: true },
@@ -218,6 +218,7 @@ const OFFICE_LOCATIONS = [
 
 interface InteractiveWorldMapProps {
   onRegionSelect?: (region: Region | null) => void;
+  onCountryClick?: (countryCode: string) => void;
   selectedRegion?: Region | null;
   showOfficeMarkers?: boolean;
   className?: string;
@@ -225,6 +226,7 @@ interface InteractiveWorldMapProps {
 
 const InteractiveWorldMap: React.FC<InteractiveWorldMapProps> = ({
   onRegionSelect,
+  onCountryClick,
   selectedRegion,
   showOfficeMarkers = true,
   className = '',
@@ -259,11 +261,21 @@ const InteractiveWorldMap: React.FC<InteractiveWorldMapProps> = ({
 
   const handleCountryClick = (countryName: string) => {
     const region = getRegionForCountry(countryName);
-    if (region && onRegionSelect) {
-      if (selectedRegion?.id === region.id) {
-        onRegionSelect(null);
-      } else {
-        onRegionSelect(region);
+    if (region) {
+      // Find the country code from the region's countries list
+      const country = region.countries.find(c => c.name === countryName);
+      if (country && onCountryClick) {
+        onCountryClick(country.code);
+        return;
+      }
+
+      // Fallback to region selection if no specific country page
+      if (onRegionSelect) {
+        if (selectedRegion?.id === region.id) {
+          onRegionSelect(null);
+        } else {
+          onRegionSelect(region);
+        }
       }
     }
   };
@@ -370,7 +382,7 @@ const InteractiveWorldMap: React.FC<InteractiveWorldMapProps> = ({
                       />
                     </>
                   ) : (
-                    <circle r={4} fill="#059669" stroke="#fff" strokeWidth={1} />
+                    <circle r={4} fill="#0ea5e9" stroke="#fff" strokeWidth={1} />
                   )}
                 </motion.g>
               </Marker>
@@ -408,7 +420,7 @@ const InteractiveWorldMap: React.FC<InteractiveWorldMapProps> = ({
               onClick={() => onRegionSelect?.(selectedRegion?.id === region.id ? null : region)}
               className={`flex items-center space-x-2 p-1.5 rounded-lg transition-all ${
                 selectedRegion?.id === region.id
-                  ? 'bg-gray-100 ring-2 ring-teal-500'
+                  ? 'bg-gray-100 ring-2 ring-blue-500'
                   : 'hover:bg-gray-50'
               }`}
             >
@@ -430,7 +442,7 @@ const InteractiveWorldMap: React.FC<InteractiveWorldMapProps> = ({
             <span className="text-xs text-gray-600">Regional Office</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-600" />
+            <div className="w-3 h-3 rounded-full bg-sky-500" />
             <span className="text-xs text-gray-600">Partner Facility</span>
           </div>
         </div>

@@ -82,7 +82,13 @@ GPU=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | se
 if [ -z "$GPU" ]; then
     GPU=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chip" | sed 's/.*: //' | head -1)
 fi
+
+# GPU Cores - try system_profiler first, then ioreg for Apple Silicon
 GPU_CORES=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Total Number of Cores" | sed 's/.*: //' | head -1)
+if [ -z "$GPU_CORES" ]; then
+    # Try ioreg for Apple Silicon Macs
+    GPU_CORES=$(ioreg -l | grep "gpu-core-count" | awk -F'= ' '{print $2}' | head -1)
+fi
 
 # RAM
 RAM_BYTES=$(sysctl -n hw.memsize 2>/dev/null)
