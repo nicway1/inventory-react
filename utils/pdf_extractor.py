@@ -1095,6 +1095,7 @@ def extract_assets_from_text(text):
     # Filter patterns for non-serial strings
     exclude_patterns = [
         r'^\d+$',  # Pure numbers
+        r'^[A-Z]+$',  # Pure letters (no numbers) - colors, words
         r'^100\d{7}',  # PO numbers
         r'^847\d{5}',  # Commodity codes
         r'^656\d{8}',  # Tracking numbers
@@ -1104,6 +1105,16 @@ def extract_assets_from_text(text):
         r'^SINGAPORE\d*$',
         r'^[A-Z]{2}\d{6}$',
         r'^\d{6}[A-Z]{2}\d{4}$',
+    ]
+
+    # Common words/colors that should never be serial numbers
+    exclude_words = [
+        'SPACEBLACK', 'SPACEGRAY', 'SPACEGREY', 'MIDNIGHT', 'STARLIGHT', 'SILVER',
+        'SENTINELON', 'SENTINEL', 'MACBOOKPRO', 'MACBOOKAIR', 'MACBOOK',
+        'DESCRIPTION', 'SERIALNUMB', 'SINGAPORE', 'COLLECTION', 'REFERENCE',
+        'AUTHORIZED', 'CERTIFICATE', 'CONSOLIDATED', 'DECONSOLID', 'QUANTITY',
+        'COMMODITY', 'KEYBOARD', 'PROCESSOR', 'STORAGE', 'MEMORY',
+        'SKYBLUE', 'ROSEGOLD', 'GOLDCOLOR', 'BLACKCOLOR', 'WHITECOLOR',
     ]
 
     # Find all part numbers with their positions (try multiple patterns)
@@ -1144,8 +1155,16 @@ def extract_assets_from_text(text):
         if skip:
             continue
 
+        # Skip if matches exclude words (colors, product names, etc.)
+        if serial.upper() in exclude_words:
+            continue
+
         # Skip if too short or all numbers
         if len(serial) < 10 or serial.isdigit():
+            continue
+
+        # Skip if all letters (no numbers) - not a valid serial
+        if serial.isalpha():
             continue
 
         # Apple serials need mix of letters and numbers (or start with S)
