@@ -1031,8 +1031,8 @@ class Ship24Tracker:
         }
 
         # Get Oxylabs credentials
-        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
-        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelg1_SusC0')
+        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'm3OKbn9+BxYX')
 
         debug_info['credentials'] = {
             'username': oxylabs_username,
@@ -2403,8 +2403,8 @@ class Ship24Tracker:
                 browser = await p.chromium.launch(**launch_options)
 
                 # Use Oxylabs residential proxy to bypass Cloudflare
-                oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog_4k6QP')
-                oxylabs_password = os.environ.get('OXYLABS_PASSWORD', '8x5UDpDnhe0+m5z')
+                oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelg1_SusC0')
+                oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'm3OKbn9+BxYX')
 
                 context_options = {
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
@@ -2523,7 +2523,7 @@ class Ship24Tracker:
             # These are actual phrases from HFD tracking pages
             phrase_translations = [
                 # Full HFD status phrases (longest first to avoid partial matches)
-                ('המשלוח במחסני המיון שלנו ולאחר מיון יצא אל בית הלקוח', 'Shipment at sorting warehouse, will be sent to customer after sorting'),
+                ('המ��לוח במחסני המיון שלנו ולאחר מיון יצא אל בית הלקוח', 'Shipment at sorting warehouse, will be sent to customer after sorting'),
                 ('המשלוח בדרכו לישראל/למחסן המיון', 'Shipment on its way to Israel/sorting warehouse'),
                 ('צפי מסירה משוער עד', 'Estimated delivery by'),
                 ('צפי מסירה משוער', 'Estimated delivery'),

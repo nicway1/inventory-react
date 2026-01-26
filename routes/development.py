@@ -3670,14 +3670,14 @@ def user_profiles():
             joinedload(User.company)
         ).order_by(User.id).all()
 
-        # Get stats
+        # Get stats - handle None values safely
         stats = {
             'total': len(users),
-            'active': len([u for u in users if not u.is_deleted]),
-            'deleted': len([u for u in users if u.is_deleted]),
-            'developers': len([u for u in users if u.user_type == UserType.DEVELOPER]),
-            'admins': len([u for u in users if u.user_type == UserType.ADMIN]),
-            'super_admins': len([u for u in users if u.user_type == UserType.SUPER_ADMIN]),
+            'active': len([u for u in users if not getattr(u, 'is_deleted', False)]),
+            'deleted': len([u for u in users if getattr(u, 'is_deleted', False)]),
+            'developers': len([u for u in users if getattr(u, 'user_type', None) == UserType.DEVELOPER]),
+            'admins': len([u for u in users if getattr(u, 'user_type', None) == UserType.ADMIN]),
+            'super_admins': len([u for u in users if getattr(u, 'user_type', None) == UserType.SUPER_ADMIN]),
         }
 
         return render_template('development/user_profiles.html',
@@ -3687,8 +3687,10 @@ def user_profiles():
         )
 
     except Exception as e:
+        import traceback
         logger.error(f"Error loading user profiles: {str(e)}")
-        flash('Error loading user profiles', 'error')
+        logger.error(traceback.format_exc())
+        flash(f'Error loading user profiles: {str(e)}', 'error')
         return redirect(url_for('development.dashboard'))
     finally:
         db_session.close()
