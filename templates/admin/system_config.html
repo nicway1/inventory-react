@@ -250,34 +250,6 @@
                         </form>
                     </div>
 
-                    <!-- System Timezone Setting -->
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 mt-4">
-                        <div>
-                            <h3 class="text-lg font-medium text-gray-900">System Timezone</h3>
-                            <p class="text-sm text-gray-600 mt-1">
-                                Current: <span class="font-semibold">{{ system_timezone }}</span>
-                            </p>
-                            <p class="text-xs text-gray-500 mt-2">
-                                All dates and times in the system will be displayed in this timezone.
-                            </p>
-                        </div>
-                        <form method="POST" action="{{ url_for('admin.update_system_timezone') }}" class="flex items-center gap-3">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <select name="timezone" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                                {% for tz_value, tz_label in timezone_choices %}
-                                <option value="{{ tz_value }}" {% if tz_value == system_timezone %}selected{% endif %}>
-                                    {{ tz_label }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                                <i class="fas fa-clock mr-2"></i>
-                                Update Timezone
-                            </button>
-                        </form>
-                    </div>
-
                     <!-- Quick Links -->
                     <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200 mt-4">
                         <div>
@@ -720,13 +692,41 @@
                             <h3 class="text-lg font-medium text-gray-900">API Management</h3>
                             <p class="text-sm text-gray-600">Create and manage API keys, monitor usage, and configure API permissions. Control access to system APIs and view usage statistics.</p>
                         </div>
-                        <a href="{{ url_for('admin.api_management') }}" 
+                        <a href="{{ url_for('admin.api_management') }}"
                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             <i class="fas fa-key mr-2"></i>
                             API Management
                         </a>
                     </div>
-                    
+
+                    <!-- System Timezone Setting -->
+                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">System Timezone</h3>
+                            <p class="text-sm text-gray-600">
+                                Current: <span class="font-semibold text-indigo-600">{{ system_timezone }}</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                All dates and times in the system will be displayed in this timezone.
+                            </p>
+                        </div>
+                        <form method="POST" action="{{ url_for('admin.update_system_timezone') }}" class="flex items-center gap-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <select name="timezone" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                {% for tz_value, tz_label in timezone_choices %}
+                                <option value="{{ tz_value }}" {% if tz_value == system_timezone %}selected{% endif %}>
+                                    {{ tz_label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <i class="fas fa-clock mr-2"></i>
+                                Update
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Other System Info -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
