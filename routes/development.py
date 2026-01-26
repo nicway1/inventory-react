@@ -10,6 +10,7 @@ from models.changelog_entry import ChangelogEntry, ChangelogEntryType
 from models.user import User
 from models.dev_blog_entry import DevBlogEntry
 from models.enums import UserType
+from models.action_item import ActionItem, ActionItemStatus
 from sqlalchemy.orm import joinedload
 from sqlalchemy import desc, asc, func, or_
 from datetime import datetime, date
@@ -259,6 +260,14 @@ def dashboard():
                 .order_by(desc(FeatureRequest.approved_at))\
                 .all()
 
+        # Get all action items (not done) for the dashboard
+        action_items = db_session.query(ActionItem)\
+            .options(joinedload(ActionItem.assigned_to))\
+            .options(joinedload(ActionItem.meeting))\
+            .filter(ActionItem.status != ActionItemStatus.DONE)\
+            .order_by(ActionItem.priority.desc(), ActionItem.created_at.desc())\
+            .all()
+
         return render_template('development/dashboard.html',
                              stats=stats,
                              recent_features=recent_features,
@@ -268,6 +277,7 @@ def dashboard():
                              week_days=week_days,
                              pending_approvals=pending_approvals,
                              newly_approved=newly_approved,
+                             action_items=action_items,
                              version_info=get_full_version_info())
 
     finally:
