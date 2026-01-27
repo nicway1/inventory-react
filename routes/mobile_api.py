@@ -6077,7 +6077,22 @@ def mobile_extract_single_pdf(attachment_id):
                     'error': f'PDF file not found on disk: {attachment.filename}'
                 }), 404
 
-            result = extract_assets_from_pdf(attachment.file_path)
+            # Use timeout to prevent request hanging on slow OCR
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+            timeout_seconds = 120  # 2 minute timeout for PDF extraction
+
+            logger.info(f"Starting PDF extraction for {attachment.filename} with {timeout_seconds}s timeout")
+
+            try:
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(extract_assets_from_pdf, attachment.file_path)
+                    result = future.result(timeout=timeout_seconds)
+            except FuturesTimeoutError:
+                logger.error(f"PDF extraction timed out after {timeout_seconds}s for {attachment.filename}")
+                return jsonify({
+                    'success': False,
+                    'error': f'PDF extraction timed out after {timeout_seconds} seconds. The PDF may be too large or complex for OCR processing.'
+                }), 408  # Request Timeout
 
             if result:
                 assets_data = []
