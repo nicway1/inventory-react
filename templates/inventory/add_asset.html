@@ -456,17 +456,20 @@
         const cpuType = document.getElementById('cpu_type').value;
         const cpuCores = document.getElementById('cpu_cores').value;
         const gpuCores = document.getElementById('gpu_cores').value;
+        const memory = document.getElementById('memory')?.value;
         const harddrive = document.getElementById('harddrive').value;
 
         let hardwareType = '';
 
         // Build the hardware type string
+        // Format: MacBook Pro 14" Apple APPLE M4 Pro 12-Core CPU 16-Core GPU 48GB RAM 1024GB SSD
         if (product) hardwareType += product + ' ';
         if (assetType) hardwareType += assetType + ' ';
         if (cpuType) hardwareType += cpuType + ' ';
-        if (cpuCores) hardwareType += cpuCores + '-Core ';
+        if (cpuCores) hardwareType += cpuCores + '-Core CPU ';
         if (gpuCores) hardwareType += gpuCores + '-Core GPU ';
-        if (harddrive) hardwareType += harddrive + 'GB';
+        if (memory) hardwareType += memory + 'GB RAM ';
+        if (harddrive) hardwareType += harddrive + 'GB SSD';
 
         // Set the generated hardware type
         document.getElementById('hardware_type').value = hardwareType.trim();
