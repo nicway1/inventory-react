@@ -1091,7 +1091,7 @@ function generateAllAssetTags() {
 
 function generateAllHardwareTypes() {
     // Generate hardware type for each asset based on extracted data
-    // Format: [Product] [AssetType] [CPU Type] [CPU Cores]-Core [Storage]GB
+    // Format: MacBook Pro 14" Apple APPLE M4 Pro 12-Core CPU 16-Core GPU 48GB RAM 1024GB SSD
     if (!extractedData || !extractedData.assets) return;
 
     document.querySelectorAll('.hardware-type-input').forEach((input, index) => {
@@ -1101,8 +1101,10 @@ function generateAllHardwareTypes() {
         // Build hardware type string similar to add_asset page
         if (asset.name) hardwareType += asset.name + ' ';
         if (asset.cpu_type) hardwareType += asset.cpu_type + ' ';
-        if (asset.cpu_cores) hardwareType += asset.cpu_cores + '-Core ';
-        if (asset.harddrive) hardwareType += asset.harddrive;
+        if (asset.cpu_cores) hardwareType += asset.cpu_cores + '-Core CPU ';
+        if (asset.gpu_cores) hardwareType += asset.gpu_cores + '-Core GPU ';
+        if (asset.memory) hardwareType += asset.memory + 'GB RAM ';
+        if (asset.harddrive) hardwareType += asset.harddrive + 'GB SSD';
 
         input.value = hardwareType.trim();
     });
