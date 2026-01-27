@@ -35,6 +35,7 @@ pytesseract==0.3.13
 # Database dependencies
 SQLAlchemy==2.0.21
 alembic==1.12.0
+PyMySQL==1.1.0  # MySQL driver for PythonAnywhere
 # Additional utilities
 pytz==2023.3
 # For billing report exports
