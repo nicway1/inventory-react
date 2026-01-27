@@ -632,8 +632,11 @@ def create_user():
     try:
         # Get all companies for CLIENT user type
         companies = db_session.query(Company).all()
-        # Get only parent companies for COUNTRY_ADMIN filtering
-        parent_companies = db_session.query(Company).filter(Company.is_parent_company == True).all()
+        # Get parent companies and standalone companies (not child companies) for user assignment
+        # A child company has parent_company_id set, so we exclude those
+        parent_companies = db_session.query(Company).filter(
+            Company.parent_company_id.is_(None)
+        ).order_by(Company.name).all()
         queues = db_session.query(Queue).all()
 
         # Get all users and groups for @mention settings
@@ -872,7 +875,10 @@ def edit_user(user_id):
 
     logger.info("DEBUG: User found: {user.username}, type={user.user_type}")
     companies = db_session.query(Company).all()
-    parent_companies = db_session.query(Company).filter(Company.is_parent_company == True).all()
+    # Get parent companies and standalone companies (not child companies) for user assignment
+    parent_companies = db_session.query(Company).filter(
+        Company.parent_company_id.is_(None)
+    ).order_by(Company.name).all()
     queues = db_session.query(Queue).all()
     logger.info("DEBUG: Found {len(companies)} companies")
 
