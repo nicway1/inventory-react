@@ -5984,6 +5984,7 @@ def mobile_extract_single_pdf(attachment_id):
         }
     """
     from models.intake_ticket import IntakeAttachment, IntakeTicket
+    from models.ticket_attachment import TicketAttachment
     from utils.pdf_extractor import extract_assets_from_pdf
     from sqlalchemy.orm import joinedload
     import os
@@ -5991,15 +5992,25 @@ def mobile_extract_single_pdf(attachment_id):
     try:
         db_session = db_manager.get_session()
         try:
-            # Query attachment with eager loading of ticket relationship
+            # First try IntakeAttachment table
             attachment = db_session.query(IntakeAttachment).options(
                 joinedload(IntakeAttachment.ticket)
             ).filter(
                 IntakeAttachment.id == attachment_id
             ).first()
 
+            attachment_type = 'intake'
+
+            # If not found in IntakeAttachment, check TicketAttachment table
             if not attachment:
-                logger.warning(f"Attachment not found with ID: {attachment_id}")
+                logger.info(f"Attachment {attachment_id} not found in intake_attachments, checking ticket_attachments")
+                attachment = db_session.query(TicketAttachment).filter(
+                    TicketAttachment.id == attachment_id
+                ).first()
+                attachment_type = 'ticket'
+
+            if not attachment:
+                logger.warning(f"Attachment not found with ID: {attachment_id} in both intake_attachments and ticket_attachments tables")
                 return jsonify({
                     'success': False,
                     'error': f'Attachment with ID {attachment_id} not found in database'
