@@ -533,16 +533,27 @@
                         <div class="sf-stat-meta">{{ stats.releases.total }} total</div>
                     </div>
                 </div>
+
+                <div class="sf-stat-card">
+                    <div class="sf-stat-icon" style="background: #e8f5e9;">
+                        <i class="fas fa-calendar-alt" style="color: #2e844a;"></i>
+                    </div>
+                    <div class="sf-stat-content">
+                        <div class="sf-stat-label">Meetings</div>
+                        <div class="sf-stat-value">{{ meetings|length if meetings else 0 }}</div>
+                        <div class="sf-stat-meta">{{ action_items|length }} action items</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Action Items Section -->
-            {% if action_items %}
-            <div class="sf-action-items" style="margin-top: 1.5rem;">
+            <!-- Meetings Section -->
+            {% if meetings %}
+            <div class="sf-meetings" style="margin-top: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                     <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
-                        <i class="fas fa-tasks" style="color: #2e844a; margin-right: 0.5rem;"></i>
-                        Action Items
-                        <span style="font-size: 0.75rem; background: #2e844a; color: white; padding: 0.125rem 0.5rem; border-radius: 1rem; margin-left: 0.5rem;">{{ action_items|length }}</span>
+                        <i class="fas fa-calendar-alt" style="color: #2e844a; margin-right: 0.5rem;"></i>
+                        Meetings
+                        <span style="font-size: 0.75rem; background: #2e844a; color: white; padding: 0.125rem 0.5rem; border-radius: 1rem; margin-left: 0.5rem;">{{ meetings|length }}</span>
                     </h3>
                     <a href="{{ url_for('action_items.index') }}" class="sf-button sf-button-secondary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
                         <i class="fas fa-external-link-alt"></i> View All
@@ -552,69 +563,46 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
                         <thead>
                             <tr style="background: #f3f3f3; border-bottom: 2px solid #dddbda;">
-                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 50px;">#</th>
-                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d;">Title</th>
-                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 100px;">Status</th>
-                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 80px;">Priority</th>
-                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 120px;">Assignee</th>
-                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 150px;">Meeting</th>
+                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d;">Meeting Name</th>
+                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 120px;">Date</th>
+                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 100px;">Items</th>
+                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 100px;">Progress</th>
+                                <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #514f4d; width: 80px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in action_items %}
+                            {% for meeting in meetings %}
+                            {% set total_items = meeting.action_items|length %}
+                            {% set done_items = meeting.action_items|selectattr('status.name', 'equalto', 'DONE')|list|length %}
+                            {% set progress = (done_items / total_items * 100)|int if total_items > 0 else 0 %}
                             <tr style="border-bottom: 1px solid #dddbda;">
-                                <td style="padding: 0.5rem 1rem; font-family: monospace; color: #706e6b;">{{ item.item_number or item.id }}</td>
                                 <td style="padding: 0.5rem 1rem;">
-                                    {% if item.meeting_id %}
-                                    <a href="{{ url_for('action_items.meeting_detail', meeting_id=item.meeting_id) }}" style="color: #0176d3; text-decoration: none; font-weight: 500;">
-                                        {{ item.title }}
+                                    <a href="{{ url_for('action_items.meeting_detail', meeting_id=meeting.id) }}" style="color: #0176d3; text-decoration: none; font-weight: 500;">
+                                        {{ meeting.name }}
                                     </a>
-                                    {% else %}
-                                    {{ item.title }}
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 0.5rem 1rem;">
-                                    {% if item.status.value == 'Not Started' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #e5e5e5; color: #3e3e3c; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.status.value }}</span>
-                                    {% elif item.status.value == 'In Progress' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #bee5eb; color: #0c5460; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.status.value }}</span>
-                                    {% elif item.status.value == 'Pending Testing' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #e2d5f1; color: #6f42c1; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.status.value }}</span>
-                                    {% elif item.status.value == 'Blocked' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #f8d7da; color: #721c24; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.status.value }}</span>
-                                    {% else %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #c3e6cb; color: #155724; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.status.value }}</span>
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 0.5rem 1rem;">
-                                    {% if item.priority.value == 'Urgent' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #dc3545; color: white; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.priority.value }}</span>
-                                    {% elif item.priority.value == 'High' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #ff6f00; color: white; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.priority.value }}</span>
-                                    {% elif item.priority.value == 'Medium' %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #ffc107; color: #212529; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.priority.value }}</span>
-                                    {% else %}
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #6c757d; color: white; border-radius: 0.25rem; font-size: 0.7rem; font-weight: 600;">{{ item.priority.value }}</span>
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 0.5rem 1rem;">
-                                    {% if item.assigned_to %}
-                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #0176d3; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 600;">
-                                            {{ item.assigned_to.username[0]|upper }}
-                                        </div>
-                                        <span style="font-size: 0.8rem;">{{ item.assigned_to.username }}</span>
-                                    </div>
-                                    {% else %}
-                                    <span style="color: #999; font-size: 0.8rem;">Unassigned</span>
+                                    {% if meeting.is_active %}
+                                    <span style="display: inline-block; padding: 0.125rem 0.375rem; background: #28a745; color: white; border-radius: 0.25rem; font-size: 0.65rem; font-weight: 600; margin-left: 0.5rem;">ACTIVE</span>
                                     {% endif %}
                                 </td>
                                 <td style="padding: 0.5rem 1rem; font-size: 0.8rem; color: #706e6b;">
-                                    {% if item.meeting %}
-                                    {{ item.meeting.name or item.meeting.meeting_date.strftime('%b %d, %Y') }}
-                                    {% else %}
-                                    -
-                                    {% endif %}
+                                    {{ meeting.meeting_date.strftime('%b %d, %Y') }}
+                                </td>
+                                <td style="padding: 0.5rem 1rem;">
+                                    <span style="font-weight: 600;">{{ done_items }}/{{ total_items }}</span>
+                                    <span style="color: #706e6b; font-size: 0.8rem;"> done</span>
+                                </td>
+                                <td style="padding: 0.5rem 1rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <div style="flex: 1; background: #e5e5e5; border-radius: 0.25rem; height: 8px; overflow: hidden;">
+                                            <div style="width: {{ progress }}%; height: 100%; background: {% if progress == 100 %}#28a745{% elif progress >= 50 %}#17a2b8{% else %}#ffc107{% endif %}; transition: width 0.3s;"></div>
+                                        </div>
+                                        <span style="font-size: 0.75rem; color: #706e6b; min-width: 35px;">{{ progress }}%</span>
+                                    </div>
+                                </td>
+                                <td style="padding: 0.5rem 1rem;">
+                                    <a href="{{ url_for('action_items.meeting_detail', meeting_id=meeting.id) }}" class="sf-button sf-button-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -623,19 +611,19 @@
                 </div>
             </div>
             {% else %}
-            <div class="sf-action-items" style="margin-top: 1.5rem;">
+            <div class="sf-meetings" style="margin-top: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                     <h3 style="font-size: 1rem; font-weight: 600; color: #080707; margin: 0;">
-                        <i class="fas fa-tasks" style="color: #2e844a; margin-right: 0.5rem;"></i>
-                        Action Items
+                        <i class="fas fa-calendar-alt" style="color: #2e844a; margin-right: 0.5rem;"></i>
+                        Meetings
                     </h3>
                     <a href="{{ url_for('action_items.index') }}" class="sf-button sf-button-secondary" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
                         <i class="fas fa-external-link-alt"></i> View All
                     </a>
                 </div>
                 <div style="background: white; border: 1px solid #dddbda; border-radius: 0.25rem; padding: 2rem; text-align: center; color: #706e6b;">
-                    <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; color: #28a745;"></i>
-                    <p style="margin: 0;">No pending action items. You're all caught up!</p>
+                    <i class="fas fa-calendar-plus" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                    <p style="margin: 0;">No meetings yet. Create your first meeting to track action items.</p>
                 </div>
             </div>
             {% endif %}
@@ -829,7 +817,7 @@
             <div class="sf-tab-list">
                 <button class="sf-tab active" onclick="switchTab('all')">
                     All Items
-                    <span style="margin-left: 0.5rem; opacity: 0.7;">({{ (recent_features|length) + (recent_bugs|length) }})</span>
+                    <span style="margin-left: 0.5rem; opacity: 0.7;">({{ (recent_features|length) + (recent_bugs|length) + (action_items|length) }})</span>
                 </button>
                 <button class="sf-tab" onclick="switchTab('features')">
                     Features
@@ -838,6 +826,10 @@
                 <button class="sf-tab" onclick="switchTab('bugs')">
                     Bugs
                     <span style="margin-left: 0.5rem; opacity: 0.7;">({{ recent_bugs|length }})</span>
+                </button>
+                <button class="sf-tab" onclick="switchTab('action-items')">
+                    Action Items
+                    <span style="margin-left: 0.5rem; opacity: 0.7;">({{ action_items|length }})</span>
                 </button>
             </div>
 
@@ -885,6 +877,9 @@
                 {% for bug in recent_bugs %}
                     {% set _ = all_items.append({'type': 'bug', 'item': bug, 'sort_date': bug.updated_at if bug.updated_at else bug.created_at}) %}
                 {% endfor %}
+                {% for item in action_items %}
+                    {% set _ = all_items.append({'type': 'action-item', 'item': item, 'sort_date': item.updated_at if item.updated_at else item.created_at}) %}
+                {% endfor %}
 
                 {% if all_items %}
                 <table class="sf-table" id="itemsTable">
@@ -902,21 +897,33 @@
                     <tbody>
                         {% for entry in all_items|selectattr('sort_date', 'ne', None)|sort(attribute='sort_date', reverse=True) + all_items|selectattr('sort_date', 'eq', None)|list %}
                         <tr data-type="{{ entry.type }}"
-                            data-status="{{ entry.item.status.value if entry.type == 'feature' else 'open' }}"
-                            data-priority="{{ entry.item.severity.value if entry.type == 'bug' else 'medium' }}">
+                            data-status="{{ entry.item.status.value if entry.type == 'feature' else (entry.item.status.value if entry.type == 'action-item' else 'open') }}"
+                            data-priority="{{ entry.item.severity.value if entry.type == 'bug' else (entry.item.priority.value if entry.type == 'action-item' else 'medium') }}">
                             <td>
                                 {% if entry.type == 'feature' %}
                                     <span class="sf-badge sf-badge-feature">Feature</span>
+                                {% elif entry.type == 'action-item' %}
+                                    <span class="sf-badge" style="background: #e8f5e9; color: #2e7d32;">Action</span>
                                 {% else %}
                                     <span class="sf-badge sf-badge-bug">Bug</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <span style="font-family: monospace; color: #706e6b;">{{ entry.item.display_id }}</span>
+                                <span style="font-family: monospace; color: #706e6b;">
+                                    {% if entry.type == 'action-item' %}
+                                        AI-{{ entry.item.item_number or entry.item.id }}
+                                    {% else %}
+                                        {{ entry.item.display_id }}
+                                    {% endif %}
+                                </span>
                             </td>
                             <td>
                                 {% if entry.type == 'feature' %}
                                     <a href="{{ url_for('development.view_feature', id=entry.item.id) }}" class="sf-table-link">
+                                        {{ entry.item.title }}
+                                    </a>
+                                {% elif entry.type == 'action-item' %}
+                                    <a href="{{ url_for('action_items.meeting_detail', meeting_id=entry.item.meeting_id) if entry.item.meeting_id else '#' }}" class="sf-table-link">
                                         {{ entry.item.title }}
                                     </a>
                                 {% else %}
@@ -930,6 +937,18 @@
                                     <span class="sf-badge sf-badge-status-{{ entry.item.status.value|lower|replace(' ', '-') }}">
                                         {{ entry.item.status.value }}
                                     </span>
+                                {% elif entry.type == 'action-item' %}
+                                    {% if entry.item.status.value == 'Not Started' %}
+                                        <span class="sf-badge" style="background: #e5e5e5; color: #3e3e3c;">{{ entry.item.status.value }}</span>
+                                    {% elif entry.item.status.value == 'In Progress' %}
+                                        <span class="sf-badge" style="background: #bee5eb; color: #0c5460;">{{ entry.item.status.value }}</span>
+                                    {% elif entry.item.status.value == 'Pending Testing' %}
+                                        <span class="sf-badge" style="background: #e2d5f1; color: #6f42c1;">{{ entry.item.status.value }}</span>
+                                    {% elif entry.item.status.value == 'Blocked' %}
+                                        <span class="sf-badge" style="background: #f8d7da; color: #721c24;">{{ entry.item.status.value }}</span>
+                                    {% else %}
+                                        <span class="sf-badge" style="background: #c3e6cb; color: #155724;">{{ entry.item.status.value }}</span>
+                                    {% endif %}
                                 {% else %}
                                     <span class="sf-badge sf-badge-{{ entry.item.severity.value|lower }}">
                                         {{ entry.item.severity.value }}
@@ -941,6 +960,8 @@
                                     <div style="width: 24px; height: 24px; border-radius: 50%; background: #0176d3; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">
                                         {% if entry.type == 'feature' %}
                                             {{ entry.item.requester.username[0]|upper if entry.item.requester else '?' }}
+                                        {% elif entry.type == 'action-item' %}
+                                            {{ entry.item.assigned_to.username[0]|upper if entry.item.assigned_to else '?' }}
                                         {% else %}
                                             {{ entry.item.reporter.username[0]|upper if entry.item.reporter else '?' }}
                                         {% endif %}
@@ -948,6 +969,8 @@
                                     <span style="font-size: 0.875rem;">
                                         {% if entry.type == 'feature' %}
                                             {{ entry.item.requester.username if entry.item.requester else 'Unassigned' }}
+                                        {% elif entry.type == 'action-item' %}
+                                            {{ entry.item.assigned_to.username if entry.item.assigned_to else 'Unassigned' }}
                                         {% else %}
                                             {{ entry.item.reporter.username if entry.item.reporter else 'Unassigned' }}
                                         {% endif %}
@@ -1064,7 +1087,7 @@
             <!-- Pagination -->
             <div class="sf-pagination">
                 <div class="sf-pagination-info">
-                    Showing <span id="showingCount">{{ (recent_features|length) + (recent_bugs|length) }}</span> items
+                    Showing <span id="showingCount">{{ (recent_features|length) + (recent_bugs|length) + (action_items|length) }}</span> items
                 </div>
                 <div class="sf-pagination-controls">
                     <button class="sf-pagination-button" disabled>
@@ -1113,6 +1136,8 @@ function switchTab(tab) {
                     row.style.display = row.dataset.type === 'feature' ? '' : 'none';
                 } else if (tab === 'bugs') {
                     row.style.display = row.dataset.type === 'bug' ? '' : 'none';
+                } else if (tab === 'action-items') {
+                    row.style.display = row.dataset.type === 'action-item' ? '' : 'none';
                 }
             });
         }

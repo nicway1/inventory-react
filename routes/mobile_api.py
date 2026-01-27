@@ -5983,21 +5983,45 @@ def mobile_extract_single_pdf(attachment_id):
             "total_quantity": 7
         }
     """
-    from models.intake_ticket import IntakeAttachment
+    from models.intake_ticket import IntakeAttachment, IntakeTicket
     from utils.pdf_extractor import extract_assets_from_pdf
+    from sqlalchemy.orm import joinedload
+    import os
 
     try:
         db_session = db_manager.get_session()
         try:
-            attachment = db_session.query(IntakeAttachment).filter(
+            # Query attachment with eager loading of ticket relationship
+            attachment = db_session.query(IntakeAttachment).options(
+                joinedload(IntakeAttachment.ticket)
+            ).filter(
                 IntakeAttachment.id == attachment_id
             ).first()
 
             if not attachment:
-                return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+                logger.warning(f"Attachment not found with ID: {attachment_id}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Attachment with ID {attachment_id} not found in database'
+                }), 404
 
             if not attachment.filename.lower().endswith('.pdf'):
                 return jsonify({'success': False, 'error': 'Not a PDF file'}), 400
+
+            # Check if file exists on disk
+            if not attachment.file_path:
+                logger.error(f"Attachment {attachment_id} has no file_path")
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment has no file path stored'
+                }), 400
+
+            if not os.path.exists(attachment.file_path):
+                logger.error(f"PDF file not found on disk: {attachment.file_path}")
+                return jsonify({
+                    'success': False,
+                    'error': f'PDF file not found on disk: {attachment.filename}'
+                }), 404
 
             result = extract_assets_from_pdf(attachment.file_path)
 

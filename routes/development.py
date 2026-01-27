@@ -11,6 +11,7 @@ from models.user import User
 from models.dev_blog_entry import DevBlogEntry
 from models.enums import UserType
 from models.action_item import ActionItem, ActionItemStatus
+from models.weekly_meeting import WeeklyMeeting
 from sqlalchemy.orm import joinedload
 from sqlalchemy import desc, asc, func, or_
 from datetime import datetime, date
@@ -268,6 +269,12 @@ def dashboard():
             .order_by(ActionItem.priority.desc(), ActionItem.created_at.desc())\
             .all()
 
+        # Get all meetings for the dashboard section
+        meetings = db_session.query(WeeklyMeeting)\
+            .options(joinedload(WeeklyMeeting.action_items))\
+            .order_by(WeeklyMeeting.meeting_date.desc())\
+            .all()
+
         return render_template('development/dashboard.html',
                              stats=stats,
                              recent_features=recent_features,
@@ -278,6 +285,7 @@ def dashboard():
                              pending_approvals=pending_approvals,
                              newly_approved=newly_approved,
                              action_items=action_items,
+                             meetings=meetings,
                              version_info=get_full_version_info())
 
     finally:

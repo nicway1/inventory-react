@@ -5553,18 +5553,31 @@ def export_inventory(item_type):
                 )
 
             assets = query.all()
-            
+
             if not assets:
                 flash('No assets selected for export', 'error')
                 return redirect(url_for('inventory.view_inventory'))
-            
-            # Write header
+
+            # Import DeviceSpec to get additional tech specs
+            from models.device_spec import DeviceSpec
+
+            # Build a dictionary of device specs by serial number for quick lookup
+            asset_serial_nums = [a.serial_num for a in assets if a.serial_num]
+            device_specs = {}
+            if asset_serial_nums:
+                specs = db_session.query(DeviceSpec).filter(
+                    DeviceSpec.serial_number.in_(asset_serial_nums)
+                ).all()
+                for spec in specs:
+                    device_specs[spec.serial_number] = spec
+
+            # Write header with tech asset spec columns
             writer.writerow([
                 'Package Number', 'Asset Type', 'Product', 'ASSET TAG', 'Receiving date', 'Keyboard',
                 'SERIAL NUMBER', 'PO', 'MODEL', 'ERASED', 'CUSTOMER', 'CONDITION',
-                'DIAG', 'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU CORES',
-                'MEMORY', 'HARDDRIVE', 'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY',
-                'country'
+                'DIAG', 'HARDWARE TYPE', 'CPU TYPE', 'CPU CORES', 'GPU', 'GPU CORES',
+                'MEMORY', 'MEMORY TYPE', 'HARDDRIVE', 'STORAGE TYPE', 'STATUS', 'CHARGER', 'INCLUDED', 'INVENTORY',
+                'country', 'OS', 'OS VERSION', 'BATTERY CYCLES', 'BATTERY HEALTH', 'WIFI MAC', 'ETHERNET MAC'
             ])
 
             # Import PackageItem model
@@ -5572,6 +5585,9 @@ def export_inventory(item_type):
 
             # Write data
             for asset in assets:
+                # Get device spec for this asset if available
+                spec = device_specs.get(asset.serial_num) if asset.serial_num else None
+
                 # Check if this asset has package items
                 package_items = db_session.query(PackageItem).filter(
                     PackageItem.asset_id == asset.id
@@ -5595,16 +5611,25 @@ def export_inventory(item_type):
                             asset.condition or '',
                             asset.diag or '',
                             asset.hardware_type or '',
-                            asset.cpu_type or '',
-                            asset.cpu_cores or '',
-                            asset.gpu_cores or '',
-                            asset.memory or '',
-                            asset.harddrive or '',
+                            spec.cpu if spec and spec.cpu else (asset.cpu_type or ''),
+                            spec.cpu_cores if spec and spec.cpu_cores else (asset.cpu_cores or ''),
+                            spec.gpu if spec else '',
+                            spec.gpu_cores if spec and spec.gpu_cores else (asset.gpu_cores or ''),
+                            spec.ram_gb if spec and spec.ram_gb else (asset.memory or ''),
+                            spec.memory_type if spec else '',
+                            spec.storage_gb if spec and spec.storage_gb else (asset.harddrive or ''),
+                            spec.storage_type if spec else '',
                             asset.status.value if asset.status else '',
                             asset.charger or '',
                             '',  # INCLUDED field (empty for now)
                             asset.inventory or '',
-                            asset.country or ''
+                            asset.country or '',
+                            spec.os_name if spec else '',
+                            spec.os_version if spec else '',
+                            spec.battery_cycles if spec else '',
+                            spec.battery_health if spec else '',
+                            spec.wifi_mac if spec else '',
+                            spec.ethernet_mac if spec else ''
                         ])
                 else:
                     # No package items, create one row as normal
@@ -5623,16 +5648,25 @@ def export_inventory(item_type):
                         asset.condition or '',
                         asset.diag or '',
                         asset.hardware_type or '',
-                        asset.cpu_type or '',
-                        asset.cpu_cores or '',
-                        asset.gpu_cores or '',
-                        asset.memory or '',
-                        asset.harddrive or '',
+                        spec.cpu if spec and spec.cpu else (asset.cpu_type or ''),
+                        spec.cpu_cores if spec and spec.cpu_cores else (asset.cpu_cores or ''),
+                        spec.gpu if spec else '',
+                        spec.gpu_cores if spec and spec.gpu_cores else (asset.gpu_cores or ''),
+                        spec.ram_gb if spec and spec.ram_gb else (asset.memory or ''),
+                        spec.memory_type if spec else '',
+                        spec.storage_gb if spec and spec.storage_gb else (asset.harddrive or ''),
+                        spec.storage_type if spec else '',
                         asset.status.value if asset.status else '',
                         asset.charger or '',
                         '',  # INCLUDED field (empty for now)
                         asset.inventory or '',
-                        asset.country or ''
+                        asset.country or '',
+                        spec.os_name if spec else '',
+                        spec.os_version if spec else '',
+                        spec.battery_cycles if spec else '',
+                        spec.battery_health if spec else '',
+                        spec.wifi_mac if spec else '',
+                        spec.ethernet_mac if spec else ''
                     ])
         
         elif item_type == 'accessories':
