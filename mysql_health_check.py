@@ -57,10 +57,10 @@ def check_tables(engine):
     tables = inspector.get_table_names()
     print(f"   Found {len(tables)} tables")
 
-    # Key tables to verify
+    # Key tables to verify (using correct table names from models)
     key_tables = [
         'users', 'assets', 'tickets', 'companies', 'accessories',
-        'queues', 'permissions', 'activity', 'ticket_categories'
+        'queues', 'permissions', 'activities', 'ticket_category_configs'
     ]
 
     missing = []
@@ -103,7 +103,7 @@ def get_row_counts(engine):
     """Get row counts for main tables."""
     print("\n4. Row Counts...")
 
-    tables = ['users', 'assets', 'tickets', 'companies', 'accessories', 'activity']
+    tables = ['users', 'assets', 'tickets', 'companies', 'accessories', 'activities']
 
     with engine.connect() as conn:
         for table in tables:
