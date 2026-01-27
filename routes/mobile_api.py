@@ -5631,7 +5631,8 @@ def mobile_create_assets_bulk():
 @mobile_auth_required
 def mobile_get_pdf_attachments(ticket_id):
     """
-    Get list of PDF attachments for an intake ticket that can be processed for asset extraction.
+    Get list of PDF attachments for a ticket that can be processed for asset extraction.
+    Supports both IntakeTicket and regular Ticket.
 
     Response:
         {
@@ -5649,30 +5650,55 @@ def mobile_get_pdf_attachments(ticket_id):
         }
     """
     from models.intake_ticket import IntakeTicket
+    from models.ticket import Ticket
+    from models.ticket_attachment import TicketAttachment
+    from sqlalchemy.orm import joinedload
 
     try:
         db_session = db_manager.get_session()
         try:
+            # First try IntakeTicket
             ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+            ticket_type = 'intake'
+
+            # If not found, try regular Ticket
+            if not ticket:
+                logger.info(f"Ticket {ticket_id} not found in intake_tickets, checking tickets table")
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+                ticket_type = 'ticket'
 
             if not ticket:
-                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
 
-            # Get PDF attachments only
+            # Get PDF attachments based on ticket type
             pdf_attachments = []
-            for att in ticket.attachments:
-                if att.filename.lower().endswith('.pdf'):
-                    pdf_attachments.append({
-                        'id': att.id,
-                        'filename': att.filename,
-                        'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None,
-                        'uploaded_by': att.uploader.username if att.uploader else None
-                    })
+            if ticket_type == 'intake':
+                for att in ticket.attachments:
+                    if att.filename.lower().endswith('.pdf'):
+                        pdf_attachments.append({
+                            'id': att.id,
+                            'filename': att.filename,
+                            'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None,
+                            'uploaded_by': att.uploader.username if att.uploader else None
+                        })
+            else:
+                # For regular tickets, query TicketAttachment
+                attachments = db_session.query(TicketAttachment).options(
+                    joinedload(TicketAttachment.uploader)
+                ).filter(TicketAttachment.ticket_id == ticket_id).all()
+                for att in attachments:
+                    if att.filename.lower().endswith('.pdf'):
+                        pdf_attachments.append({
+                            'id': att.id,
+                            'filename': att.filename,
+                            'uploaded_at': att.created_at.isoformat() if att.created_at else None,
+                            'uploaded_by': att.uploader.username if att.uploader else None
+                        })
 
             return jsonify({
                 'success': True,
                 'ticket_id': ticket.id,
-                'ticket_number': ticket.ticket_number,
+                'ticket_number': ticket.ticket_number if hasattr(ticket, 'ticket_number') else ticket.display_id,
                 'attachments': pdf_attachments
             })
 
@@ -5721,18 +5747,35 @@ def mobile_extract_assets_from_pdfs(ticket_id):
         }
     """
     from models.intake_ticket import IntakeTicket
+    from models.ticket import Ticket
+    from models.ticket_attachment import TicketAttachment
     from utils.pdf_extractor import extract_assets_from_pdf
 
     try:
         db_session = db_manager.get_session()
         try:
+            # First try IntakeTicket
             ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+            ticket_type = 'intake'
+
+            # If not found, try regular Ticket
+            if not ticket:
+                logger.info(f"Ticket {ticket_id} not found in intake_tickets, checking tickets table")
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+                ticket_type = 'ticket'
 
             if not ticket:
-                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+                return jsonify({'success': False, 'error': 'Ticket not found in either intake_tickets or tickets table'}), 404
 
-            # Get PDF attachments
-            pdf_attachments = [a for a in ticket.attachments if a.filename.lower().endswith('.pdf')]
+            # Get PDF attachments based on ticket type
+            if ticket_type == 'intake':
+                pdf_attachments = [a for a in ticket.attachments if a.filename.lower().endswith('.pdf')]
+            else:
+                # For regular tickets, query TicketAttachment directly
+                all_attachments = db_session.query(TicketAttachment).filter(
+                    TicketAttachment.ticket_id == ticket_id
+                ).all()
+                pdf_attachments = [a for a in all_attachments if a.filename.lower().endswith('.pdf')]
 
             if not pdf_attachments:
                 return jsonify({
@@ -5797,7 +5840,7 @@ def mobile_extract_assets_from_pdfs(ticket_id):
             return jsonify({
                 'success': True,
                 'ticket_id': ticket.id,
-                'ticket_number': ticket.ticket_number,
+                'ticket_number': ticket.ticket_number if hasattr(ticket, 'ticket_number') else ticket.display_id,
                 'total_assets': total_assets,
                 'results': all_results
             })
