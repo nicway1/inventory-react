@@ -2426,14 +2426,6 @@ def get_ticket_categories():
     try:
         categories = [
             {
-                'id': 'PIN_REQUEST',
-                'name': 'PIN Request',
-                'description': 'Request PIN code for locked device',
-                'requires_asset': True,
-                'required_fields': ['serial_number', 'lock_type', 'queue_id'],
-                'optional_fields': ['notes', 'priority']
-            },
-            {
                 'id': 'ASSET_REPAIR',
                 'name': 'Asset Repair',
                 'description': 'Report device damage and request repair',
