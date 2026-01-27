@@ -5,16 +5,24 @@ from dotenv import load_dotenv
 from models.base import Base
 import models  # Import all models
 import logging
+import sys
 
 # Set up logging for this module
 logger = logging.getLogger(__name__)
 
+# CRITICAL: Check if DATABASE_URL is set BEFORE load_dotenv() can override it
+_pre_dotenv_url = os.environ.get('DATABASE_URL')
 
-# Load environment variables from .env file
+# Load environment variables from .env file (does NOT override existing vars by default)
 load_dotenv()
 
 # Get database URL from environment variable, use SQLite as fallback for development
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Log what database is being used for debugging
+_db_type = 'MySQL' if DATABASE_URL and 'mysql' in DATABASE_URL.lower() else 'SQLite' if DATABASE_URL and 'sqlite' in DATABASE_URL.lower() else 'Other'
+print(f"[DATABASE] Using {_db_type} database", file=sys.stderr)
+print(f"[DATABASE] Pre-dotenv URL was: {'SET to ' + ('MySQL' if _pre_dotenv_url and 'mysql' in _pre_dotenv_url.lower() else 'SQLite') if _pre_dotenv_url else 'NOT SET'}", file=sys.stderr)
 
 # Handle special case for Render.com PostgreSQL URLs
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
