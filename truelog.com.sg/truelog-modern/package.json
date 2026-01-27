@@ -2,6 +2,7 @@
   "name": "truelog-modern",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/site",
   "dependencies": {
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
