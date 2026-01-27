@@ -4497,6 +4497,101 @@ def delete_ticket_attachment(ticket_id, attachment_id):
 
 
 # =============================================================================
+# Attachment Download Endpoint
+# =============================================================================
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/attachments/<int:attachment_id>/download', methods=['GET'])
+@mobile_auth_required
+def download_ticket_attachment(ticket_id, attachment_id):
+    """
+    Download a ticket attachment file.
+
+    GET /api/mobile/v1/tickets/<ticket_id>/attachments/<attachment_id>/download
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        Raw file data with appropriate Content-Type header
+
+    Error responses:
+        - 404: Ticket or attachment not found
+        - 500: Server error
+    """
+    from flask import send_file
+    from models.ticket_attachment import TicketAttachment
+    from models.intake_ticket import IntakeAttachment
+    from models.ticket import Ticket
+    from models.intake_ticket import IntakeTicket
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            # Try to find attachment in TicketAttachment first
+            attachment = db_session.query(TicketAttachment).filter(
+                TicketAttachment.id == attachment_id,
+                TicketAttachment.ticket_id == ticket_id
+            ).first()
+
+            # If not found, try IntakeAttachment
+            if not attachment:
+                attachment = db_session.query(IntakeAttachment).filter(
+                    IntakeAttachment.id == attachment_id,
+                    IntakeAttachment.ticket_id == ticket_id
+                ).first()
+
+            if not attachment:
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment not found'
+                }), 404
+
+            # Check if file exists
+            if not attachment.file_path or not os.path.exists(attachment.file_path):
+                logger.error(f"Attachment file not found on disk: {attachment.file_path}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment file not found on server'
+                }), 404
+
+            # Determine content type
+            file_type = (attachment.file_type or '').lower()
+            content_type_map = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'pdf': 'application/pdf',
+                'doc': 'application/msword',
+                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls': 'application/vnd.ms-excel',
+                'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'txt': 'text/plain',
+                'csv': 'text/csv'
+            }
+            content_type = content_type_map.get(file_type, 'application/octet-stream')
+
+            logger.info(f"Serving attachment {attachment_id} for ticket {ticket_id}: {attachment.filename}")
+
+            return send_file(
+                attachment.file_path,
+                mimetype=content_type,
+                as_attachment=True,
+                download_name=attachment.filename
+            )
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Error downloading attachment: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# =============================================================================
 # Asset Intake Check-in Endpoints
 # =============================================================================
 
