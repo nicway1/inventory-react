@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload
 from models.base import Base
@@ -12,8 +13,34 @@ from models.ticket import Ticket
 from datetime import datetime
 
 class DatabaseManager:
-    def __init__(self, db_url="sqlite:///inventory.db"):
-        self.engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
+    def __init__(self, db_url=None):
+        # Use DATABASE_URL from environment if not provided
+        if db_url is None:
+            db_url = os.environ.get('DATABASE_URL')
+            # Fallback to SQLite only if DATABASE_URL is not set
+            if not db_url:
+                db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'inventory.db')
+                db_url = f'sqlite:///{db_path}'
+
+        # Handle MySQL URL format (ensure pymysql driver is used)
+        if db_url and db_url.startswith("mysql://"):
+            db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+
+        # Create engine with appropriate settings based on database type
+        if db_url.startswith('sqlite'):
+            self.engine = create_engine(db_url, pool_pre_ping=True, connect_args={"check_same_thread": False})
+        elif db_url.startswith('mysql'):
+            # MySQL-specific settings for PythonAnywhere
+            self.engine = create_engine(
+                db_url,
+                pool_pre_ping=True,
+                pool_recycle=280,  # PythonAnywhere has 5-minute connection timeout
+                pool_size=5,
+                max_overflow=10
+            )
+        else:
+            self.engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
+
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         
