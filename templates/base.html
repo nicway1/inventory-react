@@ -1735,6 +1735,16 @@
                 // Also check again after a short delay to catch any processing delays
                 setTimeout(checkForNewNotifications, 2000);
             }
+
+            // Hide Tracking link in App Launcher for non-developers
+            {% if session.get('user_type') != 'DEVELOPER' %}
+            setTimeout(function() {
+                const trackingLink = document.getElementById('app-launcher-tracking');
+                if (trackingLink) {
+                    trackingLink.style.display = 'none';
+                }
+            }, 100);
+            {% endif %}
         });
 
         // Track last notification check time
