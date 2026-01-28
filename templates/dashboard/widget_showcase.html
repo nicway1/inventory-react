@@ -2446,11 +2446,16 @@
 
                 widgetData[widgetId].added = true;
             } else {
-                showToast(result.error || 'Failed to add widget', 'error');
+                // Handle error - ensure it's a string
+                let errorMsg = 'Failed to add widget';
+                if (result.error) {
+                    errorMsg = typeof result.error === 'string' ? result.error : JSON.stringify(result.error);
+                }
+                showToast(errorMsg, 'error');
             }
         } catch (error) {
             console.error('Error adding widget:', error);
-            showToast('Failed to add widget', 'error');
+            showToast('Failed to add widget: ' + error.message, 'error');
         }
     }
 
