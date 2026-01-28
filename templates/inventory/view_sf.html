@@ -1984,10 +1984,16 @@ function exportAssets() {
             return;
         }
 
-        const headers = ['Asset Tag', 'Name', 'Serial Number', 'Status', 'Category', 'Customer', 'Company', 'Country', 'Location'];
+        const headers = [
+            'Asset Tag', 'Name', 'Serial Number', 'Status', 'Category', 'Customer', 'Company', 'Country', 'Location', 'Model',
+            'CPU', 'CPU Cores', 'GPU', 'GPU Cores', 'Memory', 'Memory Type', 'Storage', 'Storage Type',
+            'OS', 'OS Version', 'Battery Cycles', 'Battery Health', 'WiFi MAC', 'Ethernet MAC'
+        ];
         const rows = dataToExport.map(a => [
             a.asset_tag, a.name, a.serial_number, a.status, a.category,
-            a.customer, a.company, a.country, a.location
+            a.customer, a.company, a.country, a.location, a.model,
+            a.cpu, a.cpu_cores, a.gpu, a.gpu_cores, a.memory, a.memory_type, a.storage, a.storage_type,
+            a.os, a.os_version, a.battery_cycles, a.battery_health, a.wifi_mac, a.ethernet_mac
         ].map(val => {
             val = val || '';
             if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
