@@ -2412,9 +2412,13 @@
         try {
             const widget = widgetData[widgetId];
 
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const saveResponse = await fetch('/dashboard/api/save-layout', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({
                     layout: [...getCurrentDashboardLayout(), {
                         widget_id: widgetId,
