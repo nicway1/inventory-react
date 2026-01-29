@@ -1013,6 +1013,29 @@ function extractFromPDF(attachmentId) {
     });
 }
 
+// Build hardware type string from asset data
+// Format: MacBook Air 13" Starlight M4 10-Core CPU 8-Core GPU 16GB RAM 256GB SSD
+function buildHardwareType(asset) {
+    let parts = [];
+
+    // Use hardware_type from backend if it has color, otherwise build from name + color
+    if (asset.hardware_type && asset.hardware_type !== 'Laptop') {
+        parts.push(asset.hardware_type);
+    } else {
+        if (asset.name) parts.push(asset.name);
+        if (asset.color) parts.push(asset.color);
+    }
+
+    if (asset.cpu_type) parts.push(asset.cpu_type);
+    if (asset.cpu_cores) parts.push(asset.cpu_cores + '-Core CPU');
+    if (asset.gpu_cores) parts.push(asset.gpu_cores + '-Core GPU');
+    // Memory and harddrive already include units (e.g., "16GB", "256GB") from backend
+    if (asset.memory) parts.push(asset.memory + ' RAM');
+    if (asset.harddrive) parts.push(asset.harddrive + ' SSD');
+
+    return parts.join(' ');
+}
+
 async function showPreview(data) {
     document.getElementById('step1').style.display = 'none';
     document.getElementById('step2').style.display = 'block';
@@ -1097,7 +1120,7 @@ async function showPreview(data) {
             <td onclick="showAssetDetail(${index})">${asset.cpu_cores || '-'}</td>
             <td onclick="showAssetDetail(${index})">${asset.memory || '-'}</td>
             <td onclick="showAssetDetail(${index})">${asset.harddrive || '-'}</td>
-            <td class="input-cell"><input type="text" class="hardware-type-input" data-index="${index}" value="" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
+            <td class="input-cell"><input type="text" class="hardware-type-input" data-index="${index}" value="${buildHardwareType(asset)}" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
         `;
         tbody.appendChild(row);
     });
@@ -1207,30 +1230,12 @@ function generateAllAssetTags() {
 }
 
 function generateAllHardwareTypes() {
-    // Generate hardware type for each asset based on extracted data
-    // Format: MacBook Air 13" Starlight M4 10-Core CPU 8-Core GPU 16GB RAM 256GB SSD
+    // Regenerate hardware type for all assets using the buildHardwareType function
     if (!extractedData || !extractedData.assets) return;
 
     document.querySelectorAll('.hardware-type-input').forEach((input, index) => {
         const asset = extractedData.assets[index];
-        let hardwareType = '';
-
-        // Build hardware type string - use hardware_type from backend if it has color, otherwise build from specs
-        if (asset.hardware_type && asset.hardware_type !== 'Laptop') {
-            hardwareType = asset.hardware_type + ' ';
-        } else if (asset.name) {
-            hardwareType = asset.name + ' ';
-            if (asset.color) hardwareType += asset.color + ' ';
-        }
-
-        if (asset.cpu_type) hardwareType += asset.cpu_type + ' ';
-        if (asset.cpu_cores) hardwareType += asset.cpu_cores + '-Core CPU ';
-        if (asset.gpu_cores) hardwareType += asset.gpu_cores + '-Core GPU ';
-        // Memory and harddrive already include units (e.g., "16GB", "256GB") from backend
-        if (asset.memory) hardwareType += asset.memory + ' RAM ';
-        if (asset.harddrive) hardwareType += asset.harddrive + ' SSD';
-
-        input.value = hardwareType.trim();
+        input.value = buildHardwareType(asset);
     });
 }
 
