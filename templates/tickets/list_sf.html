@@ -2030,8 +2030,8 @@
         }).join('');
         document.getElementById('priorityFilter').innerHTML = priorityHtml;
 
-        // Build category filter
-        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c);
+        // Build category filter (hide PIN_REQUEST from filter)
+        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c && c !== 'PIN_REQUEST');
         const categoryHtml = categories.map(category => {
             const count = allTickets.filter(t => t.category === category).length;
             return `
