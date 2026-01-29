@@ -1561,6 +1561,35 @@
                 </div>
             </div>
 
+            <!-- My Tickets Summary Cards -->
+            <div class="sf-summary-cards" style="margin-top: 0.5rem;">
+                <div class="sf-summary-card" style="border-left: 4px solid var(--sf-purple);" onclick="filterByAssignee()">
+                    <div class="sf-summary-label">My Tickets</div>
+                    <div class="sf-summary-value purple" id="myTotalCount">0</div>
+                    <div class="sf-summary-subtitle">Assigned to me</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('OPEN')">
+                    <div class="sf-summary-label">My Open</div>
+                    <div class="sf-summary-value orange" id="myOpenCount">0</div>
+                    <div class="sf-summary-subtitle">Need attention</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('IN_PROGRESS')">
+                    <div class="sf-summary-label">My In Progress</div>
+                    <div class="sf-summary-value purple" id="myInProgressCount">0</div>
+                    <div class="sf-summary-subtitle">Working on</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('ON_HOLD')">
+                    <div class="sf-summary-label">My On Hold</div>
+                    <div class="sf-summary-value red" id="myOnHoldCount">0</div>
+                    <div class="sf-summary-subtitle">Waiting</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('RESOLVED')">
+                    <div class="sf-summary-label">My Resolved</div>
+                    <div class="sf-summary-value green" id="myResolvedCount">0</div>
+                    <div class="sf-summary-subtitle">Completed</div>
+                </div>
+            </div>
+
             <!-- Charts Section -->
             <div class="sf-charts-section">
                 <!-- Status Distribution Chart -->
@@ -1859,6 +1888,9 @@
 
     // Custom statuses from database
     const customStatuses = {{ custom_statuses | tojson | safe }};
+
+    // Current user's username for personal stats
+    const currentUsername = {{ current_user.username | tojson }};
 
     // Status and priority mappings
     const statusColors = {
@@ -2247,6 +2279,37 @@
         document.getElementById('inProgressCount').textContent = inProgressCount;
         document.getElementById('resolvedCount').textContent = resolvedCount;
         document.getElementById('onHoldCount').textContent = onHoldCount;
+
+        // Personal stats - tickets assigned to current user
+        const myTickets = filteredTickets.filter(t => t.assignee === currentUsername);
+
+        const myOpenCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'new' || s === 'open' || s.includes('new');
+        }).length;
+
+        const myInProgressCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
+                   s.includes('progress') || s.includes('processing');
+        }).length;
+
+        const myOnHoldCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
+                   s.includes('duplicate') || s.includes('cancel');
+        }).length;
+
+        const myResolvedCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
+        }).length;
+
+        document.getElementById('myTotalCount').textContent = myTickets.length;
+        document.getElementById('myOpenCount').textContent = myOpenCount;
+        document.getElementById('myInProgressCount').textContent = myInProgressCount;
+        document.getElementById('myOnHoldCount').textContent = myOnHoldCount;
+        document.getElementById('myResolvedCount').textContent = myResolvedCount;
     }
 
     // Sort and render table
@@ -2413,6 +2476,60 @@
                 if (shouldCheck) cb.checked = true;
             });
         }
+
+        applyFilters();
+
+        // Update card highlights
+        document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    // Filter by assignee (my tickets)
+    function filterByAssignee() {
+        // Clear all status checkboxes
+        document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+
+        // Check assignee checkbox for current user
+        document.querySelectorAll('#assigneeFilter input').forEach(cb => {
+            cb.checked = (cb.value === currentUsername);
+        });
+
+        applyFilters();
+
+        // Update card highlights
+        document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    // Filter by assignee and status combined
+    function filterByAssigneeAndStatus(statusCategory) {
+        // Clear all status checkboxes first
+        document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+
+        // Check assignee checkbox for current user
+        document.querySelectorAll('#assigneeFilter input').forEach(cb => {
+            cb.checked = (cb.value === currentUsername);
+        });
+
+        // Check status checkboxes that match the category pattern
+        document.querySelectorAll('#statusFilter input').forEach(cb => {
+            const s = cb.value.toLowerCase();
+            let shouldCheck = false;
+
+            if (statusCategory === 'OPEN') {
+                shouldCheck = s === 'new' || s === 'open' || s.includes('new');
+            } else if (statusCategory === 'IN_PROGRESS') {
+                shouldCheck = s === 'in progress' || s === 'in_progress' || s === 'processing' ||
+                              s.includes('progress') || s.includes('processing');
+            } else if (statusCategory === 'RESOLVED') {
+                shouldCheck = s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
+            } else if (statusCategory === 'ON_HOLD') {
+                shouldCheck = s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
+                              s.includes('duplicate') || s.includes('cancel');
+            }
+
+            if (shouldCheck) cb.checked = true;
+        });
 
         applyFilters();
 
