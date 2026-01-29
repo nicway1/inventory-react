@@ -1082,29 +1082,36 @@ def extract_assets_from_text(text):
     """
     assets = []
 
-    # Common Apple serial number patterns (alphanumeric, 10-12 chars)
-    serial_pattern = r'\b([A-Z0-9]{10,14})\b'
+    # Normalize text - convert to uppercase for consistent matching
+    text_upper = text.upper()
 
-    # Part number patterns - captures Apple part numbers like MWW03ZP/A or MXY32P/A
-    # Need multiple patterns due to OCR variations
+    # Common Apple serial number patterns (alphanumeric, 10-14 chars)
+    # Match both uppercase and original text
+    serial_pattern = r'\b([A-Za-z0-9]{10,14})\b'
+
+    # Part number patterns - captures Apple part numbers like MW0Y3ZP/A, MC6T4ZP/A
+    # CDW format often has suffix like -SG0001 after the /A
     part_number_patterns = [
-        r'\b([A-Z]{2,4}[A-Z0-9]{2,4})[PZ]/[A-Z]',  # General: MWW03ZP/A, MXY32P/A, MX2Y3ZP/A
-        r'\b(M[A-Z0-9]{4,5})[PZ]/[A-Z]',  # M-prefix: MWOW3ZP/A, MX2Y3ZP/A
+        r'\b(M[A-Z0-9]{5,6})[PZ]/[A-Z](?:-[A-Z0-9]+)?',  # Apple M-prefix: MW0Y3ZP/A-SG0001, MC6T4ZP/A-SG0001
+        r'\b([A-Z]{2}[A-Z0-9]{3,5})[PZ]/[A-Z](?:-[A-Z0-9]+)?',  # 2-letter prefix: MW0Y3ZP/A, MC6T4ZP/A
+        r'\b([A-Z]{2,4}[A-Z0-9]{2,4})[PZ]/[A-Z]',  # General format
+        r'\b(M[WCXYQNKLRT][A-Z0-9]{3,5})[PZ]/[A-Z]',  # Apple M-series parts
     ]
 
     # Filter patterns for non-serial strings
     exclude_patterns = [
         r'^\d+$',  # Pure numbers
         r'^[A-Z]+$',  # Pure letters (no numbers) - colors, words
-        r'^100\d{7}',  # PO numbers
-        r'^847\d{5}',  # Commodity codes
-        r'^656\d{8}',  # Tracking numbers
+        r'^100\d{6,8}$',  # PO numbers (100XXXXXXX)
+        r'^847\d{5}$',  # Commodity codes
+        r'^656\d{8}$',  # Tracking numbers
         r'^\d{9}[A-Z]$',  # Singapore UEN numbers
         r'^\d{8}[A-Z]$',  # Singapore UEN numbers (older format)
         r'^[A-Z]\d{8}[A-Z]$',  # Singapore UEN
         r'^SINGAPORE\d*$',
         r'^[A-Z]{2}\d{6}$',
         r'^\d{6}[A-Z]{2}\d{4}$',
+        r'^SG\d{4,}$',  # SG followed by numbers (like SG0001)
     ]
 
     # Common words/colors that should never be serial numbers
@@ -1115,7 +1122,32 @@ def extract_assets_from_text(text):
         'AUTHORIZED', 'CERTIFICATE', 'CONSOLIDATED', 'DECONSOLID', 'QUANTITY',
         'COMMODITY', 'KEYBOARD', 'PROCESSOR', 'STORAGE', 'MEMORY',
         'SKYBLUE', 'ROSEGOLD', 'GOLDCOLOR', 'BLACKCOLOR', 'WHITECOLOR',
+        'AUTHORIZED1', 'COLLECTION1', 'DECONSOLIDA', 'DESCRIPTION1',
     ]
+
+    # Initialize serial matches list early
+    serial_matches = []
+    seen_serial_values = set()
+
+    # Apple serials typically start with S and are 11-12 chars (e.g., SC2WXQ39W20)
+    # This is the most reliable pattern for CDW packing lists
+    apple_serial_pattern = r'\b(S[A-Z0-9]{9,12})\b'
+
+    # First pass: Find Apple serials (starting with S) - most reliable
+    for match in re.finditer(apple_serial_pattern, text_upper):
+        serial = match.group(1)
+        if serial not in seen_serial_values and serial not in exclude_words:
+            has_letters = any(c.isalpha() for c in serial)
+            has_numbers = any(c.isdigit() for c in serial)
+            if has_letters and has_numbers:
+                seen_serial_values.add(serial)
+                serial_matches.append({
+                    'serial': serial,
+                    'start': match.start(),
+                    'end': match.end()
+                })
+
+    logger.info(f"Found {len(serial_matches)} Apple serials (starting with S)")
 
     # Find all part numbers with their positions (try multiple patterns)
     # Each occurrence represents ONE asset, so we keep all occurrences in order
@@ -1141,22 +1173,26 @@ def extract_assets_from_text(text):
     part_matches.sort(key=lambda x: x['start'])
     logger.info(f"Found {len(part_matches)} part number occurrences: {[p['prefix'] for p in part_matches]}")
 
-    # Find all potential serials with positions
-    serial_matches = []
-    for match in re.finditer(serial_pattern, text):
-        serial = match.group(1)
+    # Second pass: Find additional potential serials (not starting with S)
+    # This catches any edge cases the Apple serial pattern might miss
+    for match in re.finditer(serial_pattern, text_upper):
+        serial = match.group(1).upper()
+
+        # Skip if already found
+        if serial in seen_serial_values:
+            continue
 
         # Skip if matches exclude patterns
         skip = False
         for exc_pattern in exclude_patterns:
-            if re.match(exc_pattern, serial):
+            if re.match(exc_pattern, serial, re.IGNORECASE):
                 skip = True
                 break
         if skip:
             continue
 
         # Skip if matches exclude words (colors, product names, etc.)
-        if serial.upper() in exclude_words:
+        if serial in exclude_words:
             continue
 
         # Skip if too short or all numbers
@@ -1167,50 +1203,48 @@ def extract_assets_from_text(text):
         if serial.isalpha():
             continue
 
-        # Apple serials need mix of letters and numbers (or start with S)
+        # Apple serials need mix of letters and numbers
         has_letters = any(c.isalpha() for c in serial)
         has_numbers = any(c.isdigit() for c in serial)
 
         if has_letters and has_numbers:
+            seen_serial_values.add(serial)
             serial_matches.append({
                 'serial': serial,
                 'start': match.start(),
                 'end': match.end()
             })
-        elif serial.startswith('S') and has_letters and 10 <= len(serial) <= 12:
-            serial_matches.append({
-                'serial': serial,
-                'start': match.start(),
-                'end': match.end()
-            })
 
-    logger.info(f"Found {len(serial_matches)} potential serial numbers")
+    # Sort serials by position in text for proper matching
+    serial_matches.sort(key=lambda x: x['start'])
+    logger.info(f"Total unique serials found: {len(serial_matches)}")
 
-    # Match serials to part numbers in order
-    # Each part number occurrence represents ONE asset
-    # So if we have 19 MacBook Air part numbers + 8 MacBook Pro part numbers = 27 part numbers
-    # And 27 serial numbers, they should match 1:1 in order
+    # Match each serial to its nearest PRECEDING part number
+    # This handles packing lists where one part number is listed, then multiple serials follow
+    logger.info(f"Unique serials: {len(serial_matches)}, Part numbers: {len(part_matches)}")
 
-    # Remove duplicate serials while preserving order
-    seen_serials = set()
-    unique_serials = []
-    for serial_info in serial_matches:
-        if serial_info['serial'] not in seen_serials:
-            seen_serials.add(serial_info['serial'])
-            unique_serials.append(serial_info)
+    # Create a list of unique serials (already deduplicated via seen_serial_values)
+    unique_serials = serial_matches
 
-    logger.info(f"Unique serials: {len(unique_serials)}, Part numbers: {len(part_matches)}")
-
-    # Match serials to part numbers by index (1:1 in order of appearance)
     for idx, serial_info in enumerate(unique_serials):
         serial = serial_info['serial']
+        serial_pos = serial_info['start']
 
-        # Get the corresponding part number by index
-        if idx < len(part_matches):
-            best_part = part_matches[idx]
-        else:
-            # More serials than part numbers - use the last part number
-            best_part = part_matches[-1] if part_matches else None
+        # Find the nearest PRECEDING part number (part number that comes BEFORE this serial)
+        best_part = None
+        best_distance = float('inf')
+
+        for part in part_matches:
+            # Part number must come BEFORE the serial
+            if part['end'] < serial_pos:
+                distance = serial_pos - part['end']
+                if distance < best_distance:
+                    best_distance = distance
+                    best_part = part
+
+        # If no preceding part found, use the first part number (fallback for edge cases)
+        if best_part is None and part_matches:
+            best_part = part_matches[0]
 
         # Get part number prefix and look up model
         part_prefix = best_part['prefix'] if best_part else None
