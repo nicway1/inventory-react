@@ -1199,15 +1199,6 @@ def extract_assets_from_text(text):
         if serial in exclude_words:
             continue
 
-        # Skip if matches exclude patterns
-        skip = False
-        for exc_pattern in exclude_patterns:
-            if re.match(exc_pattern, serial, re.IGNORECASE):
-                skip = True
-                break
-        if skip:
-            continue
-
         # Apple serials typically start with these letters (factory codes)
         # S=Shenzhen, C/D=Cork Ireland, F=Fremont, G/H=China, etc.
         apple_serial_prefixes = ['S', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'T', 'V', 'W', 'X', 'Y']
@@ -1219,6 +1210,16 @@ def extract_assets_from_text(text):
         # Apple serials starting with 'S' and exactly 11 chars can be all-letters
         # (e.g., SCDQXCNXWVL) - these are valid Shenzhen factory serials
         is_likely_apple_serial = serial[0] == 'S' and len(serial) == 11
+
+        # Skip if matches exclude patterns (UNLESS it's a likely Apple all-letter serial)
+        if not is_likely_apple_serial:
+            skip = False
+            for exc_pattern in exclude_patterns:
+                if re.match(exc_pattern, serial, re.IGNORECASE):
+                    skip = True
+                    break
+            if skip:
+                continue
 
         # For non-Apple-serial patterns, require both letters and numbers
         if not is_likely_apple_serial:
