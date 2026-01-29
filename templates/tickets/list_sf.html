@@ -1532,10 +1532,13 @@
 
         <!-- Main Area -->
         <div class="sf-main">
-            <!-- Summary Cards -->
+            <!-- All Tickets Section -->
+            <div class="sf-section-header" style="font-size: 0.75rem; font-weight: 600; color: var(--sf-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                All Tickets
+            </div>
             <div class="sf-summary-cards">
                 <div class="sf-summary-card highlight" onclick="filterByStatus('all')">
-                    <div class="sf-summary-label">Total Tickets</div>
+                    <div class="sf-summary-label">Total</div>
                     <div class="sf-summary-value blue" id="totalCount">0</div>
                     <div class="sf-summary-subtitle">All tickets</div>
                 </div>
@@ -1561,30 +1564,33 @@
                 </div>
             </div>
 
-            <!-- My Tickets Summary Cards -->
-            <div class="sf-summary-cards" style="margin-top: 0.5rem;">
+            <!-- My Tickets Section -->
+            <div class="sf-section-header" style="font-size: 0.75rem; font-weight: 600; color: var(--sf-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; margin-top: 1rem;">
+                My Tickets
+            </div>
+            <div class="sf-summary-cards">
                 <div class="sf-summary-card" style="border-left: 4px solid var(--sf-purple);" onclick="filterByAssignee()">
-                    <div class="sf-summary-label">My Tickets</div>
+                    <div class="sf-summary-label">Total</div>
                     <div class="sf-summary-value purple" id="myTotalCount">0</div>
                     <div class="sf-summary-subtitle">Assigned to me</div>
                 </div>
                 <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('OPEN')">
-                    <div class="sf-summary-label">My Open</div>
+                    <div class="sf-summary-label">Open</div>
                     <div class="sf-summary-value orange" id="myOpenCount">0</div>
                     <div class="sf-summary-subtitle">Need attention</div>
                 </div>
                 <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('IN_PROGRESS')">
-                    <div class="sf-summary-label">My In Progress</div>
+                    <div class="sf-summary-label">In Progress</div>
                     <div class="sf-summary-value purple" id="myInProgressCount">0</div>
                     <div class="sf-summary-subtitle">Working on</div>
                 </div>
                 <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('ON_HOLD')">
-                    <div class="sf-summary-label">My On Hold</div>
+                    <div class="sf-summary-label">On Hold</div>
                     <div class="sf-summary-value red" id="myOnHoldCount">0</div>
                     <div class="sf-summary-subtitle">Waiting</div>
                 </div>
                 <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('RESOLVED')">
-                    <div class="sf-summary-label">My Resolved</div>
+                    <div class="sf-summary-label">Resolved</div>
                     <div class="sf-summary-value green" id="myResolvedCount">0</div>
                     <div class="sf-summary-subtitle">Completed</div>
                 </div>
