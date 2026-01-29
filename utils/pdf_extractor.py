@@ -1447,7 +1447,44 @@ def extract_assets_from_text(text):
             if cores >= 12:
                 product_details['cpu_type'] = 'M4 Pro'
 
-        logger.info(f"Serial {serial} -> Part: {part_prefix}, Model: {model_identifier}, Name: {product_details['name']}")
+        # Determine color from part number prefix
+        color = ''
+        part_prefix_upper = (part_prefix or '').upper()
+        # MacBook Air colors
+        if part_prefix_upper in ['MW0Y3', 'MWOY3']:
+            color = 'Starlight'
+        elif part_prefix_upper in ['MC6T4']:
+            color = 'Sky Blue'
+        elif part_prefix_upper in ['MW0W3', 'MWOW3']:
+            color = 'Silver'
+        elif part_prefix_upper in ['MW123']:
+            color = 'Midnight'
+        # MacBook Pro colors
+        elif part_prefix_upper in ['MXD33', 'MXD53', 'MXD93', 'MXF53']:
+            color = 'Space Black'
+        elif part_prefix_upper in ['MXD23', 'MXD43', 'MXD83', 'MXF43']:
+            color = 'Silver'
+        # Also check context for color if not found from part number
+        if not color:
+            if 'STARLIGHT' in context_upper:
+                color = 'Starlight'
+            elif 'SKY BLUE' in context_upper or 'SKYBLUE' in context_upper:
+                color = 'Sky Blue'
+            elif 'MIDNIGHT' in context_upper:
+                color = 'Midnight'
+            elif 'SPACE BLACK' in context_upper or 'SPACEBLACK' in context_upper:
+                color = 'Space Black'
+            elif 'SPACE GRAY' in context_upper or 'SPACEGRAY' in context_upper or 'SPACE GREY' in context_upper:
+                color = 'Space Gray'
+            elif 'SILVER' in context_upper:
+                color = 'Silver'
+
+        # Build hardware_type with color
+        hardware_type = product_details.get('name', 'MacBook')
+        if color:
+            hardware_type = f"{hardware_type} {color}"
+
+        logger.info(f"Serial {serial} -> Part: {part_prefix}, Model: {model_identifier}, Name: {product_details['name']}, Color: {color}")
 
         asset = {
             'serial_num': serial,
@@ -1460,9 +1497,10 @@ def extract_assets_from_text(text):
             'gpu_cores': product_details.get('gpu_cores', ''),
             'memory': product_details.get('memory', ''),
             'harddrive': product_details.get('storage', ''),
-            'hardware_type': 'Laptop',
+            'hardware_type': hardware_type,
             'condition': 'New',
             'part_prefix': part_prefix,  # Store for breakdown
+            'color': color,  # Store color separately too
         }
         assets.append(asset)
 
