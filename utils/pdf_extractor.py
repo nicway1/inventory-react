@@ -1208,23 +1208,27 @@ def extract_assets_from_text(text):
         if skip:
             continue
 
-        # Must have both letters and numbers (not pure letters or pure numbers)
-        has_letters = any(c.isalpha() for c in serial)
-        has_numbers = any(c.isdigit() for c in serial)
-        if not (has_letters and has_numbers):
-            continue
-
-        # Skip if contains 'X' patterns typical of dimensions (120X100X185)
-        if 'X' in serial and re.search(r'\d+X\d+', serial):
-            continue
-
         # Apple serials typically start with these letters (factory codes)
         # S=Shenzhen, C/D=Cork Ireland, F=Fremont, G/H=China, etc.
         apple_serial_prefixes = ['S', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'T', 'V', 'W', 'X', 'Y']
 
-        # Prefer serials that start with typical Apple prefixes
-        # Reject if it doesn't start with a known prefix (more strict)
+        # Reject if it doesn't start with a known Apple prefix
         if serial[0] not in apple_serial_prefixes:
+            continue
+
+        # Apple serials starting with 'S' and exactly 11 chars can be all-letters
+        # (e.g., SCDQXCNXWVL) - these are valid Shenzhen factory serials
+        is_likely_apple_serial = serial[0] == 'S' and len(serial) == 11
+
+        # For non-Apple-serial patterns, require both letters and numbers
+        if not is_likely_apple_serial:
+            has_letters = any(c.isalpha() for c in serial)
+            has_numbers = any(c.isdigit() for c in serial)
+            if not (has_letters and has_numbers):
+                continue
+
+        # Skip if contains dimension patterns (120X100X185)
+        if 'X' in serial and re.search(r'\d+X\d+', serial):
             continue
 
         seen_serial_values.add(serial)
@@ -1289,15 +1293,18 @@ def extract_assets_from_text(text):
         if len(serial) < 10 or serial.isdigit():
             continue
 
-        # Skip if all letters (no numbers) - not a valid serial
-        if serial.isalpha():
+        # Apple serials starting with 'S' and exactly 11 chars can be all-letters
+        is_likely_apple_serial = serial[0] == 'S' and len(serial) == 11
+
+        # Skip if all letters (no numbers) - unless it's a likely Apple serial
+        if serial.isalpha() and not is_likely_apple_serial:
             continue
 
-        # Apple serials need mix of letters and numbers
+        # For non-Apple patterns, require mix of letters and numbers
         has_letters = any(c.isalpha() for c in serial)
         has_numbers = any(c.isdigit() for c in serial)
 
-        if has_letters and has_numbers:
+        if (has_letters and has_numbers) or is_likely_apple_serial:
             seen_serial_values.add(serial)
             serial_matches.append({
                 'serial': serial,
