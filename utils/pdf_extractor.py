@@ -1105,20 +1105,20 @@ def parse_packing_list_text(text):
             breakdown[description] = total_count
             breakdown_serials[description] = []
 
-    # Match assets to breakdown categories based on their model prefix
+    # Match assets to breakdown categories based on their part number prefix
     for asset in assets:
-        asset_model = asset.get('model', '') or ''
-        serial = asset.get('serial', '')
+        part_prefix = asset.get('part_prefix', '') or ''
+        serial = asset.get('serial_num', '')
         matched = False
         for patterns, description, model_prefixes in part_number_groups:
-            if any(asset_model.upper().startswith(prefix) for prefix in model_prefixes):
+            if any(part_prefix.upper().startswith(prefix) for prefix in model_prefixes):
                 if description in breakdown_serials:
                     breakdown_serials[description].append(serial)
                     matched = True
                     break
         # If no match found, add to "Other" category
         if not matched and serial:
-            other_key = f"Other ({asset_model})" if asset_model else "Other"
+            other_key = f"Other ({part_prefix})" if part_prefix else "Other"
             if other_key not in breakdown_serials:
                 breakdown_serials[other_key] = []
             breakdown_serials[other_key].append(serial)
@@ -1128,7 +1128,7 @@ def parse_packing_list_text(text):
         for asset in assets:
             model = asset.get('model', '') or 'Unknown'
             name = asset.get('name', 'MacBook')
-            serial = asset.get('serial', '')
+            serial = asset.get('serial_num', '')
             key = f"{name} ({model})" if model and model != 'Unknown' else name
             if key not in breakdown:
                 breakdown[key] = 0
