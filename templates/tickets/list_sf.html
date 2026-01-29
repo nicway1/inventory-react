@@ -2272,30 +2272,31 @@
 
     // Update summary cards
     function updateSummaryCards() {
-        document.getElementById('totalCount').textContent = filteredTickets.length;
+        // Summary cards always show counts from allTickets (not filtered)
+        document.getElementById('totalCount').textContent = allTickets.length;
 
         // Count tickets by status category
         // "Open" includes: New, OPEN, or any status containing "new" (case-insensitive)
-        const openCount = filteredTickets.filter(t => {
+        const openCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'new' || s === 'open' || s.includes('new');
         }).length;
 
         // "In Progress" includes: In Progress, IN_PROGRESS, Processing, or statuses containing "progress" or "processing"
-        const inProgressCount = filteredTickets.filter(t => {
+        const inProgressCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
                    s.includes('progress') || s.includes('processing');
         }).length;
 
         // "Resolved" includes: Resolved, RESOLVED, RESOLVED_DELIVERED, or statuses containing "resolved" or "delivered" or "complete"
-        const resolvedCount = filteredTickets.filter(t => {
+        const resolvedCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
         }).length;
 
         // "On Hold" includes: On Hold, ON_HOLD, or statuses containing "hold" or "duplicate" or "cancelled"
-        const onHoldCount = filteredTickets.filter(t => {
+        const onHoldCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
                    s.includes('duplicate') || s.includes('cancel');
@@ -2306,8 +2307,8 @@
         document.getElementById('resolvedCount').textContent = resolvedCount;
         document.getElementById('onHoldCount').textContent = onHoldCount;
 
-        // Personal stats - tickets assigned to current user
-        const myTickets = filteredTickets.filter(t => t.assignee === currentUsername);
+        // Personal stats - tickets assigned to current user (from allTickets, not filtered)
+        const myTickets = allTickets.filter(t => t.assignee === currentUsername);
 
         const myOpenCount = myTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
