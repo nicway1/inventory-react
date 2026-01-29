@@ -1381,9 +1381,6 @@
             </h1>
         </div>
         <div class="sf-header-actions">
-            <a href="{{ url_for('tickets.list_tickets') }}" class="sf-btn sf-btn-neutral">
-                <i class="fas fa-exchange-alt"></i> Classic View
-            </a>
             {% if current_user.is_super_admin or current_user.is_developer %}
             <a href="{{ url_for('tickets.ticket_manager') }}" class="sf-btn sf-btn-neutral" style="background: #8b5cf6; border-color: #8b5cf6; color: white;">
                 <i class="fas fa-cog"></i> Ticket Manager
@@ -2030,6 +2027,9 @@
             {% endfor %}
         ];
 
+        // Filter out PIN Request tickets (hide from ticket management)
+        allTickets = allTickets.filter(t => !t.category || !t.category.toUpperCase().includes('PIN'));
+
         document.getElementById('tableLoading').style.display = 'none';
         document.getElementById('tableContent').style.display = 'block';
 
@@ -2080,8 +2080,8 @@
         }).join('');
         document.getElementById('priorityFilter').innerHTML = priorityHtml;
 
-        // Build category filter (hide PIN_REQUEST from filter)
-        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c && c !== 'PIN_REQUEST');
+        // Build category filter (hide PIN_REQUEST and PIN Request from filter)
+        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c && !c.toUpperCase().includes('PIN'));
         const categoryHtml = categories.map(category => {
             const count = allTickets.filter(t => t.category === category).length;
             return `
