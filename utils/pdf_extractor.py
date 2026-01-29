@@ -1084,24 +1084,45 @@ def parse_packing_list_text(text):
         'MXD53': '14" MacBook Pro Space Black M4 Pro',
         'MXD93': '16" MacBook Pro Space Black M4 Pro',
         'MXF53': '16" MacBook Pro Space Black M4 Max',
-        # Add more common models
         'MW0W3': '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
         'MW123': '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
     }
 
-    # Count actual extracted assets by their part_prefix
+    # OCR often misreads 0 (zero) as O (letter) in part numbers
+    # Normalize by converting O to 0 in positions 2-4 (after the M prefix)
+    def normalize_part_prefix(prefix):
+        if not prefix or len(prefix) < 5:
+            return prefix
+        # Apple part numbers: first 2 chars are letters (MW, MC, MX, etc.)
+        # Characters 3-5 can have OCR 0/O confusion
+        normalized = prefix[:2]
+        for char in prefix[2:]:
+            if char == 'O':
+                normalized += '0'  # Convert letter O to zero
+            else:
+                normalized += char
+        return normalized
+
+    # Count actual extracted assets by their NORMALIZED part_prefix
     prefix_counts = {}
     for asset in assets:
         prefix = asset.get('part_prefix')
         if prefix:
-            if prefix not in prefix_counts:
-                prefix_counts[prefix] = 0
-            prefix_counts[prefix] += 1
+            # Normalize to handle OCR variations
+            normalized = normalize_part_prefix(prefix)
+            if normalized not in prefix_counts:
+                prefix_counts[normalized] = 0
+            prefix_counts[normalized] += 1
 
     # Convert prefix counts to friendly descriptions
     for prefix, count in prefix_counts.items():
         if prefix in part_descriptions:
-            breakdown[part_descriptions[prefix]] = count
+            # Add to existing count if description already exists (handles multiple OCR variants)
+            desc = part_descriptions[prefix]
+            if desc in breakdown:
+                breakdown[desc] += count
+            else:
+                breakdown[desc] = count
         else:
             # Fallback: use generic name with part prefix
             model_id = APPLE_PART_TO_MODEL.get(prefix, '')
@@ -1111,7 +1132,10 @@ def parse_packing_list_text(text):
                 name = f'MacBook Pro ({prefix})'
             else:
                 name = f'Apple MacBook ({prefix})'
-            breakdown[name] = count
+            if name in breakdown:
+                breakdown[name] += count
+            else:
+                breakdown[name] = count
 
     # If no breakdown yet (no part prefixes found), fall back to counting by model field
     if not breakdown and assets:
