@@ -1901,6 +1901,9 @@
     let isBulkSearchMode = false;
     let bulkSearchTerms = [];
 
+    // My Tickets filter state
+    let filterMyTicketsOnly = false;
+
     // Custom statuses from database
     const customStatuses = {{ custom_statuses | tojson | safe }};
 
@@ -2181,6 +2184,11 @@
 
             // Queue filter
             if (selectedQueues.length > 0 && !selectedQueues.includes(ticket.queue)) {
+                return false;
+            }
+
+            // My Tickets filter - filter by current user's assignee
+            if (filterMyTicketsOnly && ticket.assignee !== currentUsername) {
                 return false;
             }
 
@@ -2472,8 +2480,8 @@
     function filterByStatus(statusCategory, cardElement) {
         // Clear all status checkboxes first
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
-        // Clear assignee filter
-        document.querySelectorAll('#assigneeFilter input').forEach(cb => cb.checked = false);
+        // Disable My Tickets filter
+        filterMyTicketsOnly = false;
 
         if (statusCategory !== 'all') {
             // Check checkboxes that match the category pattern
@@ -2513,10 +2521,8 @@
         // Clear all status checkboxes
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
 
-        // Check assignee checkbox for current user
-        document.querySelectorAll('#assigneeFilter input').forEach(cb => {
-            cb.checked = (cb.value === currentUsername);
-        });
+        // Enable My Tickets filter
+        filterMyTicketsOnly = true;
 
         applyFilters();
 
@@ -2533,10 +2539,8 @@
         // Clear all status checkboxes first
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
 
-        // Check assignee checkbox for current user
-        document.querySelectorAll('#assigneeFilter input').forEach(cb => {
-            cb.checked = (cb.value === currentUsername);
-        });
+        // Enable My Tickets filter
+        filterMyTicketsOnly = true;
 
         // Check status checkboxes that match the category pattern
         document.querySelectorAll('#statusFilter input').forEach(cb => {
@@ -2597,10 +2601,12 @@
     function clearAllFilters() {
         // Clear all checkboxes
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
-        document.querySelectorAll('#assigneeFilter input').forEach(cb => cb.checked = false);
         document.querySelectorAll('#priorityFilter input').forEach(cb => cb.checked = false);
         document.querySelectorAll('#categoryFilter input').forEach(cb => cb.checked = false);
         document.querySelectorAll('#queueFilter input').forEach(cb => cb.checked = false);
+
+        // Reset My Tickets filter
+        filterMyTicketsOnly = false;
 
         // Clear search
         document.getElementById('searchInput').value = '';
