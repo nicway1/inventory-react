@@ -1075,45 +1075,70 @@ def parse_packing_list_text(text):
     # Generate breakdown by counting FULL PART NUMBER occurrences directly in text
     # This is the most accurate method - count exact part number strings
     breakdown = {}
+    breakdown_serials = {}  # Track which serials belong to each model
     text_upper = text.upper()
 
     # Full part number patterns with OCR variations (0 vs O confusion)
-    # Each entry: (list of patterns to count, description)
+    # Each entry: (list of patterns to count, description, list of model prefixes)
     part_number_groups = [
         # Starlight: MW0Y3 and MWOY3 (OCR reads 0 as O)
-        (['MW0Y3ZP/A', 'MWOY3ZP/A'], '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW0Y3ZP/A', 'MWOY3ZP/A'], '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MW0Y3', 'MWOY3']),
         # Sky Blue: MC6T4 (no OCR variation issue)
-        (['MC6T4ZP/A'], '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MC6T4ZP/A'], '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MC6T4']),
         # Silver: MW0W3 and MWOW3 (OCR reads 0 as O)
-        (['MW0W3ZP/A', 'MWOW3ZP/A'], '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW0W3ZP/A', 'MWOW3ZP/A'], '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MW0W3', 'MWOW3']),
         # Midnight: MW123 (no OCR variation issue with numbers)
-        (['MW123ZP/A'], '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW123ZP/A'], '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MW123']),
         # MacBook Pro models
-        (['MXD33ZP/A'], '14" MacBook Pro Space Black M4 Pro'),
-        (['MXD53ZP/A'], '14" MacBook Pro Space Black M4 Pro'),
-        (['MXD93ZP/A'], '16" MacBook Pro Space Black M4 Pro'),
-        (['MXF53ZP/A'], '16" MacBook Pro Space Black M4 Max'),
+        (['MXD33ZP/A'], '14" MacBook Pro Space Black M4 Pro', ['MXD33']),
+        (['MXD53ZP/A'], '14" MacBook Pro Space Black M4 Pro', ['MXD53']),
+        (['MXD93ZP/A'], '16" MacBook Pro Space Black M4 Pro', ['MXD93']),
+        (['MXF53ZP/A'], '16" MacBook Pro Space Black M4 Max', ['MXF53']),
     ]
 
     # Count each part number group (summing all OCR variations)
-    for patterns, description in part_number_groups:
+    for patterns, description, model_prefixes in part_number_groups:
         total_count = 0
         for pattern in patterns:
             total_count += text_upper.count(pattern)
         if total_count > 0:
             breakdown[description] = total_count
+            breakdown_serials[description] = []
+
+    # Match assets to breakdown categories based on their model prefix
+    for asset in assets:
+        asset_model = asset.get('model', '') or ''
+        serial = asset.get('serial', '')
+        matched = False
+        for patterns, description, model_prefixes in part_number_groups:
+            if any(asset_model.upper().startswith(prefix) for prefix in model_prefixes):
+                if description in breakdown_serials:
+                    breakdown_serials[description].append(serial)
+                    matched = True
+                    break
+        # If no match found, add to "Other" category
+        if not matched and serial:
+            other_key = f"Other ({asset_model})" if asset_model else "Other"
+            if other_key not in breakdown_serials:
+                breakdown_serials[other_key] = []
+            breakdown_serials[other_key].append(serial)
 
     # If no breakdown from full part numbers, fall back to counting by model field
     if not breakdown and assets:
         for asset in assets:
             model = asset.get('model', '') or 'Unknown'
             name = asset.get('name', 'MacBook')
+            serial = asset.get('serial', '')
             key = f"{name} ({model})" if model and model != 'Unknown' else name
             if key not in breakdown:
                 breakdown[key] = 0
+                breakdown_serials[key] = []
             breakdown[key] += 1
+            if serial:
+                breakdown_serials[key].append(serial)
 
     result['breakdown'] = breakdown
+    result['breakdown_serials'] = breakdown_serials
 
     return result
 
