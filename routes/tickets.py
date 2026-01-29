@@ -12270,6 +12270,54 @@ def process_pdf_extraction(ticket_id):
         db_session.close()
 
 
+@tickets_bp.route('/<int:ticket_id>/extract-assets/process-text', methods=['POST'])
+@login_required
+def process_text_extraction(ticket_id):
+    """Process pasted text and extract asset information (no OCR needed)"""
+    from utils.pdf_extractor import extract_assets_from_text, parse_packing_list_text
+
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        text = request.json.get('text', '')
+        if not text or len(text.strip()) < 50:
+            return jsonify({'success': False, 'error': 'Please provide the pasted text from the invoice/packing list'}), 400
+
+        # Parse the text to extract assets
+        result = parse_packing_list_text(text)
+
+        if not result:
+            return jsonify({'success': False, 'error': 'Failed to extract data from text'}), 500
+
+        assets = result.get('assets', [])
+        if not assets:
+            # Try direct text extraction if parse_packing_list_text didn't find assets
+            assets = extract_assets_from_text(text)
+
+        return jsonify({
+            'success': True,
+            'po_number': result.get('po_number'),
+            'reference': result.get('reference'),
+            'ship_date': result.get('ship_date'),
+            'total_quantity': result.get('total_quantity'),
+            'receiver': result.get('receiver'),
+            'supplier': result.get('supplier'),
+            'extracted_count': len(assets),
+            'assets': assets
+        })
+
+    except Exception as e:
+        logger.error(f"Error extracting assets from text: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
 @tickets_bp.route('/next-asset-tag', methods=['GET'])
 @login_required
 def get_next_asset_tag():

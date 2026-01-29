@@ -460,8 +460,26 @@
     <!-- Step 1: Select PDF -->
     <div class="card" id="step1">
         <div class="card-header">
-            <h2 class="card-title"><span class="badge badge-info">1</span> Select PDF Attachment</h2>
+            <h2 class="card-title"><span class="badge badge-info">1</span> Select Source</h2>
         </div>
+
+        <!-- Extract from Text Option -->
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 0.5rem; border: 1px solid #86efac;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; background: #22c55e; color: white; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                    <i class="fas fa-paste"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h4 style="font-weight: 600; color: #166534; margin-bottom: 0.25rem;">Extract from Pasted Text</h4>
+                    <p style="font-size: 0.875rem; color: #15803d;">Copy text from your invoice/packing list PDF and paste it directly - faster and more accurate than OCR</p>
+                </div>
+                <button class="btn btn-success" onclick="showTextInputModal()">
+                    <i class="fas fa-paste"></i> Paste Text
+                </button>
+            </div>
+        </div>
+
+        <div style="text-align: center; color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">— OR select a PDF attachment below —</div>
 
         {% if attachments %}
         <div class="attachment-list">
@@ -479,7 +497,7 @@
                         <i class="fas fa-file-alt"></i> Shipping Info
                     </button>
                     <button class="btn btn-primary" onclick="event.stopPropagation(); extractFromPDF({{ att.id }})">
-                        <i class="fas fa-magic"></i> Extract Assets
+                        <i class="fas fa-magic"></i> Extract Assets (OCR)
                     </button>
                 </div>
             </div>
@@ -489,7 +507,7 @@
         <div class="empty-state">
             <i class="fas fa-file-pdf"></i>
             <h3>No PDF attachments found</h3>
-            <p>Upload a packing list PDF to this ticket first</p>
+            <p>Use the "Paste Text" option above or upload a packing list PDF to this ticket</p>
             <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="btn btn-secondary" style="margin-top: 1rem;">
                 <i class="fas fa-upload"></i> Go to Ticket
             </a>
@@ -684,6 +702,50 @@
             <div class="bar"></div>
         </div>
         <p class="loading-text" id="loadingText">Extracting data from PDF...</p>
+    </div>
+</div>
+
+<!-- Text Input Modal -->
+<div id="textInputModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 95%; max-width: 900px; max-height: 90vh; overflow: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 12px 12px 0 0;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: white; margin: 0;">
+                <i class="fas fa-paste"></i> Extract Assets from Text
+            </h3>
+            <button onclick="closeTextInputModal()" style="background: rgba(255,255,255,0.2); border: none; font-size: 1.25rem; color: white; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+        </div>
+        <div style="padding: 1.5rem;">
+            <div style="margin-bottom: 1rem; padding: 1rem; background: #f0fdf4; border-radius: 0.5rem; border: 1px solid #bbf7d0;">
+                <p style="font-size: 0.875rem; color: #166534; margin: 0;">
+                    <i class="fas fa-info-circle"></i> <strong>Instructions:</strong> Open your PDF invoice/packing list, select all text (Ctrl+A), copy (Ctrl+C), and paste below (Ctrl+V). This method is faster and more accurate than OCR.
+                </p>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; color: #374151; display: block; margin-bottom: 0.5rem;">
+                    Paste Invoice/Packing List Text:
+                </label>
+                <textarea id="pastedText" placeholder="Paste the full text from your CDW invoice, packing list, or delivery order here...
+
+Example format (CDW):
+MW0Y3ZP/A-SG0001 SC2WXQ39W20 18750 100010948 WISE 84713020
+APPLE 13&quot; MACBOOK AIR: STARLIGHT M4 10C
+CPU 8C GPU16GB 256GB SSD" style="width: 100%; min-height: 350px; padding: 1rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.8rem; line-height: 1.5; resize: vertical; transition: border-color 0.15s;"></textarea>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                    <span id="textCharCount" style="font-size: 0.75rem; color: #6b7280;">0 characters</span>
+                    <button type="button" onclick="document.getElementById('pastedText').value=''; updateCharCount();" style="font-size: 0.75rem; color: #dc2626; background: none; border: none; cursor: pointer;">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeTextInputModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-success" onclick="extractFromText()" id="extractTextBtn">
+                    <i class="fas fa-magic"></i> Extract Assets
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1432,7 +1494,77 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeAssetDetail();
         closeShippingModal();
+        closeTextInputModal();
     }
 });
+
+// Text Input Modal Functions
+function showTextInputModal() {
+    const modal = document.getElementById('textInputModal');
+    modal.style.display = 'flex';
+    // Focus on textarea
+    setTimeout(() => {
+        document.getElementById('pastedText').focus();
+    }, 100);
+}
+
+function closeTextInputModal() {
+    document.getElementById('textInputModal').style.display = 'none';
+}
+
+function updateCharCount() {
+    const text = document.getElementById('pastedText').value;
+    const count = text.length;
+    document.getElementById('textCharCount').textContent = count.toLocaleString() + ' characters';
+}
+
+// Add event listener for character count
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('pastedText');
+    if (textarea) {
+        textarea.addEventListener('input', updateCharCount);
+    }
+});
+
+function extractFromText() {
+    const text = document.getElementById('pastedText').value.trim();
+
+    if (!text) {
+        alert('Please paste some text from your invoice or packing list');
+        return;
+    }
+
+    if (text.length < 50) {
+        alert('The text seems too short. Please paste the full invoice/packing list content.');
+        return;
+    }
+
+    closeTextInputModal();
+    showLoading('Extracting assets from text...');
+
+    fetch(`/tickets/{{ ticket.id }}/extract-assets/process-text`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ text: text })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            extractedData = data;
+            showPreview(data);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to extract assets from text'));
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to extract assets from text: ' + error.message);
+    });
+}
 </script>
 {% endblock %}
