@@ -1072,10 +1072,9 @@ def parse_packing_list_text(text):
     if not result['total_quantity'] and assets:
         result['total_quantity'] = len(assets)
 
-    # Generate breakdown by counting part number occurrences in text
-    # This is more reliable than trying to parse specs from each asset
+    # Generate breakdown by counting ACTUAL EXTRACTED ASSETS by their part_prefix
+    # This is accurate because we count assets, not regex matches in text
     breakdown = {}
-    text_upper = text.upper()
 
     # Known Apple part number prefixes and their descriptions
     part_descriptions = {
@@ -1085,17 +1084,36 @@ def parse_packing_list_text(text):
         'MXD53': '14" MacBook Pro Space Black M4 Pro',
         'MXD93': '16" MacBook Pro Space Black M4 Pro',
         'MXF53': '16" MacBook Pro Space Black M4 Max',
+        # Add more common models
+        'MW0W3': '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MW123': '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
     }
 
-    # Count occurrences of each known part number
-    for prefix, description in part_descriptions.items():
-        # Count how many times this part number appears (with ZP/A suffix)
-        pattern = rf'{prefix}[A-Z0-9]*[PZ]/[A-Z]'
-        matches = re.findall(pattern, text_upper)
-        if matches:
-            breakdown[description] = len(matches)
+    # Count actual extracted assets by their part_prefix
+    prefix_counts = {}
+    for asset in assets:
+        prefix = asset.get('part_prefix')
+        if prefix:
+            if prefix not in prefix_counts:
+                prefix_counts[prefix] = 0
+            prefix_counts[prefix] += 1
 
-    # If no known parts found, fall back to counting by model field
+    # Convert prefix counts to friendly descriptions
+    for prefix, count in prefix_counts.items():
+        if prefix in part_descriptions:
+            breakdown[part_descriptions[prefix]] = count
+        else:
+            # Fallback: use generic name with part prefix
+            model_id = APPLE_PART_TO_MODEL.get(prefix, '')
+            if model_id in ['A3240', 'A3241']:
+                name = f'MacBook Air ({prefix})'
+            elif model_id in ['A3283', 'A3284', 'A3287']:
+                name = f'MacBook Pro ({prefix})'
+            else:
+                name = f'Apple MacBook ({prefix})'
+            breakdown[name] = count
+
+    # If no breakdown yet (no part prefixes found), fall back to counting by model field
     if not breakdown and assets:
         for asset in assets:
             model = asset.get('model', '') or 'Unknown'
@@ -1421,6 +1439,7 @@ def extract_assets_from_text(text):
             'harddrive': product_details.get('storage', ''),
             'hardware_type': 'Laptop',
             'condition': 'New',
+            'part_prefix': part_prefix,  # Store for breakdown
         }
         assets.append(asset)
 
