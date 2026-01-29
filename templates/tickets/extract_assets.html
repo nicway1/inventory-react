@@ -1518,11 +1518,17 @@ function updateCharCount() {
     document.getElementById('textCharCount').textContent = count.toLocaleString() + ' characters';
 }
 
-// Add event listener for character count
+// Add event listener for character count and auto-open text modal if mode=text
 document.addEventListener('DOMContentLoaded', function() {
     const textarea = document.getElementById('pastedText');
     if (textarea) {
         textarea.addEventListener('input', updateCharCount);
+    }
+
+    // Auto-open text modal if ?mode=text is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'text') {
+        showTextInputModal();
     }
 });
 
