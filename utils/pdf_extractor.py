@@ -1077,25 +1077,31 @@ def parse_packing_list_text(text):
     breakdown = {}
     text_upper = text.upper()
 
-    # Full part number patterns (with ZP/A suffix) and their descriptions
-    # Count each full part number directly in the text
-    full_part_numbers = {
-        'MW0Y3ZP/A': '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MC6T4ZP/A': '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MW0W3ZP/A': '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MW123ZP/A': '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MXD33ZP/A': '14" MacBook Pro Space Black M4 Pro',
-        'MXD53ZP/A': '14" MacBook Pro Space Black M4 Pro',
-        'MXD93ZP/A': '16" MacBook Pro Space Black M4 Pro',
-        'MXF53ZP/A': '16" MacBook Pro Space Black M4 Max',
-    }
+    # Full part number patterns with OCR variations (0 vs O confusion)
+    # Each entry: (list of patterns to count, description)
+    part_number_groups = [
+        # Starlight: MW0Y3 and MWOY3 (OCR reads 0 as O)
+        (['MW0Y3ZP/A', 'MWOY3ZP/A'], '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        # Sky Blue: MC6T4 (no OCR variation issue)
+        (['MC6T4ZP/A'], '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        # Silver: MW0W3 and MWOW3 (OCR reads 0 as O)
+        (['MW0W3ZP/A', 'MWOW3ZP/A'], '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        # Midnight: MW123 (no OCR variation issue with numbers)
+        (['MW123ZP/A'], '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        # MacBook Pro models
+        (['MXD33ZP/A'], '14" MacBook Pro Space Black M4 Pro'),
+        (['MXD53ZP/A'], '14" MacBook Pro Space Black M4 Pro'),
+        (['MXD93ZP/A'], '16" MacBook Pro Space Black M4 Pro'),
+        (['MXF53ZP/A'], '16" MacBook Pro Space Black M4 Max'),
+    ]
 
-    # Count each full part number directly in the text
-    for part_num, description in full_part_numbers.items():
-        # Count occurrences (case-insensitive)
-        count = text_upper.count(part_num)
-        if count > 0:
-            breakdown[description] = count
+    # Count each part number group (summing all OCR variations)
+    for patterns, description in part_number_groups:
+        total_count = 0
+        for pattern in patterns:
+            total_count += text_upper.count(pattern)
+        if total_count > 0:
+            breakdown[description] = total_count
 
     # If no breakdown from full part numbers, fall back to counting by model field
     if not breakdown and assets:
