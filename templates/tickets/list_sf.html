@@ -1537,27 +1537,27 @@
                 All Tickets
             </div>
             <div class="sf-summary-cards">
-                <div class="sf-summary-card highlight" onclick="filterByStatus('all')">
+                <div class="sf-summary-card highlight" onclick="filterByStatus('all', this)">
                     <div class="sf-summary-label">Total</div>
                     <div class="sf-summary-value blue" id="totalCount">0</div>
                     <div class="sf-summary-subtitle">All tickets</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('OPEN')">
+                <div class="sf-summary-card" onclick="filterByStatus('OPEN', this)">
                     <div class="sf-summary-label">Open</div>
                     <div class="sf-summary-value orange" id="openCount">0</div>
                     <div class="sf-summary-subtitle">Awaiting action</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('IN_PROGRESS')">
+                <div class="sf-summary-card" onclick="filterByStatus('IN_PROGRESS', this)">
                     <div class="sf-summary-label">In Progress</div>
                     <div class="sf-summary-value purple" id="inProgressCount">0</div>
                     <div class="sf-summary-subtitle">Being worked on</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('RESOLVED')">
+                <div class="sf-summary-card" onclick="filterByStatus('RESOLVED', this)">
                     <div class="sf-summary-label">Resolved</div>
                     <div class="sf-summary-value green" id="resolvedCount">0</div>
                     <div class="sf-summary-subtitle">Completed</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('ON_HOLD')">
+                <div class="sf-summary-card" onclick="filterByStatus('ON_HOLD', this)">
                     <div class="sf-summary-label">On Hold</div>
                     <div class="sf-summary-value red" id="onHoldCount">0</div>
                     <div class="sf-summary-subtitle">Waiting</div>
@@ -1569,27 +1569,27 @@
                 My Tickets
             </div>
             <div class="sf-summary-cards">
-                <div class="sf-summary-card" style="border-left: 4px solid var(--sf-purple);" onclick="filterByAssignee()">
+                <div class="sf-summary-card" style="border-left: 4px solid var(--sf-purple);" onclick="filterByAssignee(this)">
                     <div class="sf-summary-label">Total</div>
                     <div class="sf-summary-value purple" id="myTotalCount">0</div>
                     <div class="sf-summary-subtitle">Assigned to me</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('OPEN')">
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('OPEN', this)">
                     <div class="sf-summary-label">Open</div>
                     <div class="sf-summary-value orange" id="myOpenCount">0</div>
                     <div class="sf-summary-subtitle">Need attention</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('IN_PROGRESS')">
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('IN_PROGRESS', this)">
                     <div class="sf-summary-label">In Progress</div>
                     <div class="sf-summary-value purple" id="myInProgressCount">0</div>
                     <div class="sf-summary-subtitle">Working on</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('ON_HOLD')">
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('ON_HOLD', this)">
                     <div class="sf-summary-label">On Hold</div>
                     <div class="sf-summary-value red" id="myOnHoldCount">0</div>
                     <div class="sf-summary-subtitle">Waiting</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('RESOLVED')">
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('RESOLVED', this)">
                     <div class="sf-summary-label">Resolved</div>
                     <div class="sf-summary-value green" id="myResolvedCount">0</div>
                     <div class="sf-summary-subtitle">Completed</div>
@@ -2469,7 +2469,7 @@
     }
 
     // Filter by status from summary cards
-    function filterByStatus(statusCategory) {
+    function filterByStatus(statusCategory, cardElement) {
         // Clear all status checkboxes first
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
         // Clear assignee filter
@@ -2501,7 +2501,7 @@
 
         // Update card highlights
         document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        if (cardElement) cardElement.classList.add('active');
 
         // Show active filter banner and scroll to table
         const statusLabels = { 'all': 'All Tickets', 'OPEN': 'Open Tickets', 'IN_PROGRESS': 'In Progress', 'RESOLVED': 'Resolved Tickets', 'ON_HOLD': 'On Hold' };
@@ -2509,7 +2509,7 @@
     }
 
     // Filter by assignee (my tickets)
-    function filterByAssignee() {
+    function filterByAssignee(cardElement) {
         // Clear all status checkboxes
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
 
@@ -2522,14 +2522,14 @@
 
         // Update card highlights
         document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        if (cardElement) cardElement.classList.add('active');
 
         // Show active filter banner and scroll to table
         showActiveFilter('My Tickets (All Statuses)', true);
     }
 
     // Filter by assignee and status combined
-    function filterByAssigneeAndStatus(statusCategory) {
+    function filterByAssigneeAndStatus(statusCategory, cardElement) {
         // Clear all status checkboxes first
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
 
@@ -2562,7 +2562,7 @@
 
         // Update card highlights
         document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        if (cardElement) cardElement.classList.add('active');
 
         // Show active filter banner and scroll to table
         const statusLabels = { 'OPEN': 'Open', 'IN_PROGRESS': 'In Progress', 'RESOLVED': 'Resolved', 'ON_HOLD': 'On Hold' };
