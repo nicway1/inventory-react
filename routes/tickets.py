@@ -12306,7 +12306,8 @@ def process_text_extraction(ticket_id):
             'receiver': result.get('receiver'),
             'supplier': result.get('supplier'),
             'extracted_count': len(assets),
-            'assets': assets
+            'assets': assets,
+            'breakdown': result.get('breakdown', {})
         })
 
     except Exception as e:

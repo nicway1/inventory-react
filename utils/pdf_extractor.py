@@ -1072,6 +1072,19 @@ def parse_packing_list_text(text):
     if not result['total_quantity'] and assets:
         result['total_quantity'] = len(assets)
 
+    # Generate breakdown by model/variant
+    breakdown = {}
+    for asset in assets:
+        # Create a key based on name and specs
+        specs_key = f"{asset.get('name', 'Unknown')} {asset.get('cpu_type', '')} ({asset.get('cpu_cores', '')}C CPU, {asset.get('gpu_cores', '')}C GPU, {asset.get('memory', '')} RAM, {asset.get('harddrive', '')} SSD)"
+        # Clean up the key
+        specs_key = specs_key.replace('( CPU', '').replace('C CPU, C GPU', '').replace('  ', ' ').strip()
+        if specs_key not in breakdown:
+            breakdown[specs_key] = 0
+        breakdown[specs_key] += 1
+
+    result['breakdown'] = breakdown
+
     return result
 
 
@@ -1129,25 +1142,56 @@ def extract_assets_from_text(text):
     serial_matches = []
     seen_serial_values = set()
 
-    # Apple serials typically start with S and are 11-12 chars (e.g., SC2WXQ39W20)
-    # This is the most reliable pattern for CDW packing lists
-    apple_serial_pattern = r'\b(S[A-Z0-9]{9,12})\b'
+    # Normalize text - remove extra whitespace and normalize line endings
+    text_normalized = ' '.join(text_upper.split())
 
-    # First pass: Find Apple serials (starting with S) - most reliable
-    for match in re.finditer(apple_serial_pattern, text_upper):
-        serial = match.group(1)
-        if serial not in seen_serial_values and serial not in exclude_words:
-            has_letters = any(c.isalpha() for c in serial)
-            has_numbers = any(c.isdigit() for c in serial)
-            if has_letters and has_numbers:
-                seen_serial_values.add(serial)
-                serial_matches.append({
-                    'serial': serial,
-                    'start': match.start(),
-                    'end': match.end()
-                })
+    # Apple serials are typically 10-12 alphanumeric characters
+    # Common patterns: SC2WXQ39W20, SH54VW1MWYP, SG0W347FYJG
+    # They usually have a mix of letters and numbers
 
-    logger.info(f"Found {len(serial_matches)} Apple serials (starting with S)")
+    # Pattern 1: Find all 10-12 character alphanumeric sequences
+    # This is more aggressive to catch all potential serials
+    all_potential_serials = re.findall(r'\b([A-Z0-9]{10,12})\b', text_normalized)
+
+    logger.info(f"Found {len(all_potential_serials)} potential 10-12 char sequences")
+
+    for serial in all_potential_serials:
+        # Skip if already seen
+        if serial in seen_serial_values:
+            continue
+
+        # Skip if in exclude words
+        if serial in exclude_words:
+            continue
+
+        # Skip if matches exclude patterns
+        skip = False
+        for exc_pattern in exclude_patterns:
+            if re.match(exc_pattern, serial, re.IGNORECASE):
+                skip = True
+                break
+        if skip:
+            continue
+
+        # Must have both letters and numbers (not pure letters or pure numbers)
+        has_letters = any(c.isalpha() for c in serial)
+        has_numbers = any(c.isdigit() for c in serial)
+        if not (has_letters and has_numbers):
+            continue
+
+        # Prioritize serials starting with S (common Apple pattern)
+        # but accept others too
+        seen_serial_values.add(serial)
+
+        # Find position in original text_upper for matching
+        pos = text_upper.find(serial)
+        serial_matches.append({
+            'serial': serial,
+            'start': pos if pos >= 0 else 0,
+            'end': (pos + len(serial)) if pos >= 0 else len(serial)
+        })
+
+    logger.info(f"Found {len(serial_matches)} valid serial numbers after filtering")
 
     # Find all part numbers with their positions (try multiple patterns)
     # Each occurrence represents ONE asset, so we keep all occurrences in order
