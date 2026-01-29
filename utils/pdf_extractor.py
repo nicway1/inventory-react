@@ -1072,72 +1072,32 @@ def parse_packing_list_text(text):
     if not result['total_quantity'] and assets:
         result['total_quantity'] = len(assets)
 
-    # Generate breakdown by counting ACTUAL EXTRACTED ASSETS by their part_prefix
-    # This is accurate because we count assets, not regex matches in text
+    # Generate breakdown by counting FULL PART NUMBER occurrences directly in text
+    # This is the most accurate method - count exact part number strings
     breakdown = {}
+    text_upper = text.upper()
 
-    # Known Apple part number prefixes and their descriptions
-    part_descriptions = {
-        'MW0Y3': '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MC6T4': '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MXD33': '14" MacBook Pro Space Black M4 Pro',
-        'MXD53': '14" MacBook Pro Space Black M4 Pro',
-        'MXD93': '16" MacBook Pro Space Black M4 Pro',
-        'MXF53': '16" MacBook Pro Space Black M4 Max',
-        'MW0W3': '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
-        'MW123': '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+    # Full part number patterns (with ZP/A suffix) and their descriptions
+    # Count each full part number directly in the text
+    full_part_numbers = {
+        'MW0Y3ZP/A': '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MC6T4ZP/A': '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MW0W3ZP/A': '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MW123ZP/A': '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MXD33ZP/A': '14" MacBook Pro Space Black M4 Pro',
+        'MXD53ZP/A': '14" MacBook Pro Space Black M4 Pro',
+        'MXD93ZP/A': '16" MacBook Pro Space Black M4 Pro',
+        'MXF53ZP/A': '16" MacBook Pro Space Black M4 Max',
     }
 
-    # OCR often misreads 0 (zero) as O (letter) in part numbers
-    # Normalize by converting O to 0 in positions 2-4 (after the M prefix)
-    def normalize_part_prefix(prefix):
-        if not prefix or len(prefix) < 5:
-            return prefix
-        # Apple part numbers: first 2 chars are letters (MW, MC, MX, etc.)
-        # Characters 3-5 can have OCR 0/O confusion
-        normalized = prefix[:2]
-        for char in prefix[2:]:
-            if char == 'O':
-                normalized += '0'  # Convert letter O to zero
-            else:
-                normalized += char
-        return normalized
+    # Count each full part number directly in the text
+    for part_num, description in full_part_numbers.items():
+        # Count occurrences (case-insensitive)
+        count = text_upper.count(part_num)
+        if count > 0:
+            breakdown[description] = count
 
-    # Count actual extracted assets by their NORMALIZED part_prefix
-    prefix_counts = {}
-    for asset in assets:
-        prefix = asset.get('part_prefix')
-        if prefix:
-            # Normalize to handle OCR variations
-            normalized = normalize_part_prefix(prefix)
-            if normalized not in prefix_counts:
-                prefix_counts[normalized] = 0
-            prefix_counts[normalized] += 1
-
-    # Convert prefix counts to friendly descriptions
-    for prefix, count in prefix_counts.items():
-        if prefix in part_descriptions:
-            # Add to existing count if description already exists (handles multiple OCR variants)
-            desc = part_descriptions[prefix]
-            if desc in breakdown:
-                breakdown[desc] += count
-            else:
-                breakdown[desc] = count
-        else:
-            # Fallback: use generic name with part prefix
-            model_id = APPLE_PART_TO_MODEL.get(prefix, '')
-            if model_id in ['A3240', 'A3241']:
-                name = f'MacBook Air ({prefix})'
-            elif model_id in ['A3283', 'A3284', 'A3287']:
-                name = f'MacBook Pro ({prefix})'
-            else:
-                name = f'Apple MacBook ({prefix})'
-            if name in breakdown:
-                breakdown[name] += count
-            else:
-                breakdown[name] = count
-
-    # If no breakdown yet (no part prefixes found), fall back to counting by model field
+    # If no breakdown from full part numbers, fall back to counting by model field
     if not breakdown and assets:
         for asset in assets:
             model = asset.get('model', '') or 'Unknown'
