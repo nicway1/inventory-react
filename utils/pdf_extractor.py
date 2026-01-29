@@ -1072,16 +1072,38 @@ def parse_packing_list_text(text):
     if not result['total_quantity'] and assets:
         result['total_quantity'] = len(assets)
 
-    # Generate breakdown by model/variant
+    # Generate breakdown by counting part number occurrences in text
+    # This is more reliable than trying to parse specs from each asset
     breakdown = {}
-    for asset in assets:
-        # Create a key based on name and specs
-        specs_key = f"{asset.get('name', 'Unknown')} {asset.get('cpu_type', '')} ({asset.get('cpu_cores', '')}C CPU, {asset.get('gpu_cores', '')}C GPU, {asset.get('memory', '')} RAM, {asset.get('harddrive', '')} SSD)"
-        # Clean up the key
-        specs_key = specs_key.replace('( CPU', '').replace('C CPU, C GPU', '').replace('  ', ' ').strip()
-        if specs_key not in breakdown:
-            breakdown[specs_key] = 0
-        breakdown[specs_key] += 1
+    text_upper = text.upper()
+
+    # Known Apple part number prefixes and their descriptions
+    part_descriptions = {
+        'MW0Y3': '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MC6T4': '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)',
+        'MXD33': '14" MacBook Pro Space Black M4 Pro',
+        'MXD53': '14" MacBook Pro Space Black M4 Pro',
+        'MXD93': '16" MacBook Pro Space Black M4 Pro',
+        'MXF53': '16" MacBook Pro Space Black M4 Max',
+    }
+
+    # Count occurrences of each known part number
+    for prefix, description in part_descriptions.items():
+        # Count how many times this part number appears (with ZP/A suffix)
+        pattern = rf'{prefix}[A-Z0-9]*[PZ]/[A-Z]'
+        matches = re.findall(pattern, text_upper)
+        if matches:
+            breakdown[description] = len(matches)
+
+    # If no known parts found, fall back to counting by model field
+    if not breakdown and assets:
+        for asset in assets:
+            model = asset.get('model', '') or 'Unknown'
+            name = asset.get('name', 'MacBook')
+            key = f"{name} ({model})" if model and model != 'Unknown' else name
+            if key not in breakdown:
+                breakdown[key] = 0
+            breakdown[key] += 1
 
     result['breakdown'] = breakdown
 
@@ -1125,6 +1147,11 @@ def extract_assets_from_text(text):
         r'^[A-Z]{2}\d{6}$',
         r'^\d{6}[A-Z]{2}\d{4}$',
         r'^SG\d{4,}$',  # SG followed by numbers (like SG0001)
+        r'^\d+X\d+X\d+',  # Dimensions like 120X100X185CM
+        r'.*X\d+X\d+.*',  # Any dimension pattern with X separators
+        r'.*\d+CM$',  # Anything ending with CM (centimeters)
+        r'.*\d+MM$',  # Anything ending with MM (millimeters)
+        r'.*\d+KG$',  # Anything ending with KG (kilograms)
     ]
 
     # Common words/colors that should never be serial numbers
@@ -1179,8 +1206,19 @@ def extract_assets_from_text(text):
         if not (has_letters and has_numbers):
             continue
 
-        # Prioritize serials starting with S (common Apple pattern)
-        # but accept others too
+        # Skip if contains 'X' patterns typical of dimensions (120X100X185)
+        if 'X' in serial and re.search(r'\d+X\d+', serial):
+            continue
+
+        # Apple serials typically start with these letters (factory codes)
+        # S=Shenzhen, C/D=Cork Ireland, F=Fremont, G/H=China, etc.
+        apple_serial_prefixes = ['S', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'T', 'V', 'W', 'X', 'Y']
+
+        # Prefer serials that start with typical Apple prefixes
+        # Reject if it doesn't start with a known prefix (more strict)
+        if serial[0] not in apple_serial_prefixes:
+            continue
+
         seen_serial_values.add(serial)
 
         # Find position in original text_upper for matching
