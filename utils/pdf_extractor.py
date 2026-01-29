@@ -2,13 +2,328 @@
 PDF Asset Extractor
 Extracts asset information from packing list PDFs for automatic asset creation
 Supports both text-based PDFs and scanned images (via OCR)
+Now also supports AI-based extraction using Claude API for better accuracy
 """
 import re
 import logging
 import io
+import os
+import base64
+import json
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# AI-BASED PDF EXTRACTION (Claude API)
+# ============================================================================
+
+AI_EXTRACTION_PROMPT = """Role: You are an automated high-precision Data Extraction Engine.
+
+Task: specialized in converting PDF documents into structured JSON data.
+
+Input: I will provide a PDF document containing tables (potentially spanning multiple pages).
+
+Output Requirement:
+1. Scan the ENTIRE document from start to finish.
+2. Extract EVERY SINGLE ROW from the identified tables.
+3. Output the data in valid JSON format.
+
+Critical Rules (Non-negotiable):
+- NO SUMMARIZATION: You must not summarize the data.
+- NO TRUNCATION: Do not write "// ... remaining rows" or "items 10-100 skipped". If there are 600 rows, you must explicitly write out all 600 objects.
+- MERGE PAGES: If a logical table breaks across pages, merge them into one continuous array of rows.
+- ACCURACY: Transcribe numbers and text exactly as they appear visually.
+
+JSON Structure to follow:
+{
+  "document_info": {
+    "po_number": "PO number if found",
+    "reference": "Reference number if found",
+    "ship_date": "Shipping date if found",
+    "supplier": "Supplier name if found",
+    "receiver": "Receiver/customer name if found"
+  },
+  "tables": [
+    {
+      "tableName": "Name of table (or 'Main Table')",
+      "headers": ["Col1", "Col2", "Col3"],
+      "rows": [
+        ["Row1_Value1", "Row1_Value2", "Row1_Value3"],
+        ["Row2_Value1", "Row2_Value2", "Row2_Value3"]
+      ]
+    }
+  ],
+  "serial_numbers": ["List of all serial numbers found in the document"],
+  "part_numbers": ["List of all part numbers found (e.g., MW0Y3ZP/A, MC6T4ZP/A)"],
+  "summary": "Brief 1-sentence description of what this data represents."
+}
+
+Please process the attached images now and return ONLY valid JSON."""
+
+
+def extract_pdf_with_ai(pdf_path):
+    """
+    Extract data from PDF using Claude AI vision API.
+
+    This provides more accurate extraction than OCR, especially for:
+    - Complex table layouts
+    - Scanned documents
+    - Multi-page tables
+
+    Returns:
+        dict with extracted data or None if AI extraction fails/unavailable
+    """
+    # Check for Anthropic API key
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        logger.info("ANTHROPIC_API_KEY not set, skipping AI extraction")
+        return None
+
+    try:
+        import anthropic
+    except ImportError:
+        logger.warning("anthropic package not installed, skipping AI extraction")
+        return None
+
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.error("PyMuPDF (fitz) not installed")
+        return None
+
+    try:
+        # Convert PDF pages to images
+        doc = fitz.open(pdf_path)
+        total_pages = len(doc)
+        logger.info(f"AI extraction: Converting {total_pages} PDF pages to images...")
+
+        image_contents = []
+        for page_num in range(total_pages):
+            page = doc[page_num]
+            # Render at 150 DPI for balance of quality and size
+            mat = fitz.Matrix(150/72, 150/72)
+            pix = page.get_pixmap(matrix=mat)
+            img_bytes = pix.tobytes("png")
+            img_base64 = base64.standard_b64encode(img_bytes).decode('utf-8')
+
+            image_contents.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": img_base64
+                }
+            })
+            logger.info(f"AI extraction: Page {page_num + 1}/{total_pages} converted ({len(img_bytes)} bytes)")
+
+        doc.close()
+
+        # Prepare message content with all images and the prompt
+        content = image_contents + [{"type": "text", "text": AI_EXTRACTION_PROMPT}]
+
+        # Call Claude API
+        logger.info("AI extraction: Calling Claude API...")
+        client = anthropic.Anthropic(api_key=api_key)
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=16000,
+            messages=[
+                {"role": "user", "content": content}
+            ]
+        )
+
+        # Extract JSON from response
+        response_text = message.content[0].text
+        logger.info(f"AI extraction: Received response ({len(response_text)} chars)")
+
+        # Parse JSON from response (handle markdown code blocks)
+        json_text = response_text
+        if '```json' in response_text:
+            json_text = response_text.split('```json')[1].split('```')[0]
+        elif '```' in response_text:
+            json_text = response_text.split('```')[1].split('```')[0]
+
+        ai_data = json.loads(json_text.strip())
+        logger.info(f"AI extraction: Successfully parsed JSON with {len(ai_data.get('serial_numbers', []))} serials")
+
+        return ai_data
+
+    except json.JSONDecodeError as e:
+        logger.error(f"AI extraction: Failed to parse JSON response: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"AI extraction error: {e}")
+        return None
+
+
+def convert_ai_data_to_assets(ai_data, original_text=""):
+    """
+    Convert AI-extracted data to the standard asset format used by the rest of the system.
+
+    Args:
+        ai_data: JSON data from AI extraction
+        original_text: Optional original text for additional parsing
+
+    Returns:
+        dict in standard format with po_number, assets, breakdown, etc.
+    """
+    result = {
+        'po_number': None,
+        'reference': None,
+        'ship_date': None,
+        'supplier': None,
+        'receiver': None,
+        'total_quantity': 0,
+        'assets': [],
+        'breakdown': {},
+        'breakdown_serials': {},
+        'raw_text': original_text[:2000] if original_text else ''
+    }
+
+    # Extract document info
+    doc_info = ai_data.get('document_info', {})
+    result['po_number'] = doc_info.get('po_number')
+    result['reference'] = doc_info.get('reference')
+    result['ship_date'] = doc_info.get('ship_date')
+    result['supplier'] = doc_info.get('supplier')
+    result['receiver'] = doc_info.get('receiver')
+
+    # Get serial numbers and part numbers
+    serial_numbers = ai_data.get('serial_numbers', [])
+    part_numbers = ai_data.get('part_numbers', [])
+
+    # Try to match serials with part numbers from table data
+    tables = ai_data.get('tables', [])
+    serial_to_part = {}
+
+    for table in tables:
+        headers = [h.upper() if h else '' for h in table.get('headers', [])]
+        rows = table.get('rows', [])
+
+        # Find serial number and part number column indices
+        serial_col = None
+        part_col = None
+        for i, h in enumerate(headers):
+            if any(x in h for x in ['SERIAL', 'S/N', 'SN']):
+                serial_col = i
+            if any(x in h for x in ['PART', 'MODEL', 'SKU', 'ITEM']):
+                part_col = i
+
+        # Extract serial-to-part mappings
+        for row in rows:
+            if serial_col is not None and serial_col < len(row):
+                serial = str(row[serial_col]).strip() if row[serial_col] else ''
+                if serial and len(serial) >= 10:
+                    part = ''
+                    if part_col is not None and part_col < len(row):
+                        part = str(row[part_col]).strip() if row[part_col] else ''
+                    serial_to_part[serial] = part
+
+    # Also check for serials not in tables but in serial_numbers list
+    for serial in serial_numbers:
+        if serial and len(serial) >= 10 and serial not in serial_to_part:
+            serial_to_part[serial] = ''
+
+    # Build assets from serials
+    for serial, part_full in serial_to_part.items():
+        # Extract part prefix (first 5 chars)
+        part_prefix = ''
+        part_match = re.search(r'([A-Z]{2}[A-Z0-9]{3,4})(?:ZP)?(?:/[A-Z])?', part_full.upper())
+        if part_match:
+            part_prefix = part_match.group(1)
+
+        # Get model identifier
+        model_identifier = get_apple_model_identifier(part_prefix) if part_prefix else ''
+
+        # Determine color from part prefix
+        color = ''
+        part_prefix_upper = part_prefix.upper()
+        if part_prefix_upper in ['MW0Y3', 'MWOY3']:
+            color = 'Starlight'
+        elif part_prefix_upper in ['MC6T4']:
+            color = 'Sky Blue'
+        elif part_prefix_upper in ['MW0W3', 'MWOW3']:
+            color = 'Silver'
+        elif part_prefix_upper in ['MW123']:
+            color = 'Midnight'
+        elif part_prefix_upper in ['MXD33', 'MXD53', 'MXD93', 'MXF53']:
+            color = 'Space Black'
+
+        # Determine product name
+        name = 'MacBook'
+        if model_identifier in ['A3240', 'A3241', 'A3113', 'A3114', 'A2681', 'A2941', 'A2337']:
+            name = '13" MacBook Air' if model_identifier in ['A3240', 'A3113', 'A2681', 'A2337'] else '15" MacBook Air'
+        elif model_identifier in ['A3283', 'A3284', 'A3287']:
+            name = '14" MacBook Pro' if model_identifier == 'A3283' else '16" MacBook Pro'
+
+        # Build hardware type
+        hardware_type = name
+        if color:
+            hardware_type = f"{name} {color}"
+
+        asset = {
+            'serial_num': serial,
+            'name': name,
+            'model': model_identifier,
+            'manufacturer': 'Apple',
+            'category': 'Laptop',
+            'cpu_type': 'M4',  # Default, will be refined if text available
+            'cpu_cores': '',
+            'gpu_cores': '',
+            'memory': '',
+            'harddrive': '',
+            'hardware_type': hardware_type,
+            'condition': 'New',
+            'part_prefix': part_prefix,
+            'color': color,
+        }
+        result['assets'].append(asset)
+
+    result['total_quantity'] = len(result['assets'])
+
+    # Generate breakdown
+    breakdown = {}
+    breakdown_serials = {}
+
+    # Part number groups for breakdown
+    part_number_groups = [
+        (['MW0Y3', 'MWOY3'], '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MC6T4'], '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW0W3', 'MWOW3'], '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW123'], '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MXD33', 'MXD53', 'MXD93', 'MXF53'], 'MacBook Pro Space Black M4'),
+    ]
+
+    for asset in result['assets']:
+        part_prefix = asset.get('part_prefix', '').upper()
+        serial = asset.get('serial_num', '')
+        matched = False
+
+        for prefixes, description in part_number_groups:
+            if any(part_prefix.startswith(p) for p in prefixes):
+                if description not in breakdown:
+                    breakdown[description] = 0
+                    breakdown_serials[description] = []
+                breakdown[description] += 1
+                breakdown_serials[description].append(serial)
+                matched = True
+                break
+
+        if not matched and serial:
+            other_key = f"Other ({part_prefix})" if part_prefix else "Other"
+            if other_key not in breakdown:
+                breakdown[other_key] = 0
+                breakdown_serials[other_key] = []
+            breakdown[other_key] += 1
+            breakdown_serials[other_key].append(serial)
+
+    result['breakdown'] = breakdown
+    result['breakdown_serials'] = breakdown_serials
+
+    return result
 
 # Apple part number prefix to model identifier mapping
 # Format: Part number prefix (first 5-6 chars) -> Model identifier (e.g., A3113)
@@ -416,6 +731,12 @@ def extract_assets_from_pdf(pdf_path):
     """
     Extract asset information from a packing list PDF
 
+    Uses AI-based extraction (Claude API) first if available, falls back to OCR.
+    AI extraction is more accurate for:
+    - Complex table layouts
+    - Scanned documents with poor quality
+    - Multi-page tables that span across pages
+
     Returns:
         dict with:
             - po_number: PO number from the document
@@ -427,7 +748,24 @@ def extract_assets_from_pdf(pdf_path):
             - assets: List of extracted assets with serial numbers and details
     """
     try:
-        # Use OCR-enabled extraction (handles both text PDFs and scanned images)
+        # Try AI-based extraction first (more accurate for complex PDFs)
+        logger.info("Attempting AI-based PDF extraction...")
+        ai_data = extract_pdf_with_ai(pdf_path)
+
+        if ai_data:
+            logger.info("AI extraction successful, converting to asset format...")
+            # Also extract text for additional parsing context
+            all_text = extract_text_with_ocr(pdf_path) or ""
+            result = convert_ai_data_to_assets(ai_data, all_text)
+
+            if result and result.get('assets'):
+                logger.info(f"AI extraction complete: {len(result['assets'])} assets found")
+                return result
+            else:
+                logger.warning("AI extraction returned no assets, falling back to OCR")
+
+        # Fall back to OCR-based extraction
+        logger.info("Using OCR-based extraction...")
         all_text = extract_text_with_ocr(pdf_path)
 
         if not all_text:

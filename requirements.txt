@@ -32,6 +32,8 @@ Pillow==10.0.1
 # PDF processing and OCR
 PyMuPDF==1.26.5
 pytesseract==0.3.13
+# AI-based PDF extraction (Claude API)
+anthropic>=0.18.0
 # Database dependencies
 SQLAlchemy==2.0.21
 alembic==1.12.0
