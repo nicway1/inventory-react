@@ -7278,10 +7278,17 @@ def track_package(ticket_id, package_number):
                 # Check if we should auto-close the ticket even with cached data
                 # This handles the case where status was updated but auto-close didn't run
                 cached_status = cached_data.get('shipping_status', '')
-                if cached_status and ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+                logger.info(f"Auto-close check: ticket {ticket_id}, cached_status={cached_status}, category={ticket.category}, status={ticket.status}")
+
+                # Check if this is an Asset Checkout (claw) ticket - use enum comparison
+                is_claw_ticket = ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
+
+                if cached_status and is_claw_ticket:
                     status_lower = cached_status.lower()
                     if 'delivered' in status_lower or 'received' in status_lower:
                         if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                            logger.info(f"Ticket {ticket_id} eligible for auto-close: status={cached_status}")
+
                             # Check if this is a single-package ticket (no other tracking numbers)
                             has_other_packages = any([
                                 ticket.shipping_tracking_2,
@@ -7294,7 +7301,7 @@ def track_package(ticket_id, package_number):
                             if not has_other_packages:
                                 # Single package - this package delivered means close ticket
                                 should_close = True
-                                logger.info(f"Single package ticket {ticket_id} - package delivered, auto-closing")
+                                logger.info(f"Single package ticket {ticket_id} - will auto-close")
                             else:
                                 # Multi-package - first update this package status in DB, then check all
                                 setattr(ticket, status_field, cached_status)
@@ -7307,14 +7314,18 @@ def track_package(ticket_id, package_number):
                                         break
                                 if all_delivered:
                                     should_close = True
-                                    logger.info(f"Multi-package ticket {ticket_id} - all packages delivered, auto-closing")
+                                    logger.info(f"Multi-package ticket {ticket_id} - all delivered, will auto-close")
 
                             if should_close:
                                 ticket.status = TicketStatus.RESOLVED
                                 ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered"
                                 db_session.commit()
-                                logger.info(f"Auto-closed ticket {ticket_id} from cached tracking data")
+                                logger.info(f"SUCCESS: Auto-closed ticket {ticket_id}")
                                 cached_data['ticket_auto_closed'] = True
+                        else:
+                            logger.info(f"Ticket {ticket_id} already closed: status={ticket.status}")
+                    else:
+                        logger.info(f"Ticket {ticket_id} status not delivered: {cached_status}")
 
                 db_session.close()
                 return jsonify(cached_data)
@@ -7512,7 +7523,10 @@ def track_package(ticket_id, package_number):
                 fresh_ticket.updated_at = datetime.datetime.now()
 
                 # Check if all packages are delivered and update ticket status accordingly
-                if fresh_ticket.category and fresh_ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+                is_claw_ticket = fresh_ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
+                logger.info(f"Fresh tracking auto-close check: ticket {ticket_id}, status={latest_status}, category={fresh_ticket.category}, is_claw={is_claw_ticket}")
+
+                if is_claw_ticket:
                     latest_status_lower = (latest_status or '').lower()
                     # Only check for auto-close if this package is delivered/received
                     if 'delivered' in latest_status_lower or 'received' in latest_status_lower:
