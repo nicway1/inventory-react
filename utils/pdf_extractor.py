@@ -730,15 +730,37 @@ def format_shipping_info_for_description(info):
 def extract_text_directly(pdf_path):
     """
     Extract text directly from PDF without OCR.
+    Uses pdfplumber (better for tables) with PyMuPDF fallback.
     Returns the text if PDF has selectable text, None otherwise.
     """
+    all_text = ""
+
+    # Try pdfplumber first (better for structured text and tables)
+    try:
+        import pdfplumber
+        logger.info("Using pdfplumber for text extraction...")
+
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    all_text += text + "\n"
+
+        stripped = all_text.strip()
+        if len(stripped) > 100:
+            logger.info(f"pdfplumber extraction: {len(stripped)} characters extracted")
+            return all_text
+
+    except ImportError:
+        logger.info("pdfplumber not installed, trying PyMuPDF...")
+    except Exception as e:
+        logger.warning(f"pdfplumber extraction failed: {e}, trying PyMuPDF...")
+
+    # Fallback to PyMuPDF
     try:
         import fitz  # PyMuPDF
-    except ImportError:
-        logger.error("PyMuPDF (fitz) not installed")
-        return None
+        logger.info("Using PyMuPDF for text extraction...")
 
-    try:
         doc = fitz.open(pdf_path)
         all_text = ""
 
@@ -748,16 +770,17 @@ def extract_text_directly(pdf_path):
 
         doc.close()
 
-        # Check if we got meaningful text (not just whitespace)
         stripped = all_text.strip()
-        if len(stripped) > 100:  # At least 100 chars of actual content
-            logger.info(f"Direct text extraction: {len(stripped)} characters extracted")
+        if len(stripped) > 100:
+            logger.info(f"PyMuPDF extraction: {len(stripped)} characters extracted")
             return all_text
 
-        return None
+    except ImportError:
+        logger.error("PyMuPDF (fitz) not installed")
     except Exception as e:
-        logger.error(f"Error in direct text extraction: {e}")
-        return None
+        logger.error(f"PyMuPDF extraction failed: {e}")
+
+    return None
 
 
 def extract_assets_from_pdf(pdf_path):
