@@ -57,5 +57,5 @@ def get_db():
 # Create session factory using the main engine
 Session = sessionmaker(bind=engine)
 
-# Create a session
-db_session = Session() 
+# Note: Don't create a global db_session here as it causes issues with uWSGI forking
+# Instead, each request should create its own session using SessionLocal() or db_manager.get_session()
