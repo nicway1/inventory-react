@@ -13581,3 +13581,279 @@ def update_service_record_status(ticket_id, record_id):
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
+
+
+# ============= Bulk Tracking Update =============
+
+def refresh_single_ticket_tracking(ticket, db_session):
+    """
+    Refresh tracking for a single ticket.
+    Returns dict with results for each package/tracking.
+    """
+    results = {
+        'ticket_id': ticket.id,
+        'display_id': ticket.display_id if ticket.display_id else f'#{ticket.id}',
+        'category': ticket.category.value if ticket.category else 'Unknown',
+        'packages_updated': 0,
+        'packages_failed': 0,
+        'status_changed': False,
+        'errors': []
+    }
+
+    try:
+        # Handle Asset Checkout (claw) with multiple packages
+        if ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+            packages_to_check = []
+
+            if ticket.shipping_tracking:
+                packages_to_check.append((1, ticket.shipping_tracking, ticket.shipping_carrier, 'shipping_status'))
+            if ticket.shipping_tracking_2:
+                packages_to_check.append((2, ticket.shipping_tracking_2, ticket.shipping_carrier_2, 'shipping_status_2'))
+            if ticket.shipping_tracking_3:
+                packages_to_check.append((3, ticket.shipping_tracking_3, ticket.shipping_carrier_3, 'shipping_status_3'))
+            if ticket.shipping_tracking_4:
+                packages_to_check.append((4, ticket.shipping_tracking_4, ticket.shipping_carrier_4, 'shipping_status_4'))
+            if ticket.shipping_tracking_5:
+                packages_to_check.append((5, ticket.shipping_tracking_5, ticket.shipping_carrier_5, 'shipping_status_5'))
+
+            for pkg_num, tracking_num, carrier, status_field in packages_to_check:
+                try:
+                    tracking_num = tracking_num.strip()
+
+                    # Try to get tracking info using Ship24/Oxylabs
+                    tracking_info = []
+                    latest_status = None
+
+                    # Check if SingPost tracking
+                    if is_singpost_tracking_number(tracking_num):
+                        if singpost_client.is_configured():
+                            try:
+                                tracking_info = singpost_client.track_item(tracking_num)
+                                if tracking_info:
+                                    latest_status = tracking_info[0].get('status', 'Unknown')
+                            except Exception as sp_err:
+                                logger.warning(f"SingPost tracking failed for {tracking_num}: {sp_err}")
+
+                    # If no status yet, try Ship24 via Oxylabs
+                    if not latest_status:
+                        try:
+                            ship24_url = f'https://www.ship24.com/tracking?p={tracking_num}'
+                            payload = {
+                                'source': 'universal_ecommerce',
+                                'url': ship24_url,
+                                'render': 'html',
+                                'parsing_instructions': {
+                                    'tracking_events': {
+                                        '_fns': [{'_fn': 'css', '_args': ['[class*="event"], [class*="tracking"]']}]
+                                    }
+                                }
+                            }
+
+                            oxylabs_username = os.environ.get('OXYLABS_USERNAME')
+                            oxylabs_password = os.environ.get('OXYLABS_PASSWORD')
+
+                            if oxylabs_username and oxylabs_password:
+                                response = requests.post(
+                                    'https://realtime.oxylabs.io/v1/queries',
+                                    auth=(oxylabs_username, oxylabs_password),
+                                    json=payload,
+                                    timeout=30
+                                )
+
+                                if response.status_code == 200:
+                                    data = response.json()
+                                    results_data = data.get('results', [{}])
+                                    if results_data:
+                                        content = results_data[0].get('content', '')
+                                        # Parse for status
+                                        if 'delivered' in content.lower():
+                                            latest_status = 'Delivered'
+                                        elif 'in transit' in content.lower():
+                                            latest_status = 'In Transit'
+                                        elif 'out for delivery' in content.lower():
+                                            latest_status = 'Out for Delivery'
+                                        elif 'shipped' in content.lower():
+                                            latest_status = 'Shipped'
+                        except Exception as ox_err:
+                            logger.warning(f"Oxylabs tracking failed for {tracking_num}: {ox_err}")
+
+                    # Update status if we got one
+                    if latest_status:
+                        old_status = getattr(ticket, status_field, None)
+                        setattr(ticket, status_field, latest_status)
+                        results['packages_updated'] += 1
+                        logger.info(f"Updated ticket {ticket.id} package {pkg_num}: {old_status} -> {latest_status}")
+                    else:
+                        results['packages_failed'] += 1
+
+                except Exception as pkg_err:
+                    results['packages_failed'] += 1
+                    results['errors'].append(f"Package {pkg_num}: {str(pkg_err)}")
+
+            # Check if all packages are delivered for auto-close
+            if results['packages_updated'] > 0:
+                all_delivered = True
+                packages = ticket.get_all_packages() if hasattr(ticket, 'get_all_packages') else []
+                for package in packages:
+                    status = package.get('status', '')
+                    if not status or 'delivered' not in status.lower():
+                        all_delivered = False
+                        break
+
+                if all_delivered and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                    ticket.status = TicketStatus.RESOLVED_DELIVERED
+                    results['status_changed'] = True
+                    logger.info(f"Auto-closed ticket {ticket.id} - all packages delivered")
+
+        # Handle regular tickets with single tracking
+        elif ticket.shipping_tracking:
+            try:
+                tracking_num = ticket.shipping_tracking.strip()
+                latest_status = None
+
+                # Check if SingPost tracking
+                if is_singpost_tracking_number(tracking_num):
+                    if singpost_client.is_configured():
+                        try:
+                            tracking_info = singpost_client.track_item(tracking_num)
+                            if tracking_info:
+                                latest_status = tracking_info[0].get('status', 'Unknown')
+                        except:
+                            pass
+
+                if latest_status:
+                    old_status = ticket.shipping_status
+                    ticket.shipping_status = latest_status
+                    results['packages_updated'] += 1
+
+                    # Auto-close for certain categories when delivered
+                    if 'delivered' in latest_status.lower() or 'received' in latest_status.lower():
+                        if ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW:
+                            if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                                ticket.status = TicketStatus.RESOLVED
+                                results['status_changed'] = True
+                else:
+                    results['packages_failed'] += 1
+
+            except Exception as single_err:
+                results['packages_failed'] += 1
+                results['errors'].append(str(single_err))
+
+        ticket.updated_at = datetime.datetime.now()
+
+    except Exception as e:
+        results['errors'].append(str(e))
+        logger.error(f"Error refreshing tracking for ticket {ticket.id}: {e}")
+
+    return results
+
+
+@tickets_bp.route('/admin/refresh-all-tracking', methods=['POST'])
+@login_required
+def refresh_all_tracking():
+    """
+    Bulk refresh tracking for all open tickets with tracking numbers.
+    Admin/Developer only.
+    """
+    user = db_manager.get_user(session.get('user_id'))
+    if not user or user.user_type.name not in ['SUPER_ADMIN', 'DEVELOPER']:
+        return jsonify({'success': False, 'error': 'Permission denied - Admin/Developer only'}), 403
+
+    db_session = db_manager.get_session()
+    try:
+        # Get all open tickets with tracking numbers
+        tickets = db_session.query(Ticket).filter(
+            Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]),
+            (
+                (Ticket.shipping_tracking != None) & (Ticket.shipping_tracking != '') |
+                (Ticket.shipping_tracking_2 != None) & (Ticket.shipping_tracking_2 != '') |
+                (Ticket.shipping_tracking_3 != None) & (Ticket.shipping_tracking_3 != '') |
+                (Ticket.shipping_tracking_4 != None) & (Ticket.shipping_tracking_4 != '') |
+                (Ticket.shipping_tracking_5 != None) & (Ticket.shipping_tracking_5 != '')
+            )
+        ).all()
+
+        total_tickets = len(tickets)
+        results_summary = {
+            'total_tickets': total_tickets,
+            'tickets_updated': 0,
+            'tickets_failed': 0,
+            'tickets_auto_closed': 0,
+            'total_packages_updated': 0,
+            'total_packages_failed': 0,
+            'details': []
+        }
+
+        for ticket in tickets:
+            try:
+                result = refresh_single_ticket_tracking(ticket, db_session)
+                results_summary['details'].append(result)
+
+                if result['packages_updated'] > 0:
+                    results_summary['tickets_updated'] += 1
+                    results_summary['total_packages_updated'] += result['packages_updated']
+
+                if result['packages_failed'] > 0:
+                    results_summary['tickets_failed'] += 1
+                    results_summary['total_packages_failed'] += result['packages_failed']
+
+                if result['status_changed']:
+                    results_summary['tickets_auto_closed'] += 1
+
+            except Exception as ticket_err:
+                results_summary['tickets_failed'] += 1
+                results_summary['details'].append({
+                    'ticket_id': ticket.id,
+                    'error': str(ticket_err)
+                })
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Refreshed tracking for {results_summary["tickets_updated"]}/{total_tickets} tickets',
+            'summary': results_summary
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error in bulk tracking refresh: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/admin/refresh-tracking-status', methods=['GET'])
+@login_required
+def get_tracking_refresh_status():
+    """
+    Get count of tickets that need tracking refresh.
+    """
+    user = db_manager.get_user(session.get('user_id'))
+    if not user or user.user_type.name not in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+    db_session = db_manager.get_session()
+    try:
+        # Count open tickets with tracking
+        count = db_session.query(Ticket).filter(
+            Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]),
+            (
+                (Ticket.shipping_tracking != None) & (Ticket.shipping_tracking != '') |
+                (Ticket.shipping_tracking_2 != None) & (Ticket.shipping_tracking_2 != '') |
+                (Ticket.shipping_tracking_3 != None) & (Ticket.shipping_tracking_3 != '') |
+                (Ticket.shipping_tracking_4 != None) & (Ticket.shipping_tracking_4 != '') |
+                (Ticket.shipping_tracking_5 != None) & (Ticket.shipping_tracking_5 != '')
+            )
+        ).count()
+
+        return jsonify({
+            'success': True,
+            'tickets_with_tracking': count
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting tracking status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
