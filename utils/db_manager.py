@@ -17,7 +17,19 @@ class DatabaseManager:
         # Use DATABASE_URL from environment, fallback to SQLite only for local dev
         if db_url is None:
             db_url = os.environ.get('DATABASE_URL', 'sqlite:///inventory.db')
-        self.engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
+
+        # Pool settings for MySQL - match database.py settings
+        # pool_recycle=280 ensures connections are recycled before MySQL's default 300s timeout
+        if 'sqlite' in db_url:
+            self.engine = create_engine(db_url)
+        else:
+            self.engine = create_engine(
+                db_url,
+                pool_pre_ping=True,
+                pool_recycle=280,
+                pool_size=10,
+                max_overflow=20
+            )
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         
