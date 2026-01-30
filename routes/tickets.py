@@ -13921,14 +13921,16 @@ def refresh_all_tracking():
                 if result['status_changed']:
                     results_summary['tickets_auto_closed'] += 1
 
+                # Commit after each ticket to prevent timeout from losing all progress
+                db_session.commit()
+
             except Exception as ticket_err:
+                db_session.rollback()  # Rollback failed ticket only
                 results_summary['tickets_failed'] += 1
                 results_summary['details'].append({
                     'ticket_id': ticket.id,
                     'error': str(ticket_err)
                 })
-
-        db_session.commit()
 
         return jsonify({
             'success': True,
