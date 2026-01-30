@@ -8417,6 +8417,17 @@ def update_shipping_status(ticket_id):
             # Add system note
             ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Outbound package marked as {status}"
 
+            # Auto-close Asset Checkout (claw) tickets when status is "Customer Received" or "Delivered"
+            ticket_auto_closed = False
+            if ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW:
+                status_lower = status.lower()
+                if 'customer received' in status_lower or 'delivered' in status_lower or 'received' in status_lower:
+                    if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                        ticket.status = TicketStatus.RESOLVED
+                        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Customer received package"
+                        logger.info(f"Auto-closed Asset Checkout (claw) ticket {ticket_id} - status set to '{status}'")
+                        ticket_auto_closed = True
+
             # Commit changes
             db_session.commit()
             
@@ -8425,9 +8436,10 @@ def update_shipping_status(ticket_id):
 
             return jsonify({
                 'success': True,
-                'message': f'Outbound package status updated to {status}',
+                'message': f'Outbound package status updated to {status}' + (' - Ticket auto-closed' if ticket_auto_closed else ''),
                 'new_status': new_status,
-                'old_status': old_status
+                'old_status': old_status,
+                'ticket_closed': ticket_auto_closed
             })
         finally:
             # Always close the session
