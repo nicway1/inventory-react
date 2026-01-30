@@ -327,7 +327,7 @@ def load_widget_data(user, layout):
                     req_id = ticket.requester.id
                     if req_id not in users_cases:
                         users_cases[req_id] = {
-                            'name': ticket.requester.name or ticket.requester.email,
+                            'name': ticket.requester.username or ticket.requester.email,
                             'open_count': 0,
                             'breached_count': 0,
                             'at_risk_count': 0
