@@ -121,16 +121,32 @@ class NotificationService:
             db_session = self.db_manager.get_session()
             try:
                 query = db_session.query(Notification).filter(Notification.user_id == user_id)
-                
+
                 if unread_only:
                     query = query.filter(Notification.is_read == False)
-                
+
                 notifications = query.order_by(Notification.created_at.desc()).limit(limit).all()
-                return notifications
-                
+
+                # Convert to dict BEFORE session closes to avoid "Command Out of Sync" errors
+                # when accessing detached ORM objects after session is closed
+                result = []
+                for n in notifications:
+                    result.append({
+                        'id': n.id,
+                        'type': n.type,
+                        'title': n.title,
+                        'message': n.message,
+                        'is_read': n.is_read,
+                        'created_at': n.created_at,
+                        'read_at': n.read_at,
+                        'reference_type': n.reference_type,
+                        'reference_id': n.reference_id
+                    })
+                return result
+
             finally:
                 db_session.close()
-                
+
         except Exception as e:
             logger.error(f"Error getting notifications for user {user_id}: {str(e)}")
             return []

@@ -10047,21 +10047,21 @@ def get_notifications():
             limit=limit,
             unread_only=unread_only
         )
-        
-        # Convert to dict for JSON response
+
+        # Service now returns dicts, just format datetime for JSON
         notifications_data = []
-        for notification in notifications:
+        for n in notifications:
             notifications_data.append({
-                'id': notification.id,
-                'type': notification.type,
-                'title': notification.title,
-                'message': notification.message,
-                'is_read': notification.is_read,
-                'created_at': notification.created_at.isoformat(),
-                'reference_type': notification.reference_type,
-                'reference_id': notification.reference_id
+                'id': n['id'],
+                'type': n['type'],
+                'title': n['title'],
+                'message': n['message'],
+                'is_read': n['is_read'],
+                'created_at': n['created_at'].isoformat() if n['created_at'] else None,
+                'reference_type': n['reference_type'],
+                'reference_id': n['reference_id']
             })
-        
+
         return jsonify({
             'success': True,
             'notifications': notifications_data
