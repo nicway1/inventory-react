@@ -7274,6 +7274,30 @@ def track_package(ticket_id, package_number):
                 cached_data['package_number'] = package_number
                 cached_data['tracking_number'] = tracking_number
                 cached_data['carrier'] = carrier
+
+                # Check if we should auto-close the ticket even with cached data
+                # This handles the case where status was updated but auto-close didn't run
+                cached_status = cached_data.get('shipping_status', '')
+                if cached_status and ticket.category and ticket.category.name == 'ASSET_CHECKOUT_CLAW':
+                    status_lower = cached_status.lower()
+                    if 'delivered' in status_lower or 'received' in status_lower or 'customer received' in status_lower:
+                        if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                            # Check if all packages are delivered
+                            all_delivered = True
+                            packages = ticket.get_all_packages() if hasattr(ticket, 'get_all_packages') else []
+                            for pkg in packages:
+                                pkg_status = (pkg.get('status') or '').lower()
+                                if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
+                                    all_delivered = False
+                                    break
+
+                            if all_delivered:
+                                ticket.status = TicketStatus.RESOLVED
+                                ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
+                                db_session.commit()
+                                logger.info(f"Auto-closed ticket {ticket_id} from cached tracking data - all packages delivered")
+                                cached_data['ticket_auto_closed'] = True
+
                 db_session.close()
                 return jsonify(cached_data)
         else:
@@ -7474,16 +7498,19 @@ def track_package(ticket_id, package_number):
                     all_packages_delivered = True
                     packages = fresh_ticket.get_all_packages()
                     for package in packages:
-                        if not package.get('status') or 'delivered' not in package['status'].lower():
+                        pkg_status = (package.get('status') or '').lower()
+                        # Check for delivered, received, or customer received
+                        if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
                             all_packages_delivered = False
                             break
 
-                    # Automatically change ticket status to RESOLVED_DELIVERED if all packages are delivered
+                    # Automatically change ticket status to RESOLVED if all packages are delivered
                     if all_packages_delivered:
                         from models.ticket import TicketStatus
-                        if fresh_ticket.status != TicketStatus.RESOLVED_DELIVERED:
-                            fresh_ticket.status = TicketStatus.RESOLVED_DELIVERED
-                            logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
+                        if fresh_ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                            fresh_ticket.status = TicketStatus.RESOLVED
+                            fresh_ticket.notes = (fresh_ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
+                            logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED due to all packages being delivered")
 
                 db_session.commit()
                 logger.info(f"Updated ticket {ticket_id} package {package_number} with status: {latest_status}")
@@ -13695,13 +13722,15 @@ def refresh_single_ticket_tracking(ticket, db_session):
                 all_delivered = True
                 packages = ticket.get_all_packages() if hasattr(ticket, 'get_all_packages') else []
                 for package in packages:
-                    status = package.get('status', '')
-                    if not status or 'delivered' not in status.lower():
+                    pkg_status = (package.get('status') or '').lower()
+                    # Check for delivered, received, or customer received
+                    if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
                         all_delivered = False
                         break
 
                 if all_delivered and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
-                    ticket.status = TicketStatus.RESOLVED_DELIVERED
+                    ticket.status = TicketStatus.RESOLVED
+                    ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
                     results['status_changed'] = True
                     logger.info(f"Auto-closed ticket {ticket.id} - all packages delivered")
 
