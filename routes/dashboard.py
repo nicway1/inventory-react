@@ -302,7 +302,7 @@ def load_widget_data(user, layout):
         # Load SLA Manager data
         if 'sla_manager' in widget_ids:
             from utils.sla_calculator import get_sla_status
-            from datetime import timedelta
+            # timedelta is already imported at module level
 
             # Get open tickets
             open_tickets = db.query(Ticket).filter(
