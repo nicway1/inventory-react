@@ -7375,13 +7375,14 @@ def track_package(ticket_id, package_number):
 
                 # Auto-close for Asset Checkout (claw) tickets when delivered
                 ticket_auto_closed = False
+                from models.ticket import TicketStatus as TS  # Local import for scoping
                 is_claw_ticket = ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
                 logger.info(f"SingPost auto-close check: ticket {ticket_id}, status={latest_status}, is_claw={is_claw_ticket}")
 
                 if is_claw_ticket:
                     latest_status_lower = (latest_status or '').lower()
                     if 'delivered' in latest_status_lower or 'received' in latest_status_lower:
-                        if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                        if ticket.status not in [TS.RESOLVED, TS.RESOLVED_DELIVERED]:
                             # Check if single-package ticket
                             has_other_packages = any([
                                 ticket.shipping_tracking_2,
@@ -7391,7 +7392,7 @@ def track_package(ticket_id, package_number):
                             ])
 
                             if not has_other_packages:
-                                ticket.status = TicketStatus.RESOLVED
+                                ticket.status = TS.RESOLVED
                                 ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered (SingPost)"
                                 ticket_auto_closed = True
                                 logger.info(f"SUCCESS: Auto-closed ticket {ticket_id} via SingPost tracking")
@@ -7405,7 +7406,7 @@ def track_package(ticket_id, package_number):
                                         all_delivered = False
                                         break
                                 if all_delivered:
-                                    ticket.status = TicketStatus.RESOLVED
+                                    ticket.status = TS.RESOLVED
                                     ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
                                     ticket_auto_closed = True
                                     logger.info(f"SUCCESS: Auto-closed multi-package ticket {ticket_id}")
