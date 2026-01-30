@@ -289,6 +289,7 @@ def sla_dashboard():
     try:
         from utils.sla_calculator import get_sla_status
         from models.user_queue_permission import UserQueuePermission
+        from models.user import User
 
         # Build base query for open tickets
         query = db.query(Ticket).filter(
@@ -308,6 +309,7 @@ def sla_dashboard():
         ticket_sla_data = []
         queue_stats = {}  # {queue_name: {on_track, at_risk, breached}}
         category_stats = {}  # {category: {on_track, at_risk, breached}}
+        user_stats = {}  # {user_id: {name, on_track, at_risk, breached}}
         likely_to_breach = []  # Tickets with <= 24 hours remaining
 
         for ticket in tickets:
@@ -331,6 +333,21 @@ def sla_dashboard():
                     category_stats[cat_name] = {'on_track': 0, 'at_risk': 0, 'breached': 0}
                 category_stats[cat_name][sla_info['status']] = category_stats[cat_name].get(sla_info['status'], 0) + 1
 
+                # Track user/requester stats
+                if ticket.requester_id:
+                    if ticket.requester_id not in user_stats:
+                        requester_name = ticket.requester.username if ticket.requester else f'User {ticket.requester_id}'
+                        user_stats[ticket.requester_id] = {
+                            'id': ticket.requester_id,
+                            'name': requester_name,
+                            'on_track': 0,
+                            'at_risk': 0,
+                            'breached': 0,
+                            'total': 0
+                        }
+                    user_stats[ticket.requester_id][sla_info['status']] = user_stats[ticket.requester_id].get(sla_info['status'], 0) + 1
+                    user_stats[ticket.requester_id]['total'] += 1
+
                 # Track likely to breach (within 24 hours and not already breached)
                 if sla_info['status'] != 'breached' and sla_info.get('hours_remaining', 999) <= 24:
                     likely_to_breach.append(item)
@@ -344,6 +361,12 @@ def sla_dashboard():
 
         # Sort likely to breach by hours remaining (most urgent first)
         likely_to_breach.sort(key=lambda x: x['sla'].get('hours_remaining', 999))
+
+        # Sort users by breached count (most breaches first), then by name
+        sorted_users = sorted(
+            user_stats.values(),
+            key=lambda u: (-u['breached'], -u['at_risk'], u['name'].lower())
+        )
 
         # Get summary stats
         on_track = sum(1 for t in ticket_sla_data if t['sla']['status'] == 'on_track')
@@ -372,6 +395,12 @@ def sla_dashboard():
                 'on_track': [c['on_track'] for c in category_stats.values()],
                 'at_risk': [c['at_risk'] for c in category_stats.values()],
                 'breached': [c['breached'] for c in category_stats.values()]
+            },
+            'users': {
+                'labels': [u['name'] for u in sorted_users[:10]],  # Top 10 users
+                'on_track': [u['on_track'] for u in sorted_users[:10]],
+                'at_risk': [u['at_risk'] for u in sorted_users[:10]],
+                'breached': [u['breached'] for u in sorted_users[:10]]
             }
         }
 
@@ -386,6 +415,7 @@ def sla_dashboard():
             likely_to_breach=likely_to_breach[:10],  # Top 10 most urgent
             queue_stats=queue_stats,
             category_stats=category_stats,
+            user_stats=sorted_users,
             chart_data=chart_data
         )
     finally:
