@@ -13746,9 +13746,10 @@ def refresh_single_ticket_tracking(ticket, db_session):
                     if is_singpost_tracking_number(tracking_num):
                         if singpost_client.is_configured():
                             try:
-                                tracking_info = singpost_client.track_item(tracking_num)
-                                if tracking_info:
-                                    latest_status = tracking_info[0].get('status', 'Unknown')
+                                result = singpost_client.track_single(tracking_num)
+                                if result and result.get('success'):
+                                    tracking_info = result.get('events', [])
+                                    latest_status = result.get('status', 'Unknown')
                             except Exception as sp_err:
                                 logger.warning(f"SingPost tracking failed for {tracking_num}: {sp_err}")
 
@@ -13835,9 +13836,9 @@ def refresh_single_ticket_tracking(ticket, db_session):
                 if is_singpost_tracking_number(tracking_num):
                     if singpost_client.is_configured():
                         try:
-                            tracking_info = singpost_client.track_item(tracking_num)
-                            if tracking_info:
-                                latest_status = tracking_info[0].get('status', 'Unknown')
+                            result = singpost_client.track_single(tracking_num)
+                            if result and result.get('success'):
+                                latest_status = result.get('status', 'Unknown')
                         except:
                             pass
 
