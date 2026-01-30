@@ -296,7 +296,8 @@ def sla_dashboard():
 
         ticket_sla_data = []
         for ticket in tickets:
-            sla_info = get_sla_status(ticket)
+            # Pass db session to avoid creating new connections for each ticket
+            sla_info = get_sla_status(ticket, db=db)
             if sla_info['has_sla']:
                 ticket_sla_data.append({
                     'ticket': ticket,
