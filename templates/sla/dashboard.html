@@ -8,7 +8,12 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-2xl font-bold">SLA Dashboard</h1>
-            <p class="text-sm text-gray-600 mt-1">Monitor SLA compliance across all tickets</p>
+            <p class="text-sm text-gray-600 mt-1">
+                Monitor SLA compliance across your tickets
+                {% if not user.is_super_admin and not user.is_developer %}
+                <span class="text-xs text-gray-400">(Filtered by your queue access)</span>
+                {% endif %}
+            </p>
         </div>
         <div class="flex gap-3 items-center">
             <a href="{{ url_for('sla.manage_sla') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -22,7 +27,7 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
                 <div class="p-3 rounded-full bg-green-100 text-green-600">
@@ -62,22 +67,144 @@
                     <i class="fas fa-clock text-2xl"></i>
                 </div>
                 <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-500">Total with SLA</p>
-                    <p class="text-2xl font-bold text-blue-600">{{ ticket_sla_data|length }}</p>
+                    <p class="text-sm font-medium text-gray-500">Total w/ SLA</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ total_with_sla }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full {% if compliance_rate >= 80 %}bg-green-100 text-green-600{% elif compliance_rate >= 60 %}bg-yellow-100 text-yellow-600{% else %}bg-red-100 text-red-600{% endif %}">
+                    <i class="fas fa-percentage text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Compliance</p>
+                    <p class="text-2xl font-bold {% if compliance_rate >= 80 %}text-green-600{% elif compliance_rate >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">{{ compliance_rate }}%</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Status Distribution Chart -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-lg font-semibold mb-4">SLA Status Distribution</h3>
+            <div class="relative" style="height: 200px;">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Queue Breakdown Chart -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-lg font-semibold mb-4">By Queue</h3>
+            <div class="relative" style="height: 200px;">
+                <canvas id="queueChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Category Breakdown Chart -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-lg font-semibold mb-4">By Category</h3>
+            <div class="relative" style="height: 200px;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Likely to Breach Section -->
+    {% if likely_to_breach %}
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-4 border-b border-gray-200 bg-orange-50">
+            <h3 class="text-lg font-semibold text-orange-800">
+                <i class="fas fa-fire-alt mr-2"></i>
+                Likely to Breach Soon ({{ likely_to_breach|length }} tickets within 24 hours)
+            </h3>
+            <p class="text-sm text-orange-600 mt-1">These tickets need immediate attention to avoid SLA breach</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-orange-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requester</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Remaining</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in likely_to_breach %}
+                    <tr class="hover:bg-orange-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket.id) }}" class="text-blue-600 hover:text-blue-800 font-medium">
+                                {{ item.ticket.display_id if item.ticket.display_id else '#' ~ item.ticket.id }}
+                            </a>
+                            <div class="text-xs text-gray-500">{{ item.ticket.subject[:40] }}{% if item.ticket.subject|length > 40 %}...{% endif %}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.category.value if item.ticket.category else 'No Category' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.requester.username if item.ticket.requester else 'Unknown' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 animate-pulse">
+                                <i class="fas fa-clock mr-1"></i>
+                                {% if item.sla.hours_remaining <= 0 %}
+                                    Less than 1 hour!
+                                {% elif item.sla.hours_remaining == 1 %}
+                                    1 hour left
+                                {% else %}
+                                    {{ item.sla.hours_remaining }} hours left
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.sla.due_date.strftime('%Y-%m-%d %H:%M') if item.sla.due_date else '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Tickets Table -->
     <div class="bg-white rounded-lg shadow">
-        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 class="text-lg font-semibold">All Tickets with SLA</h3>
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold">All Tickets with SLA</h3>
+                <!-- Queue/Category Filters -->
+                <div class="flex gap-2 items-center">
+                    <select id="queueFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Queues</option>
+                        {% for queue_name in queue_stats.keys() %}
+                        <option value="{{ queue_name }}">{{ queue_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select id="categoryFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Categories</option>
+                        {% for cat_name in category_stats.keys() %}
+                        <option value="{{ cat_name }}">{{ cat_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="resetFilters()" class="text-sm text-gray-500 hover:text-gray-700 px-2">
+                        <i class="fas fa-times"></i> Reset
+                    </button>
+                </div>
+            </div>
+            <!-- Status Filter Buttons -->
             <div class="flex gap-2">
-                <button onclick="filterByStatus('all')" class="filter-btn px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300" data-status="all">All</button>
-                <button onclick="filterByStatus('breached')" class="filter-btn px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 hover:bg-red-200" data-status="breached">Breached</button>
-                <button onclick="filterByStatus('at_risk')" class="filter-btn px-3 py-1 text-sm rounded-full bg-yellow-100 text-yellow-700 hover:bg-yellow-200" data-status="at_risk">At Risk</button>
-                <button onclick="filterByStatus('on_track')" class="filter-btn px-3 py-1 text-sm rounded-full bg-green-100 text-green-700 hover:bg-green-200" data-status="on_track">On Track</button>
+                <button onclick="filterByStatus('all')" class="filter-btn px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 ring-2 ring-blue-500" data-status="all">All (<span id="count-all">{{ ticket_sla_data|length }}</span>)</button>
+                <button onclick="filterByStatus('breached')" class="filter-btn px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 hover:bg-red-200" data-status="breached">Breached (<span id="count-breached">{{ breached }}</span>)</button>
+                <button onclick="filterByStatus('at_risk')" class="filter-btn px-3 py-1 text-sm rounded-full bg-yellow-100 text-yellow-700 hover:bg-yellow-200" data-status="at_risk">At Risk (<span id="count-at_risk">{{ at_risk }}</span>)</button>
+                <button onclick="filterByStatus('on_track')" class="filter-btn px-3 py-1 text-sm rounded-full bg-green-100 text-green-700 hover:bg-green-200" data-status="on_track">On Track (<span id="count-on_track">{{ on_track }}</span>)</button>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -95,7 +222,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for item in ticket_sla_data %}
-                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}">
+                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}" data-queue="{{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}" data-category="{{ item.ticket.category.value if item.ticket.category else 'No Category' }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket.id) }}" class="text-blue-600 hover:text-blue-800 font-medium">
                                 {{ item.ticket.display_id if item.ticket.display_id else '#' ~ item.ticket.id }}
@@ -109,7 +236,7 @@
                             {{ item.ticket.category.value if item.ticket.category else 'No Category' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ item.ticket.requester.name if item.ticket.requester else 'Unknown' }}
+                            {{ item.ticket.requester.username if item.ticket.requester else 'Unknown' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ item.ticket.created_at.strftime('%Y-%m-%d %H:%M') if item.ticket.created_at else '-' }}
@@ -121,17 +248,21 @@
                             {% if item.sla.status == 'breached' %}
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 <i class="fas fa-times-circle mr-1"></i>
-                                {{ item.sla.days_remaining|abs }} days overdue
+                                {{ item.sla.days_remaining|abs }} day{% if item.sla.days_remaining|abs != 1 %}s{% endif %} overdue
                             </span>
                             {% elif item.sla.status == 'at_risk' %}
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                 <i class="fas fa-exclamation-triangle mr-1"></i>
-                                {{ item.sla.days_remaining }} day{% if item.sla.days_remaining != 1 %}s{% endif %} left
+                                {% if item.sla.hours_remaining <= 24 %}
+                                    {{ item.sla.hours_remaining }}h left
+                                {% else %}
+                                    {{ item.sla.days_remaining }} day{% if item.sla.days_remaining != 1 %}s{% endif %} left
+                                {% endif %}
                             </span>
                             {% else %}
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 <i class="fas fa-check-circle mr-1"></i>
-                                {{ item.sla.days_remaining }} days left
+                                {{ item.sla.days_remaining }} day{% if item.sla.days_remaining != 1 %}s{% endif %} left
                             </span>
                             {% endif %}
                         </td>
@@ -141,6 +272,7 @@
                         <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                             <i class="fas fa-inbox text-4xl text-gray-400 mb-2"></i>
                             <p>No tickets with SLA configured</p>
+                            <p class="text-sm mt-2">Configure SLA rules in <a href="{{ url_for('sla.manage_sla') }}" class="text-blue-600 hover:underline">Settings</a></p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -150,15 +282,175 @@
     </div>
 </div>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function filterByStatus(status) {
+// Chart data from server
+const chartData = {{ chart_data | tojson | safe }};
+
+// Status Distribution Donut Chart
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: chartData.status.labels,
+        datasets: [{
+            data: chartData.status.data,
+            backgroundColor: chartData.status.colors,
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 15,
+                    usePointStyle: true
+                }
+            }
+        },
+        cutout: '60%'
+    }
+});
+
+// Queue Breakdown Stacked Bar Chart
+const queueCtx = document.getElementById('queueChart').getContext('2d');
+new Chart(queueCtx, {
+    type: 'bar',
+    data: {
+        labels: chartData.queues.labels,
+        datasets: [
+            {
+                label: 'On Track',
+                data: chartData.queues.on_track,
+                backgroundColor: '#10B981'
+            },
+            {
+                label: 'At Risk',
+                data: chartData.queues.at_risk,
+                backgroundColor: '#F59E0B'
+            },
+            {
+                label: 'Breached',
+                data: chartData.queues.breached,
+                backgroundColor: '#EF4444'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                stacked: true,
+                ticks: {
+                    maxRotation: 45,
+                    minRotation: 45
+                }
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Category Breakdown Stacked Bar Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+    type: 'bar',
+    data: {
+        labels: chartData.categories.labels,
+        datasets: [
+            {
+                label: 'On Track',
+                data: chartData.categories.on_track,
+                backgroundColor: '#10B981'
+            },
+            {
+                label: 'At Risk',
+                data: chartData.categories.at_risk,
+                backgroundColor: '#F59E0B'
+            },
+            {
+                label: 'Breached',
+                data: chartData.categories.breached,
+                backgroundColor: '#EF4444'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                stacked: true,
+                ticks: {
+                    maxRotation: 45,
+                    minRotation: 45
+                }
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Current filter state
+let currentStatusFilter = 'all';
+
+// Apply all filters (queue, category, status)
+function applyFilters() {
+    const queueFilter = document.getElementById('queueFilter').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+
+    let counts = { all: 0, breached: 0, at_risk: 0, on_track: 0 };
+
     document.querySelectorAll('.ticket-row').forEach(row => {
-        if (status === 'all' || row.dataset.slaStatus === status) {
+        const matchQueue = queueFilter === 'all' || row.dataset.queue === queueFilter;
+        const matchCategory = categoryFilter === 'all' || row.dataset.category === categoryFilter;
+        const matchStatus = currentStatusFilter === 'all' || row.dataset.slaStatus === currentStatusFilter;
+
+        // Count tickets matching queue/category (regardless of status filter)
+        if (matchQueue && matchCategory) {
+            counts.all++;
+            counts[row.dataset.slaStatus]++;
+        }
+
+        // Show/hide based on all filters
+        if (matchQueue && matchCategory && matchStatus) {
             row.classList.remove('hidden');
         } else {
             row.classList.add('hidden');
         }
     });
+
+    // Update counts in buttons
+    document.getElementById('count-all').textContent = counts.all;
+    document.getElementById('count-breached').textContent = counts.breached;
+    document.getElementById('count-at_risk').textContent = counts.at_risk;
+    document.getElementById('count-on_track').textContent = counts.on_track;
+}
+
+// Filter by status (and apply other filters)
+function filterByStatus(status) {
+    currentStatusFilter = status;
 
     // Update button styles
     document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -167,6 +459,25 @@ function filterByStatus(status) {
             btn.classList.add('ring-2', 'ring-blue-500');
         }
     });
+
+    applyFilters();
+}
+
+// Reset all filters
+function resetFilters() {
+    document.getElementById('queueFilter').value = 'all';
+    document.getElementById('categoryFilter').value = 'all';
+    currentStatusFilter = 'all';
+
+    // Reset button styles
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-blue-500');
+        if (btn.dataset.status === 'all') {
+            btn.classList.add('ring-2', 'ring-blue-500');
+        }
+    });
+
+    applyFilters();
 }
 </script>
 {% endblock %}
