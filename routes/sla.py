@@ -279,7 +279,7 @@ def delete_holiday(holiday_id):
 @sla_bp.route('/dashboard')
 @login_required
 def sla_dashboard():
-    """Full SLA dashboard with all ticket SLA statuses"""
+    """Full SLA dashboard with all ticket SLA statuses - filtered by user access"""
     user = db_manager.get_user(session['user_id'])
     if not user:
         flash('Please log in to continue', 'error')
@@ -288,21 +288,52 @@ def sla_dashboard():
     db = SessionLocal()
     try:
         from utils.sla_calculator import get_sla_status
+        from models.user_queue_permission import UserQueuePermission
 
-        # Get open tickets
-        tickets = db.query(Ticket).filter(
+        # Build base query for open tickets
+        query = db.query(Ticket).filter(
             Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
-        ).all()
+        )
+
+        # Filter by user's accessible queues (unless super admin or developer)
+        if not user.is_super_admin and not user.is_developer:
+            accessible_queue_ids = db.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == user.id,
+                UserQueuePermission.can_view == True
+            ).subquery()
+            query = query.filter(Ticket.queue_id.in_(accessible_queue_ids))
+
+        tickets = query.all()
 
         ticket_sla_data = []
+        queue_stats = {}  # {queue_name: {on_track, at_risk, breached}}
+        category_stats = {}  # {category: {on_track, at_risk, breached}}
+        likely_to_breach = []  # Tickets with <= 24 hours remaining
+
         for ticket in tickets:
-            # Pass db session to avoid creating new connections for each ticket
             sla_info = get_sla_status(ticket, db=db)
             if sla_info['has_sla']:
-                ticket_sla_data.append({
+                item = {
                     'ticket': ticket,
                     'sla': sla_info
-                })
+                }
+                ticket_sla_data.append(item)
+
+                # Track queue stats
+                queue_name = ticket.queue.name if ticket.queue else 'No Queue'
+                if queue_name not in queue_stats:
+                    queue_stats[queue_name] = {'on_track': 0, 'at_risk': 0, 'breached': 0}
+                queue_stats[queue_name][sla_info['status']] = queue_stats[queue_name].get(sla_info['status'], 0) + 1
+
+                # Track category stats
+                cat_name = ticket.category.value if ticket.category else 'Unknown'
+                if cat_name not in category_stats:
+                    category_stats[cat_name] = {'on_track': 0, 'at_risk': 0, 'breached': 0}
+                category_stats[cat_name][sla_info['status']] = category_stats[cat_name].get(sla_info['status'], 0) + 1
+
+                # Track likely to breach (within 24 hours and not already breached)
+                if sla_info['status'] != 'breached' and sla_info.get('hours_remaining', 999) <= 24:
+                    likely_to_breach.append(item)
 
         # Sort by status (breached first, then at_risk, then on_track)
         status_order = {'breached': 0, 'at_risk': 1, 'on_track': 2}
@@ -311,17 +342,51 @@ def sla_dashboard():
             x['sla'].get('days_remaining', 999) if x['sla'].get('days_remaining') else 999
         ))
 
+        # Sort likely to breach by hours remaining (most urgent first)
+        likely_to_breach.sort(key=lambda x: x['sla'].get('hours_remaining', 999))
+
         # Get summary stats
         on_track = sum(1 for t in ticket_sla_data if t['sla']['status'] == 'on_track')
         at_risk = sum(1 for t in ticket_sla_data if t['sla']['status'] == 'at_risk')
         breached = sum(1 for t in ticket_sla_data if t['sla']['status'] == 'breached')
+        total_with_sla = len(ticket_sla_data)
+
+        # Calculate compliance rate
+        compliance_rate = round((on_track / total_with_sla * 100), 1) if total_with_sla > 0 else 100
+
+        # Prepare chart data
+        chart_data = {
+            'status': {
+                'labels': ['On Track', 'At Risk', 'Breached'],
+                'data': [on_track, at_risk, breached],
+                'colors': ['#10B981', '#F59E0B', '#EF4444']
+            },
+            'queues': {
+                'labels': list(queue_stats.keys()),
+                'on_track': [q['on_track'] for q in queue_stats.values()],
+                'at_risk': [q['at_risk'] for q in queue_stats.values()],
+                'breached': [q['breached'] for q in queue_stats.values()]
+            },
+            'categories': {
+                'labels': list(category_stats.keys()),
+                'on_track': [c['on_track'] for c in category_stats.values()],
+                'at_risk': [c['at_risk'] for c in category_stats.values()],
+                'breached': [c['breached'] for c in category_stats.values()]
+            }
+        }
 
         return render_template('sla/dashboard.html',
             user=user,
             ticket_sla_data=ticket_sla_data,
             on_track=on_track,
             at_risk=at_risk,
-            breached=breached
+            breached=breached,
+            total_with_sla=total_with_sla,
+            compliance_rate=compliance_rate,
+            likely_to_breach=likely_to_breach[:10],  # Top 10 most urgent
+            queue_stats=queue_stats,
+            category_stats=category_stats,
+            chart_data=chart_data
         )
     finally:
         db.close()
