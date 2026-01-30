@@ -10,9 +10,13 @@ from models.activity import Activity
 from models.permission import Permission
 from models.ticket import Ticket
 from datetime import datetime
+import os
 
 class DatabaseManager:
-    def __init__(self, db_url="sqlite:///inventory.db"):
+    def __init__(self, db_url=None):
+        # Use DATABASE_URL from environment, fallback to SQLite only for local dev
+        if db_url is None:
+            db_url = os.environ.get('DATABASE_URL', 'sqlite:///inventory.db')
         self.engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)

@@ -28,7 +28,14 @@ elif not DATABASE_URL:
 if DATABASE_URL.startswith('sqlite'):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL)
+    # MySQL/PostgreSQL: Add pool settings to prevent connection timeout errors
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,  # Check connection is alive before using
+        pool_recycle=280,    # Recycle connections before MySQL timeout (default 300s)
+        pool_size=10,
+        max_overflow=20
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
