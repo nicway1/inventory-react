@@ -5,14 +5,15 @@ Run this script on PythonAnywhere to create the sla_configs and queue_holidays t
 Usage: python3 migrations/run_sla_mysql.py
 """
 
-import mysql.connector
+import pymysql
 
 # PythonAnywhere MySQL connection settings
 DB_CONFIG = {
     'host': 'nicway2.mysql.pythonanywhere-services.com',
     'user': 'nicway2',
     'password': 'Truelog123@',
-    'database': 'nicway2$default'
+    'database': 'nicway2$default',
+    'charset': 'utf8mb4'
 }
 
 # SQL statements to create tables
@@ -63,7 +64,7 @@ def run_migration():
     print("Connecting to MySQL database...")
 
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
+        conn = pymysql.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         print("Creating sla_configs table...")
@@ -76,10 +77,10 @@ def run_migration():
         for index_sql in CREATE_INDEXES:
             try:
                 cursor.execute(index_sql)
-            except mysql.connector.Error as e:
-                # Ignore "index already exists" errors
-                if e.errno != 1061:
-                    print(f"  Warning: {e.msg}")
+            except pymysql.Error as e:
+                # Ignore "index already exists" errors (error code 1061)
+                if e.args[0] != 1061:
+                    print(f"  Warning: {e.args[1]}")
 
         conn.commit()
 
@@ -104,7 +105,7 @@ def run_migration():
         print("2. Add 'Case Manager SLA' widget to your dashboard")
         print("3. Configure SLA rules at /sla/manage")
 
-    except mysql.connector.Error as e:
+    except pymysql.Error as e:
         print(f"Error: {e}")
         return False
 
