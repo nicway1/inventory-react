@@ -727,15 +727,47 @@ def format_shipping_info_for_description(info):
     return '\n'.join(lines)
 
 
+def extract_text_directly(pdf_path):
+    """
+    Extract text directly from PDF without OCR.
+    Returns the text if PDF has selectable text, None otherwise.
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.error("PyMuPDF (fitz) not installed")
+        return None
+
+    try:
+        doc = fitz.open(pdf_path)
+        all_text = ""
+
+        for page in doc:
+            text = page.get_text()
+            all_text += text + "\n"
+
+        doc.close()
+
+        # Check if we got meaningful text (not just whitespace)
+        stripped = all_text.strip()
+        if len(stripped) > 100:  # At least 100 chars of actual content
+            logger.info(f"Direct text extraction: {len(stripped)} characters extracted")
+            return all_text
+
+        return None
+    except Exception as e:
+        logger.error(f"Error in direct text extraction: {e}")
+        return None
+
+
 def extract_assets_from_pdf(pdf_path):
     """
     Extract asset information from a packing list PDF
 
-    Uses AI-based extraction (Claude API) first if available, falls back to OCR.
-    AI extraction is more accurate for:
-    - Complex table layouts
-    - Scanned documents with poor quality
-    - Multi-page tables that span across pages
+    Priority order:
+    1. Direct text extraction (fastest, for PDFs with selectable text)
+    2. AI-based extraction (for scanned/image PDFs, if API key available)
+    3. OCR fallback (for scanned PDFs without AI)
 
     Returns:
         dict with:
@@ -748,14 +780,37 @@ def extract_assets_from_pdf(pdf_path):
             - assets: List of extracted assets with serial numbers and details
     """
     try:
-        # Try AI-based extraction first (more accurate for complex PDFs)
+        # First, try direct text extraction (for PDFs with selectable text)
+        logger.info("Attempting direct text extraction...")
+        all_text = extract_text_directly(pdf_path)
+
+        if all_text and len(all_text.strip()) > 100:
+            logger.info("PDF has selectable text, using direct extraction (no OCR needed)")
+
+            # Detect document format and use appropriate parser
+            if is_success_tech_delivery_order(all_text):
+                logger.info("Detected Success Tech Delivery Order format")
+                return parse_success_tech_delivery_order(all_text)
+            elif is_asiacloud_delivery_order(all_text):
+                logger.info("Detected AsiaCloud Delivery Order format")
+                return parse_asiacloud_delivery_order(all_text)
+            else:
+                # Standard packing list format
+                result = parse_packing_list_text(all_text)
+                if result and result.get('assets'):
+                    logger.info(f"Direct extraction complete: {len(result['assets'])} assets found")
+                    return result
+                logger.info("Direct extraction found no assets, trying AI extraction...")
+
+        # If direct extraction failed or found no assets, try AI-based extraction
         logger.info("Attempting AI-based PDF extraction...")
         ai_data = extract_pdf_with_ai(pdf_path)
 
         if ai_data:
             logger.info("AI extraction successful, converting to asset format...")
-            # Also extract text for additional parsing context
-            all_text = extract_text_with_ocr(pdf_path) or ""
+            # Use already extracted text if available, or extract again
+            if not all_text:
+                all_text = extract_text_with_ocr(pdf_path) or ""
             result = convert_ai_data_to_assets(ai_data, all_text)
 
             if result and result.get('assets'):
