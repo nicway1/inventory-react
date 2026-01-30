@@ -86,7 +86,7 @@
     </div>
 
     <!-- Charts Row -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <!-- Status Distribution Chart -->
         <div class="bg-white rounded-lg shadow p-4">
             <h3 class="text-lg font-semibold mb-4">SLA Status Distribution</h3>
@@ -108,6 +108,14 @@
             <h3 class="text-lg font-semibold mb-4">By Category</h3>
             <div class="relative" style="height: 200px;">
                 <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- User Breakdown Chart -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-lg font-semibold mb-4">By User (Top 10)</h3>
+            <div class="relative" style="height: 200px;">
+                <canvas id="userChart"></canvas>
             </div>
         </div>
     </div>
@@ -180,8 +188,14 @@
         <div class="p-4 border-b border-gray-200">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-lg font-semibold">All Tickets with SLA</h3>
-                <!-- Queue/Category Filters -->
-                <div class="flex gap-2 items-center">
+                <!-- Queue/Category/User Filters -->
+                <div class="flex gap-2 items-center flex-wrap">
+                    <select id="userFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Users</option>
+                        {% for u in user_stats %}
+                        <option value="{{ u.id }}">{{ u.name }} ({{ u.total }}{% if u.breached > 0 %} - {{ u.breached }} breached{% endif %})</option>
+                        {% endfor %}
+                    </select>
                     <select id="queueFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
                         <option value="all">All Queues</option>
                         {% for queue_name in queue_stats.keys() %}
@@ -222,7 +236,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for item in ticket_sla_data %}
-                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}" data-queue="{{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}" data-category="{{ item.ticket.category.value if item.ticket.category else 'No Category' }}">
+                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}" data-queue="{{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}" data-category="{{ item.ticket.category.value if item.ticket.category else 'No Category' }}" data-user-id="{{ item.ticket.requester_id or '' }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket.id) }}" class="text-blue-600 hover:text-blue-800 font-medium">
                                 {{ item.ticket.display_id if item.ticket.display_id else '#' ~ item.ticket.id }}
@@ -412,29 +426,76 @@ new Chart(categoryCtx, {
     }
 });
 
+// User Breakdown Stacked Bar Chart
+const userCtx = document.getElementById('userChart').getContext('2d');
+new Chart(userCtx, {
+    type: 'bar',
+    data: {
+        labels: chartData.users.labels,
+        datasets: [
+            {
+                label: 'On Track',
+                data: chartData.users.on_track,
+                backgroundColor: '#10B981'
+            },
+            {
+                label: 'At Risk',
+                data: chartData.users.at_risk,
+                backgroundColor: '#F59E0B'
+            },
+            {
+                label: 'Breached',
+                data: chartData.users.breached,
+                backgroundColor: '#EF4444'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',  // Horizontal bars for better user name visibility
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                stacked: true,
+                beginAtZero: true
+            },
+            y: {
+                stacked: true
+            }
+        }
+    }
+});
+
 // Current filter state
 let currentStatusFilter = 'all';
 
-// Apply all filters (queue, category, status)
+// Apply all filters (user, queue, category, status)
 function applyFilters() {
+    const userFilter = document.getElementById('userFilter').value;
     const queueFilter = document.getElementById('queueFilter').value;
     const categoryFilter = document.getElementById('categoryFilter').value;
 
     let counts = { all: 0, breached: 0, at_risk: 0, on_track: 0 };
 
     document.querySelectorAll('.ticket-row').forEach(row => {
+        const matchUser = userFilter === 'all' || row.dataset.userId === userFilter;
         const matchQueue = queueFilter === 'all' || row.dataset.queue === queueFilter;
         const matchCategory = categoryFilter === 'all' || row.dataset.category === categoryFilter;
         const matchStatus = currentStatusFilter === 'all' || row.dataset.slaStatus === currentStatusFilter;
 
-        // Count tickets matching queue/category (regardless of status filter)
-        if (matchQueue && matchCategory) {
+        // Count tickets matching user/queue/category (regardless of status filter)
+        if (matchUser && matchQueue && matchCategory) {
             counts.all++;
             counts[row.dataset.slaStatus]++;
         }
 
         // Show/hide based on all filters
-        if (matchQueue && matchCategory && matchStatus) {
+        if (matchUser && matchQueue && matchCategory && matchStatus) {
             row.classList.remove('hidden');
         } else {
             row.classList.add('hidden');
@@ -465,6 +526,7 @@ function filterByStatus(status) {
 
 // Reset all filters
 function resetFilters() {
+    document.getElementById('userFilter').value = 'all';
     document.getElementById('queueFilter').value = 'all';
     document.getElementById('categoryFilter').value = 'all';
     currentStatusFilter = 'all';
