@@ -4497,6 +4497,101 @@ def delete_ticket_attachment(ticket_id, attachment_id):
 
 
 # =============================================================================
+# Attachment Download Endpoint
+# =============================================================================
+
+@mobile_api_bp.route('/tickets/<int:ticket_id>/attachments/<int:attachment_id>/download', methods=['GET'])
+@mobile_auth_required
+def download_ticket_attachment(ticket_id, attachment_id):
+    """
+    Download a ticket attachment file.
+
+    GET /api/mobile/v1/tickets/<ticket_id>/attachments/<attachment_id>/download
+    Headers: Authorization: Bearer <token>
+
+    Returns:
+        Raw file data with appropriate Content-Type header
+
+    Error responses:
+        - 404: Ticket or attachment not found
+        - 500: Server error
+    """
+    from flask import send_file
+    from models.ticket_attachment import TicketAttachment
+    from models.intake_ticket import IntakeAttachment
+    from models.ticket import Ticket
+    from models.intake_ticket import IntakeTicket
+
+    try:
+        db_session = db_manager.get_session()
+        try:
+            # Try to find attachment in TicketAttachment first
+            attachment = db_session.query(TicketAttachment).filter(
+                TicketAttachment.id == attachment_id,
+                TicketAttachment.ticket_id == ticket_id
+            ).first()
+
+            # If not found, try IntakeAttachment
+            if not attachment:
+                attachment = db_session.query(IntakeAttachment).filter(
+                    IntakeAttachment.id == attachment_id,
+                    IntakeAttachment.ticket_id == ticket_id
+                ).first()
+
+            if not attachment:
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment not found'
+                }), 404
+
+            # Check if file exists
+            if not attachment.file_path or not os.path.exists(attachment.file_path):
+                logger.error(f"Attachment file not found on disk: {attachment.file_path}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment file not found on server'
+                }), 404
+
+            # Determine content type
+            file_type = (attachment.file_type or '').lower()
+            content_type_map = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'pdf': 'application/pdf',
+                'doc': 'application/msword',
+                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls': 'application/vnd.ms-excel',
+                'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'txt': 'text/plain',
+                'csv': 'text/csv'
+            }
+            content_type = content_type_map.get(file_type, 'application/octet-stream')
+
+            logger.info(f"Serving attachment {attachment_id} for ticket {ticket_id}: {attachment.filename}")
+
+            return send_file(
+                attachment.file_path,
+                mimetype=content_type,
+                as_attachment=True,
+                download_name=attachment.filename
+            )
+
+        finally:
+            db_session.close()
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Error downloading attachment: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# =============================================================================
 # Asset Intake Check-in Endpoints
 # =============================================================================
 
@@ -5631,7 +5726,8 @@ def mobile_create_assets_bulk():
 @mobile_auth_required
 def mobile_get_pdf_attachments(ticket_id):
     """
-    Get list of PDF attachments for an intake ticket that can be processed for asset extraction.
+    Get list of PDF attachments for a ticket that can be processed for asset extraction.
+    Supports both IntakeTicket and regular Ticket.
 
     Response:
         {
@@ -5649,30 +5745,55 @@ def mobile_get_pdf_attachments(ticket_id):
         }
     """
     from models.intake_ticket import IntakeTicket
+    from models.ticket import Ticket
+    from models.ticket_attachment import TicketAttachment
+    from sqlalchemy.orm import joinedload
 
     try:
         db_session = db_manager.get_session()
         try:
+            # First try IntakeTicket
             ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+            ticket_type = 'intake'
+
+            # If not found, try regular Ticket
+            if not ticket:
+                logger.info(f"Ticket {ticket_id} not found in intake_tickets, checking tickets table")
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+                ticket_type = 'ticket'
 
             if not ticket:
-                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+                return jsonify({'success': False, 'error': 'Ticket not found'}), 404
 
-            # Get PDF attachments only
+            # Get PDF attachments based on ticket type
             pdf_attachments = []
-            for att in ticket.attachments:
-                if att.filename.lower().endswith('.pdf'):
-                    pdf_attachments.append({
-                        'id': att.id,
-                        'filename': att.filename,
-                        'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None,
-                        'uploaded_by': att.uploader.username if att.uploader else None
-                    })
+            if ticket_type == 'intake':
+                for att in ticket.attachments:
+                    if att.filename.lower().endswith('.pdf'):
+                        pdf_attachments.append({
+                            'id': att.id,
+                            'filename': att.filename,
+                            'uploaded_at': att.uploaded_at.isoformat() if att.uploaded_at else None,
+                            'uploaded_by': att.uploader.username if att.uploader else None
+                        })
+            else:
+                # For regular tickets, query TicketAttachment
+                attachments = db_session.query(TicketAttachment).options(
+                    joinedload(TicketAttachment.uploader)
+                ).filter(TicketAttachment.ticket_id == ticket_id).all()
+                for att in attachments:
+                    if att.filename.lower().endswith('.pdf'):
+                        pdf_attachments.append({
+                            'id': att.id,
+                            'filename': att.filename,
+                            'uploaded_at': att.created_at.isoformat() if att.created_at else None,
+                            'uploaded_by': att.uploader.username if att.uploader else None
+                        })
 
             return jsonify({
                 'success': True,
                 'ticket_id': ticket.id,
-                'ticket_number': ticket.ticket_number,
+                'ticket_number': ticket.ticket_number if hasattr(ticket, 'ticket_number') else ticket.display_id,
                 'attachments': pdf_attachments
             })
 
@@ -5721,18 +5842,35 @@ def mobile_extract_assets_from_pdfs(ticket_id):
         }
     """
     from models.intake_ticket import IntakeTicket
+    from models.ticket import Ticket
+    from models.ticket_attachment import TicketAttachment
     from utils.pdf_extractor import extract_assets_from_pdf
 
     try:
         db_session = db_manager.get_session()
         try:
+            # First try IntakeTicket
             ticket = db_session.query(IntakeTicket).filter(IntakeTicket.id == ticket_id).first()
+            ticket_type = 'intake'
+
+            # If not found, try regular Ticket
+            if not ticket:
+                logger.info(f"Ticket {ticket_id} not found in intake_tickets, checking tickets table")
+                ticket = db_session.query(Ticket).filter(Ticket.id == ticket_id).first()
+                ticket_type = 'ticket'
 
             if not ticket:
-                return jsonify({'success': False, 'error': 'Intake ticket not found'}), 404
+                return jsonify({'success': False, 'error': 'Ticket not found in either intake_tickets or tickets table'}), 404
 
-            # Get PDF attachments
-            pdf_attachments = [a for a in ticket.attachments if a.filename.lower().endswith('.pdf')]
+            # Get PDF attachments based on ticket type
+            if ticket_type == 'intake':
+                pdf_attachments = [a for a in ticket.attachments if a.filename.lower().endswith('.pdf')]
+            else:
+                # For regular tickets, query TicketAttachment directly
+                all_attachments = db_session.query(TicketAttachment).filter(
+                    TicketAttachment.ticket_id == ticket_id
+                ).all()
+                pdf_attachments = [a for a in all_attachments if a.filename.lower().endswith('.pdf')]
 
             if not pdf_attachments:
                 return jsonify({
@@ -5797,7 +5935,7 @@ def mobile_extract_assets_from_pdfs(ticket_id):
             return jsonify({
                 'success': True,
                 'ticket_id': ticket.id,
-                'ticket_number': ticket.ticket_number,
+                'ticket_number': ticket.ticket_number if hasattr(ticket, 'ticket_number') else ticket.display_id,
                 'total_assets': total_assets,
                 'results': all_results
             })
@@ -5983,23 +6121,73 @@ def mobile_extract_single_pdf(attachment_id):
             "total_quantity": 7
         }
     """
-    from models.intake_ticket import IntakeAttachment
+    from models.intake_ticket import IntakeAttachment, IntakeTicket
+    from models.ticket_attachment import TicketAttachment
     from utils.pdf_extractor import extract_assets_from_pdf
+    from sqlalchemy.orm import joinedload
+    import os
 
     try:
         db_session = db_manager.get_session()
         try:
-            attachment = db_session.query(IntakeAttachment).filter(
+            # First try IntakeAttachment table
+            attachment = db_session.query(IntakeAttachment).options(
+                joinedload(IntakeAttachment.ticket)
+            ).filter(
                 IntakeAttachment.id == attachment_id
             ).first()
 
+            attachment_type = 'intake'
+
+            # If not found in IntakeAttachment, check TicketAttachment table
             if not attachment:
-                return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+                logger.info(f"Attachment {attachment_id} not found in intake_attachments, checking ticket_attachments")
+                attachment = db_session.query(TicketAttachment).filter(
+                    TicketAttachment.id == attachment_id
+                ).first()
+                attachment_type = 'ticket'
+
+            if not attachment:
+                logger.warning(f"Attachment not found with ID: {attachment_id} in both intake_attachments and ticket_attachments tables")
+                return jsonify({
+                    'success': False,
+                    'error': f'Attachment with ID {attachment_id} not found in database'
+                }), 404
 
             if not attachment.filename.lower().endswith('.pdf'):
                 return jsonify({'success': False, 'error': 'Not a PDF file'}), 400
 
-            result = extract_assets_from_pdf(attachment.file_path)
+            # Check if file exists on disk
+            if not attachment.file_path:
+                logger.error(f"Attachment {attachment_id} has no file_path")
+                return jsonify({
+                    'success': False,
+                    'error': 'Attachment has no file path stored'
+                }), 400
+
+            if not os.path.exists(attachment.file_path):
+                logger.error(f"PDF file not found on disk: {attachment.file_path}")
+                return jsonify({
+                    'success': False,
+                    'error': f'PDF file not found on disk: {attachment.filename}'
+                }), 404
+
+            # Use timeout to prevent request hanging on slow OCR
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+            timeout_seconds = 120  # 2 minute timeout for PDF extraction
+
+            logger.info(f"Starting PDF extraction for {attachment.filename} with {timeout_seconds}s timeout")
+
+            try:
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(extract_assets_from_pdf, attachment.file_path)
+                    result = future.result(timeout=timeout_seconds)
+            except FuturesTimeoutError:
+                logger.error(f"PDF extraction timed out after {timeout_seconds}s for {attachment.filename}")
+                return jsonify({
+                    'success': False,
+                    'error': f'PDF extraction timed out after {timeout_seconds} seconds. The PDF may be too large or complex for OCR processing.'
+                }), 408  # Request Timeout
 
             if result:
                 assets_data = []

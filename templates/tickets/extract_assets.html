@@ -460,8 +460,26 @@
     <!-- Step 1: Select PDF -->
     <div class="card" id="step1">
         <div class="card-header">
-            <h2 class="card-title"><span class="badge badge-info">1</span> Select PDF Attachment</h2>
+            <h2 class="card-title"><span class="badge badge-info">1</span> Select Source</h2>
         </div>
+
+        <!-- Extract from Text Option -->
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 0.5rem; border: 1px solid #86efac;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; background: #22c55e; color: white; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                    <i class="fas fa-paste"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h4 style="font-weight: 600; color: #166534; margin-bottom: 0.25rem;">Extract from Pasted Text</h4>
+                    <p style="font-size: 0.875rem; color: #15803d;">Copy text from your invoice/packing list PDF and paste it directly - faster and more accurate than OCR</p>
+                </div>
+                <button class="btn btn-success" onclick="showTextInputModal()">
+                    <i class="fas fa-paste"></i> Paste Text
+                </button>
+            </div>
+        </div>
+
+        <div style="text-align: center; color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">— OR select a PDF attachment below —</div>
 
         {% if attachments %}
         <div class="attachment-list">
@@ -479,7 +497,7 @@
                         <i class="fas fa-file-alt"></i> Shipping Info
                     </button>
                     <button class="btn btn-primary" onclick="event.stopPropagation(); extractFromPDF({{ att.id }})">
-                        <i class="fas fa-magic"></i> Extract Assets
+                        <i class="fas fa-magic"></i> Extract Assets (OCR)
                     </button>
                 </div>
             </div>
@@ -489,7 +507,7 @@
         <div class="empty-state">
             <i class="fas fa-file-pdf"></i>
             <h3>No PDF attachments found</h3>
-            <p>Upload a packing list PDF to this ticket first</p>
+            <p>Use the "Paste Text" option above or upload a packing list PDF to this ticket</p>
             <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" class="btn btn-secondary" style="margin-top: 1rem;">
                 <i class="fas fa-upload"></i> Go to Ticket
             </a>
@@ -529,6 +547,29 @@
             <div class="info-card">
                 <label>Assets Found</label>
                 <div class="value" id="assetCount">0</div>
+            </div>
+        </div>
+
+        <!-- Asset Breakdown by Model -->
+        <div id="breakdownSection" style="display: none; margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 0.5rem; border: 1px solid #86efac;">
+            <h4 style="font-weight: 600; color: #166534; margin-bottom: 0.75rem; font-size: 0.875rem;">
+                <i class="fas fa-list-ul"></i> Breakdown by Model <span style="font-weight: 400; font-size: 0.75rem; color: #15803d;">(click to view serials)</span>
+            </h4>
+            <div id="breakdownList" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <!-- Breakdown items will be populated here -->
+            </div>
+        </div>
+
+        <!-- Breakdown Serials Modal -->
+        <div id="breakdownSerialsModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 0.5rem; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+                <div style="padding: 1rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">
+                    <h3 id="breakdownModalTitle" style="font-weight: 600; color: #166534; margin: 0; font-size: 0.9rem;"></h3>
+                    <button onclick="closeBreakdownSerialsModal()" style="background: none; border: none; cursor: pointer; font-size: 1.25rem; color: #6b7280;">&times;</button>
+                </div>
+                <div id="breakdownSerialsList" style="padding: 1rem; max-height: 60vh; overflow-y: auto;">
+                    <!-- Serials will be listed here -->
+                </div>
             </div>
         </div>
 
@@ -684,6 +725,50 @@
             <div class="bar"></div>
         </div>
         <p class="loading-text" id="loadingText">Extracting data from PDF...</p>
+    </div>
+</div>
+
+<!-- Text Input Modal -->
+<div id="textInputModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 95%; max-width: 900px; max-height: 90vh; overflow: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 12px 12px 0 0;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: white; margin: 0;">
+                <i class="fas fa-paste"></i> Extract Assets from Text
+            </h3>
+            <button onclick="closeTextInputModal()" style="background: rgba(255,255,255,0.2); border: none; font-size: 1.25rem; color: white; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+        </div>
+        <div style="padding: 1.5rem;">
+            <div style="margin-bottom: 1rem; padding: 1rem; background: #f0fdf4; border-radius: 0.5rem; border: 1px solid #bbf7d0;">
+                <p style="font-size: 0.875rem; color: #166534; margin: 0;">
+                    <i class="fas fa-info-circle"></i> <strong>Instructions:</strong> Open your PDF invoice/packing list, select all text (Ctrl+A), copy (Ctrl+C), and paste below (Ctrl+V). This method is faster and more accurate than OCR.
+                </p>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; color: #374151; display: block; margin-bottom: 0.5rem;">
+                    Paste Invoice/Packing List Text:
+                </label>
+                <textarea id="pastedText" placeholder="Paste the full text from your CDW invoice, packing list, or delivery order here...
+
+Example format (CDW):
+MW0Y3ZP/A-SG0001 SC2WXQ39W20 18750 100010948 WISE 84713020
+APPLE 13&quot; MACBOOK AIR: STARLIGHT M4 10C
+CPU 8C GPU16GB 256GB SSD" style="width: 100%; min-height: 350px; padding: 1rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.8rem; line-height: 1.5; resize: vertical; transition: border-color 0.15s;"></textarea>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                    <span id="textCharCount" style="font-size: 0.75rem; color: #6b7280;">0 characters</span>
+                    <button type="button" onclick="document.getElementById('pastedText').value=''; updateCharCount();" style="font-size: 0.75rem; color: #dc2626; background: none; border: none; cursor: pointer;">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeTextInputModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-success" onclick="extractFromText()" id="extractTextBtn">
+                    <i class="fas fa-magic"></i> Extract Assets
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -928,6 +1013,29 @@ function extractFromPDF(attachmentId) {
     });
 }
 
+// Build hardware type string from asset data
+// Format: MacBook Air 13" Starlight M4 10-Core CPU 8-Core GPU 16GB RAM 256GB SSD
+function buildHardwareType(asset) {
+    let parts = [];
+
+    // Use hardware_type from backend if it has color, otherwise build from name + color
+    if (asset.hardware_type && asset.hardware_type !== 'Laptop') {
+        parts.push(asset.hardware_type);
+    } else {
+        if (asset.name) parts.push(asset.name);
+        if (asset.color) parts.push(asset.color);
+    }
+
+    if (asset.cpu_type) parts.push(asset.cpu_type);
+    if (asset.cpu_cores) parts.push(asset.cpu_cores + '-Core CPU');
+    if (asset.gpu_cores) parts.push(asset.gpu_cores + '-Core GPU');
+    // Memory and harddrive already include units (e.g., "16GB", "256GB") from backend
+    if (asset.memory) parts.push(asset.memory + ' RAM');
+    if (asset.harddrive) parts.push(asset.harddrive + ' SSD');
+
+    return parts.join(' ');
+}
+
 async function showPreview(data) {
     document.getElementById('step1').style.display = 'none';
     document.getElementById('step2').style.display = 'block';
@@ -938,6 +1046,38 @@ async function showPreview(data) {
     document.getElementById('shipDate').textContent = data.ship_date || '-';
     document.getElementById('customerName').textContent = data.receiver || '-';
     document.getElementById('assetCount').textContent = data.extracted_count || 0;
+
+    // Store breakdown_serials globally for modal access
+    window.breakdownSerials = data.breakdown_serials || {};
+
+    // Show breakdown if available
+    if (data.breakdown && Object.keys(data.breakdown).length > 0) {
+        const breakdownSection = document.getElementById('breakdownSection');
+        const breakdownList = document.getElementById('breakdownList');
+        breakdownSection.style.display = 'block';
+        breakdownList.innerHTML = '';
+
+        for (const [model, count] of Object.entries(data.breakdown)) {
+            const item = document.createElement('div');
+            const hasSerials = window.breakdownSerials[model] && window.breakdownSerials[model].length > 0;
+            item.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: white; border-radius: 0.375rem; border: 1px solid #bbf7d0;' + (hasSerials ? ' cursor: pointer; transition: all 0.15s;' : '');
+            if (hasSerials) {
+                item.onmouseover = function() { this.style.background = '#f0fdf4'; this.style.borderColor = '#86efac'; };
+                item.onmouseout = function() { this.style.background = 'white'; this.style.borderColor = '#bbf7d0'; };
+                item.onclick = function() { showBreakdownSerials(model); };
+            }
+            const serialCount = hasSerials ? window.breakdownSerials[model].length : 0;
+            const serialInfo = hasSerials ? `<span style="color: #9ca3af; font-size: 0.75rem; margin-left: auto;">${serialCount} serials <i class="fas fa-chevron-right" style="font-size: 0.6rem;"></i></span>` : '';
+            item.innerHTML = `
+                <span style="font-weight: 700; color: #166534; font-size: 1rem; min-width: 40px;">${count}×</span>
+                <span style="color: #374151; font-size: 0.875rem;">Apple ${model}</span>
+                ${serialInfo}
+            `;
+            breakdownList.appendChild(item);
+        }
+    } else {
+        document.getElementById('breakdownSection').style.display = 'none';
+    }
 
     // Fetch next available asset tags
     let assetTags = [];
@@ -980,7 +1120,7 @@ async function showPreview(data) {
             <td onclick="showAssetDetail(${index})">${asset.cpu_cores || '-'}</td>
             <td onclick="showAssetDetail(${index})">${asset.memory || '-'}</td>
             <td onclick="showAssetDetail(${index})">${asset.harddrive || '-'}</td>
-            <td class="input-cell"><input type="text" class="hardware-type-input" data-index="${index}" value="" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
+            <td class="input-cell"><input type="text" class="hardware-type-input" data-index="${index}" value="${buildHardwareType(asset)}" style="width: 180px; padding: 0.25rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 0.8rem;"></td>
         `;
         tbody.appendChild(row);
     });
@@ -1090,21 +1230,12 @@ function generateAllAssetTags() {
 }
 
 function generateAllHardwareTypes() {
-    // Generate hardware type for each asset based on extracted data
-    // Format: [Product] [AssetType] [CPU Type] [CPU Cores]-Core [Storage]GB
+    // Regenerate hardware type for all assets using the buildHardwareType function
     if (!extractedData || !extractedData.assets) return;
 
     document.querySelectorAll('.hardware-type-input').forEach((input, index) => {
         const asset = extractedData.assets[index];
-        let hardwareType = '';
-
-        // Build hardware type string similar to add_asset page
-        if (asset.name) hardwareType += asset.name + ' ';
-        if (asset.cpu_type) hardwareType += asset.cpu_type + ' ';
-        if (asset.cpu_cores) hardwareType += asset.cpu_cores + '-Core ';
-        if (asset.harddrive) hardwareType += asset.harddrive;
-
-        input.value = hardwareType.trim();
+        input.value = buildHardwareType(asset);
     });
 }
 
@@ -1430,7 +1561,116 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeAssetDetail();
         closeShippingModal();
+        closeTextInputModal();
+        closeBreakdownSerialsModal();
     }
 });
+
+// Text Input Modal Functions
+function showTextInputModal() {
+    const modal = document.getElementById('textInputModal');
+    modal.style.display = 'flex';
+    // Focus on textarea
+    setTimeout(() => {
+        document.getElementById('pastedText').focus();
+    }, 100);
+}
+
+function closeTextInputModal() {
+    document.getElementById('textInputModal').style.display = 'none';
+}
+
+// Breakdown Serials Modal Functions
+function showBreakdownSerials(model) {
+    const serials = window.breakdownSerials[model] || [];
+    const modal = document.getElementById('breakdownSerialsModal');
+    const title = document.getElementById('breakdownModalTitle');
+    const list = document.getElementById('breakdownSerialsList');
+
+    title.innerHTML = `<i class="fas fa-microchip"></i> ${serials.length} Serials - Apple ${model}`;
+
+    if (serials.length === 0) {
+        list.innerHTML = '<p style="color: #6b7280; text-align: center;">No serials found for this model</p>';
+    } else {
+        // Create a grid of serials
+        list.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem;">
+                ${serials.map((serial, idx) => `
+                    <div style="padding: 0.5rem 0.75rem; background: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: monospace; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #9ca3af; font-size: 0.7rem; min-width: 20px;">${idx + 1}.</span>
+                        <span style="color: #374151;">${serial}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeBreakdownSerialsModal() {
+    document.getElementById('breakdownSerialsModal').style.display = 'none';
+}
+
+function updateCharCount() {
+    const text = document.getElementById('pastedText').value;
+    const count = text.length;
+    document.getElementById('textCharCount').textContent = count.toLocaleString() + ' characters';
+}
+
+// Add event listener for character count and auto-open text modal if mode=text
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('pastedText');
+    if (textarea) {
+        textarea.addEventListener('input', updateCharCount);
+    }
+
+    // Auto-open text modal if ?mode=text is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'text') {
+        showTextInputModal();
+    }
+});
+
+function extractFromText() {
+    const text = document.getElementById('pastedText').value.trim();
+
+    if (!text) {
+        alert('Please paste some text from your invoice or packing list');
+        return;
+    }
+
+    if (text.length < 50) {
+        alert('The text seems too short. Please paste the full invoice/packing list content.');
+        return;
+    }
+
+    closeTextInputModal();
+    showLoading('Extracting assets from text...');
+
+    fetch(`/tickets/{{ ticket.id }}/extract-assets/process-text`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ text: text })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            extractedData = data;
+            showPreview(data);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to extract assets from text'));
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to extract assets from text: ' + error.message);
+    });
+}
 </script>
 {% endblock %}

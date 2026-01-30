@@ -1381,9 +1381,6 @@
             </h1>
         </div>
         <div class="sf-header-actions">
-            <a href="{{ url_for('tickets.list_tickets') }}" class="sf-btn sf-btn-neutral">
-                <i class="fas fa-exchange-alt"></i> Classic View
-            </a>
             {% if current_user.is_super_admin or current_user.is_developer %}
             <a href="{{ url_for('tickets.ticket_manager') }}" class="sf-btn sf-btn-neutral" style="background: #8b5cf6; border-color: #8b5cf6; color: white;">
                 <i class="fas fa-cog"></i> Ticket Manager
@@ -1532,32 +1529,67 @@
 
         <!-- Main Area -->
         <div class="sf-main">
-            <!-- Summary Cards -->
+            <!-- All Tickets Section -->
+            <div class="sf-section-header" style="font-size: 0.75rem; font-weight: 600; color: var(--sf-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                All Tickets
+            </div>
             <div class="sf-summary-cards">
-                <div class="sf-summary-card highlight" onclick="filterByStatus('all')">
-                    <div class="sf-summary-label">Total Tickets</div>
+                <div class="sf-summary-card highlight" onclick="filterByStatus('all', this)">
+                    <div class="sf-summary-label">Total</div>
                     <div class="sf-summary-value blue" id="totalCount">0</div>
                     <div class="sf-summary-subtitle">All tickets</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('OPEN')">
+                <div class="sf-summary-card" onclick="filterByStatus('OPEN', this)">
                     <div class="sf-summary-label">Open</div>
                     <div class="sf-summary-value orange" id="openCount">0</div>
                     <div class="sf-summary-subtitle">Awaiting action</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('IN_PROGRESS')">
+                <div class="sf-summary-card" onclick="filterByStatus('IN_PROGRESS', this)">
                     <div class="sf-summary-label">In Progress</div>
                     <div class="sf-summary-value purple" id="inProgressCount">0</div>
                     <div class="sf-summary-subtitle">Being worked on</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('RESOLVED')">
+                <div class="sf-summary-card" onclick="filterByStatus('RESOLVED', this)">
                     <div class="sf-summary-label">Resolved</div>
                     <div class="sf-summary-value green" id="resolvedCount">0</div>
                     <div class="sf-summary-subtitle">Completed</div>
                 </div>
-                <div class="sf-summary-card" onclick="filterByStatus('ON_HOLD')">
+                <div class="sf-summary-card" onclick="filterByStatus('ON_HOLD', this)">
                     <div class="sf-summary-label">On Hold</div>
                     <div class="sf-summary-value red" id="onHoldCount">0</div>
                     <div class="sf-summary-subtitle">Waiting</div>
+                </div>
+            </div>
+
+            <!-- My Tickets Section -->
+            <div class="sf-section-header" style="font-size: 0.75rem; font-weight: 600; color: var(--sf-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; margin-top: 1rem;">
+                My Tickets
+            </div>
+            <div class="sf-summary-cards">
+                <div class="sf-summary-card" style="border-left: 4px solid var(--sf-purple);" onclick="filterByAssignee(this)">
+                    <div class="sf-summary-label">Total</div>
+                    <div class="sf-summary-value purple" id="myTotalCount">0</div>
+                    <div class="sf-summary-subtitle">Assigned to me</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('OPEN', this)">
+                    <div class="sf-summary-label">Open</div>
+                    <div class="sf-summary-value orange" id="myOpenCount">0</div>
+                    <div class="sf-summary-subtitle">Need attention</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('IN_PROGRESS', this)">
+                    <div class="sf-summary-label">In Progress</div>
+                    <div class="sf-summary-value purple" id="myInProgressCount">0</div>
+                    <div class="sf-summary-subtitle">Working on</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('ON_HOLD', this)">
+                    <div class="sf-summary-label">On Hold</div>
+                    <div class="sf-summary-value red" id="myOnHoldCount">0</div>
+                    <div class="sf-summary-subtitle">Waiting</div>
+                </div>
+                <div class="sf-summary-card" onclick="filterByAssigneeAndStatus('RESOLVED', this)">
+                    <div class="sf-summary-label">Resolved</div>
+                    <div class="sf-summary-value green" id="myResolvedCount">0</div>
+                    <div class="sf-summary-subtitle">Completed</div>
                 </div>
             </div>
 
@@ -1707,8 +1739,20 @@
                 {% endif %}
             </div>
 
+            <!-- Active Filter Banner -->
+            <div id="activeFilterBanner" style="display: none; margin-bottom: 0.75rem; padding: 0.75rem 1rem; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 0.5rem; border: 1px solid #93c5fd; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-filter" style="color: #2563eb;"></i>
+                    <span style="font-weight: 600; color: #1e40af; font-size: 0.875rem;">Showing: </span>
+                    <span id="activeFilterText" style="color: #1e40af; font-size: 0.875rem;"></span>
+                </div>
+                <button onclick="clearAllFilters()" style="background: white; border: 1px solid #93c5fd; padding: 0.25rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; color: #2563eb; display: flex; align-items: center; gap: 0.25rem;">
+                    <i class="fas fa-times"></i> Clear Filter
+                </button>
+            </div>
+
             <!-- Tickets Table -->
-            <div class="sf-table-container">
+            <div class="sf-table-container" id="ticketsTableSection">
                 <div class="sf-table-header">
                     <span class="sf-table-title">
                         <span id="filteredCountLabel">All Tickets</span>
@@ -1857,8 +1901,14 @@
     let isBulkSearchMode = false;
     let bulkSearchTerms = [];
 
+    // My Tickets filter state
+    let filterMyTicketsOnly = false;
+
     // Custom statuses from database
     const customStatuses = {{ custom_statuses | tojson | safe }};
+
+    // Current user's username for personal stats
+    const currentUsername = {{ current_user.username | tojson }};
 
     // Status and priority mappings
     const statusColors = {
@@ -1980,6 +2030,9 @@
             {% endfor %}
         ];
 
+        // Filter out PIN Request tickets (hide from ticket management)
+        allTickets = allTickets.filter(t => !t.category || !t.category.toUpperCase().includes('PIN'));
+
         document.getElementById('tableLoading').style.display = 'none';
         document.getElementById('tableContent').style.display = 'block';
 
@@ -2030,8 +2083,8 @@
         }).join('');
         document.getElementById('priorityFilter').innerHTML = priorityHtml;
 
-        // Build category filter
-        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c);
+        // Build category filter (hide PIN_REQUEST and PIN Request from filter)
+        const categories = [...new Set(allTickets.map(t => t.category))].filter(c => c && !c.toUpperCase().includes('PIN'));
         const categoryHtml = categories.map(category => {
             const count = allTickets.filter(t => t.category === category).length;
             return `
@@ -2134,6 +2187,11 @@
                 return false;
             }
 
+            // My Tickets filter - filter by current user's assignee
+            if (filterMyTicketsOnly && ticket.assignee !== currentUsername) {
+                return false;
+            }
+
             return true;
         });
 
@@ -2214,30 +2272,31 @@
 
     // Update summary cards
     function updateSummaryCards() {
-        document.getElementById('totalCount').textContent = filteredTickets.length;
+        // Summary cards always show counts from allTickets (not filtered)
+        document.getElementById('totalCount').textContent = allTickets.length;
 
         // Count tickets by status category
         // "Open" includes: New, OPEN, or any status containing "new" (case-insensitive)
-        const openCount = filteredTickets.filter(t => {
+        const openCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'new' || s === 'open' || s.includes('new');
         }).length;
 
         // "In Progress" includes: In Progress, IN_PROGRESS, Processing, or statuses containing "progress" or "processing"
-        const inProgressCount = filteredTickets.filter(t => {
+        const inProgressCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
                    s.includes('progress') || s.includes('processing');
         }).length;
 
         // "Resolved" includes: Resolved, RESOLVED, RESOLVED_DELIVERED, or statuses containing "resolved" or "delivered" or "complete"
-        const resolvedCount = filteredTickets.filter(t => {
+        const resolvedCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
         }).length;
 
         // "On Hold" includes: On Hold, ON_HOLD, or statuses containing "hold" or "duplicate" or "cancelled"
-        const onHoldCount = filteredTickets.filter(t => {
+        const onHoldCount = allTickets.filter(t => {
             const s = (t.status || '').toLowerCase();
             return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
                    s.includes('duplicate') || s.includes('cancel');
@@ -2247,6 +2306,37 @@
         document.getElementById('inProgressCount').textContent = inProgressCount;
         document.getElementById('resolvedCount').textContent = resolvedCount;
         document.getElementById('onHoldCount').textContent = onHoldCount;
+
+        // Personal stats - tickets assigned to current user (from allTickets, not filtered)
+        const myTickets = allTickets.filter(t => t.assignee === currentUsername);
+
+        const myOpenCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'new' || s === 'open' || s.includes('new');
+        }).length;
+
+        const myInProgressCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
+                   s.includes('progress') || s.includes('processing');
+        }).length;
+
+        const myOnHoldCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
+                   s.includes('duplicate') || s.includes('cancel');
+        }).length;
+
+        const myResolvedCount = myTickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
+        }).length;
+
+        document.getElementById('myTotalCount').textContent = myTickets.length;
+        document.getElementById('myOpenCount').textContent = myOpenCount;
+        document.getElementById('myInProgressCount').textContent = myInProgressCount;
+        document.getElementById('myOnHoldCount').textContent = myOnHoldCount;
+        document.getElementById('myResolvedCount').textContent = myResolvedCount;
     }
 
     // Sort and render table
@@ -2388,9 +2478,11 @@
     }
 
     // Filter by status from summary cards
-    function filterByStatus(statusCategory) {
+    function filterByStatus(statusCategory, cardElement) {
         // Clear all status checkboxes first
         document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+        // Disable My Tickets filter
+        filterMyTicketsOnly = false;
 
         if (statusCategory !== 'all') {
             // Check checkboxes that match the category pattern
@@ -2418,7 +2510,122 @@
 
         // Update card highlights
         document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        if (cardElement) cardElement.classList.add('active');
+
+        // Show active filter banner and scroll to table
+        const statusLabels = { 'all': 'All Tickets', 'OPEN': 'Open Tickets', 'IN_PROGRESS': 'In Progress', 'RESOLVED': 'Resolved Tickets', 'ON_HOLD': 'On Hold' };
+        showActiveFilter(statusLabels[statusCategory] || statusCategory, false);
+    }
+
+    // Filter by assignee (my tickets)
+    function filterByAssignee(cardElement) {
+        // Clear all status checkboxes
+        document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+
+        // Enable My Tickets filter
+        filterMyTicketsOnly = true;
+
+        applyFilters();
+
+        // Update card highlights
+        document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
+        if (cardElement) cardElement.classList.add('active');
+
+        // Show active filter banner and scroll to table
+        showActiveFilter('My Tickets (All Statuses)', true);
+    }
+
+    // Filter by assignee and status combined
+    function filterByAssigneeAndStatus(statusCategory, cardElement) {
+        // Clear all status checkboxes first
+        document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+
+        // Enable My Tickets filter
+        filterMyTicketsOnly = true;
+
+        // Check status checkboxes that match the category pattern
+        document.querySelectorAll('#statusFilter input').forEach(cb => {
+            const s = cb.value.toLowerCase();
+            let shouldCheck = false;
+
+            if (statusCategory === 'OPEN') {
+                shouldCheck = s === 'new' || s === 'open' || s.includes('new');
+            } else if (statusCategory === 'IN_PROGRESS') {
+                shouldCheck = s === 'in progress' || s === 'in_progress' || s === 'processing' ||
+                              s.includes('progress') || s.includes('processing');
+            } else if (statusCategory === 'RESOLVED') {
+                shouldCheck = s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
+            } else if (statusCategory === 'ON_HOLD') {
+                shouldCheck = s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
+                              s.includes('duplicate') || s.includes('cancel');
+            }
+
+            if (shouldCheck) cb.checked = true;
+        });
+
+        applyFilters();
+
+        // Update card highlights
+        document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
+        if (cardElement) cardElement.classList.add('active');
+
+        // Show active filter banner and scroll to table
+        const statusLabels = { 'OPEN': 'Open', 'IN_PROGRESS': 'In Progress', 'RESOLVED': 'Resolved', 'ON_HOLD': 'On Hold' };
+        showActiveFilter(`My ${statusLabels[statusCategory] || statusCategory} Tickets`, true);
+    }
+
+    // Show active filter banner and scroll to table
+    function showActiveFilter(filterText, isMyTickets) {
+        const banner = document.getElementById('activeFilterBanner');
+        const text = document.getElementById('activeFilterText');
+        const label = document.getElementById('filteredCountLabel');
+
+        if (filterText === 'All Tickets') {
+            banner.style.display = 'none';
+            label.textContent = 'All Tickets';
+        } else {
+            text.textContent = filterText;
+            banner.style.display = 'flex';
+            label.textContent = filterText;
+        }
+
+        // Smooth scroll to the table section
+        setTimeout(() => {
+            const tableSection = document.getElementById('ticketsTableSection');
+            if (tableSection) {
+                tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    }
+
+    // Clear all filters and reset view
+    function clearAllFilters() {
+        // Clear all checkboxes
+        document.querySelectorAll('#statusFilter input').forEach(cb => cb.checked = false);
+        document.querySelectorAll('#priorityFilter input').forEach(cb => cb.checked = false);
+        document.querySelectorAll('#categoryFilter input').forEach(cb => cb.checked = false);
+        document.querySelectorAll('#queueFilter input').forEach(cb => cb.checked = false);
+
+        // Reset My Tickets filter
+        filterMyTicketsOnly = false;
+
+        // Clear search
+        document.getElementById('searchInput').value = '';
+
+        // Reset queue tabs
+        document.querySelectorAll('.sf-queue-tab').forEach(tab => tab.classList.remove('active'));
+        const allTab = document.querySelector('.sf-queue-tab[data-queue="all"]');
+        if (allTab) allTab.classList.add('active');
+        selectedQueue = 'all';
+
+        // Clear card highlights
+        document.querySelectorAll('.sf-summary-card').forEach(card => card.classList.remove('active'));
+
+        // Hide banner
+        document.getElementById('activeFilterBanner').style.display = 'none';
+        document.getElementById('filteredCountLabel').textContent = 'All Tickets';
+
+        applyFilters();
     }
 
     // Current selected queue

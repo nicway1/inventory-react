@@ -151,13 +151,13 @@ class TabSystem {
                                         </div>
                                         <span>Home</span>
                                     </a>
-                                    <a href="/tickets/" class="sf-app-item">
+                                    <a href="/tickets/sf" class="sf-app-item">
                                         <div class="sf-app-icon" style="background: #ff5d2d;">
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                                                 <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                             </svg>
                                         </div>
-                                        <span>Cases</span>
+                                        <span>Tickets</span>
                                     </a>
                                     <a href="/inventory/sf" class="sf-app-item">
                                         <div class="sf-app-icon" style="background: #2e844a;">
@@ -175,7 +175,7 @@ class TabSystem {
                                         </div>
                                         <span>Reports</span>
                                     </a>
-                                    <a href="/customers/" class="sf-app-item">
+                                    <a href="/inventory/customer-users" class="sf-app-item">
                                         <div class="sf-app-icon" style="background: #fe9339;">
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -183,7 +183,7 @@ class TabSystem {
                                         </div>
                                         <span>Customers</span>
                                     </a>
-                                    <a href="/parcel-tracking/" class="sf-app-item">
+                                    <a href="/parcel-tracking/" class="sf-app-item" id="app-launcher-tracking">
                                         <div class="sf-app-icon" style="background: #00a1e0;">
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                                                 <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>

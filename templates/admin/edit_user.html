@@ -65,7 +65,7 @@
                             name="company_id"
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">No Company</option>
-                        {% for company in companies %}
+                        {% for company in parent_companies %}
                         <option value="{{ company.id }}" {% if user.company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
                         {% endfor %}
                     </select>

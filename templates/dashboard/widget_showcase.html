@@ -2188,6 +2188,9 @@
 
     let currentWidgetId = null;
 
+    // Track current dashboard layout in JavaScript (starts with server-rendered value)
+    let currentDashboardWidgetIds = {{ dashboard_widget_ids | tojson }};
+
     // Search
     document.getElementById('widgetSearch').addEventListener('input', function(e) {
         const query = e.target.value.toLowerCase();
@@ -2409,9 +2412,13 @@
         try {
             const widget = widgetData[widgetId];
 
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const saveResponse = await fetch('/dashboard/api/save-layout', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({
                     layout: [...getCurrentDashboardLayout(), {
                         widget_id: widgetId,
@@ -2427,6 +2434,9 @@
             if (result.success) {
                 showToast(`${widget.name} added to your dashboard!`, 'success');
 
+                // Update the tracked dashboard widget IDs
+                currentDashboardWidgetIds.push(widgetId);
+
                 // Update UI
                 const card = document.querySelector(`[data-widget-id="${widgetId}"]`);
                 if (card) {
@@ -2440,16 +2450,21 @@
 
                 widgetData[widgetId].added = true;
             } else {
-                showToast('Failed to add widget', 'error');
+                // Handle error - ensure it's a string
+                let errorMsg = 'Failed to add widget';
+                if (result.error) {
+                    errorMsg = typeof result.error === 'string' ? result.error : JSON.stringify(result.error);
+                }
+                showToast(errorMsg, 'error');
             }
         } catch (error) {
             console.error('Error adding widget:', error);
-            showToast('Failed to add widget', 'error');
+            showToast('Failed to add widget: ' + error.message, 'error');
         }
     }
 
     function getCurrentDashboardLayout() {
-        return {{ dashboard_widget_ids | tojson }}.map((id, index) => ({
+        return currentDashboardWidgetIds.map((id, index) => ({
             widget_id: id,
             position: index,
             size: widgetData[id]?.size || 'small',

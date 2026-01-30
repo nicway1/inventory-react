@@ -2,13 +2,328 @@
 PDF Asset Extractor
 Extracts asset information from packing list PDFs for automatic asset creation
 Supports both text-based PDFs and scanned images (via OCR)
+Now also supports AI-based extraction using Claude API for better accuracy
 """
 import re
 import logging
 import io
+import os
+import base64
+import json
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# AI-BASED PDF EXTRACTION (Claude API)
+# ============================================================================
+
+AI_EXTRACTION_PROMPT = """Role: You are an automated high-precision Data Extraction Engine.
+
+Task: specialized in converting PDF documents into structured JSON data.
+
+Input: I will provide a PDF document containing tables (potentially spanning multiple pages).
+
+Output Requirement:
+1. Scan the ENTIRE document from start to finish.
+2. Extract EVERY SINGLE ROW from the identified tables.
+3. Output the data in valid JSON format.
+
+Critical Rules (Non-negotiable):
+- NO SUMMARIZATION: You must not summarize the data.
+- NO TRUNCATION: Do not write "// ... remaining rows" or "items 10-100 skipped". If there are 600 rows, you must explicitly write out all 600 objects.
+- MERGE PAGES: If a logical table breaks across pages, merge them into one continuous array of rows.
+- ACCURACY: Transcribe numbers and text exactly as they appear visually.
+
+JSON Structure to follow:
+{
+  "document_info": {
+    "po_number": "PO number if found",
+    "reference": "Reference number if found",
+    "ship_date": "Shipping date if found",
+    "supplier": "Supplier name if found",
+    "receiver": "Receiver/customer name if found"
+  },
+  "tables": [
+    {
+      "tableName": "Name of table (or 'Main Table')",
+      "headers": ["Col1", "Col2", "Col3"],
+      "rows": [
+        ["Row1_Value1", "Row1_Value2", "Row1_Value3"],
+        ["Row2_Value1", "Row2_Value2", "Row2_Value3"]
+      ]
+    }
+  ],
+  "serial_numbers": ["List of all serial numbers found in the document"],
+  "part_numbers": ["List of all part numbers found (e.g., MW0Y3ZP/A, MC6T4ZP/A)"],
+  "summary": "Brief 1-sentence description of what this data represents."
+}
+
+Please process the attached images now and return ONLY valid JSON."""
+
+
+def extract_pdf_with_ai(pdf_path):
+    """
+    Extract data from PDF using Claude AI vision API.
+
+    This provides more accurate extraction than OCR, especially for:
+    - Complex table layouts
+    - Scanned documents
+    - Multi-page tables
+
+    Returns:
+        dict with extracted data or None if AI extraction fails/unavailable
+    """
+    # Check for Anthropic API key
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        logger.info("ANTHROPIC_API_KEY not set, skipping AI extraction")
+        return None
+
+    try:
+        import anthropic
+    except ImportError:
+        logger.warning("anthropic package not installed, skipping AI extraction")
+        return None
+
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.error("PyMuPDF (fitz) not installed")
+        return None
+
+    try:
+        # Convert PDF pages to images
+        doc = fitz.open(pdf_path)
+        total_pages = len(doc)
+        logger.info(f"AI extraction: Converting {total_pages} PDF pages to images...")
+
+        image_contents = []
+        for page_num in range(total_pages):
+            page = doc[page_num]
+            # Render at 150 DPI for balance of quality and size
+            mat = fitz.Matrix(150/72, 150/72)
+            pix = page.get_pixmap(matrix=mat)
+            img_bytes = pix.tobytes("png")
+            img_base64 = base64.standard_b64encode(img_bytes).decode('utf-8')
+
+            image_contents.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": img_base64
+                }
+            })
+            logger.info(f"AI extraction: Page {page_num + 1}/{total_pages} converted ({len(img_bytes)} bytes)")
+
+        doc.close()
+
+        # Prepare message content with all images and the prompt
+        content = image_contents + [{"type": "text", "text": AI_EXTRACTION_PROMPT}]
+
+        # Call Claude API
+        logger.info("AI extraction: Calling Claude API...")
+        client = anthropic.Anthropic(api_key=api_key)
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=16000,
+            messages=[
+                {"role": "user", "content": content}
+            ]
+        )
+
+        # Extract JSON from response
+        response_text = message.content[0].text
+        logger.info(f"AI extraction: Received response ({len(response_text)} chars)")
+
+        # Parse JSON from response (handle markdown code blocks)
+        json_text = response_text
+        if '```json' in response_text:
+            json_text = response_text.split('```json')[1].split('```')[0]
+        elif '```' in response_text:
+            json_text = response_text.split('```')[1].split('```')[0]
+
+        ai_data = json.loads(json_text.strip())
+        logger.info(f"AI extraction: Successfully parsed JSON with {len(ai_data.get('serial_numbers', []))} serials")
+
+        return ai_data
+
+    except json.JSONDecodeError as e:
+        logger.error(f"AI extraction: Failed to parse JSON response: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"AI extraction error: {e}")
+        return None
+
+
+def convert_ai_data_to_assets(ai_data, original_text=""):
+    """
+    Convert AI-extracted data to the standard asset format used by the rest of the system.
+
+    Args:
+        ai_data: JSON data from AI extraction
+        original_text: Optional original text for additional parsing
+
+    Returns:
+        dict in standard format with po_number, assets, breakdown, etc.
+    """
+    result = {
+        'po_number': None,
+        'reference': None,
+        'ship_date': None,
+        'supplier': None,
+        'receiver': None,
+        'total_quantity': 0,
+        'assets': [],
+        'breakdown': {},
+        'breakdown_serials': {},
+        'raw_text': original_text[:2000] if original_text else ''
+    }
+
+    # Extract document info
+    doc_info = ai_data.get('document_info', {})
+    result['po_number'] = doc_info.get('po_number')
+    result['reference'] = doc_info.get('reference')
+    result['ship_date'] = doc_info.get('ship_date')
+    result['supplier'] = doc_info.get('supplier')
+    result['receiver'] = doc_info.get('receiver')
+
+    # Get serial numbers and part numbers
+    serial_numbers = ai_data.get('serial_numbers', [])
+    part_numbers = ai_data.get('part_numbers', [])
+
+    # Try to match serials with part numbers from table data
+    tables = ai_data.get('tables', [])
+    serial_to_part = {}
+
+    for table in tables:
+        headers = [h.upper() if h else '' for h in table.get('headers', [])]
+        rows = table.get('rows', [])
+
+        # Find serial number and part number column indices
+        serial_col = None
+        part_col = None
+        for i, h in enumerate(headers):
+            if any(x in h for x in ['SERIAL', 'S/N', 'SN']):
+                serial_col = i
+            if any(x in h for x in ['PART', 'MODEL', 'SKU', 'ITEM']):
+                part_col = i
+
+        # Extract serial-to-part mappings
+        for row in rows:
+            if serial_col is not None and serial_col < len(row):
+                serial = str(row[serial_col]).strip() if row[serial_col] else ''
+                if serial and len(serial) >= 10:
+                    part = ''
+                    if part_col is not None and part_col < len(row):
+                        part = str(row[part_col]).strip() if row[part_col] else ''
+                    serial_to_part[serial] = part
+
+    # Also check for serials not in tables but in serial_numbers list
+    for serial in serial_numbers:
+        if serial and len(serial) >= 10 and serial not in serial_to_part:
+            serial_to_part[serial] = ''
+
+    # Build assets from serials
+    for serial, part_full in serial_to_part.items():
+        # Extract part prefix (first 5 chars)
+        part_prefix = ''
+        part_match = re.search(r'([A-Z]{2}[A-Z0-9]{3,4})(?:ZP)?(?:/[A-Z])?', part_full.upper())
+        if part_match:
+            part_prefix = part_match.group(1)
+
+        # Get model identifier
+        model_identifier = get_apple_model_identifier(part_prefix) if part_prefix else ''
+
+        # Determine color from part prefix
+        color = ''
+        part_prefix_upper = part_prefix.upper()
+        if part_prefix_upper in ['MW0Y3', 'MWOY3']:
+            color = 'Starlight'
+        elif part_prefix_upper in ['MC6T4']:
+            color = 'Sky Blue'
+        elif part_prefix_upper in ['MW0W3', 'MWOW3']:
+            color = 'Silver'
+        elif part_prefix_upper in ['MW123']:
+            color = 'Midnight'
+        elif part_prefix_upper in ['MXD33', 'MXD53', 'MXD93', 'MXF53']:
+            color = 'Space Black'
+
+        # Determine product name
+        name = 'MacBook'
+        if model_identifier in ['A3240', 'A3241', 'A3113', 'A3114', 'A2681', 'A2941', 'A2337']:
+            name = '13" MacBook Air' if model_identifier in ['A3240', 'A3113', 'A2681', 'A2337'] else '15" MacBook Air'
+        elif model_identifier in ['A3283', 'A3284', 'A3287']:
+            name = '14" MacBook Pro' if model_identifier == 'A3283' else '16" MacBook Pro'
+
+        # Build hardware type
+        hardware_type = name
+        if color:
+            hardware_type = f"{name} {color}"
+
+        asset = {
+            'serial_num': serial,
+            'name': name,
+            'model': model_identifier,
+            'manufacturer': 'Apple',
+            'category': 'Laptop',
+            'cpu_type': 'M4',  # Default, will be refined if text available
+            'cpu_cores': '',
+            'gpu_cores': '',
+            'memory': '',
+            'harddrive': '',
+            'hardware_type': hardware_type,
+            'condition': 'New',
+            'part_prefix': part_prefix,
+            'color': color,
+        }
+        result['assets'].append(asset)
+
+    result['total_quantity'] = len(result['assets'])
+
+    # Generate breakdown
+    breakdown = {}
+    breakdown_serials = {}
+
+    # Part number groups for breakdown
+    part_number_groups = [
+        (['MW0Y3', 'MWOY3'], '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MC6T4'], '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW0W3', 'MWOW3'], '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MW123'], '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)'),
+        (['MXD33', 'MXD53', 'MXD93', 'MXF53'], 'MacBook Pro Space Black M4'),
+    ]
+
+    for asset in result['assets']:
+        part_prefix = asset.get('part_prefix', '').upper()
+        serial = asset.get('serial_num', '')
+        matched = False
+
+        for prefixes, description in part_number_groups:
+            if any(part_prefix.startswith(p) for p in prefixes):
+                if description not in breakdown:
+                    breakdown[description] = 0
+                    breakdown_serials[description] = []
+                breakdown[description] += 1
+                breakdown_serials[description].append(serial)
+                matched = True
+                break
+
+        if not matched and serial:
+            other_key = f"Other ({part_prefix})" if part_prefix else "Other"
+            if other_key not in breakdown:
+                breakdown[other_key] = 0
+                breakdown_serials[other_key] = []
+            breakdown[other_key] += 1
+            breakdown_serials[other_key].append(serial)
+
+    result['breakdown'] = breakdown
+    result['breakdown_serials'] = breakdown_serials
+
+    return result
 
 # Apple part number prefix to model identifier mapping
 # Format: Part number prefix (first 5-6 chars) -> Model identifier (e.g., A3113)
@@ -416,6 +731,12 @@ def extract_assets_from_pdf(pdf_path):
     """
     Extract asset information from a packing list PDF
 
+    Uses AI-based extraction (Claude API) first if available, falls back to OCR.
+    AI extraction is more accurate for:
+    - Complex table layouts
+    - Scanned documents with poor quality
+    - Multi-page tables that span across pages
+
     Returns:
         dict with:
             - po_number: PO number from the document
@@ -427,7 +748,24 @@ def extract_assets_from_pdf(pdf_path):
             - assets: List of extracted assets with serial numbers and details
     """
     try:
-        # Use OCR-enabled extraction (handles both text PDFs and scanned images)
+        # Try AI-based extraction first (more accurate for complex PDFs)
+        logger.info("Attempting AI-based PDF extraction...")
+        ai_data = extract_pdf_with_ai(pdf_path)
+
+        if ai_data:
+            logger.info("AI extraction successful, converting to asset format...")
+            # Also extract text for additional parsing context
+            all_text = extract_text_with_ocr(pdf_path) or ""
+            result = convert_ai_data_to_assets(ai_data, all_text)
+
+            if result and result.get('assets'):
+                logger.info(f"AI extraction complete: {len(result['assets'])} assets found")
+                return result
+            else:
+                logger.warning("AI extraction returned no assets, falling back to OCR")
+
+        # Fall back to OCR-based extraction
+        logger.info("Using OCR-based extraction...")
         all_text = extract_text_with_ocr(pdf_path)
 
         if not all_text:
@@ -1072,6 +1410,74 @@ def parse_packing_list_text(text):
     if not result['total_quantity'] and assets:
         result['total_quantity'] = len(assets)
 
+    # Generate breakdown by counting FULL PART NUMBER occurrences directly in text
+    # This is the most accurate method - count exact part number strings
+    breakdown = {}
+    breakdown_serials = {}  # Track which serials belong to each model
+    text_upper = text.upper()
+
+    # Full part number patterns with OCR variations (0 vs O confusion)
+    # Each entry: (list of patterns to count, description, list of model prefixes)
+    part_number_groups = [
+        # Starlight: MW0Y3 and MWOY3 (OCR reads 0 as O)
+        (['MW0Y3ZP/A', 'MWOY3ZP/A'], '13" MacBook Air Starlight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MW0Y3', 'MWOY3']),
+        # Sky Blue: MC6T4 (no OCR variation issue)
+        (['MC6T4ZP/A'], '13" MacBook Air Sky Blue M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MC6T4']),
+        # Silver: MW0W3 and MWOW3 (OCR reads 0 as O)
+        (['MW0W3ZP/A', 'MWOW3ZP/A'], '13" MacBook Air Silver M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MW0W3', 'MWOW3']),
+        # Midnight: MW123 (no OCR variation issue with numbers)
+        (['MW123ZP/A'], '13" MacBook Air Midnight M4 (10C CPU, 8C GPU, 16GB RAM, 256GB SSD)', ['MW123']),
+        # MacBook Pro models
+        (['MXD33ZP/A'], '14" MacBook Pro Space Black M4 Pro', ['MXD33']),
+        (['MXD53ZP/A'], '14" MacBook Pro Space Black M4 Pro', ['MXD53']),
+        (['MXD93ZP/A'], '16" MacBook Pro Space Black M4 Pro', ['MXD93']),
+        (['MXF53ZP/A'], '16" MacBook Pro Space Black M4 Max', ['MXF53']),
+    ]
+
+    # Count each part number group (summing all OCR variations)
+    for patterns, description, model_prefixes in part_number_groups:
+        total_count = 0
+        for pattern in patterns:
+            total_count += text_upper.count(pattern)
+        if total_count > 0:
+            breakdown[description] = total_count
+            breakdown_serials[description] = []
+
+    # Match assets to breakdown categories based on their part number prefix
+    for asset in assets:
+        part_prefix = asset.get('part_prefix', '') or ''
+        serial = asset.get('serial_num', '')
+        matched = False
+        for patterns, description, model_prefixes in part_number_groups:
+            if any(part_prefix.upper().startswith(prefix) for prefix in model_prefixes):
+                if description in breakdown_serials:
+                    breakdown_serials[description].append(serial)
+                    matched = True
+                    break
+        # If no match found, add to "Other" category
+        if not matched and serial:
+            other_key = f"Other ({part_prefix})" if part_prefix else "Other"
+            if other_key not in breakdown_serials:
+                breakdown_serials[other_key] = []
+            breakdown_serials[other_key].append(serial)
+
+    # If no breakdown from full part numbers, fall back to counting by model field
+    if not breakdown and assets:
+        for asset in assets:
+            model = asset.get('model', '') or 'Unknown'
+            name = asset.get('name', 'MacBook')
+            serial = asset.get('serial_num', '')
+            key = f"{name} ({model})" if model and model != 'Unknown' else name
+            if key not in breakdown:
+                breakdown[key] = 0
+                breakdown_serials[key] = []
+            breakdown[key] += 1
+            if serial:
+                breakdown_serials[key].append(serial)
+
+    result['breakdown'] = breakdown
+    result['breakdown_serials'] = breakdown_serials
+
     return result
 
 
@@ -1082,29 +1488,41 @@ def extract_assets_from_text(text):
     """
     assets = []
 
-    # Common Apple serial number patterns (alphanumeric, 10-12 chars)
-    serial_pattern = r'\b([A-Z0-9]{10,14})\b'
+    # Normalize text - convert to uppercase for consistent matching
+    text_upper = text.upper()
 
-    # Part number patterns - captures Apple part numbers like MWW03ZP/A or MXY32P/A
-    # Need multiple patterns due to OCR variations
+    # Common Apple serial number patterns (alphanumeric, 10-14 chars)
+    # Match both uppercase and original text
+    serial_pattern = r'\b([A-Za-z0-9]{10,14})\b'
+
+    # Part number patterns - captures Apple part numbers like MW0Y3ZP/A, MC6T4ZP/A
+    # CDW format often has suffix like -SG0001 after the /A
     part_number_patterns = [
-        r'\b([A-Z]{2,4}[A-Z0-9]{2,4})[PZ]/[A-Z]',  # General: MWW03ZP/A, MXY32P/A, MX2Y3ZP/A
-        r'\b(M[A-Z0-9]{4,5})[PZ]/[A-Z]',  # M-prefix: MWOW3ZP/A, MX2Y3ZP/A
+        r'\b(M[A-Z0-9]{5,6})[PZ]/[A-Z](?:-[A-Z0-9]+)?',  # Apple M-prefix: MW0Y3ZP/A-SG0001, MC6T4ZP/A-SG0001
+        r'\b([A-Z]{2}[A-Z0-9]{3,5})[PZ]/[A-Z](?:-[A-Z0-9]+)?',  # 2-letter prefix: MW0Y3ZP/A, MC6T4ZP/A
+        r'\b([A-Z]{2,4}[A-Z0-9]{2,4})[PZ]/[A-Z]',  # General format
+        r'\b(M[WCXYQNKLRT][A-Z0-9]{3,5})[PZ]/[A-Z]',  # Apple M-series parts
     ]
 
     # Filter patterns for non-serial strings
     exclude_patterns = [
         r'^\d+$',  # Pure numbers
         r'^[A-Z]+$',  # Pure letters (no numbers) - colors, words
-        r'^100\d{7}',  # PO numbers
-        r'^847\d{5}',  # Commodity codes
-        r'^656\d{8}',  # Tracking numbers
+        r'^100\d{6,8}$',  # PO numbers (100XXXXXXX)
+        r'^847\d{5}$',  # Commodity codes
+        r'^656\d{8}$',  # Tracking numbers
         r'^\d{9}[A-Z]$',  # Singapore UEN numbers
         r'^\d{8}[A-Z]$',  # Singapore UEN numbers (older format)
         r'^[A-Z]\d{8}[A-Z]$',  # Singapore UEN
         r'^SINGAPORE\d*$',
         r'^[A-Z]{2}\d{6}$',
         r'^\d{6}[A-Z]{2}\d{4}$',
+        r'^SG\d{4,}$',  # SG followed by numbers (like SG0001)
+        r'^\d+X\d+X\d+',  # Dimensions like 120X100X185CM
+        r'.*X\d+X\d+.*',  # Any dimension pattern with X separators
+        r'.*\d+CM$',  # Anything ending with CM (centimeters)
+        r'.*\d+MM$',  # Anything ending with MM (millimeters)
+        r'.*\d+KG$',  # Anything ending with KG (kilograms)
     ]
 
     # Common words/colors that should never be serial numbers
@@ -1115,7 +1533,79 @@ def extract_assets_from_text(text):
         'AUTHORIZED', 'CERTIFICATE', 'CONSOLIDATED', 'DECONSOLID', 'QUANTITY',
         'COMMODITY', 'KEYBOARD', 'PROCESSOR', 'STORAGE', 'MEMORY',
         'SKYBLUE', 'ROSEGOLD', 'GOLDCOLOR', 'BLACKCOLOR', 'WHITECOLOR',
+        'AUTHORIZED1', 'COLLECTION1', 'DECONSOLIDA', 'DESCRIPTION1',
     ]
+
+    # Initialize serial matches list early
+    serial_matches = []
+    seen_serial_values = set()
+
+    # Normalize text - remove extra whitespace and normalize line endings
+    text_normalized = ' '.join(text_upper.split())
+
+    # Apple serials are typically 10-12 alphanumeric characters
+    # Common patterns: SC2WXQ39W20, SH54VW1MWYP, SG0W347FYJG
+    # They usually have a mix of letters and numbers
+
+    # Pattern 1: Find all 10-12 character alphanumeric sequences
+    # This is more aggressive to catch all potential serials
+    all_potential_serials = re.findall(r'\b([A-Z0-9]{10,12})\b', text_normalized)
+
+    logger.info(f"Found {len(all_potential_serials)} potential 10-12 char sequences")
+
+    for serial in all_potential_serials:
+        # Skip if already seen
+        if serial in seen_serial_values:
+            continue
+
+        # Skip if in exclude words
+        if serial in exclude_words:
+            continue
+
+        # Apple serials typically start with these letters (factory codes)
+        # S=Shenzhen, C/D=Cork Ireland, F=Fremont, G/H=China, etc.
+        apple_serial_prefixes = ['S', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'T', 'V', 'W', 'X', 'Y']
+
+        # Reject if it doesn't start with a known Apple prefix
+        if serial[0] not in apple_serial_prefixes:
+            continue
+
+        # Apple serials starting with 'S' and exactly 11 chars can be all-letters
+        # (e.g., SCDQXCNXWVL) - these are valid Shenzhen factory serials
+        is_likely_apple_serial = serial[0] == 'S' and len(serial) == 11
+
+        # Skip if matches exclude patterns (UNLESS it's a likely Apple all-letter serial)
+        if not is_likely_apple_serial:
+            skip = False
+            for exc_pattern in exclude_patterns:
+                if re.match(exc_pattern, serial, re.IGNORECASE):
+                    skip = True
+                    break
+            if skip:
+                continue
+
+        # For non-Apple-serial patterns, require both letters and numbers
+        if not is_likely_apple_serial:
+            has_letters = any(c.isalpha() for c in serial)
+            has_numbers = any(c.isdigit() for c in serial)
+            if not (has_letters and has_numbers):
+                continue
+
+        # Skip if contains dimension patterns (120X100X185)
+        if 'X' in serial and re.search(r'\d+X\d+', serial):
+            continue
+
+        seen_serial_values.add(serial)
+
+        # Find position in original text_upper for matching
+        pos = text_upper.find(serial)
+        serial_matches.append({
+            'serial': serial,
+            'start': pos if pos >= 0 else 0,
+            'end': (pos + len(serial)) if pos >= 0 else len(serial)
+        })
+
+    logger.info(f"Found {len(serial_matches)} valid serial numbers after filtering")
 
     # Find all part numbers with their positions (try multiple patterns)
     # Each occurrence represents ONE asset, so we keep all occurrences in order
@@ -1141,76 +1631,81 @@ def extract_assets_from_text(text):
     part_matches.sort(key=lambda x: x['start'])
     logger.info(f"Found {len(part_matches)} part number occurrences: {[p['prefix'] for p in part_matches]}")
 
-    # Find all potential serials with positions
-    serial_matches = []
-    for match in re.finditer(serial_pattern, text):
-        serial = match.group(1)
+    # Second pass: Find additional potential serials (not starting with S)
+    # This catches any edge cases the Apple serial pattern might miss
+    for match in re.finditer(serial_pattern, text_upper):
+        serial = match.group(1).upper()
+
+        # Skip if already found
+        if serial in seen_serial_values:
+            continue
 
         # Skip if matches exclude patterns
         skip = False
         for exc_pattern in exclude_patterns:
-            if re.match(exc_pattern, serial):
+            if re.match(exc_pattern, serial, re.IGNORECASE):
                 skip = True
                 break
         if skip:
             continue
 
         # Skip if matches exclude words (colors, product names, etc.)
-        if serial.upper() in exclude_words:
+        if serial in exclude_words:
             continue
 
         # Skip if too short or all numbers
         if len(serial) < 10 or serial.isdigit():
             continue
 
-        # Skip if all letters (no numbers) - not a valid serial
-        if serial.isalpha():
+        # Apple serials starting with 'S' and exactly 11 chars can be all-letters
+        is_likely_apple_serial = serial[0] == 'S' and len(serial) == 11
+
+        # Skip if all letters (no numbers) - unless it's a likely Apple serial
+        if serial.isalpha() and not is_likely_apple_serial:
             continue
 
-        # Apple serials need mix of letters and numbers (or start with S)
+        # For non-Apple patterns, require mix of letters and numbers
         has_letters = any(c.isalpha() for c in serial)
         has_numbers = any(c.isdigit() for c in serial)
 
-        if has_letters and has_numbers:
+        if (has_letters and has_numbers) or is_likely_apple_serial:
+            seen_serial_values.add(serial)
             serial_matches.append({
                 'serial': serial,
                 'start': match.start(),
                 'end': match.end()
             })
-        elif serial.startswith('S') and has_letters and 10 <= len(serial) <= 12:
-            serial_matches.append({
-                'serial': serial,
-                'start': match.start(),
-                'end': match.end()
-            })
 
-    logger.info(f"Found {len(serial_matches)} potential serial numbers")
+    # Sort serials by position in text for proper matching
+    serial_matches.sort(key=lambda x: x['start'])
+    logger.info(f"Total unique serials found: {len(serial_matches)}")
 
-    # Match serials to part numbers in order
-    # Each part number occurrence represents ONE asset
-    # So if we have 19 MacBook Air part numbers + 8 MacBook Pro part numbers = 27 part numbers
-    # And 27 serial numbers, they should match 1:1 in order
+    # Match each serial to its nearest PRECEDING part number
+    # This handles packing lists where one part number is listed, then multiple serials follow
+    logger.info(f"Unique serials: {len(serial_matches)}, Part numbers: {len(part_matches)}")
 
-    # Remove duplicate serials while preserving order
-    seen_serials = set()
-    unique_serials = []
-    for serial_info in serial_matches:
-        if serial_info['serial'] not in seen_serials:
-            seen_serials.add(serial_info['serial'])
-            unique_serials.append(serial_info)
+    # Create a list of unique serials (already deduplicated via seen_serial_values)
+    unique_serials = serial_matches
 
-    logger.info(f"Unique serials: {len(unique_serials)}, Part numbers: {len(part_matches)}")
-
-    # Match serials to part numbers by index (1:1 in order of appearance)
     for idx, serial_info in enumerate(unique_serials):
         serial = serial_info['serial']
+        serial_pos = serial_info['start']
 
-        # Get the corresponding part number by index
-        if idx < len(part_matches):
-            best_part = part_matches[idx]
-        else:
-            # More serials than part numbers - use the last part number
-            best_part = part_matches[-1] if part_matches else None
+        # Find the nearest PRECEDING part number (part number that comes BEFORE this serial)
+        best_part = None
+        best_distance = float('inf')
+
+        for part in part_matches:
+            # Part number must come BEFORE the serial
+            if part['end'] < serial_pos:
+                distance = serial_pos - part['end']
+                if distance < best_distance:
+                    best_distance = distance
+                    best_part = part
+
+        # If no preceding part found, use the first part number (fallback for edge cases)
+        if best_part is None and part_matches:
+            best_part = part_matches[0]
 
         # Get part number prefix and look up model
         part_prefix = best_part['prefix'] if best_part else None
@@ -1290,7 +1785,44 @@ def extract_assets_from_text(text):
             if cores >= 12:
                 product_details['cpu_type'] = 'M4 Pro'
 
-        logger.info(f"Serial {serial} -> Part: {part_prefix}, Model: {model_identifier}, Name: {product_details['name']}")
+        # Determine color from part number prefix
+        color = ''
+        part_prefix_upper = (part_prefix or '').upper()
+        # MacBook Air colors
+        if part_prefix_upper in ['MW0Y3', 'MWOY3']:
+            color = 'Starlight'
+        elif part_prefix_upper in ['MC6T4']:
+            color = 'Sky Blue'
+        elif part_prefix_upper in ['MW0W3', 'MWOW3']:
+            color = 'Silver'
+        elif part_prefix_upper in ['MW123']:
+            color = 'Midnight'
+        # MacBook Pro colors
+        elif part_prefix_upper in ['MXD33', 'MXD53', 'MXD93', 'MXF53']:
+            color = 'Space Black'
+        elif part_prefix_upper in ['MXD23', 'MXD43', 'MXD83', 'MXF43']:
+            color = 'Silver'
+        # Also check context for color if not found from part number
+        if not color:
+            if 'STARLIGHT' in context_upper:
+                color = 'Starlight'
+            elif 'SKY BLUE' in context_upper or 'SKYBLUE' in context_upper:
+                color = 'Sky Blue'
+            elif 'MIDNIGHT' in context_upper:
+                color = 'Midnight'
+            elif 'SPACE BLACK' in context_upper or 'SPACEBLACK' in context_upper:
+                color = 'Space Black'
+            elif 'SPACE GRAY' in context_upper or 'SPACEGRAY' in context_upper or 'SPACE GREY' in context_upper:
+                color = 'Space Gray'
+            elif 'SILVER' in context_upper:
+                color = 'Silver'
+
+        # Build hardware_type with color
+        hardware_type = product_details.get('name', 'MacBook')
+        if color:
+            hardware_type = f"{hardware_type} {color}"
+
+        logger.info(f"Serial {serial} -> Part: {part_prefix}, Model: {model_identifier}, Name: {product_details['name']}, Color: {color}")
 
         asset = {
             'serial_num': serial,
@@ -1303,8 +1835,10 @@ def extract_assets_from_text(text):
             'gpu_cores': product_details.get('gpu_cores', ''),
             'memory': product_details.get('memory', ''),
             'harddrive': product_details.get('storage', ''),
-            'hardware_type': 'Laptop',
+            'hardware_type': hardware_type,
             'condition': 'New',
+            'part_prefix': part_prefix,  # Store for breakdown
+            'color': color,  # Store color separately too
         }
         assets.append(asset)
 
