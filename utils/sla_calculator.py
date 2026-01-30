@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_queue_holidays(queue_id: int, start_date: date, end_date: date) -> List[date]:
+def get_queue_holidays(queue_id: int, start_date: date, end_date: date, db=None) -> List[date]:
     """
     Get all holidays for a queue between two dates
 
@@ -17,6 +17,7 @@ def get_queue_holidays(queue_id: int, start_date: date, end_date: date) -> List[
         queue_id: The queue ID to get holidays for
         start_date: Start of the date range
         end_date: End of the date range
+        db: Optional database session to reuse
 
     Returns:
         List of holiday dates
@@ -24,7 +25,9 @@ def get_queue_holidays(queue_id: int, start_date: date, end_date: date) -> List[
     from database import SessionLocal
     from models.queue_holiday import QueueHoliday
 
-    db = SessionLocal()
+    should_close = db is None
+    if db is None:
+        db = SessionLocal()
     try:
         holidays = db.query(QueueHoliday).filter(
             QueueHoliday.queue_id == queue_id,
@@ -36,7 +39,8 @@ def get_queue_holidays(queue_id: int, start_date: date, end_date: date) -> List[
         logger.error(f"Error fetching holidays for queue {queue_id}: {str(e)}")
         return []
     finally:
-        db.close()
+        if should_close:
+            db.close()
 
 
 def is_working_day(check_date: date, holidays: List[date]) -> bool:
@@ -62,7 +66,8 @@ def is_working_day(check_date: date, holidays: List[date]) -> bool:
 def calculate_sla_due_date(
     start_date: datetime,
     working_days: int,
-    queue_id: int
+    queue_id: int,
+    db=None
 ) -> datetime:
     """
     Calculate the SLA due date from start date + working days,
@@ -72,6 +77,7 @@ def calculate_sla_due_date(
         start_date: The ticket creation date
         working_days: Number of working days for SLA
         queue_id: The queue ID to get holidays for
+        db: Optional database session to reuse
 
     Returns:
         datetime: The calculated due date (end of business day 5 PM)
@@ -83,7 +89,7 @@ def calculate_sla_due_date(
 
     # Get holidays for a reasonable range (working_days * 3 to account for weekends/holidays)
     end_search = current_date + timedelta(days=working_days * 3)
-    holidays = get_queue_holidays(queue_id, current_date, end_search)
+    holidays = get_queue_holidays(queue_id, current_date, end_search, db=db)
 
     days_counted = 0
     while days_counted < working_days:
@@ -95,12 +101,13 @@ def calculate_sla_due_date(
     return datetime.combine(current_date, time(17, 0))
 
 
-def get_sla_config_for_ticket(ticket) -> Optional[dict]:
+def get_sla_config_for_ticket(ticket, db=None) -> Optional[dict]:
     """
     Get the SLA configuration for a ticket based on its queue and category
 
     Args:
         ticket: The ticket object
+        db: Optional database session to reuse
 
     Returns:
         dict with SLA config info or None if no SLA configured
@@ -111,7 +118,9 @@ def get_sla_config_for_ticket(ticket) -> Optional[dict]:
     if not ticket.queue_id or not ticket.category:
         return None
 
-    db = SessionLocal()
+    should_close = db is None
+    if db is None:
+        db = SessionLocal()
     try:
         sla_config = db.query(SLAConfig).filter(
             SLAConfig.queue_id == ticket.queue_id,
@@ -130,15 +139,17 @@ def get_sla_config_for_ticket(ticket) -> Optional[dict]:
         logger.error(f"Error fetching SLA config for ticket {ticket.id}: {str(e)}")
         return None
     finally:
-        db.close()
+        if should_close:
+            db.close()
 
 
-def get_sla_status(ticket) -> dict:
+def get_sla_status(ticket, db=None) -> dict:
     """
     Get the SLA status for a ticket.
 
     Args:
         ticket: The ticket object
+        db: Optional database session to reuse (improves performance for batch processing)
 
     Returns:
         dict: {
@@ -165,8 +176,8 @@ def get_sla_status(ticket) -> dict:
             'hours_remaining': None
         }
 
-    # Get SLA config
-    sla_config = get_sla_config_for_ticket(ticket)
+    # Get SLA config (reuse session if provided)
+    sla_config = get_sla_config_for_ticket(ticket, db=db)
 
     if not sla_config:
         return {
@@ -179,11 +190,12 @@ def get_sla_status(ticket) -> dict:
             'hours_remaining': None
         }
 
-    # Calculate due date
+    # Calculate due date (reuse session if provided)
     due_date = calculate_sla_due_date(
         ticket.created_at,
         sla_config['working_days'],
-        ticket.queue_id
+        ticket.queue_id,
+        db=db
     )
 
     now = datetime.utcnow()

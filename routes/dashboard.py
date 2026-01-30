@@ -319,7 +319,8 @@ def load_widget_data(user, layout):
             users_cases = {}  # {user_id: {name, open_count, breached_count, at_risk_count}}
 
             for ticket in open_tickets:
-                sla_info = get_sla_status(ticket)
+                # Pass db session to avoid creating new connections for each ticket
+                sla_info = get_sla_status(ticket, db=db)
 
                 # Track by requester
                 if ticket.requester:
@@ -360,7 +361,7 @@ def load_widget_data(user, layout):
 
             past_7_days_tickets = []
             for ticket in past_7_days_query:
-                sla_info = get_sla_status(ticket)
+                sla_info = get_sla_status(ticket, db=db)
                 past_7_days_tickets.append({
                     'id': ticket.id,
                     'display_id': ticket.display_id or f'#{ticket.id}',

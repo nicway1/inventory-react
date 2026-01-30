@@ -560,17 +560,22 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
-    # Calculate SLA status for all tickets
+    # Calculate SLA status for all tickets (using a single session for performance)
     from utils.sla_calculator import get_sla_status
+    from database import SessionLocal
     ticket_sla_data = {}
-    for ticket in tickets:
-        sla_info = get_sla_status(ticket)
-        if sla_info['has_sla']:
-            ticket_sla_data[ticket.id] = {
-                'status': sla_info['status'],
-                'days_remaining': sla_info['days_remaining'],
-                'due_date': sla_info['due_date'].isoformat() if sla_info['due_date'] else None
-            }
+    sla_db = SessionLocal()
+    try:
+        for ticket in tickets:
+            sla_info = get_sla_status(ticket, db=sla_db)
+            if sla_info['has_sla']:
+                ticket_sla_data[ticket.id] = {
+                    'status': sla_info['status'],
+                    'days_remaining': sla_info['days_remaining'],
+                    'due_date': sla_info['due_date'].isoformat() if sla_info['due_date'] else None
+                }
+    finally:
+        sla_db.close()
 
     return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data)
 
