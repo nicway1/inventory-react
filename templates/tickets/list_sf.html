@@ -1385,6 +1385,9 @@
             <a href="{{ url_for('tickets.ticket_manager') }}" class="sf-btn sf-btn-neutral" style="background: #8b5cf6; border-color: #8b5cf6; color: white;">
                 <i class="fas fa-cog"></i> Ticket Manager
             </a>
+            <button onclick="showRefreshTrackingModal()" class="sf-btn sf-btn-neutral" style="background: #059669; border-color: #059669; color: white;">
+                <i class="fas fa-sync-alt"></i> Refresh All Tracking
+            </button>
             {% endif %}
             {% if current_user.is_admin or current_user.is_supervisor or current_user.is_developer %}
             <!-- Import/Export Dropdown -->
@@ -3892,5 +3895,265 @@
 .preview-table th, .preview-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f3f4f6; }
 .preview-table th { background: #f9fafb; font-weight: 600; position: sticky; top: 0; }
 .preview-empty-state { padding: 40px; text-align: center; color: #6b7280; }
+
+/* Refresh Tracking Modal Styles */
+.tracking-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+.tracking-modal-overlay.active { display: flex; }
+.tracking-modal {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+.tracking-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.tracking-modal-header h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.tracking-modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+.tracking-modal-body { padding: 24px; overflow-y: auto; max-height: 50vh; }
+.tracking-modal-footer { padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; }
+.tracking-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.tracking-stat-card { background: #f9fafb; border-radius: 8px; padding: 16px; text-align: center; }
+.tracking-stat-value { font-size: 24px; font-weight: 700; color: #1f2937; }
+.tracking-stat-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+.tracking-progress { background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden; margin: 16px 0; }
+.tracking-progress-bar { background: #10b981; height: 100%; transition: width 0.3s ease; }
+.tracking-log { background: #1f2937; color: #d1d5db; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; max-height: 200px; overflow-y: auto; }
+.tracking-log-entry { padding: 4px 0; border-bottom: 1px solid #374151; }
+.tracking-log-entry:last-child { border-bottom: none; }
+.tracking-log-success { color: #34d399; }
+.tracking-log-error { color: #f87171; }
+.tracking-log-info { color: #60a5fa; }
 </style>
+
+<!-- Refresh Tracking Modal -->
+{% if current_user.is_super_admin or current_user.is_developer %}
+<div id="refreshTrackingModal" class="tracking-modal-overlay">
+    <div class="tracking-modal">
+        <div class="tracking-modal-header">
+            <h3><i class="fas fa-sync-alt" style="color: #059669; margin-right: 8px;"></i>Refresh All Tracking</h3>
+            <button class="tracking-modal-close" onclick="hideRefreshTrackingModal()">&times;</button>
+        </div>
+        <div class="tracking-modal-body">
+            <!-- Initial state -->
+            <div id="trackingInitialState">
+                <p style="color: #6b7280; margin-bottom: 16px;">
+                    This will refresh tracking information for all open tickets with tracking numbers.
+                    Tickets showing "Delivered" status will be automatically closed.
+                </p>
+                <div class="tracking-stats-grid">
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="ticketsToRefreshCount">-</div>
+                        <div class="tracking-stat-label">Tickets to Refresh</div>
+                    </div>
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" style="color: #059669;"><i class="fas fa-check-circle"></i></div>
+                        <div class="tracking-stat-label">Auto-close Delivered</div>
+                    </div>
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" style="color: #f59e0b;"><i class="fas fa-clock"></i></div>
+                        <div class="tracking-stat-label">May Take Time</div>
+                    </div>
+                </div>
+                <div style="background: #fef3c7; border-radius: 8px; padding: 12px; color: #92400e; font-size: 14px;">
+                    <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                    <strong>Note:</strong> This process may take several minutes depending on the number of tickets.
+                </div>
+            </div>
+
+            <!-- Progress state -->
+            <div id="trackingProgressState" style="display: none;">
+                <div class="tracking-stats-grid">
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="ticketsUpdatedCount">0</div>
+                        <div class="tracking-stat-label">Updated</div>
+                    </div>
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="ticketsAutoClosedCount" style="color: #059669;">0</div>
+                        <div class="tracking-stat-label">Auto-Closed</div>
+                    </div>
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="ticketsFailedCount" style="color: #ef4444;">0</div>
+                        <div class="tracking-stat-label">Failed</div>
+                    </div>
+                </div>
+                <div class="tracking-progress">
+                    <div class="tracking-progress-bar" id="trackingProgressBar" style="width: 0%;"></div>
+                </div>
+                <p id="trackingStatusText" style="text-align: center; color: #6b7280; font-size: 14px;">
+                    Processing...
+                </p>
+                <div class="tracking-log" id="trackingLog">
+                    <div class="tracking-log-entry tracking-log-info">Starting bulk tracking refresh...</div>
+                </div>
+            </div>
+
+            <!-- Complete state -->
+            <div id="trackingCompleteState" style="display: none;">
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 48px; color: #10b981; margin-bottom: 16px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h4 style="margin: 0 0 8px 0; color: #1f2937;">Tracking Refresh Complete!</h4>
+                    <p id="trackingCompleteSummary" style="color: #6b7280; margin: 0;"></p>
+                </div>
+                <div class="tracking-stats-grid" style="margin-top: 20px;">
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="finalUpdatedCount">0</div>
+                        <div class="tracking-stat-label">Tickets Updated</div>
+                    </div>
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="finalAutoClosedCount" style="color: #059669;">0</div>
+                        <div class="tracking-stat-label">Auto-Closed</div>
+                    </div>
+                    <div class="tracking-stat-card">
+                        <div class="tracking-stat-value" id="finalPackagesCount">0</div>
+                        <div class="tracking-stat-label">Packages Refreshed</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tracking-modal-footer">
+            <button id="trackingCancelBtn" class="sf-btn sf-btn-neutral" onclick="hideRefreshTrackingModal()">Cancel</button>
+            <button id="trackingStartBtn" class="sf-btn" style="background: #059669; color: white;" onclick="startRefreshTracking()">
+                <i class="fas fa-play"></i> Start Refresh
+            </button>
+            <button id="trackingCloseBtn" class="sf-btn sf-btn-brand" style="display: none;" onclick="hideRefreshTrackingModal(); location.reload();">
+                <i class="fas fa-check"></i> Done
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Refresh Tracking Modal Functions
+function showRefreshTrackingModal() {
+    document.getElementById('refreshTrackingModal').classList.add('active');
+    // Reset to initial state
+    document.getElementById('trackingInitialState').style.display = 'block';
+    document.getElementById('trackingProgressState').style.display = 'none';
+    document.getElementById('trackingCompleteState').style.display = 'none';
+    document.getElementById('trackingCancelBtn').style.display = 'inline-flex';
+    document.getElementById('trackingStartBtn').style.display = 'inline-flex';
+    document.getElementById('trackingCloseBtn').style.display = 'none';
+
+    // Fetch count of tickets to refresh
+    fetch('/tickets/admin/refresh-tracking-status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('ticketsToRefreshCount').textContent = data.tickets_with_tracking;
+            }
+        })
+        .catch(err => {
+            document.getElementById('ticketsToRefreshCount').textContent = '?';
+        });
+}
+
+function hideRefreshTrackingModal() {
+    document.getElementById('refreshTrackingModal').classList.remove('active');
+}
+
+function startRefreshTracking() {
+    // Switch to progress state
+    document.getElementById('trackingInitialState').style.display = 'none';
+    document.getElementById('trackingProgressState').style.display = 'block';
+    document.getElementById('trackingCancelBtn').style.display = 'none';
+    document.getElementById('trackingStartBtn').style.display = 'none';
+
+    const log = document.getElementById('trackingLog');
+    const progressBar = document.getElementById('trackingProgressBar');
+    const statusText = document.getElementById('trackingStatusText');
+
+    // Add log entry
+    function addLog(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = `tracking-log-entry tracking-log-${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    addLog('Sending request to server...', 'info');
+    progressBar.style.width = '10%';
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    fetch('/tickets/admin/refresh-all-tracking', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken || '',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        progressBar.style.width = '100%';
+
+        if (data.success) {
+            const summary = data.summary;
+
+            // Update progress counters
+            document.getElementById('ticketsUpdatedCount').textContent = summary.tickets_updated;
+            document.getElementById('ticketsAutoClosedCount').textContent = summary.tickets_auto_closed;
+            document.getElementById('ticketsFailedCount').textContent = summary.tickets_failed;
+
+            addLog(`Completed! ${summary.tickets_updated} tickets updated`, 'success');
+            if (summary.tickets_auto_closed > 0) {
+                addLog(`${summary.tickets_auto_closed} tickets auto-closed (delivered)`, 'success');
+            }
+            if (summary.tickets_failed > 0) {
+                addLog(`${summary.tickets_failed} tickets had errors`, 'error');
+            }
+
+            // Switch to complete state after a moment
+            setTimeout(() => {
+                document.getElementById('trackingProgressState').style.display = 'none';
+                document.getElementById('trackingCompleteState').style.display = 'block';
+                document.getElementById('trackingCloseBtn').style.display = 'inline-flex';
+
+                // Update final stats
+                document.getElementById('finalUpdatedCount').textContent = summary.tickets_updated;
+                document.getElementById('finalAutoClosedCount').textContent = summary.tickets_auto_closed;
+                document.getElementById('finalPackagesCount').textContent = summary.total_packages_updated;
+                document.getElementById('trackingCompleteSummary').textContent =
+                    `Processed ${summary.total_tickets} tickets, updated ${summary.total_packages_updated} packages.`;
+            }, 1000);
+        } else {
+            addLog(`Error: ${data.error}`, 'error');
+            statusText.textContent = 'Error occurred';
+            statusText.style.color = '#ef4444';
+            document.getElementById('trackingCloseBtn').style.display = 'inline-flex';
+        }
+    })
+    .catch(err => {
+        addLog(`Network error: ${err.message}`, 'error');
+        statusText.textContent = 'Network error';
+        statusText.style.color = '#ef4444';
+        document.getElementById('trackingCloseBtn').style.display = 'inline-flex';
+    });
+}
+</script>
+{% endif %}
+
 {% endblock %}
