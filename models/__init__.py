@@ -59,6 +59,8 @@ from models.notification_user_group import NotificationUserGroup, notification_u
 from models.ticket_asset_checkin import TicketAssetCheckin
 from models.service_record import ServiceRecord
 from models.blog_post import BlogPost, BlogPostStatus
+from models.sla_config import SLAConfig
+from models.queue_holiday import QueueHoliday
 
 __all__ = [
     "Base",
@@ -146,5 +148,7 @@ __all__ = [
     "TicketAssetCheckin",
     "ServiceRecord",
     "BlogPost",
-    "BlogPostStatus"
+    "BlogPostStatus",
+    "SLAConfig",
+    "QueueHoliday"
 ]

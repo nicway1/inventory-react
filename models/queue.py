@@ -21,6 +21,8 @@ class Queue(Base):
     user_permissions = relationship("UserQueuePermission", back_populates="queue")
     notifications = relationship("QueueNotification", back_populates="queue")
     folder = relationship("QueueFolder", back_populates="queues")
+    sla_configs = relationship("SLAConfig", back_populates="queue", cascade="all, delete-orphan")
+    holidays = relationship("QueueHoliday", back_populates="queue", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

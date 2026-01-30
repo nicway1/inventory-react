@@ -690,6 +690,24 @@ register_widget(WidgetDefinition(
     screenshot='action_items.png'
 ))
 
+register_widget(WidgetDefinition(
+    id='sla_manager',
+    name='Case Manager SLA',
+    description='Track SLA compliance and manage cases',
+    long_description='Monitor SLA status across all open tickets. See which cases are on track, at risk, or breached. View users with open cases and their SLA performance. Configure SLA rules per queue and ticket type, and manage queue-specific holidays for accurate working days calculation.',
+    category=WidgetCategory.STATS,
+    default_size=WidgetSize.MEDIUM,
+    min_size=WidgetSize.SMALL,
+    template='widgets/case_manager_sla.html',
+    icon='fas fa-clock',
+    color='blue',
+    required_permissions=[],
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR'],
+    data_loader='load_sla_manager_data',
+    configurable=False,
+    screenshot='case_manager_sla.png'
+))
+
 
 # Default layout for new users
 DEFAULT_DASHBOARD_LAYOUT = {

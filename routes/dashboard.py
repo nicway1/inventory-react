@@ -299,6 +299,92 @@ def load_widget_data(user, layout):
                 'latest': latest_data
             }
 
+        # Load SLA Manager data
+        if 'sla_manager' in widget_ids:
+            from utils.sla_calculator import get_sla_status
+            from datetime import timedelta
+
+            # Get open tickets
+            open_tickets = db.query(Ticket).filter(
+                Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED])
+            ).all()
+
+            # Calculate SLA stats
+            on_track = 0
+            at_risk = 0
+            breached = 0
+            total_open = len(open_tickets)
+
+            # Track users with open cases
+            users_cases = {}  # {user_id: {name, open_count, breached_count, at_risk_count}}
+
+            for ticket in open_tickets:
+                sla_info = get_sla_status(ticket)
+
+                # Track by requester
+                if ticket.requester:
+                    req_id = ticket.requester.id
+                    if req_id not in users_cases:
+                        users_cases[req_id] = {
+                            'name': ticket.requester.name or ticket.requester.email,
+                            'open_count': 0,
+                            'breached_count': 0,
+                            'at_risk_count': 0
+                        }
+                    users_cases[req_id]['open_count'] += 1
+
+                if sla_info['has_sla']:
+                    if sla_info['status'] == 'on_track':
+                        on_track += 1
+                    elif sla_info['status'] == 'at_risk':
+                        at_risk += 1
+                        if ticket.requester and ticket.requester.id in users_cases:
+                            users_cases[ticket.requester.id]['at_risk_count'] += 1
+                    elif sla_info['status'] == 'breached':
+                        breached += 1
+                        if ticket.requester and ticket.requester.id in users_cases:
+                            users_cases[ticket.requester.id]['breached_count'] += 1
+
+            # Sort users by open cases (descending)
+            sorted_users = sorted(
+                users_cases.values(),
+                key=lambda x: (x['breached_count'], x['at_risk_count'], x['open_count']),
+                reverse=True
+            )
+
+            # Get past 7 days tickets
+            seven_days_ago = datetime.now() - timedelta(days=7)
+            past_7_days_query = db.query(Ticket).filter(
+                Ticket.created_at >= seven_days_ago
+            ).order_by(Ticket.created_at.desc()).limit(10).all()
+
+            past_7_days_tickets = []
+            for ticket in past_7_days_query:
+                sla_info = get_sla_status(ticket)
+                past_7_days_tickets.append({
+                    'id': ticket.id,
+                    'display_id': ticket.display_id or f'#{ticket.id}',
+                    'queue_name': ticket.queue.name if ticket.queue else 'No Queue',
+                    'sla_status': sla_info['status'] if sla_info['has_sla'] else 'no_sla',
+                    'days_remaining': sla_info.get('days_remaining', 0),
+                    'days_overdue': abs(sla_info.get('days_remaining', 0)) if sla_info.get('is_breached') else 0
+                })
+
+            # Count past 7 days
+            past_7_days_count = db.query(Ticket).filter(
+                Ticket.created_at >= seven_days_ago
+            ).count()
+
+            widget_data['sla_manager'] = {
+                'total_open': total_open,
+                'on_track': on_track,
+                'at_risk': at_risk,
+                'breached': breached,
+                'users_with_cases': sorted_users[:5],
+                'past_7_days_tickets': past_7_days_tickets,
+                'past_7_days_count': past_7_days_count
+            }
+
     except Exception as e:
         logger.error(f"Error loading widget data: {str(e)}", exc_info=True)
     finally:

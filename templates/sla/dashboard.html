@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}SLA Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">SLA Dashboard</h1>
+            <p class="text-sm text-gray-600 mt-1">Monitor SLA compliance across all tickets</p>
+        </div>
+        <div class="flex gap-3 items-center">
+            <a href="{{ url_for('sla.manage_sla') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-cog mr-2"></i>
+                Settings
+            </a>
+            <a href="{{ url_for('dashboard.index') }}" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left text-xl"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">On Track</p>
+                    <p class="text-2xl font-bold text-green-600">{{ on_track }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">At Risk</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ at_risk }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-red-100 text-red-600">
+                    <i class="fas fa-times-circle text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Breached</p>
+                    <p class="text-2xl font-bold text-red-600">{{ breached }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total with SLA</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ ticket_sla_data|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">All Tickets with SLA</h3>
+            <div class="flex gap-2">
+                <button onclick="filterByStatus('all')" class="filter-btn px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300" data-status="all">All</button>
+                <button onclick="filterByStatus('breached')" class="filter-btn px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 hover:bg-red-200" data-status="breached">Breached</button>
+                <button onclick="filterByStatus('at_risk')" class="filter-btn px-3 py-1 text-sm rounded-full bg-yellow-100 text-yellow-700 hover:bg-yellow-200" data-status="at_risk">At Risk</button>
+                <button onclick="filterByStatus('on_track')" class="filter-btn px-3 py-1 text-sm rounded-full bg-green-100 text-green-700 hover:bg-green-200" data-status="on_track">On Track</button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requester</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SLA Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in ticket_sla_data %}
+                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{{ url_for('tickets.ticket_view', ticket_id=item.ticket.id) }}" class="text-blue-600 hover:text-blue-800 font-medium">
+                                {{ item.ticket.display_id if item.ticket.display_id else '#' ~ item.ticket.id }}
+                            </a>
+                            <div class="text-xs text-gray-500">{{ item.ticket.subject[:40] }}{% if item.ticket.subject|length > 40 %}...{% endif %}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.category.value if item.ticket.category else 'No Category' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.requester.name if item.ticket.requester else 'Unknown' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.ticket.created_at.strftime('%Y-%m-%d %H:%M') if item.ticket.created_at else '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.sla.due_date.strftime('%Y-%m-%d %H:%M') if item.sla.due_date else '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if item.sla.status == 'breached' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-times-circle mr-1"></i>
+                                {{ item.sla.days_remaining|abs }} days overdue
+                            </span>
+                            {% elif item.sla.status == 'at_risk' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                {{ item.sla.days_remaining }} day{% if item.sla.days_remaining != 1 %}s{% endif %} left
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                {{ item.sla.days_remaining }} days left
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-inbox text-4xl text-gray-400 mb-2"></i>
+                            <p>No tickets with SLA configured</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterByStatus(status) {
+    document.querySelectorAll('.ticket-row').forEach(row => {
+        if (status === 'all' || row.dataset.slaStatus === status) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+
+    // Update button styles
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-blue-500');
+        if (btn.dataset.status === status) {
+            btn.classList.add('ring-2', 'ring-blue-500');
+        }
+    });
+}
+</script>
+{% endblock %}

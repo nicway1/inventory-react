@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}SLA & Holiday Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold">Case Manager Settings</h1>
+                <p class="text-sm text-gray-600 mt-1">Configure SLA rules and holidays per queue</p>
+            </div>
+            <div class="flex gap-3 items-center">
+                <a href="{{ url_for('sla.sla_dashboard') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    View Dashboard
+                </a>
+                <a href="{{ url_for('dashboard.index') }}" class="text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="showTab('sla')" id="slaTab" class="tab-btn border-b-2 border-blue-500 text-blue-600 py-4 px-1 text-sm font-medium">
+                    <i class="fas fa-clock mr-2"></i>SLA Configuration
+                </button>
+                <button onclick="showTab('holidays')" id="holidaysTab" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 text-sm font-medium">
+                    <i class="fas fa-calendar-alt mr-2"></i>Holidays
+                </button>
+            </nav>
+        </div>
+
+        <!-- SLA Configuration Tab -->
+        <div id="slaContent" class="tab-content">
+            <!-- Add SLA Form -->
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Add SLA Rule</h3>
+                <form id="slaForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Queue</label>
+                        <select id="slaQueueId" name="queue_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Queue</option>
+                            {% for queue in queues %}
+                            <option value="{{ queue.id }}">{{ queue.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ticket Category</label>
+                        <select id="slaCategory" name="category" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Category</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.name }}">{{ cat.value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Working Days</label>
+                        <input type="number" id="slaWorkingDays" name="working_days" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 3">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-plus mr-2"></i>Add SLA
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- SLA Rules List -->
+            <div class="bg-white rounded-lg border border-gray-200">
+                <div class="p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold">Existing SLA Rules</h3>
+                </div>
+                <div id="slaList" class="divide-y divide-gray-200">
+                    {% if sla_configs %}
+                        {% for config in sla_configs %}
+                        <div class="p-4 hover:bg-gray-50 flex items-center justify-between" data-config-id="{{ config.id }}">
+                            <div class="flex items-center space-x-4 flex-1">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-gray-900">{{ config.queue.name if config.queue else 'Unknown Queue' }}</span>
+                                        <span class="text-gray-400">→</span>
+                                        <span class="text-blue-600">{{ config.ticket_category.value if config.ticket_category else 'Unknown' }}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">{{ config.description if config.description else 'No description' }}</p>
+                                </div>
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                    {{ config.working_days }} working days
+                                </span>
+                                {% if config.is_active %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
+                                {% endif %}
+                            </div>
+                            <button onclick="deleteSLAConfig({{ config.id }})" class="ml-4 text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-clock text-4xl text-gray-400 mb-2"></i>
+                            <p>No SLA rules configured yet. Add one above.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Holidays Tab -->
+        <div id="holidaysContent" class="tab-content hidden">
+            <!-- Add Holiday Form -->
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Add Holiday</h3>
+                <form id="holidayForm" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Queue</label>
+                        <select id="holidayQueueId" name="queue_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Queue</option>
+                            {% for queue in queues %}
+                            <option value="{{ queue.id }}">{{ queue.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="date" id="holidayDate" name="date" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Holiday Name</label>
+                        <input type="text" id="holidayName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Chinese New Year">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Country (Optional)</label>
+                        <input type="text" id="holidayCountry" name="country" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Singapore">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <i class="fas fa-plus mr-2"></i>Add Holiday
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Filter by Queue -->
+            <div class="mb-4">
+                <label class="inline-flex items-center text-sm font-medium text-gray-700">
+                    <span class="mr-2">Filter by Queue:</span>
+                    <select id="filterQueue" class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">All Queues</option>
+                        {% for queue in queues %}
+                        <option value="{{ queue.id }}">{{ queue.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+
+            <!-- Holidays List -->
+            <div class="bg-white rounded-lg border border-gray-200">
+                <div class="p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold">Configured Holidays</h3>
+                </div>
+                <div id="holidayList" class="divide-y divide-gray-200">
+                    {% if holidays %}
+                        {% for holiday in holidays %}
+                        <div class="p-4 hover:bg-gray-50 flex items-center justify-between holiday-row" data-holiday-id="{{ holiday.id }}" data-queue-id="{{ holiday.queue_id }}">
+                            <div class="flex items-center space-x-4 flex-1">
+                                <div class="text-center bg-gray-100 rounded-lg px-3 py-2 min-w-[70px]">
+                                    <div class="text-sm font-bold text-gray-800">{{ holiday.holiday_date.strftime('%d') }}</div>
+                                    <div class="text-xs text-gray-600">{{ holiday.holiday_date.strftime('%b %Y') }}</div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-gray-900">{{ holiday.name }}</div>
+                                    <div class="text-sm text-gray-500">
+                                        <span class="text-blue-600">{{ holiday.queue.name if holiday.queue else 'Unknown Queue' }}</span>
+                                        {% if holiday.country %}
+                                        <span class="mx-1">•</span>
+                                        <span>{{ holiday.country }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if holiday.is_recurring %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    <i class="fas fa-redo mr-1"></i>Recurring
+                                </span>
+                                {% endif %}
+                            </div>
+                            <button onclick="deleteHoliday({{ holiday.id }})" class="ml-4 text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-calendar-alt text-4xl text-gray-400 mb-2"></i>
+                            <p>No holidays configured yet. Add one above.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Tab switching
+function showTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+
+    document.getElementById(tabName + 'Content').classList.remove('hidden');
+    document.getElementById(tabName + 'Tab').classList.add('border-blue-500', 'text-blue-600');
+    document.getElementById(tabName + 'Tab').classList.remove('border-transparent', 'text-gray-500');
+}
+
+// SLA Form submission
+document.getElementById('slaForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const data = {
+        queue_id: document.getElementById('slaQueueId').value,
+        category: document.getElementById('slaCategory').value,
+        working_days: document.getElementById('slaWorkingDays').value
+    };
+
+    try {
+        const response = await fetch('/sla/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            location.reload();
+        } else {
+            showToast(result.error || 'Failed to save SLA config', 'error');
+        }
+    } catch (error) {
+        showToast('Error saving SLA config: ' + error.message, 'error');
+    }
+});
+
+// Delete SLA Config
+async function deleteSLAConfig(configId) {
+    if (!confirm('Are you sure you want to delete this SLA rule?')) return;
+
+    try {
+        const response = await fetch(`/sla/api/config/${configId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            document.querySelector(`[data-config-id="${configId}"]`).remove();
+        } else {
+            showToast(result.error || 'Failed to delete SLA config', 'error');
+        }
+    } catch (error) {
+        showToast('Error deleting SLA config: ' + error.message, 'error');
+    }
+}
+
+// Holiday Form submission
+document.getElementById('holidayForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const data = {
+        queue_id: document.getElementById('holidayQueueId').value,
+        date: document.getElementById('holidayDate').value,
+        name: document.getElementById('holidayName').value,
+        country: document.getElementById('holidayCountry').value
+    };
+
+    try {
+        const response = await fetch('/sla/api/holiday', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            location.reload();
+        } else {
+            showToast(result.error || 'Failed to add holiday', 'error');
+        }
+    } catch (error) {
+        showToast('Error adding holiday: ' + error.message, 'error');
+    }
+});
+
+// Delete Holiday
+async function deleteHoliday(holidayId) {
+    if (!confirm('Are you sure you want to delete this holiday?')) return;
+
+    try {
+        const response = await fetch(`/sla/api/holiday/${holidayId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            document.querySelector(`[data-holiday-id="${holidayId}"]`).remove();
+        } else {
+            showToast(result.error || 'Failed to delete holiday', 'error');
+        }
+    } catch (error) {
+        showToast('Error deleting holiday: ' + error.message, 'error');
+    }
+}
+
+// Filter holidays by queue
+document.getElementById('filterQueue').addEventListener('change', function() {
+    const queueId = this.value;
+    document.querySelectorAll('.holiday-row').forEach(row => {
+        if (!queueId || row.dataset.queueId === queueId) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+});
+
+// Toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-600' :
+        type === 'error' ? 'bg-red-600' :
+        'bg-blue-600'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}

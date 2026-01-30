@@ -1,0 +1,185 @@
+{% set data = widget_data.get('sla_manager', {}) %}
+<style>
+.sla-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+.sla-summary-item {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    background: var(--sf-gray-50);
+}
+.sla-summary-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.sla-summary-label {
+    font-size: 0.65rem;
+    color: var(--sf-gray-600);
+    text-transform: uppercase;
+}
+.sla-section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--sf-gray-700);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--sf-gray-200);
+}
+.sla-user-list {
+    max-height: 120px;
+    overflow-y: auto;
+}
+.sla-user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    background: var(--sf-gray-50);
+    font-size: 0.75rem;
+}
+.sla-user-name {
+    font-weight: 500;
+    color: var(--sf-gray-800);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+.sla-user-stats {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.65rem;
+}
+.sla-badge {
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-weight: 600;
+}
+.sla-badge-open { background: var(--sf-blue); color: white; }
+.sla-badge-breached { background: var(--sf-error); color: white; }
+.sla-badge-atrisk { background: var(--sf-warning); color: white; }
+.sla-recent-list {
+    max-height: 100px;
+    overflow-y: auto;
+}
+.sla-recent-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    background: var(--sf-gray-50);
+    text-decoration: none;
+    color: inherit;
+    font-size: 0.7rem;
+}
+.sla-recent-item:hover {
+    background: var(--sf-gray-100);
+}
+.sla-ticket-id {
+    font-weight: 600;
+    color: var(--sf-blue);
+}
+.sla-ticket-queue {
+    color: var(--sf-gray-600);
+    font-size: 0.65rem;
+}
+</style>
+
+<div style="display: flex; flex-direction: column; height: 100%; gap: 0.75rem;">
+    <!-- Summary Stats -->
+    <div class="sla-summary-grid">
+        <div class="sla-summary-item">
+            <div class="sla-summary-value" style="color: var(--sf-blue);">{{ data.get('total_open', 0) }}</div>
+            <div class="sla-summary-label">Open</div>
+        </div>
+        <div class="sla-summary-item">
+            <div class="sla-summary-value" style="color: var(--sf-success);">{{ data.get('on_track', 0) }}</div>
+            <div class="sla-summary-label">On Track</div>
+        </div>
+        <div class="sla-summary-item">
+            <div class="sla-summary-value" style="color: var(--sf-warning);">{{ data.get('at_risk', 0) }}</div>
+            <div class="sla-summary-label">At Risk</div>
+        </div>
+        <div class="sla-summary-item">
+            <div class="sla-summary-value" style="color: var(--sf-error);">{{ data.get('breached', 0) }}</div>
+            <div class="sla-summary-label">Breached</div>
+        </div>
+    </div>
+
+    <!-- Users with Open Cases -->
+    <div>
+        <div class="sla-section-title">
+            <i class="fas fa-users" style="margin-right: 0.25rem;"></i> Users with Open Cases
+        </div>
+        <div class="sla-user-list">
+            {% for user_stat in data.get('users_with_cases', [])[:5] %}
+            <div class="sla-user-row">
+                <span class="sla-user-name" title="{{ user_stat.name }}">{{ user_stat.name }}</span>
+                <div class="sla-user-stats">
+                    <span class="sla-badge sla-badge-open">{{ user_stat.open_count }} open</span>
+                    {% if user_stat.breached_count > 0 %}
+                    <span class="sla-badge sla-badge-breached">{{ user_stat.breached_count }} missed</span>
+                    {% endif %}
+                    {% if user_stat.at_risk_count > 0 %}
+                    <span class="sla-badge sla-badge-atrisk">{{ user_stat.at_risk_count }} risk</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align: center; color: var(--sf-gray-500); padding: 0.5rem; font-size: 0.75rem;">
+                <i class="fas fa-check-circle" style="color: var(--sf-success);"></i> No open cases
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Past 7 Days Cases -->
+    <div style="flex: 1;">
+        <div class="sla-section-title">
+            <i class="fas fa-clock" style="margin-right: 0.25rem;"></i> Past 7 Days ({{ data.get('past_7_days_count', 0) }} cases)
+        </div>
+        <div class="sla-recent-list">
+            {% for ticket in data.get('past_7_days_tickets', [])[:5] %}
+            <a href="{{ url_for('tickets.ticket_view', ticket_id=ticket.id) }}" class="sla-recent-item">
+                <div>
+                    <span class="sla-ticket-id">{{ ticket.display_id }}</span>
+                    <span class="sla-ticket-queue">{{ ticket.queue_name }}</span>
+                </div>
+                <div>
+                    {% if ticket.sla_status == 'breached' %}
+                    <span class="sla-badge sla-badge-breached">{{ ticket.days_overdue }}d late</span>
+                    {% elif ticket.sla_status == 'at_risk' %}
+                    <span class="sla-badge sla-badge-atrisk">{{ ticket.days_remaining }}d left</span>
+                    {% elif ticket.sla_status == 'on_track' %}
+                    <span class="sla-badge" style="background: var(--sf-success); color: white;">{{ ticket.days_remaining }}d</span>
+                    {% else %}
+                    <span class="sla-badge" style="background: var(--sf-gray-400); color: white;">No SLA</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% else %}
+            <div style="text-align: center; color: var(--sf-gray-500); padding: 0.5rem; font-size: 0.75rem;">
+                No cases in past 7 days
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 0.5rem; margin-top: auto;">
+        <a href="{{ url_for('sla.sla_dashboard') }}" class="stat-action" style="flex: 1;">
+            Full Dashboard <i class="fas fa-arrow-right"></i>
+        </a>
+        <a href="{{ url_for('sla.manage_sla') }}" class="stat-action" style="flex: 0 0 auto; padding: 0.5rem;" title="Manage SLA & Holidays">
+            <i class="fas fa-cog"></i>
+        </a>
+    </div>
+</div>
