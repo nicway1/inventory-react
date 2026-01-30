@@ -734,8 +734,6 @@ def extract_text_directly(pdf_path):
     Returns the text if PDF has selectable text, None otherwise.
     """
     all_text = ""
-    pdfplumber_text = ""
-    pymupdf_text = ""
 
     # Try pdfplumber first (better for structured text and tables)
     try:
@@ -743,29 +741,15 @@ def extract_text_directly(pdf_path):
         logger.info("Using pdfplumber for text extraction...")
 
         with pdfplumber.open(pdf_path) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                # Try regular text extraction
+            for page in pdf.pages:
                 text = page.extract_text()
                 if text:
-                    pdfplumber_text += text + "\n"
+                    all_text += text + "\n"
 
-                # Also try table extraction for PDFs with tabular data
-                try:
-                    tables = page.extract_tables()
-                    for table in tables:
-                        for row in table:
-                            if row:
-                                # Join non-None cells
-                                row_text = " ".join(str(cell) for cell in row if cell)
-                                if row_text.strip():
-                                    pdfplumber_text += row_text + "\n"
-                except Exception as table_err:
-                    logger.debug(f"Table extraction failed for page {page_num}: {table_err}")
-
-        logger.info(f"pdfplumber extracted {len(pdfplumber_text.strip())} chars")
-
-        if len(pdfplumber_text.strip()) > 100:
-            return pdfplumber_text
+        stripped = all_text.strip()
+        if len(stripped) > 100:
+            logger.info(f"pdfplumber extraction: {len(stripped)} characters extracted")
+            return all_text
 
     except ImportError:
         logger.info("pdfplumber not installed, trying PyMuPDF...")
@@ -778,43 +762,24 @@ def extract_text_directly(pdf_path):
         logger.info("Using PyMuPDF for text extraction...")
 
         doc = fitz.open(pdf_path)
+        all_text = ""
 
         for page in doc:
-            # Try different text extraction methods
-            text = page.get_text("text")
-            if text:
-                pymupdf_text += text + "\n"
-
-            # Also try extracting text from blocks (sometimes works better)
-            try:
-                blocks = page.get_text("blocks")
-                for block in blocks:
-                    if len(block) >= 5 and isinstance(block[4], str):
-                        block_text = block[4].strip()
-                        if block_text and block_text not in pymupdf_text:
-                            pymupdf_text += block_text + "\n"
-            except Exception:
-                pass
+            text = page.get_text()
+            all_text += text + "\n"
 
         doc.close()
 
-        logger.info(f"PyMuPDF extracted {len(pymupdf_text.strip())} chars")
-
-        if len(pymupdf_text.strip()) > 100:
-            return pymupdf_text
+        stripped = all_text.strip()
+        if len(stripped) > 100:
+            logger.info(f"PyMuPDF extraction: {len(stripped)} characters extracted")
+            return all_text
 
     except ImportError:
         logger.error("PyMuPDF (fitz) not installed")
     except Exception as e:
         logger.error(f"PyMuPDF extraction failed: {e}")
 
-    # Combine both if neither alone reached threshold
-    combined = pdfplumber_text + pymupdf_text
-    if len(combined.strip()) > 50:
-        logger.info(f"Using combined extraction: {len(combined.strip())} chars")
-        return combined
-
-    logger.warning(f"Direct extraction got minimal text ({len(combined.strip())} chars), may need OCR")
     return None
 
 
@@ -852,9 +817,6 @@ def extract_assets_from_pdf(pdf_path):
             elif is_asiacloud_delivery_order(all_text):
                 logger.info("Detected AsiaCloud Delivery Order format")
                 return parse_asiacloud_delivery_order(all_text)
-            elif is_cdw_packing_list(all_text):
-                logger.info("Detected CDW Packing List format")
-                return parse_cdw_packing_list(all_text)
             else:
                 # Standard packing list format
                 result = parse_packing_list_text(all_text)
@@ -895,9 +857,6 @@ def extract_assets_from_pdf(pdf_path):
         elif is_asiacloud_delivery_order(all_text):
             logger.info("Detected AsiaCloud Delivery Order format")
             return parse_asiacloud_delivery_order(all_text)
-        elif is_cdw_packing_list(all_text):
-            logger.info("Detected CDW Packing List format")
-            return parse_cdw_packing_list(all_text)
         else:
             # Standard packing list format
             return parse_packing_list_text(all_text)
@@ -1455,214 +1414,6 @@ def extract_asiacloud_serials(text):
             serials.append(serial)
 
     return serials
-
-
-# ============================================================================
-# CDW PACKING LIST PARSER
-# ============================================================================
-
-def is_cdw_packing_list(text):
-    """
-    Detect if the document is a CDW packing list format
-    CDW format has: Supplier "CDW", "Packing list" header, "Collection ref CDW-xxxxx"
-    """
-    text_upper = text.upper()
-    indicators = [
-        'CDW' in text_upper,
-        'PACKING LIST' in text_upper,
-        'COLLECTION REF' in text_upper,
-        'ROYALE LOGISTICS' in text_upper,
-    ]
-    # Need at least 2 indicators to confirm
-    return sum(indicators) >= 2
-
-
-def parse_cdw_packing_list(text):
-    """
-    Parse CDW packing list format
-    Format has:
-    - Supplier: CDW C/O Royale Logistics Pte Ltd
-    - Collection ref: CDW-33LCQF
-    - Customer Ref: 10-SV0031 (Approved SO No.: 3-00014587)
-    - Part Number: MW0Y3ZP/A-SG0001
-    - Description: APPLE 13" MACBOOK AIR: STARLIGHT M4 10C CPU 8C GPU16GB 256GB SSD
-    - Serial(s): Listed as column with 11-char serials starting with S
-    """
-    result = {
-        'po_number': None,
-        'reference': None,
-        'ship_date': None,
-        'supplier': 'CDW',
-        'receiver': None,
-        'total_quantity': 0,
-        'assets': [],
-        'raw_text': text[:2000]
-    }
-
-    # Extract Collection ref / Invoice nr (e.g., "14771650")
-    collection_match = re.search(r'(?:Collection\s*ref|Invoice\s*nr)[:\s]*([A-Z0-9-]+)', text, re.IGNORECASE)
-    if collection_match:
-        result['reference'] = collection_match.group(1).strip()
-
-    # Extract Ship date (e.g., "28-01-2026")
-    ship_match = re.search(r'Ship\s*date[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})', text, re.IGNORECASE)
-    if ship_match:
-        result['ship_date'] = ship_match.group(1).strip()
-
-    # Extract PO number - multiple patterns
-    po_patterns = [
-        r'PO\s*n[ro][:\s]*(\d+)',                     # PO nr: 100010948
-        r'(\d{9,})\s+WISE',                           # 100010948 WISE
-        r'(\d{9,})\s+[A-Z]+',                         # 100010948 followed by company
-        r'Customer\s*Ref[:\s]*([^\n(]+)',             # Customer Ref: 10-SV0031
-        r'(?:Approved\s+)?SO\s*No\.?[:\s]*([0-9-]+)', # Approved SO No.: 3-00014587
-    ]
-    for pattern in po_patterns:
-        po_match = re.search(pattern, text, re.IGNORECASE)
-        if po_match:
-            result['po_number'] = po_match.group(1).strip()
-            break
-
-    # Normalize text to handle Cyrillic lookalike characters
-    normalized_text = normalize_text(text)
-
-    # Extract Part Number (e.g., "MW0Y3ZP/A-SG0001")
-    part_match = re.search(r'(M[A-Z0-9]{2,4}[A-Z0-9/\-]+)', normalized_text)
-    part_number = part_match.group(1).strip() if part_match else None
-
-    # Extract Description - look for APPLE product description
-    # Description may span two lines (e.g., "APPLE 13" MACBOOK AIR: STARLIGHT M4 10C\nCPU 8C GPU16GB 256GB SSD")
-    desc_match = re.search(r'(APPLE\s+\d+["\']?\s*(?:MACBOOK|IMAC|MAC)[^\n]+\n[^\n]*(?:CPU|GPU|GB|SSD)[^\n]*)', normalized_text, re.IGNORECASE)
-    if desc_match:
-        description = ' '.join(desc_match.group(1).split())  # Normalize whitespace
-    else:
-        # Try single line match as fallback
-        desc_match = re.search(r'(APPLE\s+\d+["\']?\s*(?:MACBOOK|IMAC|MAC)[^\n]+)', normalized_text, re.IGNORECASE)
-        description = desc_match.group(1).strip() if desc_match else None
-
-    # Parse product details from description
-    product_info = parse_cdw_description(description) if description else {}
-
-    # Extract serial numbers - look for 11-char alphanumeric starting with S
-    # Pattern: S followed by 10 alphanumeric characters (Apple serial format)
-    serial_pattern = r'\b(S[A-Z0-9]{10})\b'
-    serials = re.findall(serial_pattern, text, re.IGNORECASE)
-
-    # Filter out duplicates while preserving order
-    seen = set()
-    unique_serials = []
-    for serial in serials:
-        serial_upper = serial.upper()
-        if serial_upper not in seen:
-            seen.add(serial_upper)
-            unique_serials.append(serial_upper)
-
-    logger.info(f"CDW: Found {len(unique_serials)} serial numbers")
-    result['total_quantity'] = len(unique_serials)
-
-    # Create assets for each serial
-    for serial in unique_serials:
-        asset = {
-            'serial_num': serial,
-            'name': product_info.get('name', 'MacBook Air'),
-            'model': part_number or product_info.get('model', ''),
-            'manufacturer': 'Apple',
-            'category': 'Laptop',
-            'cpu_type': product_info.get('cpu_type', ''),
-            'cpu_cores': product_info.get('cpu_cores', ''),
-            'gpu_cores': product_info.get('gpu_cores', ''),
-            'memory': product_info.get('memory', ''),
-            'harddrive': product_info.get('storage', ''),
-            'hardware_type': 'Laptop',
-            'condition': 'New',
-        }
-        result['assets'].append(asset)
-
-    return result
-
-
-def normalize_text(text):
-    """
-    Normalize text by replacing Cyrillic lookalike characters with ASCII equivalents.
-    Some PDFs have mixed Cyrillic/Latin characters that look identical.
-    """
-    # Cyrillic to Latin mapping for common lookalikes
-    cyrillic_to_latin = {
-        'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'Н': 'H', 'К': 'K',
-        'М': 'M', 'О': 'O', 'Р': 'P', 'Т': 'T', 'Х': 'X',
-        'а': 'a', 'с': 'c', 'е': 'e', 'о': 'o', 'р': 'p', 'х': 'x',
-    }
-    result = text
-    for cyrillic, latin in cyrillic_to_latin.items():
-        result = result.replace(cyrillic, latin)
-    return result
-
-
-def parse_cdw_description(description):
-    """
-    Parse CDW product description to extract specs
-    Example: "APPLE 13" MACBOOK AIR: STARLIGHT M4 10C CPU 8C GPU16GB 256GB SSD"
-    """
-    if not description:
-        return {}
-
-    result = {
-        'name': 'MacBook Air',
-        'model': '',
-        'cpu_type': '',
-        'cpu_cores': '',
-        'gpu_cores': '',
-        'memory': '',
-        'storage': '',
-    }
-
-    # Normalize text to handle Cyrillic lookalike characters
-    description = normalize_text(description)
-    desc_upper = description.upper()
-
-    # Extract product name
-    if 'MACBOOK AIR' in desc_upper:
-        result['name'] = 'MacBook Air'
-    elif 'MACBOOK PRO' in desc_upper:
-        result['name'] = 'MacBook Pro'
-    elif 'IMAC' in desc_upper:
-        result['name'] = 'iMac'
-    elif 'MAC MINI' in desc_upper:
-        result['name'] = 'Mac Mini'
-    elif 'MAC STUDIO' in desc_upper:
-        result['name'] = 'Mac Studio'
-
-    # Extract screen size (e.g., 13", 14", 15", 16")
-    size_match = re.search(r'(\d{2})["\']?\s*(?:INCH)?', description, re.IGNORECASE)
-    if size_match:
-        result['name'] = f"{size_match.group(1)}\" {result['name']}"
-
-    # Extract chip type (M1, M2, M3, M4)
-    chip_match = re.search(r'\b(M[1-4](?:\s*(?:PRO|MAX|ULTRA))?)\b', desc_upper)
-    if chip_match:
-        result['cpu_type'] = chip_match.group(1)
-
-    # Extract CPU cores (e.g., "10C CPU" or "10-CORE")
-    cpu_cores_match = re.search(r'(\d+)[\s-]*C(?:ORE)?\s*CPU', desc_upper)
-    if cpu_cores_match:
-        result['cpu_cores'] = cpu_cores_match.group(1)
-
-    # Extract GPU cores (e.g., "8C GPU" or "8-CORE GPU")
-    gpu_cores_match = re.search(r'(\d+)[\s-]*C(?:ORE)?\s*GPU', desc_upper)
-    if gpu_cores_match:
-        result['gpu_cores'] = gpu_cores_match.group(1)
-
-    # Extract memory (e.g., "16GB", "32GB")
-    memory_match = re.search(r'(\d+)\s*GB(?!\s*SSD)', desc_upper)
-    if memory_match:
-        result['memory'] = f"{memory_match.group(1)}GB"
-
-    # Extract storage (e.g., "256GB SSD", "512GB SSD", "1TB")
-    storage_match = re.search(r'(\d+)\s*(GB|TB)\s*SSD', desc_upper)
-    if storage_match:
-        result['storage'] = f"{storage_match.group(1)}{storage_match.group(2)} SSD"
-
-    return result
 
 
 def parse_packing_list_text(text):
