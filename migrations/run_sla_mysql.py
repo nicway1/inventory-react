@@ -5,16 +5,14 @@ Run this script on PythonAnywhere to create the sla_configs and queue_holidays t
 Usage: python3 migrations/run_sla_mysql.py
 """
 
-import pymysql
+import sys
+import os
 
-# PythonAnywhere MySQL connection settings
-DB_CONFIG = {
-    'host': 'nicway2.mysql.pythonanywhere-services.com',
-    'user': 'nicway2',
-    'password': 'Truelog123@',
-    'database': 'nicway2$default',
-    'charset': 'utf8mb4'
-}
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database import engine
+from sqlalchemy import text
 
 # SQL statements to create tables
 CREATE_SLA_CONFIGS = """
@@ -61,51 +59,46 @@ CREATE_INDEXES = [
 
 
 def run_migration():
-    print("Connecting to MySQL database...")
+    print("Connecting to database using existing configuration...")
 
     try:
-        conn = pymysql.connect(**DB_CONFIG)
-        cursor = conn.cursor()
+        with engine.connect() as conn:
+            print("Creating sla_configs table...")
+            conn.execute(text(CREATE_SLA_CONFIGS))
 
-        print("Creating sla_configs table...")
-        cursor.execute(CREATE_SLA_CONFIGS)
+            print("Creating queue_holidays table...")
+            conn.execute(text(CREATE_QUEUE_HOLIDAYS))
 
-        print("Creating queue_holidays table...")
-        cursor.execute(CREATE_QUEUE_HOLIDAYS)
+            print("Creating indexes...")
+            for index_sql in CREATE_INDEXES:
+                try:
+                    conn.execute(text(index_sql))
+                except Exception as e:
+                    # Ignore "index already exists" errors
+                    if "1061" not in str(e) and "already exists" not in str(e).lower():
+                        print(f"  Warning: {e}")
 
-        print("Creating indexes...")
-        for index_sql in CREATE_INDEXES:
-            try:
-                cursor.execute(index_sql)
-            except pymysql.Error as e:
-                # Ignore "index already exists" errors (error code 1061)
-                if e.args[0] != 1061:
-                    print(f"  Warning: {e.args[1]}")
+            conn.commit()
 
-        conn.commit()
+            # Verify tables exist
+            result = conn.execute(text("SHOW TABLES LIKE 'sla_%'"))
+            sla_tables = result.fetchall()
+            result = conn.execute(text("SHOW TABLES LIKE 'queue_holidays'"))
+            holiday_tables = result.fetchall()
 
-        # Verify tables exist
-        cursor.execute("SHOW TABLES LIKE 'sla_%'")
-        sla_tables = cursor.fetchall()
-        cursor.execute("SHOW TABLES LIKE 'queue_holidays'")
-        holiday_tables = cursor.fetchall()
+            print("\n✓ Migration completed successfully!")
+            print("Tables created:")
+            for table in sla_tables:
+                print(f"  - {table[0]}")
+            for table in holiday_tables:
+                print(f"  - {table[0]}")
 
-        print("\n✓ Migration completed successfully!")
-        print("Tables created:")
-        for table in sla_tables:
-            print(f"  - {table[0]}")
-        for table in holiday_tables:
-            print(f"  - {table[0]}")
+            print("\nNext steps:")
+            print("1. Reload your web app from the PythonAnywhere Web tab")
+            print("2. Add 'Case Manager SLA' widget to your dashboard")
+            print("3. Configure SLA rules at /sla/manage")
 
-        cursor.close()
-        conn.close()
-
-        print("\nNext steps:")
-        print("1. Reload your web app from the PythonAnywhere Web tab")
-        print("2. Add 'Case Manager SLA' widget to your dashboard")
-        print("3. Configure SLA rules at /sla/manage")
-
-    except pymysql.Error as e:
+    except Exception as e:
         print(f"Error: {e}")
         return False
 
