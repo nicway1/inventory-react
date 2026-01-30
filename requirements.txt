@@ -31,6 +31,7 @@ python-barcode==0.15.1
 Pillow==10.0.1
 # PDF processing and OCR
 PyMuPDF==1.26.5
+pdfplumber==0.10.3
 pytesseract==0.3.13
 # AI-based PDF extraction (Claude API)
 anthropic>=0.18.0
