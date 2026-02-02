@@ -250,7 +250,7 @@
         <div class="p-4 border-b border-gray-200">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-lg font-semibold">All Tickets with SLA</h3>
-                <!-- Queue/Category/User Filters -->
+                <!-- Filters Row 1: User, Queue, Category -->
                 <div class="flex gap-2 items-center flex-wrap">
                     <select id="userFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
                         <option value="all">All Users</option>
@@ -274,6 +274,45 @@
                         <i class="fas fa-times"></i> Reset
                     </button>
                 </div>
+            </div>
+            <!-- Filters Row 2: Carrier, Tracking, Problems -->
+            <div class="flex gap-2 items-center flex-wrap mt-3 pt-3 border-t border-gray-200">
+                <div class="flex items-center gap-1">
+                    <i class="fas fa-truck text-gray-400 text-sm"></i>
+                    <select id="carrierFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Carriers</option>
+                        <option value="singpost">SingPost</option>
+                        <option value="dhl">DHL</option>
+                        <option value="fedex">FedEx</option>
+                        <option value="ups">UPS</option>
+                        <option value="bluedart">BlueDart</option>
+                        <option value="dtdc">DTDC</option>
+                        <option value="other">Other</option>
+                        <option value="none">No Carrier</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fas fa-shipping-fast text-gray-400 text-sm"></i>
+                    <select id="trackingStatusFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">All Tracking</option>
+                        <option value="pending">Pending</option>
+                        <option value="in_transit">In Transit</option>
+                        <option value="out_for_delivery">Out for Delivery</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="no_tracking">No Tracking #</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-sm"></i>
+                    <select id="problemFilter" onchange="applyFilters()" class="text-sm border border-red-300 rounded-md px-3 py-1.5 focus:ring-red-500 focus:border-red-500 bg-red-50">
+                        <option value="all">All Issues</option>
+                        <option value="delivered_not_closed">Delivered but Open</option>
+                        <option value="no_tracking">Missing Tracking #</option>
+                        <option value="stale">Stale (7+ days)</option>
+                        <option value="open_30_days">Open 30+ Days</option>
+                    </select>
+                </div>
+                <span id="problemCount" class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700 hidden">0 issues</span>
             </div>
             <!-- Status Filter Buttons -->
             <div class="flex gap-2">
@@ -299,7 +338,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for item in ticket_sla_data %}
-                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}" data-queue="{{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}" data-category="{{ item.ticket.category.value if item.ticket.category else 'No Category' }}" data-user-id="{{ item.ticket.requester_id or '' }}">
+                    <tr class="ticket-row hover:bg-gray-50" data-sla-status="{{ item.sla.status }}" data-queue="{{ item.ticket.queue.name if item.ticket.queue else 'No Queue' }}" data-category="{{ item.ticket.category.value if item.ticket.category else 'No Category' }}" data-user-id="{{ item.ticket.requester_id or '' }}" data-carrier="{{ (item.ticket.shipping_carrier or '')|lower }}" data-tracking="{{ item.ticket.shipping_tracking or '' }}" data-tracking-status="{{ (item.ticket.shipping_status or '')|lower }}" data-created="{{ item.ticket.created_at.isoformat() if item.ticket.created_at else '' }}" data-updated="{{ item.ticket.updated_at.isoformat() if item.ticket.updated_at else item.ticket.created_at.isoformat() if item.ticket.created_at else '' }}" data-ticket-status="{{ item.ticket.status.name if item.ticket.status else '' }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket.id) }}" class="text-blue-600 hover:text-blue-800 font-medium">
                                 {{ item.ticket.display_id if item.ticket.display_id else '#' ~ item.ticket.id }}
@@ -553,13 +592,17 @@ new Chart(userCtx, {
 // Current filter state
 let currentStatusFilter = 'all';
 
-// Apply all filters (user, queue, category, status)
+// Apply all filters (user, queue, category, carrier, tracking, problem, status)
 function applyFilters() {
     const userFilter = document.getElementById('userFilter').value;
     const queueFilter = document.getElementById('queueFilter').value;
     const categoryFilter = document.getElementById('categoryFilter').value;
+    const carrierFilter = document.getElementById('carrierFilter').value;
+    const trackingStatusFilter = document.getElementById('trackingStatusFilter').value;
+    const problemFilter = document.getElementById('problemFilter').value;
 
     let counts = { all: 0, breached: 0, at_risk: 0, on_track: 0 };
+    let problemCount = 0;
 
     document.querySelectorAll('.ticket-row').forEach(row => {
         const matchUser = userFilter === 'all' || row.dataset.userId === userFilter;
@@ -567,14 +610,71 @@ function applyFilters() {
         const matchCategory = categoryFilter === 'all' || row.dataset.category === categoryFilter;
         const matchStatus = currentStatusFilter === 'all' || row.dataset.slaStatus === currentStatusFilter;
 
-        // Count tickets matching user/queue/category (regardless of status filter)
-        if (matchUser && matchQueue && matchCategory) {
+        // Carrier filter
+        const carrier = row.dataset.carrier || '';
+        let matchCarrier = true;
+        if (carrierFilter !== 'all') {
+            if (carrierFilter === 'none') {
+                matchCarrier = !carrier || carrier === '';
+            } else if (carrierFilter === 'other') {
+                matchCarrier = carrier && !['singpost', 'dhl', 'fedex', 'ups', 'bluedart', 'dtdc'].includes(carrier);
+            } else {
+                matchCarrier = carrier === carrierFilter;
+            }
+        }
+
+        // Tracking status filter
+        const tracking = row.dataset.tracking || '';
+        const trackingStatus = row.dataset.trackingStatus || '';
+        let matchTrackingStatus = true;
+        if (trackingStatusFilter !== 'all') {
+            if (trackingStatusFilter === 'no_tracking') {
+                matchTrackingStatus = !tracking || tracking.trim() === '';
+            } else if (trackingStatusFilter === 'in_transit') {
+                matchTrackingStatus = trackingStatus.includes('transit') || trackingStatus.includes('shipped');
+            } else if (trackingStatusFilter === 'out_for_delivery') {
+                matchTrackingStatus = trackingStatus.includes('out for delivery');
+            } else if (trackingStatusFilter === 'delivered') {
+                matchTrackingStatus = trackingStatus.includes('delivered') || trackingStatus.includes('received');
+            } else if (trackingStatusFilter === 'pending') {
+                matchTrackingStatus = trackingStatus === 'pending' || trackingStatus === '';
+            }
+        }
+
+        // Problem filter
+        let matchProblem = true;
+        if (problemFilter !== 'all') {
+            const ticketStatus = row.dataset.ticketStatus || '';
+            const isResolved = ticketStatus === 'RESOLVED' || ticketStatus === 'RESOLVED_DELIVERED';
+            const isDelivered = trackingStatus.includes('delivered') || trackingStatus.includes('received');
+            const hasTracking = tracking && tracking.trim() !== '';
+
+            const updatedAt = row.dataset.updated || row.dataset.created;
+            const createdAt = row.dataset.created;
+            const now = new Date();
+            const daysSinceUpdate = updatedAt ? Math.floor((now - new Date(updatedAt)) / (1000 * 60 * 60 * 24)) : 999;
+            const daysSinceCreated = createdAt ? Math.floor((now - new Date(createdAt)) / (1000 * 60 * 60 * 24)) : 0;
+
+            if (problemFilter === 'delivered_not_closed') {
+                matchProblem = isDelivered && !isResolved;
+            } else if (problemFilter === 'no_tracking') {
+                matchProblem = !hasTracking && !isResolved;
+            } else if (problemFilter === 'stale') {
+                matchProblem = daysSinceUpdate >= 7 && !isResolved && !isDelivered;
+            } else if (problemFilter === 'open_30_days') {
+                matchProblem = daysSinceCreated >= 30 && !isResolved;
+            }
+        }
+
+        // Count tickets matching base filters (regardless of status filter)
+        if (matchUser && matchQueue && matchCategory && matchCarrier && matchTrackingStatus && matchProblem) {
             counts.all++;
             counts[row.dataset.slaStatus]++;
+            if (problemFilter !== 'all') problemCount++;
         }
 
         // Show/hide based on all filters
-        if (matchUser && matchQueue && matchCategory && matchStatus) {
+        if (matchUser && matchQueue && matchCategory && matchCarrier && matchTrackingStatus && matchProblem && matchStatus) {
             row.classList.remove('hidden');
         } else {
             row.classList.add('hidden');
@@ -586,6 +686,15 @@ function applyFilters() {
     document.getElementById('count-breached').textContent = counts.breached;
     document.getElementById('count-at_risk').textContent = counts.at_risk;
     document.getElementById('count-on_track').textContent = counts.on_track;
+
+    // Update problem count badge
+    const problemCountEl = document.getElementById('problemCount');
+    if (problemFilter !== 'all' && problemCount > 0) {
+        problemCountEl.textContent = problemCount + ' issue' + (problemCount !== 1 ? 's' : '');
+        problemCountEl.classList.remove('hidden');
+    } else {
+        problemCountEl.classList.add('hidden');
+    }
 }
 
 // Filter by status (and apply other filters)
@@ -608,6 +717,9 @@ function resetFilters() {
     document.getElementById('userFilter').value = 'all';
     document.getElementById('queueFilter').value = 'all';
     document.getElementById('categoryFilter').value = 'all';
+    document.getElementById('carrierFilter').value = 'all';
+    document.getElementById('trackingStatusFilter').value = 'all';
+    document.getElementById('problemFilter').value = 'all';
     currentStatusFilter = 'all';
 
     // Reset button styles
@@ -617,6 +729,9 @@ function resetFilters() {
             btn.classList.add('ring-2', 'ring-blue-500');
         }
     });
+
+    // Hide problem count badge
+    document.getElementById('problemCount').classList.add('hidden');
 
     // Clear user card selection
     clearUserCardSelection();
