@@ -39,6 +39,7 @@ import uuid
 from utils.tracking_cache import TrackingCache
 import re
 from models.tracking_history import TrackingHistory
+from models.tracking_refresh_log import TrackingRefreshLog
 from utils.singpost_tracking import get_singpost_tracking_client
 
 # Initialize SingPost Tracking client
@@ -2867,11 +2868,26 @@ def view_ticket(ticket_id):
             return_received = ticket.shipping_status and ("received" in ticket.shipping_status.lower() or "delivered" in ticket.shipping_status.lower())
             replacement_received = ticket.replacement_status and ("received" in ticket.replacement_status.lower() or "delivered" in ticket.replacement_status.lower())
 
-            # Set to RESOLVED if both shipments received
-            if return_received and replacement_received and ticket.status != TicketStatus.RESOLVED:
+            # Check if there's a replacement tracking (some returns have replacement, some don't)
+            has_replacement = ticket.replacement_tracking and ticket.replacement_tracking.strip()
+
+            # Auto-close logic:
+            # - If NO replacement tracking: Close when return is received
+            # - If HAS replacement tracking: Close when both return AND replacement are received
+            should_close = False
+            if return_received:
+                if not has_replacement:
+                    # No replacement - just a return, close when return received
+                    should_close = True
+                elif replacement_received:
+                    # Has replacement and both are received - close
+                    should_close = True
+
+            if should_close and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                 ticket.status = TicketStatus.RESOLVED
+                ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Return received at warehouse. Case completed!"
                 db_session.commit()
-                logger.info(f"Auto-closed ticket {ticket_id} on view - both shipments were already received")
+                logger.info(f"Auto-closed ticket {ticket_id} on view - return received at warehouse")
             # Set to IN_PROGRESS if any progress has been made and status is still NEW
             elif ticket.status == TicketStatus.NEW:
                 # Check if any progress has been made
@@ -4603,6 +4619,71 @@ def update_shipment_progress(ticket_id):
     finally:
         db_session.close()
 
+@tickets_bp.route('/<int:ticket_id>/update-return-progress', methods=['POST'])
+@login_required
+def update_return_progress(ticket_id):
+    """Update return progress for Asset Return (claw) without tracking"""
+    db_session = db_manager.get_session()
+    try:
+        data = request.get_json()
+        progress_type = data.get('progress_type')
+
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Return (claw) ticket
+        if ticket.category != TicketCategory.ASSET_RETURN_CLAW:
+            return jsonify({'success': False, 'error': 'This feature is only for Asset Return (claw) tickets'}), 400
+
+        # Update progress based on type
+        if progress_type == 'shipped':
+            ticket.return_status = 'Shipped by Customer'
+            message = 'Return marked as shipped by customer'
+
+            # Add comment to ticket
+            comment = Comment(
+                ticket_id=ticket.id,
+                user_id=current_user.id,
+                content='Customer has shipped the return package (no tracking)',
+                created_at=singapore_now_as_utc()
+            )
+            db_session.add(comment)
+
+        elif progress_type == 'received':
+            # Check if shipped first
+            if not ticket.return_status or ticket.return_status.lower() not in ['shipped', 'shipped by customer', 'in transit']:
+                return jsonify({'success': False, 'error': 'Return must be marked as shipped first'}), 400
+
+            ticket.return_status = 'Received at Warehouse'
+            ticket.status = TicketStatus.RESOLVED
+            message = 'Return received at warehouse. Ticket resolved.'
+
+            # Add comment to ticket
+            comment = Comment(
+                ticket_id=ticket.id,
+                user_id=current_user.id,
+                content='Return package received at warehouse. Case completed!',
+                created_at=singapore_now_as_utc()
+            )
+            db_session.add(comment)
+
+        else:
+            return jsonify({'success': False, 'error': 'Invalid progress type'}), 400
+
+        # Update ticket timestamp
+        ticket.updated_at = singapore_now_as_utc()
+
+        db_session.commit()
+        return jsonify({'success': True, 'message': message})
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error updating return progress: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
 @tickets_bp.route('/<int:ticket_id>/upload', methods=['POST'])
 @login_required
 def upload_attachment(ticket_id):
@@ -5096,177 +5177,121 @@ def generate_mock_singpost_data(ticket, db_session):
 @tickets_bp.route('/<int:ticket_id>/track_dhl', methods=['GET'])
 @login_required
 def track_dhl(ticket_id):
-    """Track DHL package and return tracking data"""
+    """Track DHL package using OxyLabs scraping"""
     logger.info(f"==== TRACKING DHL - TICKET {ticket_id} ====")
-    
-    db_session = None # Initialize
+
+    db_session = None
     try:
-        db_session = ticket_store.db_manager.get_session() # Get session
-        ticket = db_session.query(Ticket).get(ticket_id) # Get ticket within session
-        
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
         if not ticket:
             logger.info("Error: Invalid ticket ID")
             return jsonify({'error': 'Invalid ticket'}), 404
-            
+
         tracking_number = ticket.shipping_tracking
         if not tracking_number:
             logger.info("Error: No tracking number for this ticket")
             return jsonify({'error': 'No tracking number for this ticket'}), 404
-        
+
         logger.info(f"Tracking DHL number: {tracking_number}")
-        
-        # Determine which TrackingMore SDK version is available
-        sdk_version = None
-        if trackingmore_client:
-            sdk_version = '0.1.4'
-            logger.info("Using trackingmore 0.1.4 SDK")
-        elif trackingmore:
-            sdk_version = '0.2'
-            logger.info("Using trackingmore 0.2 API")
-        else:
-            logger.info("Error: No TrackingMore SDK found! Falling back to mock data.")
-            try:
-                response = generate_mock_dhl_data(ticket, db_session)
-                return response
-            except Exception as mock_err:
-                 logger.info(f"Error during mock data generation fallback: {mock_err}")
-                 return jsonify({'error': 'Tracking SDK not found and mock data generation failed.'}), 500
-        
-        potential_carriers = [
-            'dhl', 'dhl-express', 'dhl-global-mail', 'dhl-germany', 
-            'dhl-benelux', 'dhl-global-mail-asia', 'dhl-global-mail-americas', 'dhl-global-mail-europe'
-        ]
-        
-        tracking_success = False
-        last_error = None
-        final_tracking_info = []
-        final_shipping_status = ticket.shipping_status # Default to current
-        final_debug_info = {}
-        is_real_data = False
-        selected_carrier_code = None
-        
-        for carrier_code in potential_carriers:
-            try:
-                logger.info(f"Attempting tracking with carrier: {carrier_code}")
-                
-                tracking_data = None
-                # --- SDK Version Specific API Calls --- 
-                if sdk_version == '0.1.4':
-                    try: 
-                        trackingmore_client.create_tracking({'tracking_number': tracking_number, 'carrier_code': carrier_code})
-                    except Exception as create_e: 
-                        logger.info(f"Info: Create tracking ({carrier_code}): {create_e}")
-                    tracking_data = trackingmore_client.single_tracking(carrier_code, tracking_number)
-                    logger.info(f"Single tracking result ({carrier_code}): {tracking_data}")
 
-                elif sdk_version == '0.2':
-                    try: 
-                        trackingmore.create_tracking_item({'tracking_number': tracking_number, 'carrier_code': carrier_code})
-                    except Exception as create_e: 
-                        logger.info(f"Info: Create tracking item ({carrier_code}): {create_e}")
-                    realtime_result = trackingmore.realtime_tracking({'tracking_number': tracking_number, 'carrier_code': carrier_code})
-                    logger.info(f"Realtime tracking result ({carrier_code}): {realtime_result}")
-                    if realtime_result and 'items' in realtime_result and realtime_result['items']:
-                        tracking_data = realtime_result['items'][0]
-                    else:
-                        tracking_data = None
+        # Use OxyLabs/Ship24 scraping for DHL tracking
+        try:
+            from utils.ship24_tracker import get_tracker
+            import concurrent.futures
+            ship24_tracker = get_tracker()
 
-                # --- Process tracking_data (common logic) ---
-                if tracking_data:
-                    current_tracking_info = []
-                    tracking_events = tracking_data.get('origin_info', {}).get('trackinfo', [])
-                    status = tracking_data.get('status', 'unknown')
-                    substatus = tracking_data.get('substatus', '')
-                    
-                    if not tracking_events or status == 'notfound':
-                        logger.info(f"No tracking events found for {tracking_number} with {carrier_code}. Status: {status}, Substatus: {substatus}")
-                        current_date = datetime.datetime.now()
-                        if substatus == 'notfound001': status_desc = "Pending - Waiting for Carrier Scan"
-                        elif substatus == 'notfound002': status_desc = "Pending - Tracking Number Registered"
-                        elif substatus == 'notfound003': status_desc = "Pending - Invalid Tracking Number"
-                        else: status_desc = "Information Received - Waiting for Update"
-                        
-                        current_tracking_info.append({
-                            'date': current_date.strftime('%Y-%m-%d %H:%M:%S'),
-                            'status': status_desc,
-                            'location': "DHL System" # Generic location
-                        })
-                        
-                        # Update ticket attributes
-                        ticket.shipping_status = status_desc
-                        ticket.shipping_history = current_tracking_info
-                        ticket.updated_at = datetime.datetime.now()
-                        
-                        final_tracking_info = current_tracking_info
-                        final_shipping_status = status_desc
-                        final_debug_info = {'carrier_code': carrier_code, 'status': status, 'substatus': substatus, 'no_events': True}
-                        is_real_data = True # API responded
-                        tracking_success = True
-                        selected_carrier_code = carrier_code
-                        logger.info(f"Using custom status: {status_desc}")
-                        break # Exit loop
-                        
-                    elif tracking_events:
-                        for event in tracking_events:
-                            current_tracking_info.append({
-                                'date': event.get('Date', event.get('date', '')),
-                                'status': event.get('StatusDescription', event.get('status_description', event.get('status', ''))),
-                                'location': event.get('Details', event.get('details', event.get('location', '')))
-                            })
-                        
-                        latest_event = current_tracking_info[0] if current_tracking_info else None
-                        if latest_event:
-                            # Update ticket attributes
-                            ticket.shipping_status = latest_event['status']
-                            ticket.shipping_history = current_tracking_info
-                            ticket.updated_at = datetime.datetime.now()
+            def track_with_timeout():
+                return ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier='dhl',
+                    method='oxylabs'
+                )
 
-                            final_tracking_info = current_tracking_info
-                            final_shipping_status = latest_event['status']
-                            final_debug_info = {'carrier_code': carrier_code, 'has_events': True, 'event_count': len(tracking_events)}
-                            is_real_data = True
-                            tracking_success = True
-                            selected_carrier_code = carrier_code
-                            logger.info(f"Real tracking info retrieved. Latest status: {latest_event['status']}")
-                            break # Exit loop
-                        else:
-                             logger.info("Warning: Tracking events found but couldn't parse latest event.")
-                else:
-                     logger.info(f"No valid tracking data received from API for {carrier_code}.")
-            
-            except Exception as e:
-                logger.info(f"Error during tracking attempt with carrier {carrier_code}: {str(e)}")
-                last_error = str(e)
+            logger.info(f"Using OxyLabs scraping for DHL tracking: {tracking_number}")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(track_with_timeout)
+                result = future.result(timeout=60)
 
-        # --- After Loop --- 
-        if tracking_success:
-            logger.info(f"Tracking successful with carrier {selected_carrier_code}, committing changes.")
-            db_session.commit()
+            if result and result.get('events'):
+                tracking_events = []
+                for event in result.get('events', []):
+                    # Ship24 uses 'description' and 'timestamp', normalize to 'status' and 'date'
+                    tracking_events.append({
+                        'date': event.get('datetime', event.get('date', event.get('timestamp', ''))),
+                        'status': event.get('status', event.get('description', '')),
+                        'location': event.get('location', '')
+                    })
+
+                if tracking_events:
+                    tracking_events = sorted(tracking_events, key=lambda x: x['date'] or '', reverse=True)
+                    latest_status = next((e['status'] for e in tracking_events if e['status']), result.get('status', 'Unknown'))
+
+                    ticket.shipping_status = latest_status
+                    ticket.shipping_history = tracking_events
+                    ticket.updated_at = datetime.datetime.now()
+                    db_session.commit()
+
+                    logger.info(f"DHL tracking successful: {latest_status}")
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': tracking_events,
+                        'shipping_status': latest_status,
+                        'is_real_data': True,
+                    })
+
+            if result and result.get('status') and result.get('success', True):
+                latest_status = result.get('status')
+                if latest_status.lower() not in ['error', 'unknown', 'not found', 'rate limited']:
+                    ticket.shipping_status = latest_status
+                    ticket.updated_at = datetime.datetime.now()
+                    db_session.commit()
+
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': [],
+                        'shipping_status': latest_status,
+                        'is_real_data': True,
+                        'debug_info': {'note': 'Status available but no detailed events'}
+                    })
+
+            error_msg = result.get('error') if result else 'No tracking data available'
+            logger.info(f"No valid tracking data from OxyLabs for DHL: {error_msg}")
             return jsonify({
-                'success': True,
-                'tracking_info': final_tracking_info,
-                'shipping_status': final_shipping_status,
-                'is_real_data': is_real_data,
-                'debug_info': final_debug_info
+                'success': False,
+                'error': error_msg or 'No tracking data available',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
             })
-        else:
-            logger.info(f"All tracking attempts failed, falling back to mock data. Last error: {last_error}")
-            try:
-                response = generate_mock_dhl_data(ticket, db_session)
-                return response
-            except Exception as mock_err:
-                 logger.info(f"Error during mock data generation fallback: {mock_err}")
-                 return jsonify({'error': 'Tracking failed and mock data generation also failed.'}), 500
+
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"OxyLabs tracking timeout for DHL {tracking_number}")
+            return jsonify({
+                'success': False,
+                'error': 'Tracking request timed out. Please try again.',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+        except Exception as e:
+            logger.error(f"OxyLabs tracking error for DHL {tracking_number}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Tracking error: {str(e)}',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
 
     except Exception as e:
         logger.info(f"General error in track_dhl: {str(e)}")
         if db_session and db_session.is_active:
-             logger.info("Rolling back DB session due to error.")
-             db_session.rollback()
-        return jsonify({'error': f'An internal error occurred during DHL tracking: {str(e)}'}), 500
+            db_session.rollback()
+        return jsonify({'error': f'An error occurred during tracking: {str(e)}'}), 500
     finally:
         if db_session:
-            logger.info("Closing DB session.")
             db_session.close()
 
 def generate_mock_dhl_data(ticket, db_session):
@@ -5326,115 +5351,129 @@ def generate_mock_dhl_data(ticket, db_session):
 @tickets_bp.route('/<int:ticket_id>/track_ups', methods=['GET'])
 @login_required
 def track_ups(ticket_id):
-    """Track UPS package and return tracking data"""
+    """Track UPS package using OxyLabs scraping"""
     logger.info(f"==== TRACKING UPS - TICKET {ticket_id} ====")
-    
-    db_session = None # Initialize db_session
+
+    db_session = None
     try:
-        db_session = ticket_store.db_manager.get_session() # Get session
-        ticket = db_session.query(Ticket).get(ticket_id) # Get ticket within this session
-        
+        db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
         if not ticket:
             logger.info("Error: Invalid ticket ID")
             return jsonify({'error': 'Invalid ticket'}), 404
-        
+
         tracking_number = ticket.shipping_tracking
         if not tracking_number:
             logger.info("Error: No tracking number for this ticket")
             return jsonify({'error': 'No tracking number for this ticket'}), 404
-            
+
         logger.info(f"Tracking UPS number: {tracking_number}")
-        
-        # Check if trackingmore is available
-        if not trackingmore:
-            logger.info("Error: No TrackingMore module found! Falling back to mock data.")
-            try:
-                response = generate_mock_ups_data(ticket)
-                return response
-            except Exception as mock_err:
-                logger.info(f"Error during mock data generation fallback: {mock_err}")
-                return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
 
-        tracking_success = False
-        last_error = None
-        final_tracking_info = []
-        final_shipping_status = ticket.shipping_status # Default to current
-        is_real_data = False
-
-        # Create tracking (optional, ignore errors mainly)
-        try: 
-            create_params = {'tracking_number': tracking_number, 'carrier_code': 'ups'}
-            create_result = trackingmore.create_tracking_item(create_params)
-            logger.info(f"Created tracking: {create_result}")
-        except Exception as create_e: 
-            logger.info(f"Info: Create tracking: {create_e}")
-        
-        # Get tracking data
+        # Use OxyLabs/Ship24 scraping for UPS tracking
         try:
-            realtime_params = {
-                'tracking_number': tracking_number,
-                'carrier_code': 'ups'
-            }
-            result = trackingmore.realtime_tracking(realtime_params)
-            logger.info(f"Realtime tracking result: {result}")
+            from utils.ship24_tracker import get_tracker
+            import concurrent.futures
+            ship24_tracker = get_tracker()
 
-            # Process tracking data
-            if result and 'items' in result and result['items']:
-                tracking_data = result['items'][0]
+            def track_with_timeout():
+                return ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier='ups',
+                    method='oxylabs'
+                )
+
+            logger.info(f"Using OxyLabs scraping for UPS tracking: {tracking_number}")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(track_with_timeout)
+                result = future.result(timeout=60)  # 60 second timeout for individual tracking
+
+            if result and result.get('events'):
                 tracking_events = []
-                
-                # Check if we have valid trackinfo data
-                if 'origin_info' in tracking_data and 'trackinfo' in tracking_data['origin_info']:
-                    trackinfo = tracking_data['origin_info']['trackinfo']
-                    for event in trackinfo:
-                        date = event.get('Date', '')
-                        status = event.get('StatusDescription', '')
-                        location = event.get('Details', '')
-                        
-                        tracking_events.append({
-                            'date': date,
-                            'status': status,
-                            'location': location
-                        })
-                
+                for event in result.get('events', []):
+                    # Ship24 uses 'description' and 'timestamp', normalize to 'status' and 'date'
+                    tracking_events.append({
+                        'date': event.get('datetime', event.get('date', event.get('timestamp', ''))),
+                        'status': event.get('status', event.get('description', '')),
+                        'location': event.get('location', '')
+                    })
+
                 if tracking_events:
-                    # Sort by date (newest first)
-                    tracking_events = sorted(tracking_events, key=lambda x: x['date'], reverse=True)
-                    latest_status = tracking_events[0]['status']
-                    
+                    # Sort by date (newest first) - handle empty dates
+                    tracking_events = sorted(tracking_events, key=lambda x: x['date'] or '', reverse=True)
+                    # Get latest status from events or from result
+                    latest_status = next((e['status'] for e in tracking_events if e['status']), result.get('status', 'Unknown'))
+
                     # Update ticket
                     ticket.shipping_status = latest_status
                     ticket.shipping_history = tracking_events
                     ticket.updated_at = datetime.datetime.now()
                     db_session.commit()
-                    
+
+                    logger.info(f"UPS tracking successful: {latest_status}")
                     return jsonify({
                         'success': True,
                         'tracking_info': tracking_events,
                         'shipping_status': latest_status,
                         'is_real_data': True,
                     })
-                else:
-                    logger.info("No tracking events in response")
-            else:
-                logger.info("No valid tracking data in response")
+
+            # If we got a result but no events, check for status
+            # Don't update if status is an error or if request failed
+            if result and result.get('status') and result.get('success', True):
+                latest_status = result.get('status')
+                # Don't update status if it's an error status
+                if latest_status.lower() not in ['error', 'unknown', 'not found', 'rate limited']:
+                    ticket.shipping_status = latest_status
+                    ticket.updated_at = datetime.datetime.now()
+                    db_session.commit()
+
+                    logger.info(f"UPS tracking status: {latest_status}")
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': [],
+                        'shipping_status': latest_status,
+                        'is_real_data': True,
+                        'debug_info': {'note': 'Status available but no detailed events'}
+                    })
+
+            # Check if there's an error message from the result
+            error_msg = result.get('error') if result else 'No tracking data available'
+            logger.info(f"No valid tracking data from OxyLabs: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg or 'No tracking data available',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"OxyLabs tracking timeout for UPS {tracking_number}")
+            return jsonify({
+                'success': False,
+                'error': 'Tracking request timed out. Please try again.',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
         except Exception as e:
-            logger.info(f"Error getting UPS tracking: {str(e)}")
-            last_error = str(e)
-        
-        # If we get here, use fallback mock data
-        logger.info(f"Falling back to mock UPS data. Last error: {last_error}")
-        return generate_mock_ups_data(ticket)
-        
+            logger.error(f"OxyLabs tracking error for UPS {tracking_number}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Tracking error: {str(e)}',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+
     except Exception as e:
         logger.info(f"General error in track_ups: {str(e)}")
         if db_session and db_session.is_active:
-            logger.info("Rolling back database session due to error.")
             db_session.rollback()
         return jsonify({'error': f'An error occurred during tracking: {str(e)}'}), 500
     finally:
         if db_session:
-            logger.info("Closing database session.")
             db_session.close()
 
 def generate_mock_ups_data(ticket):
@@ -5763,133 +5802,122 @@ def set_carrier(ticket_id, carrier):
 @tickets_bp.route('/<int:ticket_id>/track_bluedart', methods=['GET'])
 @login_required
 def track_bluedart(ticket_id):
-    """Track BlueDart packages using TrackingMore API"""
-    logger.info(f"BlueDart tracking requested for ticket ID: {ticket_id}")
-    
+    """Track BlueDart package using OxyLabs scraping"""
+    logger.info(f"==== TRACKING BLUEDART - TICKET {ticket_id} ====")
+
+    db_session = None
     try:
-        # Get the ticket
         db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            logger.info("Error: Invalid ticket ID")
+            return jsonify({'error': 'Invalid ticket'}), 404
+
+        tracking_number = ticket.shipping_tracking
+        if not tracking_number:
+            logger.info("Error: No tracking number for this ticket")
+            return jsonify({'error': 'No tracking number for this ticket'}), 404
+
+        logger.info(f"Tracking BlueDart number: {tracking_number}")
+
+        # Use OxyLabs/Ship24 scraping for BlueDart tracking
         try:
-            ticket = db_session.query(Ticket).get(ticket_id)
-            
-            # Check if ticket exists
-            if not ticket:
-                logger.info(f"Error: Ticket not found for ID {ticket_id}")
-                return jsonify({
-                    'success': False,
-                    'error': 'Ticket not found',
-                    'tracking_info': [],
-                    'debug_info': {'error_type': 'ticket_not_found'}
-                }), 404
-                
-            # Check if tracking number exists
-            tracking_number = ticket.shipping_tracking
-            if not tracking_number:
-                logger.info(f"Error: No tracking number for ticket ID {ticket_id}")
-                return jsonify({
-                    'success': False,
-                    'error': 'No tracking number available',
-                    'tracking_info': [],
-                    'debug_info': {'error_type': 'no_tracking_number'}
-                }), 400
-            
-            logger.info(f"Tracking BlueDart number: {tracking_number}")
-            
-            # Check if trackingmore is available
-            if not trackingmore:
-                logger.info("Error: No TrackingMore module found! Falling back to mock data.")
-                try:
-                    response = generate_mock_bluedart_data_v2(ticket_data)
-                    return response
-                except Exception as mock_err:
-                    logger.info(f"Error during mock data generation fallback: {mock_err}")
-                    return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
-                
-            # Create tracking if needed
-            try:
-                create_params = {
-                    'tracking_number': tracking_number,
-                    'carrier_code': 'bluedart'
-                }
-                create_result = trackingmore.create_tracking_item(create_params)
-                logger.info(f"Created tracking for BlueDart: {create_result}")
-            except Exception as e:
-                if "already exists" not in str(e):
-                    logger.info(f"Warning: Create tracking exception: {str(e)}")
-                
-            # Get tracking data
-            try:
-                result = trackingmore_client.single_tracking('bluedart', tracking_number)
-                logger.info(f"BlueDart tracking result: {result}")
-                
-                # Extract tracking events
+            from utils.ship24_tracker import get_tracker
+            import concurrent.futures
+            ship24_tracker = get_tracker()
+
+            def track_with_timeout():
+                return ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier='bluedart',
+                    method='oxylabs'
+                )
+
+            logger.info(f"Using OxyLabs scraping for BlueDart tracking: {tracking_number}")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(track_with_timeout)
+                result = future.result(timeout=60)
+
+            if result and result.get('events'):
                 tracking_events = []
-                
-                # Check if we have a valid response with tracking events
-                if result:
-                    # Get tracking events from origin_info
-                    if 'origin_info' in result and 'trackinfo' in result['origin_info'] and result['origin_info']['trackinfo']:
-                        trackinfo = result['origin_info']['trackinfo']
-                        for event in trackinfo:
-                            tracking_events.append({
-                                'date': event.get('Date', ''),
-                                'status': event.get('StatusDescription', ''),
-                                'location': event.get('Details', '')
-                            })
-                
-                # If we got events, update the ticket and return them
+                for event in result.get('events', []):
+                    # Ship24 uses 'description' and 'timestamp', normalize to 'status' and 'date'
+                    tracking_events.append({
+                        'date': event.get('datetime', event.get('date', event.get('timestamp', ''))),
+                        'status': event.get('status', event.get('description', '')),
+                        'location': event.get('location', '')
+                    })
+
                 if tracking_events:
-                    # Sort events by date (newest first)
-                    tracking_events.sort(key=lambda x: x['date'], reverse=True)
-                    
-                    # Update ticket with tracking info
-                    ticket.shipping_status = tracking_events[0]['status']
+                    tracking_events = sorted(tracking_events, key=lambda x: x['date'] or '', reverse=True)
+                    latest_status = next((e['status'] for e in tracking_events if e['status']), result.get('status', 'Unknown'))
+
+                    ticket.shipping_status = latest_status
                     ticket.shipping_history = tracking_events
                     ticket.updated_at = datetime.datetime.now()
                     db_session.commit()
-                    
-                    logger.info(f"Updated ticket with {len(tracking_events)} BlueDart tracking events")
-                    
+
+                    logger.info(f"BlueDart tracking successful: {latest_status}")
                     return jsonify({
                         'success': True,
                         'tracking_info': tracking_events,
-                        'shipping_status': tracking_events[0]['status'],
+                        'shipping_status': latest_status,
                         'is_real_data': True,
-                        'debug_info': {
-                            'carrier': 'bluedart',
-                            'event_count': len(tracking_events)
-                        }
                     })
-                else:
-                    logger.info("No tracking events found in API response")
-            except Exception as e:
-                logger.info(f"Error getting BlueDart tracking: {str(e)}")
-            
-            # If we get here, use fallback mock data
-            logger.info("Using mock BlueDart data as fallback")
-            
-            # Get data for mock generation
-            ticket_data = {
-                'id': ticket.id,
-                'created_at': ticket.created_at,
-                'shipping_tracking': tracking_number
-            }
-            
-        finally:
-            db_session.close()
-        
-        # Generate mock data if real API fails
-        return generate_mock_bluedart_data_v2(ticket_data)
-        
+
+            if result and result.get('status') and result.get('success', True):
+                latest_status = result.get('status')
+                if latest_status.lower() not in ['error', 'unknown', 'not found', 'rate limited']:
+                    ticket.shipping_status = latest_status
+                    ticket.updated_at = datetime.datetime.now()
+                    db_session.commit()
+
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': [],
+                        'shipping_status': latest_status,
+                        'is_real_data': True,
+                        'debug_info': {'note': 'Status available but no detailed events'}
+                    })
+
+            error_msg = result.get('error') if result else 'No tracking data available'
+            logger.info(f"No valid tracking data from OxyLabs for BlueDart: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg or 'No tracking data available',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"OxyLabs tracking timeout for BlueDart {tracking_number}")
+            return jsonify({
+                'success': False,
+                'error': 'Tracking request timed out. Please try again.',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+        except Exception as e:
+            logger.error(f"OxyLabs tracking error for BlueDart {tracking_number}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Tracking error: {str(e)}',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+
     except Exception as e:
-        logger.info(f"Error tracking BlueDart: {str(e)}")
-        logger.info(traceback.format_exc())
-        
-        return jsonify({
-            'success': False,
-            'error': f'Error tracking package: {str(e)}',
-            'tracking_info': []
-        }), 500
+        logger.info(f"General error in track_bluedart: {str(e)}")
+        if db_session and db_session.is_active:
+            db_session.rollback()
+        return jsonify({'error': f'An error occurred during tracking: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
 
 def generate_mock_bluedart_data_v2(ticket_data):
     """Generate mock tracking data for BlueDart using just ticket data (not a ticket object)"""
@@ -6013,139 +6041,122 @@ def generate_mock_bluedart_data_v2(ticket_data):
 @tickets_bp.route('/<int:ticket_id>/track_dtdc', methods=['GET'])
 @login_required
 def track_dtdc(ticket_id):
-    """Track DTDC packages using TrackingMore API"""
-    logger.info(f"DTDC tracking requested for ticket ID: {ticket_id}")
-    
+    """Track DTDC package using OxyLabs scraping"""
+    logger.info(f"==== TRACKING DTDC - TICKET {ticket_id} ====")
+
+    db_session = None
     try:
-        # Get the ticket
         db_session = ticket_store.db_manager.get_session()
+        ticket = db_session.query(Ticket).get(ticket_id)
+
+        if not ticket:
+            logger.info("Error: Invalid ticket ID")
+            return jsonify({'error': 'Invalid ticket'}), 404
+
+        tracking_number = ticket.shipping_tracking
+        if not tracking_number:
+            logger.info("Error: No tracking number for this ticket")
+            return jsonify({'error': 'No tracking number for this ticket'}), 404
+
+        logger.info(f"Tracking DTDC number: {tracking_number}")
+
+        # Use OxyLabs/Ship24 scraping for DTDC tracking
         try:
-            ticket = db_session.query(Ticket).get(ticket_id)
-            
-            # Check if ticket exists
-            if not ticket:
-                logger.info(f"Error: Ticket not found for ID {ticket_id}")
-                return jsonify({
-                    'success': False,
-                    'error': 'Ticket not found',
-                    'tracking_info': [],
-                    'debug_info': {'error_type': 'ticket_not_found'}
-                }), 404
-                
-            # Check if tracking number exists
-            tracking_number = ticket.shipping_tracking
-            if not tracking_number:
-                logger.info(f"Error: No tracking number for ticket ID {ticket_id}")
-                return jsonify({
-                    'success': False,
-                    'error': 'No tracking number available',
-                    'tracking_info': [],
-                    'debug_info': {'error_type': 'no_tracking_number'}
-                }), 400
-            
-            logger.info(f"Tracking DTDC number: {tracking_number}")
-            
-            # Check if trackingmore is available
-            if not trackingmore:
-                logger.info("Error: No TrackingMore module found! Falling back to mock data.")
-                try:
-                    response = generate_mock_dtdc_data(ticket_data)
-                    return response
-                except Exception as mock_err:
-                    logger.info(f"Error during mock data generation fallback: {mock_err}")
-                    return jsonify({'error': 'Tracking module not found and mock data generation failed.'}), 500
-                
-            # Create tracking if needed
-            try:
-                create_params = {
-                    'tracking_number': tracking_number,
-                    'carrier_code': 'dtdc'
-                }
-                create_result = trackingmore.create_tracking_item(create_params)
-                logger.info(f"Created tracking for DTDC: {create_result}")
-            except Exception as e:
-                if "already exists" not in str(e):
-                    logger.info(f"Warning: Create tracking exception: {str(e)}")
-                
-            # Get tracking data
-            try:
-                realtime_params = {
-                    'tracking_number': tracking_number,
-                    'carrier_code': 'dtdc'
-                }
-                result = trackingmore.realtime_tracking(realtime_params)
-                logger.info(f"DTDC tracking result: {result}")
-                
-                # Extract tracking events
+            from utils.ship24_tracker import get_tracker
+            import concurrent.futures
+            ship24_tracker = get_tracker()
+
+            def track_with_timeout():
+                return ship24_tracker.track_parcel_sync(
+                    tracking_number,
+                    carrier='dtdc',
+                    method='oxylabs'
+                )
+
+            logger.info(f"Using OxyLabs scraping for DTDC tracking: {tracking_number}")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(track_with_timeout)
+                result = future.result(timeout=60)
+
+            if result and result.get('events'):
                 tracking_events = []
-                
-                # Check if we have a valid response with tracking events
-                if result and 'items' in result and result['items']:
-                    item = result['items'][0]
-                    
-                    # Get tracking events from origin_info
-                    if 'origin_info' in item and 'trackinfo' in item['origin_info'] and item['origin_info']['trackinfo']:
-                        trackinfo = item['origin_info']['trackinfo']
-                        for event in trackinfo:
-                            tracking_events.append({
-                                'date': event.get('Date', ''),
-                                'status': event.get('StatusDescription', ''),
-                                'location': event.get('Details', '')
-                            })
-                
-                # If we got events, update the ticket and return them
+                for event in result.get('events', []):
+                    # Ship24 uses 'description' and 'timestamp', normalize to 'status' and 'date'
+                    tracking_events.append({
+                        'date': event.get('datetime', event.get('date', event.get('timestamp', ''))),
+                        'status': event.get('status', event.get('description', '')),
+                        'location': event.get('location', '')
+                    })
+
                 if tracking_events:
-                    # Sort events by date (newest first)
-                    tracking_events.sort(key=lambda x: x['date'], reverse=True)
-                    
-                    # Update ticket with tracking info
-                    ticket.shipping_status = tracking_events[0]['status']
+                    tracking_events = sorted(tracking_events, key=lambda x: x['date'] or '', reverse=True)
+                    latest_status = next((e['status'] for e in tracking_events if e['status']), result.get('status', 'Unknown'))
+
+                    ticket.shipping_status = latest_status
                     ticket.shipping_history = tracking_events
                     ticket.updated_at = datetime.datetime.now()
                     db_session.commit()
-                    
-                    logger.info(f"Updated ticket with {len(tracking_events)} DTDC tracking events")
-                    
+
+                    logger.info(f"DTDC tracking successful: {latest_status}")
                     return jsonify({
                         'success': True,
                         'tracking_info': tracking_events,
-                        'shipping_status': tracking_events[0]['status'],
+                        'shipping_status': latest_status,
                         'is_real_data': True,
-                        'debug_info': {
-                            'carrier': 'dtdc',
-                            'event_count': len(tracking_events)
-                        }
                     })
-                else:
-                    logger.info("No tracking events found in API response")
-            except Exception as e:
-                logger.info(f"Error getting DTDC tracking: {str(e)}")
-            
-            # If we get here, use fallback mock data
-            logger.info("Using mock DTDC data as fallback")
-            
-            # Get data for mock generation
-            ticket_data = {
-                'id': ticket.id,
-                'created_at': ticket.created_at,
-                'shipping_tracking': tracking_number
-            }
-            
-        finally:
-            db_session.close()
-        
-        # Generate mock data if real API fails
-        return generate_mock_dtdc_data(ticket_data)
-        
+
+            if result and result.get('status') and result.get('success', True):
+                latest_status = result.get('status')
+                if latest_status.lower() not in ['error', 'unknown', 'not found', 'rate limited']:
+                    ticket.shipping_status = latest_status
+                    ticket.updated_at = datetime.datetime.now()
+                    db_session.commit()
+
+                    return jsonify({
+                        'success': True,
+                        'tracking_info': [],
+                        'shipping_status': latest_status,
+                        'is_real_data': True,
+                        'debug_info': {'note': 'Status available but no detailed events'}
+                    })
+
+            error_msg = result.get('error') if result else 'No tracking data available'
+            logger.info(f"No valid tracking data from OxyLabs for DTDC: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg or 'No tracking data available',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"OxyLabs tracking timeout for DTDC {tracking_number}")
+            return jsonify({
+                'success': False,
+                'error': 'Tracking request timed out. Please try again.',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+        except Exception as e:
+            logger.error(f"OxyLabs tracking error for DTDC {tracking_number}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Tracking error: {str(e)}',
+                'tracking_info': [],
+                'shipping_status': ticket.shipping_status,
+                'is_real_data': False
+            })
+
     except Exception as e:
-        logger.info(f"Error tracking DTDC: {str(e)}")
-        logger.info(traceback.format_exc())
-        
-        return jsonify({
-            'success': False,
-            'error': f'Error tracking package: {str(e)}',
-            'tracking_info': []
-        }), 500
+        logger.info(f"General error in track_dtdc: {str(e)}")
+        if db_session and db_session.is_active:
+            db_session.rollback()
+        return jsonify({'error': f'An error occurred during tracking: {str(e)}'}), 500
+    finally:
+        if db_session:
+            db_session.close()
 
 def generate_mock_dtdc_data(ticket_data):
     """Generate mock tracking data for DTDC using just ticket data (not a ticket object)"""
@@ -7001,10 +7012,11 @@ def add_return_tracking(ticket_id):
         if not data:
             return jsonify({'success': False, 'message': 'No data provided'}), 400
 
-        tracking_number = data.get('tracking_number')
+        tracking_number = data.get('tracking_number', '').strip()
         carrier = data.get('carrier', 'auto')  # Default to auto if not specified
 
-        if not tracking_number:
+        # Require tracking number unless carrier is "no_tracking"
+        if carrier != 'no_tracking' and not tracking_number:
             return jsonify({'success': False, 'message': 'Tracking number is required'}), 400
 
         # Get ticket from database
@@ -7014,18 +7026,22 @@ def add_return_tracking(ticket_id):
         if not ticket:
             db_session.close()
             return jsonify({'success': False, 'message': 'Ticket not found'}), 404
-            
+
         # Verify this is an Asset Return (claw) ticket
         if ticket.category != TicketCategory.ASSET_RETURN_CLAW:
             db_session.close()
             return jsonify({'success': False, 'message': 'This operation is only valid for Asset Return (claw) tickets'}), 400
 
         # Update the return tracking information
-        ticket.return_tracking = tracking_number
+        ticket.return_tracking = tracking_number if tracking_number else None
+        ticket.return_carrier = carrier
         ticket.updated_at = datetime.datetime.now()
-        
+
         # Add system note
-        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return tracking added: {tracking_number} (carrier: {carrier})"
+        if carrier == 'no_tracking':
+            ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return shipping set to: No Tracking"
+        else:
+            ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Return tracking added: {tracking_number} (carrier: {carrier})"
         
         # Commit changes
         db_session.commit()
@@ -8212,11 +8228,26 @@ def mark_return_received(ticket_id):
             ticket.shipping_status = f"Item was received on {singapore_time_str}"
             logger.info(f"Also updating shipping_status from '{old_shipping_status}' to '{ticket.shipping_status}' for Asset Return (Claw) ticket")
 
-            # Auto-close ticket if both return and replacement are received
+            # Check if there's a replacement tracking (some returns have replacement, some don't)
+            has_replacement = ticket.replacement_tracking and ticket.replacement_tracking.strip()
             replacement_received = ticket.replacement_status and ("received" in ticket.replacement_status.lower() or "delivered" in ticket.replacement_status.lower())
-            if replacement_received:
-                ticket.status = TicketStatus.RESOLVED
+
+            # Auto-close logic:
+            # - If NO replacement tracking: Close when return is received (this action)
+            # - If HAS replacement tracking: Close when both return AND replacement are received
+            should_close = False
+            if not has_replacement:
+                # No replacement - just a return, close now
+                should_close = True
+                logger.info(f"Auto-closing ticket {ticket_id} - return received at warehouse (no replacement)")
+            elif replacement_received:
+                # Has replacement and it's received - close
+                should_close = True
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
+
+            if should_close and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                ticket.status = TicketStatus.RESOLVED
+                ticket.notes = (ticket.notes or "") + f"\n[{singapore_time_str}] Ticket auto-closed: Return received at warehouse. Case completed!"
 
                 # Update linked assets to "In Stock" status when Asset Return is resolved
                 if ticket.assets:
@@ -8227,7 +8258,7 @@ def mark_return_received(ticket_id):
                             asset.current_holder = None  # Clear the holder since it's returned
                             logger.info(f"Updated asset {asset.asset_tag} status from {old_asset_status} to IN_STOCK (Asset Return resolved)")
 
-            # Set to IN_PROGRESS if status is NEW
+            # Set to IN_PROGRESS if status is NEW and not closing
             elif ticket.status == TicketStatus.NEW:
                 ticket.status = TicketStatus.IN_PROGRESS
                 logger.info(f"Updated ticket {ticket_id} status to IN_PROGRESS")
@@ -8237,7 +8268,7 @@ def mark_return_received(ticket_id):
 
         # Check if ticket was auto-closed
         if ticket.category == TicketCategory.ASSET_RETURN_CLAW and ticket.status == TicketStatus.RESOLVED:
-            flash('Return shipment marked as received - Ticket closed (both shipments received). Asset status updated to In Stock.')
+            flash('Return received at warehouse. Case completed! Asset status updated to In Stock.')
         else:
             flash('Return shipment marked as received')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
@@ -13737,64 +13768,55 @@ def refresh_single_ticket_tracking(ticket, db_session):
             for pkg_num, tracking_num, carrier, status_field in packages_to_check:
                 try:
                     tracking_num = tracking_num.strip()
-
-                    # Try to get tracking info using Ship24/Oxylabs
-                    tracking_info = []
                     latest_status = None
 
-                    # Check if SingPost tracking
-                    if is_singpost_tracking_number(tracking_num):
-                        if singpost_client.is_configured():
+                    # Determine carrier and use appropriate tracking API
+                    carrier_lower = (carrier or '').lower() if carrier else ''
+
+                    # Use appropriate tracking API based on carrier
+                    is_singpost = is_singpost_tracking_number(tracking_num) or carrier_lower == 'singpost'
+
+                    if is_singpost:
+                        # Use SingPost API for SingPost packages
+                        if singpost_client and singpost_client.is_configured():
                             try:
                                 result = singpost_client.track_single(tracking_num)
                                 if result and result.get('success'):
-                                    tracking_info = result.get('events', [])
                                     latest_status = result.get('status', 'Unknown')
                             except Exception as sp_err:
                                 logger.warning(f"SingPost tracking failed for {tracking_num}: {sp_err}")
-
-                    # If no status yet, try Ship24 via Oxylabs
-                    if not latest_status:
+                    else:
+                        # Use OxyLabs/Ship24 scraping for other carriers (UPS, DHL, FedEx, etc.)
                         try:
-                            ship24_url = f'https://www.ship24.com/tracking?p={tracking_num}'
-                            payload = {
-                                'source': 'universal_ecommerce',
-                                'url': ship24_url,
-                                'render': 'html',
-                                'parsing_instructions': {
-                                    'tracking_events': {
-                                        '_fns': [{'_fn': 'css', '_args': ['[class*="event"], [class*="tracking"]']}]
-                                    }
-                                }
-                            }
+                            from utils.ship24_tracker import get_tracker
+                            import concurrent.futures
+                            ship24_tracker = get_tracker()
 
-                            oxylabs_username = os.environ.get('OXYLABS_USERNAME')
-                            oxylabs_password = os.environ.get('OXYLABS_PASSWORD')
-
-                            if oxylabs_username and oxylabs_password:
-                                response = requests.post(
-                                    'https://realtime.oxylabs.io/v1/queries',
-                                    auth=(oxylabs_username, oxylabs_password),
-                                    json=payload,
-                                    timeout=30
+                            def track_with_timeout():
+                                return ship24_tracker.track_parcel_sync(
+                                    tracking_num,
+                                    carrier=carrier if carrier else None,
+                                    method='oxylabs'
                                 )
 
-                                if response.status_code == 200:
-                                    data = response.json()
-                                    results_data = data.get('results', [{}])
-                                    if results_data:
-                                        content = results_data[0].get('content', '')
-                                        # Parse for status
-                                        if 'delivered' in content.lower():
-                                            latest_status = 'Delivered'
-                                        elif 'in transit' in content.lower():
-                                            latest_status = 'In Transit'
-                                        elif 'out for delivery' in content.lower():
-                                            latest_status = 'Out for Delivery'
-                                        elif 'shipped' in content.lower():
-                                            latest_status = 'Shipped'
-                        except Exception as ox_err:
-                            logger.warning(f"Oxylabs tracking failed for {tracking_num}: {ox_err}")
+                            with concurrent.futures.ThreadPoolExecutor() as executor:
+                                future = executor.submit(track_with_timeout)
+                                result = future.result(timeout=45)  # 45 second timeout
+
+                            if result and result.get('status'):
+                                status = result.get('status', '')
+                                if 'delivered' in status.lower():
+                                    latest_status = 'Delivered'
+                                elif 'transit' in status.lower():
+                                    latest_status = 'In Transit'
+                                elif 'out for delivery' in status.lower():
+                                    latest_status = 'Out for Delivery'
+                                elif status and status != 'Unknown':
+                                    latest_status = status
+                        except concurrent.futures.TimeoutError:
+                            logger.warning(f"OxyLabs tracking timed out for {tracking_num}")
+                        except Exception as oxy_err:
+                            logger.warning(f"OxyLabs tracking failed for {tracking_num}: {oxy_err}")
 
                     # Update status if we got one
                     if latest_status:
@@ -13826,21 +13848,138 @@ def refresh_single_ticket_tracking(ticket, db_session):
                     results['status_changed'] = True
                     logger.info(f"Auto-closed ticket {ticket.id} - all packages delivered")
 
+        # Handle Asset Return (claw) with return tracking
+        elif ticket.category and ticket.category.name == 'ASSET_RETURN_CLAW' and ticket.return_tracking:
+            # Skip if carrier is "no_tracking"
+            carrier = getattr(ticket, 'return_carrier', 'singpost') or 'singpost'
+            if carrier.lower() == 'no_tracking':
+                logger.info(f"Skipping ticket {ticket.id} - no tracking selected for return")
+                return results
+
+            try:
+                tracking_num = ticket.return_tracking.strip()
+                latest_status = None
+                carrier_lower = carrier.lower()
+
+                # Use appropriate tracking API based on carrier
+                is_singpost = is_singpost_tracking_number(tracking_num) or carrier_lower == 'singpost'
+
+                if is_singpost:
+                    # Use SingPost API for SingPost packages
+                    if singpost_client and singpost_client.is_configured():
+                        try:
+                            result = singpost_client.track_single(tracking_num)
+                            if result and result.get('success'):
+                                latest_status = result.get('status', 'Unknown')
+                        except Exception as sp_err:
+                            logger.warning(f"SingPost tracking failed for return {tracking_num}: {sp_err}")
+                else:
+                    # Use OxyLabs/Ship24 scraping for other carriers (UPS, DHL, FedEx, etc.)
+                    try:
+                        from utils.ship24_tracker import get_tracker
+                        import concurrent.futures
+                        ship24_tracker = get_tracker()
+
+                        def track_return_with_timeout():
+                            return ship24_tracker.track_parcel_sync(
+                                tracking_num,
+                                carrier=carrier if carrier else None,
+                                method='oxylabs'
+                            )
+
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(track_return_with_timeout)
+                            result = future.result(timeout=45)  # 45 second timeout
+
+                        if result and result.get('status'):
+                            status = result.get('status', '')
+                            if 'delivered' in status.lower():
+                                latest_status = 'Delivered'
+                            elif 'received' in status.lower():
+                                latest_status = 'Received'
+                            elif 'transit' in status.lower():
+                                latest_status = 'In Transit'
+                            elif 'out for delivery' in status.lower():
+                                latest_status = 'Out for Delivery'
+                            elif status and status != 'Unknown':
+                                latest_status = status
+                    except Exception as oxy_err:
+                        logger.warning(f"OxyLabs tracking failed for return {tracking_num}: {oxy_err}")
+
+                if latest_status:
+                    old_status = ticket.return_status
+                    ticket.return_status = latest_status
+                    results['packages_updated'] += 1
+                    logger.info(f"Updated ticket {ticket.id} return tracking: {old_status} -> {latest_status}")
+
+                    # Auto-close when return is delivered/received at warehouse
+                    status_lower = latest_status.lower()
+                    if ('delivered' in status_lower or
+                        'received' in status_lower or
+                        'warehouse' in status_lower or
+                        'collected' in status_lower):
+                        if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                            ticket.status = TicketStatus.RESOLVED
+                            ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Return received at warehouse. Case completed!"
+                            results['status_changed'] = True
+                            logger.info(f"Auto-closed ticket {ticket.id} - return received at warehouse")
+                else:
+                    results['packages_failed'] += 1
+
+            except Exception as return_err:
+                results['packages_failed'] += 1
+                results['errors'].append(f"Return tracking: {str(return_err)}")
+
         # Handle regular tickets with single tracking
         elif ticket.shipping_tracking:
             try:
                 tracking_num = ticket.shipping_tracking.strip()
                 latest_status = None
+                carrier = getattr(ticket, 'shipping_carrier', None)
+                carrier_lower = (carrier or '').lower() if carrier else ''
 
-                # Check if SingPost tracking
-                if is_singpost_tracking_number(tracking_num):
-                    if singpost_client.is_configured():
+                # Use appropriate tracking API based on carrier
+                is_singpost = is_singpost_tracking_number(tracking_num) or carrier_lower == 'singpost'
+
+                if is_singpost:
+                    # Use SingPost API for SingPost packages
+                    if singpost_client and singpost_client.is_configured():
                         try:
                             result = singpost_client.track_single(tracking_num)
                             if result and result.get('success'):
                                 latest_status = result.get('status', 'Unknown')
                         except:
                             pass
+                else:
+                    # Use OxyLabs/Ship24 scraping for other carriers
+                    try:
+                        from utils.ship24_tracker import get_tracker
+                        import concurrent.futures
+                        ship24_tracker = get_tracker()
+
+                        def track_with_timeout():
+                            return ship24_tracker.track_parcel_sync(
+                                tracking_num,
+                                carrier=carrier if carrier else None,
+                                method='oxylabs'
+                            )
+
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(track_with_timeout)
+                            result = future.result(timeout=45)
+
+                        if result and result.get('status'):
+                            status = result.get('status', '')
+                            if 'delivered' in status.lower():
+                                latest_status = 'Delivered'
+                            elif 'transit' in status.lower():
+                                latest_status = 'In Transit'
+                            elif 'out for delivery' in status.lower():
+                                latest_status = 'Out for Delivery'
+                            elif status and status != 'Unknown':
+                                latest_status = status
+                    except Exception as oxy_err:
+                        logger.warning(f"OxyLabs tracking failed for {tracking_num}: {oxy_err}")
 
                 if latest_status:
                     old_status = ticket.shipping_status
@@ -13875,24 +14014,56 @@ def refresh_all_tracking():
     """
     Bulk refresh tracking for all open tickets with tracking numbers.
     Admin/Developer only.
+    Supports filters: carrier, category
     """
     user = db_manager.get_user(session.get('user_id'))
     if not user or user.user_type.name not in ['SUPER_ADMIN', 'DEVELOPER']:
         return jsonify({'success': False, 'error': 'Permission denied - Admin/Developer only'}), 403
 
+    # Get filter parameters from request
+    data = request.get_json(silent=True) or {}
+    filter_carrier = data.get('carrier', 'all')  # 'all', 'singpost', 'dhl', 'ups', etc.
+    filter_category = data.get('category', 'all')  # 'all', 'ASSET_CHECKOUT_CLAW', 'ASSET_RETURN_CLAW', etc.
+
+    start_time = time.time()
     db_session = db_manager.get_session()
     try:
-        # Get all open tickets with tracking numbers
-        tickets = db_session.query(Ticket).filter(
+        # Build base query for open tickets with tracking numbers
+        query = db_session.query(Ticket).filter(
             Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]),
-            (
-                (Ticket.shipping_tracking != None) & (Ticket.shipping_tracking != '') |
-                (Ticket.shipping_tracking_2 != None) & (Ticket.shipping_tracking_2 != '') |
-                (Ticket.shipping_tracking_3 != None) & (Ticket.shipping_tracking_3 != '') |
-                (Ticket.shipping_tracking_4 != None) & (Ticket.shipping_tracking_4 != '') |
-                (Ticket.shipping_tracking_5 != None) & (Ticket.shipping_tracking_5 != '')
+            or_(
+                and_(Ticket.shipping_tracking.isnot(None), Ticket.shipping_tracking != ''),
+                and_(Ticket.shipping_tracking_2.isnot(None), Ticket.shipping_tracking_2 != ''),
+                and_(Ticket.shipping_tracking_3.isnot(None), Ticket.shipping_tracking_3 != ''),
+                and_(Ticket.shipping_tracking_4.isnot(None), Ticket.shipping_tracking_4 != ''),
+                and_(Ticket.shipping_tracking_5.isnot(None), Ticket.shipping_tracking_5 != ''),
+                and_(Ticket.return_tracking.isnot(None), Ticket.return_tracking != '')  # Asset Return (claw)
             )
-        ).all()
+        )
+
+        # Apply category filter
+        if filter_category and filter_category != 'all':
+            try:
+                category_enum = TicketCategory[filter_category]
+                query = query.filter(Ticket.category == category_enum)
+            except KeyError:
+                pass  # Invalid category, skip filter
+
+        # Apply carrier filter
+        if filter_carrier and filter_carrier != 'all':
+            carrier_lower = filter_carrier.lower()
+            query = query.filter(
+                or_(
+                    Ticket.shipping_carrier == carrier_lower,
+                    Ticket.shipping_carrier_2 == carrier_lower,
+                    Ticket.shipping_carrier_3 == carrier_lower,
+                    Ticket.shipping_carrier_4 == carrier_lower,
+                    Ticket.shipping_carrier_5 == carrier_lower,
+                    Ticket.return_carrier == carrier_lower
+                )
+            )
+
+        tickets = query.all()
 
         total_tickets = len(tickets)
         results_summary = {
@@ -13902,10 +14073,14 @@ def refresh_all_tracking():
             'tickets_auto_closed': 0,
             'total_packages_updated': 0,
             'total_packages_failed': 0,
+            'filters': {
+                'carrier': filter_carrier,
+                'category': filter_category
+            },
             'details': []
         }
 
-        for ticket in tickets:
+        for i, ticket in enumerate(tickets):
             try:
                 result = refresh_single_ticket_tracking(ticket, db_session)
                 results_summary['details'].append(result)
@@ -13914,28 +14089,62 @@ def refresh_all_tracking():
                     results_summary['tickets_updated'] += 1
                     results_summary['total_packages_updated'] += result['packages_updated']
 
-                if result['packages_failed'] > 0:
+                if result.get('packages_failed', 0) > 0:
                     results_summary['tickets_failed'] += 1
                     results_summary['total_packages_failed'] += result['packages_failed']
 
-                if result['status_changed']:
+                if result.get('status_changed'):
                     results_summary['tickets_auto_closed'] += 1
 
                 # Commit after each ticket to prevent timeout from losing all progress
                 db_session.commit()
+
+                # Add delay between tickets to respect SingPost rate limits
+                # (1 second global minimum + buffer)
+                if i < len(tickets) - 1:  # Don't sleep after last ticket
+                    time.sleep(1.2)
 
             except Exception as ticket_err:
                 db_session.rollback()  # Rollback failed ticket only
                 results_summary['tickets_failed'] += 1
                 results_summary['details'].append({
                     'ticket_id': ticket.id,
+                    'packages_updated': 0,
+                    'packages_failed': 1,
+                    'status_changed': False,
                     'error': str(ticket_err)
                 })
+
+        # Calculate duration
+        duration_seconds = int(time.time() - start_time)
+
+        # Save the refresh log to database
+        # Include filters in details for later retrieval
+        details_with_meta = {
+            'filters': results_summary.get('filters', {}),
+            'items': results_summary['details']
+        }
+        refresh_log = TrackingRefreshLog(
+            created_by_id=user.id,
+            created_by_name=user.username or user.email,
+            total_tickets=total_tickets,
+            tickets_updated=results_summary['tickets_updated'],
+            tickets_auto_closed=results_summary['tickets_auto_closed'],
+            tickets_failed=results_summary['tickets_failed'],
+            total_packages_updated=results_summary['total_packages_updated'],
+            total_packages_failed=results_summary['total_packages_failed'],
+            duration_seconds=duration_seconds,
+            details=details_with_meta
+        )
+        db_session.add(refresh_log)
+        db_session.commit()
+        log_id = refresh_log.id
 
         return jsonify({
             'success': True,
             'message': f'Refreshed tracking for {results_summary["tickets_updated"]}/{total_tickets} tickets',
-            'summary': results_summary
+            'summary': results_summary,
+            'log_id': log_id
         })
 
     except Exception as e:
@@ -13951,32 +14160,147 @@ def refresh_all_tracking():
 def get_tracking_refresh_status():
     """
     Get count of tickets that need tracking refresh.
+    Accepts optional filter parameters: carrier, category
     """
     user = db_manager.get_user(session.get('user_id'))
     if not user or user.user_type.name not in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
 
+    # Get filter parameters from query string
+    filter_carrier = request.args.get('carrier', 'all')
+    filter_category = request.args.get('category', 'all')
+
     db_session = db_manager.get_session()
     try:
-        # Count open tickets with tracking
-        count = db_session.query(Ticket).filter(
+        # Build base query for open tickets with tracking
+        query = db_session.query(Ticket).filter(
             Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]),
-            (
-                (Ticket.shipping_tracking != None) & (Ticket.shipping_tracking != '') |
-                (Ticket.shipping_tracking_2 != None) & (Ticket.shipping_tracking_2 != '') |
-                (Ticket.shipping_tracking_3 != None) & (Ticket.shipping_tracking_3 != '') |
-                (Ticket.shipping_tracking_4 != None) & (Ticket.shipping_tracking_4 != '') |
-                (Ticket.shipping_tracking_5 != None) & (Ticket.shipping_tracking_5 != '')
+            or_(
+                and_(Ticket.shipping_tracking.isnot(None), Ticket.shipping_tracking != ''),
+                and_(Ticket.shipping_tracking_2.isnot(None), Ticket.shipping_tracking_2 != ''),
+                and_(Ticket.shipping_tracking_3.isnot(None), Ticket.shipping_tracking_3 != ''),
+                and_(Ticket.shipping_tracking_4.isnot(None), Ticket.shipping_tracking_4 != ''),
+                and_(Ticket.shipping_tracking_5.isnot(None), Ticket.shipping_tracking_5 != ''),
+                and_(Ticket.return_tracking.isnot(None), Ticket.return_tracking != '')
             )
-        ).count()
+        )
+
+        # Apply category filter
+        if filter_category and filter_category != 'all':
+            try:
+                category_enum = TicketCategory[filter_category]
+                query = query.filter(Ticket.category == category_enum)
+            except KeyError:
+                pass  # Invalid category, skip filter
+
+        # Apply carrier filter
+        if filter_carrier and filter_carrier != 'all':
+            carrier_lower = filter_carrier.lower()
+            query = query.filter(
+                or_(
+                    Ticket.shipping_carrier == carrier_lower,
+                    Ticket.shipping_carrier_2 == carrier_lower,
+                    Ticket.shipping_carrier_3 == carrier_lower,
+                    Ticket.shipping_carrier_4 == carrier_lower,
+                    Ticket.shipping_carrier_5 == carrier_lower,
+                    Ticket.return_carrier == carrier_lower
+                )
+            )
+
+        count = query.count()
 
         return jsonify({
             'success': True,
-            'tickets_with_tracking': count
+            'tickets_with_tracking': count,
+            'filters': {
+                'carrier': filter_carrier,
+                'category': filter_category
+            }
         })
 
     except Exception as e:
         logger.error(f"Error getting tracking status: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/admin/tracking-refresh-history')
+@login_required
+def tracking_refresh_history():
+    """View history of all tracking refresh operations."""
+    user = db_manager.get_user(session.get('user_id'))
+    if not user or user.user_type.name not in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']:
+        flash('Permission denied', 'error')
+        return redirect(url_for('tickets.list_tickets'))
+
+    db_session = db_manager.get_session()
+    try:
+        logs = db_session.query(TrackingRefreshLog).order_by(
+            TrackingRefreshLog.created_at.desc()
+        ).limit(50).all()
+
+        return render_template('tickets/tracking_refresh_history.html',
+                               logs=logs,
+                               current_user=user)
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/admin/tracking-refresh-report/<int:log_id>')
+@login_required
+def tracking_refresh_report(log_id):
+    """View detailed report for a specific tracking refresh."""
+    user = db_manager.get_user(session.get('user_id'))
+    if not user or user.user_type.name not in ['SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']:
+        flash('Permission denied', 'error')
+        return redirect(url_for('tickets.list_tickets'))
+
+    db_session = db_manager.get_session()
+    try:
+        log = db_session.query(TrackingRefreshLog).filter_by(id=log_id).first()
+        if not log:
+            flash('Report not found', 'error')
+            return redirect(url_for('tickets.tracking_refresh_history'))
+
+        # Handle both old format (array) and new format (object with filters and items)
+        raw_details = log.details or []
+        filters = {}
+        if isinstance(raw_details, dict):
+            # New format with filters
+            filters = raw_details.get('filters', {})
+            details = raw_details.get('items', [])
+        else:
+            # Old format (just array)
+            details = raw_details
+
+        # Categorize the details
+        updated = []
+        auto_closed = []
+        failed = []
+        no_change = []
+
+        for item in details:
+            # Check for failures: either has error OR has packages_failed > 0
+            has_error = item.get('error')
+            has_failed_packages = item.get('packages_failed', 0) > 0
+
+            if has_error or has_failed_packages:
+                failed.append(item)
+            elif item.get('status_changed'):
+                auto_closed.append(item)
+            elif item.get('packages_updated', 0) > 0:
+                updated.append(item)
+            else:
+                no_change.append(item)
+
+        return render_template('tickets/tracking_refresh_report.html',
+                               log=log,
+                               filters=filters,
+                               updated=updated,
+                               auto_closed=auto_closed,
+                               failed=failed,
+                               no_change=no_change,
+                               current_user=user)
     finally:
         db_session.close()

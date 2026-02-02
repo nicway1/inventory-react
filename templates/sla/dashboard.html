@@ -3,6 +3,150 @@
 {% block title %}SLA Dashboard{% endblock %}
 
 {% block content %}
+<style>
+/* Case Manager Filter Styles */
+.filter-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.filter-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.filter-select {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.filter-select:hover {
+    border-color: #94a3b8;
+}
+.filter-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.filter-select-problem {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.filter-select-problem:hover {
+    border-color: #f87171;
+}
+.filter-select-problem:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Status Filter Buttons */
+.filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.filter-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+.filter-btn.active {
+    background: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
+.filter-btn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.filter-btn-count {
+    font-weight: 700;
+}
+
+/* Table Improvements */
+.case-table {
+    width: 100%;
+}
+.case-table thead {
+    background: linear-gradient(to right, #f8fafc, #f1f5f9);
+}
+.case-table th {
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+.case-table td {
+    padding: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.case-table tbody tr {
+    transition: background 0.15s;
+}
+.case-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+/* Ticket ID styling */
+.ticket-link {
+    font-weight: 600;
+    color: #2563eb;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.ticket-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+}
+.status-badge-breached {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    color: #dc2626;
+}
+.status-badge-at-risk {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    color: #d97706;
+}
+.status-badge-on-track {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    color: #16a34a;
+}
+</style>
 <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
@@ -16,6 +160,16 @@
             </p>
         </div>
         <div class="flex gap-3 items-center">
+            {% if user.is_super_admin or user.is_developer %}
+            <button onclick="showRefreshTrackingModal()" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700">
+                <i class="fas fa-sync-alt mr-2"></i>
+                Refresh Tracking
+            </button>
+            <a href="{{ url_for('tickets.tracking_refresh_history') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-history mr-2"></i>
+                History
+            </a>
+            {% endif %}
             <a href="{{ url_for('sla.manage_sla') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 <i class="fas fa-cog mr-2"></i>
                 Settings
@@ -245,41 +399,71 @@
     </div>
     {% endif %}
 
-    <!-- Tickets Table -->
-    <div class="bg-white rounded-lg shadow">
-        <div class="p-4 border-b border-gray-200">
-            <div class="flex justify-between items-center mb-3">
-                <h3 class="text-lg font-semibold">All Tickets with SLA</h3>
-                <!-- Filters Row 1: User, Queue, Category -->
-                <div class="flex gap-2 items-center flex-wrap">
-                    <select id="userFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+    <!-- Case Manager Section -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <!-- Header with Search -->
+        <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-briefcase"></i>
+                        Case Manager
+                    </h3>
+                    <p class="text-slate-300 text-sm mt-1">Manage and track all tickets</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <!-- Search Box -->
+                    <div class="relative">
+                        <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Search tickets..."
+                               class="w-64 pl-10 pr-4 py-2 rounded-lg border-0 bg-slate-600 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-400 focus:bg-slate-500 transition-all">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    </div>
+                    <!-- Reset Button -->
+                    <button onclick="resetFilters()" class="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg transition-all flex items-center gap-2">
+                        <i class="fas fa-redo-alt"></i>
+                        Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <!-- User Filter -->
+                <div class="filter-card">
+                    <label class="filter-label"><i class="fas fa-user"></i> User</label>
+                    <select id="userFilter" onchange="applyFilters()" class="filter-select">
                         <option value="all">All Users</option>
                         {% for u in user_stats %}
-                        <option value="{{ u.id }}">{{ u.name }} ({{ u.total }}{% if u.breached > 0 %} - {{ u.breached }} breached{% endif %})</option>
+                        <option value="{{ u.id }}">{{ u.name }} ({{ u.total }})</option>
                         {% endfor %}
                     </select>
-                    <select id="queueFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <!-- Queue Filter -->
+                <div class="filter-card">
+                    <label class="filter-label"><i class="fas fa-layer-group"></i> Queue</label>
+                    <select id="queueFilter" onchange="applyFilters()" class="filter-select">
                         <option value="all">All Queues</option>
                         {% for queue_name in queue_stats.keys() %}
                         <option value="{{ queue_name }}">{{ queue_name }}</option>
                         {% endfor %}
                     </select>
-                    <select id="categoryFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <!-- Category Filter -->
+                <div class="filter-card">
+                    <label class="filter-label"><i class="fas fa-tag"></i> Category</label>
+                    <select id="categoryFilter" onchange="applyFilters()" class="filter-select">
                         <option value="all">All Categories</option>
                         {% for cat_name in category_stats.keys() %}
                         <option value="{{ cat_name }}">{{ cat_name }}</option>
                         {% endfor %}
                     </select>
-                    <button onclick="resetFilters()" class="text-sm text-gray-500 hover:text-gray-700 px-2">
-                        <i class="fas fa-times"></i> Reset
-                    </button>
                 </div>
-            </div>
-            <!-- Filters Row 2: Carrier, Tracking, Problems -->
-            <div class="flex gap-2 items-center flex-wrap mt-3 pt-3 border-t border-gray-200">
-                <div class="flex items-center gap-1">
-                    <i class="fas fa-truck text-gray-400 text-sm"></i>
-                    <select id="carrierFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                <!-- Carrier Filter -->
+                <div class="filter-card">
+                    <label class="filter-label"><i class="fas fa-truck"></i> Carrier</label>
+                    <select id="carrierFilter" onchange="applyFilters()" class="filter-select">
                         <option value="all">All Carriers</option>
                         <option value="singpost">SingPost</option>
                         <option value="dhl">DHL</option>
@@ -291,10 +475,11 @@
                         <option value="none">No Carrier</option>
                     </select>
                 </div>
-                <div class="flex items-center gap-1">
-                    <i class="fas fa-shipping-fast text-gray-400 text-sm"></i>
-                    <select id="trackingStatusFilter" onchange="applyFilters()" class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="all">All Tracking</option>
+                <!-- Tracking Status Filter -->
+                <div class="filter-card">
+                    <label class="filter-label"><i class="fas fa-shipping-fast"></i> Tracking</label>
+                    <select id="trackingStatusFilter" onchange="applyFilters()" class="filter-select">
+                        <option value="all">All Status</option>
                         <option value="pending">Pending</option>
                         <option value="in_transit">In Transit</option>
                         <option value="out_for_delivery">Out for Delivery</option>
@@ -302,24 +487,46 @@
                         <option value="no_tracking">No Tracking #</option>
                     </select>
                 </div>
-                <div class="flex items-center gap-1">
-                    <i class="fas fa-exclamation-triangle text-red-400 text-sm"></i>
-                    <select id="problemFilter" onchange="applyFilters()" class="text-sm border border-red-300 rounded-md px-3 py-1.5 focus:ring-red-500 focus:border-red-500 bg-red-50">
-                        <option value="all">All Issues</option>
+                <!-- Problem Filter -->
+                <div class="filter-card">
+                    <label class="filter-label text-red-600"><i class="fas fa-exclamation-triangle"></i> Problems</label>
+                    <select id="problemFilter" onchange="applyFilters()" class="filter-select filter-select-problem">
+                        <option value="all">No Filter</option>
                         <option value="delivered_not_closed">Delivered but Open</option>
                         <option value="no_tracking">Missing Tracking #</option>
                         <option value="stale">Stale (7+ days)</option>
                         <option value="open_30_days">Open 30+ Days</option>
                     </select>
                 </div>
-                <span id="problemCount" class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700 hidden">0 issues</span>
             </div>
-            <!-- Status Filter Buttons -->
+        </div>
+
+        <!-- Status Tabs -->
+        <div class="px-6 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
             <div class="flex gap-2">
-                <button onclick="filterByStatus('all')" class="filter-btn px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 ring-2 ring-blue-500" data-status="all">All (<span id="count-all">{{ ticket_sla_data|length }}</span>)</button>
-                <button onclick="filterByStatus('breached')" class="filter-btn px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 hover:bg-red-200" data-status="breached">Breached (<span id="count-breached">{{ breached }}</span>)</button>
-                <button onclick="filterByStatus('at_risk')" class="filter-btn px-3 py-1 text-sm rounded-full bg-yellow-100 text-yellow-700 hover:bg-yellow-200" data-status="at_risk">At Risk (<span id="count-at_risk">{{ at_risk }}</span>)</button>
-                <button onclick="filterByStatus('on_track')" class="filter-btn px-3 py-1 text-sm rounded-full bg-green-100 text-green-700 hover:bg-green-200" data-status="on_track">On Track (<span id="count-on_track">{{ on_track }}</span>)</button>
+                <button onclick="filterByStatus('all')" class="filter-btn active" data-status="all">
+                    <span class="filter-btn-dot bg-slate-400"></span>
+                    All <span class="filter-btn-count" id="count-all">{{ ticket_sla_data|length }}</span>
+                </button>
+                <button onclick="filterByStatus('breached')" class="filter-btn" data-status="breached">
+                    <span class="filter-btn-dot bg-red-500"></span>
+                    Breached <span class="filter-btn-count text-red-600" id="count-breached">{{ breached }}</span>
+                </button>
+                <button onclick="filterByStatus('at_risk')" class="filter-btn" data-status="at_risk">
+                    <span class="filter-btn-dot bg-yellow-500"></span>
+                    At Risk <span class="filter-btn-count text-yellow-600" id="count-at_risk">{{ at_risk }}</span>
+                </button>
+                <button onclick="filterByStatus('on_track')" class="filter-btn" data-status="on_track">
+                    <span class="filter-btn-dot bg-green-500"></span>
+                    On Track <span class="filter-btn-count text-green-600" id="count-on_track">{{ on_track }}</span>
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="problemCount" class="text-sm font-medium px-3 py-1 rounded-full bg-red-100 text-red-700 hidden">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    <span id="problemCountText">0 issues</span>
+                </span>
+                <span class="text-sm text-slate-500" id="visibleCount"></span>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -592,7 +799,7 @@ new Chart(userCtx, {
 // Current filter state
 let currentStatusFilter = 'all';
 
-// Apply all filters (user, queue, category, carrier, tracking, problem, status)
+// Apply all filters (user, queue, category, carrier, tracking, problem, status, search)
 function applyFilters() {
     const userFilter = document.getElementById('userFilter').value;
     const queueFilter = document.getElementById('queueFilter').value;
@@ -600,15 +807,27 @@ function applyFilters() {
     const carrierFilter = document.getElementById('carrierFilter').value;
     const trackingStatusFilter = document.getElementById('trackingStatusFilter').value;
     const problemFilter = document.getElementById('problemFilter').value;
+    const searchInput = document.getElementById('searchInput');
+    const searchText = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
     let counts = { all: 0, breached: 0, at_risk: 0, on_track: 0 };
     let problemCount = 0;
+    let visibleCount = 0;
 
     document.querySelectorAll('.ticket-row').forEach(row => {
         const matchUser = userFilter === 'all' || row.dataset.userId === userFilter;
         const matchQueue = queueFilter === 'all' || row.dataset.queue === queueFilter;
         const matchCategory = categoryFilter === 'all' || row.dataset.category === categoryFilter;
         const matchStatus = currentStatusFilter === 'all' || row.dataset.slaStatus === currentStatusFilter;
+
+        // Search filter
+        let matchSearch = true;
+        if (searchText) {
+            const ticketId = row.querySelector('td:first-child')?.textContent.toLowerCase() || '';
+            const subject = row.querySelector('td:first-child .text-xs')?.textContent.toLowerCase() || '';
+            const requester = row.querySelector('td:nth-child(5)')?.textContent.toLowerCase() || '';
+            matchSearch = ticketId.includes(searchText) || subject.includes(searchText) || requester.includes(searchText);
+        }
 
         // Carrier filter
         const carrier = row.dataset.carrier || '';
@@ -667,19 +886,26 @@ function applyFilters() {
         }
 
         // Count tickets matching base filters (regardless of status filter)
-        if (matchUser && matchQueue && matchCategory && matchCarrier && matchTrackingStatus && matchProblem) {
+        if (matchUser && matchQueue && matchCategory && matchCarrier && matchTrackingStatus && matchProblem && matchSearch) {
             counts.all++;
             counts[row.dataset.slaStatus]++;
             if (problemFilter !== 'all') problemCount++;
         }
 
         // Show/hide based on all filters
-        if (matchUser && matchQueue && matchCategory && matchCarrier && matchTrackingStatus && matchProblem && matchStatus) {
+        if (matchUser && matchQueue && matchCategory && matchCarrier && matchTrackingStatus && matchProblem && matchStatus && matchSearch) {
             row.classList.remove('hidden');
+            visibleCount++;
         } else {
             row.classList.add('hidden');
         }
     });
+
+    // Update visible count
+    const visibleCountEl = document.getElementById('visibleCount');
+    if (visibleCountEl) {
+        visibleCountEl.textContent = `Showing ${visibleCount} tickets`;
+    }
 
     // Update counts in buttons
     document.getElementById('count-all').textContent = counts.all;
@@ -703,9 +929,9 @@ function filterByStatus(status) {
 
     // Update button styles
     document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('ring-2', 'ring-blue-500');
+        btn.classList.remove('active');
         if (btn.dataset.status === status) {
-            btn.classList.add('ring-2', 'ring-blue-500');
+            btn.classList.add('active');
         }
     });
 
@@ -720,13 +946,15 @@ function resetFilters() {
     document.getElementById('carrierFilter').value = 'all';
     document.getElementById('trackingStatusFilter').value = 'all';
     document.getElementById('problemFilter').value = 'all';
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
     currentStatusFilter = 'all';
 
     // Reset button styles
     document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('ring-2', 'ring-blue-500');
+        btn.classList.remove('active');
         if (btn.dataset.status === 'all') {
-            btn.classList.add('ring-2', 'ring-blue-500');
+            btn.classList.add('active');
         }
     });
 
@@ -792,5 +1020,280 @@ document.getElementById('userFilter').addEventListener('change', function() {
         document.getElementById('clearUserBtn').classList.remove('hidden');
     }
 });
+
+// ============= Refresh Tracking Modal Functions =============
+function updateTicketCount() {
+    const carrier = document.getElementById('refreshCarrierFilter')?.value || 'all';
+    const category = document.getElementById('refreshCategoryFilter')?.value || 'all';
+
+    document.getElementById('ticketsToRefreshCount').textContent = '...';
+
+    fetch(`/tickets/admin/refresh-tracking-status?carrier=${carrier}&category=${category}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('ticketsToRefreshCount').textContent = data.tickets_with_tracking;
+            }
+        })
+        .catch(err => {
+            document.getElementById('ticketsToRefreshCount').textContent = '?';
+        });
+}
+
+function showRefreshTrackingModal() {
+    document.getElementById('refreshTrackingModal').classList.remove('hidden');
+    document.getElementById('trackingInitialState').classList.remove('hidden');
+    document.getElementById('trackingProgressState').classList.add('hidden');
+    document.getElementById('trackingCompleteState').classList.add('hidden');
+    document.getElementById('trackingCancelBtn').classList.remove('hidden');
+    document.getElementById('trackingStartBtn').classList.remove('hidden');
+    document.getElementById('trackingCloseBtn').classList.add('hidden');
+
+    // Reset filters to 'all'
+    const carrierFilter = document.getElementById('refreshCarrierFilter');
+    const categoryFilter = document.getElementById('refreshCategoryFilter');
+    if (carrierFilter) carrierFilter.value = 'all';
+    if (categoryFilter) categoryFilter.value = 'all';
+
+    // Add event listeners for filter changes (only once)
+    if (!window.trackingFiltersInitialized) {
+        if (carrierFilter) carrierFilter.addEventListener('change', updateTicketCount);
+        if (categoryFilter) categoryFilter.addEventListener('change', updateTicketCount);
+        window.trackingFiltersInitialized = true;
+    }
+
+    // Fetch initial count
+    updateTicketCount();
+}
+
+function hideRefreshTrackingModal() {
+    document.getElementById('refreshTrackingModal').classList.add('hidden');
+}
+
+function startRefreshTracking() {
+    document.getElementById('trackingInitialState').classList.add('hidden');
+    document.getElementById('trackingProgressState').classList.remove('hidden');
+    document.getElementById('trackingCancelBtn').classList.add('hidden');
+    document.getElementById('trackingStartBtn').classList.add('hidden');
+
+    const progressBar = document.getElementById('trackingProgressBar');
+    const statusText = document.getElementById('trackingStatusText');
+
+    // Animated progress
+    let progress = 5;
+    const progressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 2;
+            progressBar.style.width = Math.min(progress, 90) + '%';
+        }
+        const dots = '.'.repeat((Math.floor(Date.now() / 500) % 3) + 1);
+        statusText.textContent = 'Processing' + dots + ' (this may take a few minutes)';
+    }, 800);
+
+    window.trackingProgressInterval = progressInterval;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Get filter values
+    const carrierFilter = document.getElementById('refreshCarrierFilter')?.value || 'all';
+    const categoryFilter = document.getElementById('refreshCategoryFilter')?.value || 'all';
+
+    // Use AbortController with 15 minute timeout for bulk operations
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000); // 15 minutes
+
+    fetch('/tickets/admin/refresh-all-tracking', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken || '',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            carrier: carrierFilter,
+            category: categoryFilter
+        }),
+        signal: controller.signal
+    })
+    .then(r => {
+        clearTimeout(timeoutId);
+        return r.json();
+    })
+    .then(data => {
+        clearInterval(window.trackingProgressInterval);
+        progressBar.style.width = '100%';
+
+        if (data.success) {
+            const summary = data.summary;
+            window.trackingReportLogId = data.log_id;
+
+            setTimeout(() => {
+                document.getElementById('trackingProgressState').classList.add('hidden');
+                document.getElementById('trackingCompleteState').classList.remove('hidden');
+                document.getElementById('trackingCloseBtn').classList.remove('hidden');
+
+                document.getElementById('finalUpdatedCount').textContent = summary.tickets_updated;
+                document.getElementById('finalAutoClosedCount').textContent = summary.tickets_auto_closed;
+                document.getElementById('finalFailedCount').textContent = summary.tickets_failed;
+                document.getElementById('trackingCompleteSummary').textContent =
+                    `Processed ${summary.total_tickets} tickets, updated ${summary.total_packages_updated} packages.`;
+
+                if (data.log_id) {
+                    document.getElementById('viewReportBtn').onclick = function() {
+                        window.open('/tickets/admin/tracking-refresh-report/' + data.log_id, '_blank');
+                    };
+                }
+            }, 500);
+        } else {
+            statusText.textContent = 'Error: ' + data.error;
+            statusText.classList.add('text-red-600');
+            document.getElementById('trackingCloseBtn').classList.remove('hidden');
+        }
+    })
+    .catch(err => {
+        clearInterval(window.trackingProgressInterval);
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+            statusText.textContent = 'Request timed out. Check the History page for partial results.';
+        } else {
+            statusText.textContent = 'Network error: ' + err.message;
+        }
+        statusText.classList.add('text-red-600');
+        document.getElementById('trackingCloseBtn').classList.remove('hidden');
+    });
+}
 </script>
+
+<!-- Refresh Tracking Modal -->
+{% if user.is_super_admin or user.is_developer %}
+<div id="refreshTrackingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-semibold flex items-center">
+                <i class="fas fa-sync-alt text-emerald-600 mr-2"></i>
+                Refresh All Tracking
+            </h3>
+            <button onclick="hideRefreshTrackingModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        <div class="p-6">
+            <!-- Initial State -->
+            <div id="trackingInitialState">
+                <p class="text-gray-600 mb-4">
+                    Refresh tracking information for open tickets. Tickets showing "Delivered" will be auto-closed.
+                </p>
+
+                <!-- Filters -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-truck mr-1"></i> Carrier
+                        </label>
+                        <select id="refreshCarrierFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            <option value="all">All Carriers</option>
+                            <option value="singpost">SingPost</option>
+                            <option value="dhl">DHL</option>
+                            <option value="ups">UPS</option>
+                            <option value="fedex">FedEx</option>
+                            <option value="hfd">HFD</option>
+                            <option value="bluedart">BlueDart</option>
+                            <option value="dtdc">DTDC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-folder mr-1"></i> Category
+                        </label>
+                        <select id="refreshCategoryFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            <option value="all">All Categories</option>
+                            <option value="ASSET_CHECKOUT_CLAW">Asset Checkout (claw)</option>
+                            <option value="ASSET_RETURN_CLAW">Asset Return (claw)</option>
+                            <option value="ASSET_EXCHANGE">Asset Exchange</option>
+                            <option value="ASSET_REPAIR">Asset Repair</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-gray-900" id="ticketsToRefreshCount">-</div>
+                        <div class="text-sm text-gray-500">Tickets to Refresh</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl text-emerald-600"><i class="fas fa-check-circle"></i></div>
+                        <div class="text-sm text-gray-500">Auto-close Delivered</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl text-amber-500"><i class="fas fa-clock"></i></div>
+                        <div class="text-sm text-gray-500">May Take Time</div>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Note:</strong> Only SingPost tracking is refreshed in bulk. Other carriers show as "failed".
+                </div>
+            </div>
+
+            <!-- Progress State -->
+            <div id="trackingProgressState" class="hidden">
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="ticketsUpdatedCount">0</div>
+                        <div class="text-sm text-gray-500">Updated</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-emerald-600" id="ticketsAutoClosedCount">0</div>
+                        <div class="text-sm text-gray-500">Auto-Closed</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-red-600" id="ticketsFailedCount">0</div>
+                        <div class="text-sm text-gray-500">Failed</div>
+                    </div>
+                </div>
+                <div class="bg-gray-200 rounded-full h-2 mb-3">
+                    <div id="trackingProgressBar" class="bg-emerald-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+                <p id="trackingStatusText" class="text-center text-gray-600 text-sm">Processing...</p>
+            </div>
+
+            <!-- Complete State -->
+            <div id="trackingCompleteState" class="hidden">
+                <div class="text-center mb-4">
+                    <div class="text-5xl text-emerald-600 mb-2"><i class="fas fa-check-circle"></i></div>
+                    <h4 class="text-lg font-semibold">Tracking Refresh Complete!</h4>
+                    <p id="trackingCompleteSummary" class="text-gray-600 text-sm"></p>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="finalUpdatedCount">0</div>
+                        <div class="text-sm text-gray-500">Updated</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-emerald-600" id="finalAutoClosedCount">0</div>
+                        <div class="text-sm text-gray-500">Auto-Closed</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-red-600" id="finalFailedCount">0</div>
+                        <div class="text-sm text-gray-500">Failed</div>
+                    </div>
+                </div>
+                <button id="viewReportBtn" class="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-2">
+                    <i class="fas fa-external-link-alt mr-2"></i>View Full Report
+                </button>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-200 flex justify-end gap-3">
+            <button id="trackingCancelBtn" onclick="hideRefreshTrackingModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                Cancel
+            </button>
+            <button id="trackingStartBtn" onclick="startRefreshTracking()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <i class="fas fa-play mr-2"></i>Start Refresh
+            </button>
+            <button id="trackingCloseBtn" onclick="hideRefreshTrackingModal(); location.reload();" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <i class="fas fa-check mr-2"></i>Done
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

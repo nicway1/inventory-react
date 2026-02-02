@@ -2351,6 +2351,8 @@ body.dark-theme .sf-card-body .sf-field-label {
             {% set customer_received = (ticket.shipping_status and ('delivered' in ticket.shipping_status.lower() or 'received' in ticket.shipping_status.lower())) %}
             {% set return_shipped = (ticket.return_tracking and ticket.return_status and ticket.return_status not in ['Pending', 'Information Received', '']) %}
             {% set return_received_at_warehouse = (ticket.return_status and ('delivered' in ticket.return_status.lower() or 'received' in ticket.return_status.lower())) %}
+            {% set return_received = return_received_at_warehouse %}
+            {% set replacement_received = (ticket.replacement_status and ('delivered' in ticket.replacement_status.lower() or 'received' in ticket.replacement_status.lower())) %}
             <div class="sf-card mb-6">
                 <div class="sf-card-header">
                     <div class="sf-card-title">Case Progress</div>
@@ -4291,6 +4293,122 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                     <span class="sr-only">Loading...</span>
                                                 </div>
                                                 <p class="mt-2 text-sm text-gray-600">Loading tracking data...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% elif ticket.return_carrier == 'no_tracking' %}
+                                <!-- Return Progress Bar (No Tracking) -->
+                                {% set return_shipped = ticket.return_status and ticket.return_status.lower() in ['shipped', 'shipped by customer', 'in transit'] %}
+                                {% set return_received = ticket.status and ticket.status.name in ['RESOLVED', 'RESOLVED_DELIVERED'] %}
+
+                                <div class="mb-6">
+                                    <div class="flex items-center justify-between mb-8">
+                                        <!-- Step 1: Return Requested -->
+                                        <div class="flex flex-col items-center flex-1">
+                                            <div class="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white shadow-md">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                            </div>
+                                            <div class="mt-3 text-center">
+                                                <div class="font-semibold text-sm">Return Requested</div>
+                                                <div class="text-xs text-gray-500 mt-1">No tracking</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Progress Line 1 -->
+                                        <div class="flex-1 h-2 mx-3 rounded-full overflow-hidden bg-gray-300">
+                                            <div class="h-full {% if return_shipped or return_received %}bg-green-500{% endif %} transition-all duration-500" style="width: {% if return_shipped or return_received %}100%{% else %}0%{% endif %}"></div>
+                                        </div>
+
+                                        <!-- Step 2: Shipped by Customer -->
+                                        <div class="flex flex-col items-center flex-1">
+                                            <div class="w-12 h-12 rounded-full flex items-center justify-center {% if return_shipped or return_received %}bg-green-500{% else %}bg-gray-300{% endif %} text-white shadow-md">
+                                                {% if return_shipped or return_received %}
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                {% else %}
+                                                <span class="font-bold text-lg">2</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="mt-3 text-center">
+                                                <div class="font-semibold text-sm">Shipped by Customer</div>
+                                                {% if return_shipped or return_received %}
+                                                <div class="text-xs text-gray-500 mt-1">Shipped</div>
+                                                {% else %}
+                                                <div class="text-xs text-gray-400 mt-1">Pending</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <!-- Progress Line 2 -->
+                                        <div class="flex-1 h-2 mx-3 rounded-full overflow-hidden bg-gray-300">
+                                            <div class="h-full {% if return_received %}bg-green-500{% endif %} transition-all duration-500" style="width: {% if return_received %}100%{% else %}0%{% endif %}"></div>
+                                        </div>
+
+                                        <!-- Step 3: Received at Warehouse -->
+                                        <div class="flex flex-col items-center flex-1">
+                                            <div class="w-12 h-12 rounded-full flex items-center justify-center {% if return_received %}bg-green-500{% else %}bg-gray-300{% endif %} text-white shadow-md">
+                                                {% if return_received %}
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                {% else %}
+                                                <span class="font-bold text-lg">3</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="mt-3 text-center">
+                                                <div class="font-semibold text-sm">Received at Warehouse</div>
+                                                {% if return_received %}
+                                                <div class="text-xs text-gray-500 mt-1">Completed</div>
+                                                {% else %}
+                                                <div class="text-xs text-gray-400 mt-1">Pending</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Action Buttons -->
+                                    <div class="flex gap-3 justify-center">
+                                        {% if not return_shipped and not return_received %}
+                                        <button onclick="updateReturnProgress('shipped', {{ ticket.id }})"
+                                                class="sf-button primary-button flex items-center gap-2 px-6 py-3">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/>
+                                            </svg>
+                                            Mark as Shipped by Customer
+                                        </button>
+                                        {% elif return_shipped and not return_received %}
+                                        <button onclick="updateReturnProgress('received', {{ ticket.id }})"
+                                                class="sf-button success-button flex items-center gap-2 px-6 py-3">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            Mark as Received at Warehouse
+                                        </button>
+                                        {% else %}
+                                        <div class="text-center">
+                                            <div class="inline-flex items-center px-6 py-3 rounded-lg bg-green-50 text-green-700 font-medium">
+                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                Return Completed
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Information Panel -->
+                                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                        <div class="flex items-start gap-3">
+                                            <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                            </svg>
+                                            <div>
+                                                <h4 class="text-sm font-semibold text-blue-900 mb-1">Manual Progress Tracking</h4>
+                                                <p class="text-xs text-blue-700">This return has no tracking number. Use the buttons above to manually update the return progress as each stage is completed.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -7004,14 +7122,16 @@ body.dark-theme .sf-card-body .sf-field-label {
                             
                             <form id="addReturnTrackingForm" class="mt-4 space-y-4">
                                 <div>
-                                    <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number</label>
-                                    <input type="text" id="return_tracking_number" name="tracking_number" required 
-                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="Enter return tracking number">
+                                    <label for="return_tracking_number" class="block text-sm font-medium text-gray-700">Return Tracking Number <span id="return_tracking_required_star" class="text-red-500" style="display:none;">*</span></label>
+                                    <input type="text" id="return_tracking_number" name="tracking_number"
+                                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="Enter return tracking number (optional for No Tracking)">
                                 </div>
                                 <div>
                                     <label for="return_carrier" class="block text-sm font-medium text-gray-700">Carrier</label>
                                     <select id="return_carrier" name="return_carrier" required
-                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500">
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                                            onchange="toggleReturnTrackingRequired()">
+                                        <option value="no_tracking">No Tracking</option>
                                         <option value="auto">Auto-Detect</option>
                                         <option value="hfd">HFD (Israel)</option>
                                         <option value="singpost">SingPost</option>
@@ -8628,14 +8748,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Toggle tracking number requirement based on carrier selection
+    function toggleReturnTrackingRequired() {
+        const carrier = document.getElementById('return_carrier').value;
+        const trackingInput = document.getElementById('return_tracking_number');
+        const requiredStar = document.getElementById('return_tracking_required_star');
+
+        if (carrier === 'no_tracking') {
+            trackingInput.removeAttribute('required');
+            trackingInput.placeholder = 'Not required for No Tracking';
+            if (requiredStar) requiredStar.style.display = 'none';
+        } else {
+            trackingInput.setAttribute('required', 'required');
+            trackingInput.placeholder = 'Enter return tracking number';
+            if (requiredStar) requiredStar.style.display = 'inline';
+        }
+    }
+
+    // Initialize on page load
+    toggleReturnTrackingRequired();
+
     // Return tracking form submission
     const returnTrackingBtn = document.getElementById('submitReturnTrackingBtn');
     if (returnTrackingBtn) {
         returnTrackingBtn.addEventListener('click', function() {
             const trackingNumber = document.getElementById('return_tracking_number').value;
             const carrier = document.getElementById('return_carrier').value;
-            
-            if (!trackingNumber) {
+
+            // Only require tracking number if carrier is not "no_tracking"
+            if (carrier !== 'no_tracking' && !trackingNumber) {
                 alert('Please enter a tracking number');
                 return;
             }
@@ -13480,6 +13621,40 @@ function updateShipmentProgress(progressType, ticketId) {
     .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while updating progress');
+    });
+}
+
+// Update return progress for Asset Return (claw) without tracking
+function updateReturnProgress(progressType, ticketId) {
+    const progressLabel = progressType === 'shipped' ? 'Shipped by Customer' : 'Received at Warehouse';
+    if (!confirm(`Are you sure you want to mark this return as ${progressLabel}?`)) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    fetch(`/tickets/${ticketId}/update-return-progress`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            progress_type: progressType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Return progress updated successfully');
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to update return progress');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating return progress');
     });
 }
 

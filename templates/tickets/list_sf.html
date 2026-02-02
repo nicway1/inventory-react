@@ -3956,9 +3956,40 @@
             <!-- Initial state -->
             <div id="trackingInitialState">
                 <p style="color: #6b7280; margin-bottom: 16px;">
-                    This will refresh tracking information for all open tickets with tracking numbers.
-                    Tickets showing "Delivered" status will be automatically closed.
+                    Refresh tracking information for open tickets. Tickets showing "Delivered" will be auto-closed.
                 </p>
+
+                <!-- Filters -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">
+                            <i class="fas fa-truck" style="margin-right: 4px;"></i> Carrier
+                        </label>
+                        <select id="refreshCarrierFilter" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
+                            <option value="all">All Carriers</option>
+                            <option value="singpost">SingPost</option>
+                            <option value="dhl">DHL</option>
+                            <option value="ups">UPS</option>
+                            <option value="fedex">FedEx</option>
+                            <option value="hfd">HFD</option>
+                            <option value="bluedart">BlueDart</option>
+                            <option value="dtdc">DTDC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">
+                            <i class="fas fa-folder" style="margin-right: 4px;"></i> Category
+                        </label>
+                        <select id="refreshCategoryFilter" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;">
+                            <option value="all">All Categories</option>
+                            <option value="ASSET_CHECKOUT_CLAW">Asset Checkout (claw)</option>
+                            <option value="ASSET_RETURN_CLAW">Asset Return (claw)</option>
+                            <option value="ASSET_EXCHANGE">Asset Exchange</option>
+                            <option value="ASSET_REPAIR">Asset Repair</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="tracking-stats-grid">
                     <div class="tracking-stat-card">
                         <div class="tracking-stat-value" id="ticketsToRefreshCount">-</div>
@@ -3975,7 +4006,7 @@
                 </div>
                 <div style="background: #fef3c7; border-radius: 8px; padding: 12px; color: #92400e; font-size: 14px;">
                     <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
-                    <strong>Note:</strong> This process may take several minutes depending on the number of tickets.
+                    <strong>Note:</strong> Only SingPost tracking is refreshed in bulk. Other carriers show as "failed".
                 </div>
             </div>
 
@@ -4008,14 +4039,14 @@
 
             <!-- Complete state -->
             <div id="trackingCompleteState" style="display: none;">
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 48px; color: #10b981; margin-bottom: 16px;">
+                <div style="text-align: center; padding: 16px;">
+                    <div style="font-size: 40px; color: #10b981; margin-bottom: 12px;">
                         <i class="fas fa-check-circle"></i>
                     </div>
                     <h4 style="margin: 0 0 8px 0; color: #1f2937;">Tracking Refresh Complete!</h4>
-                    <p id="trackingCompleteSummary" style="color: #6b7280; margin: 0;"></p>
+                    <p id="trackingCompleteSummary" style="color: #6b7280; margin: 0; font-size: 14px;"></p>
                 </div>
-                <div class="tracking-stats-grid" style="margin-top: 20px;">
+                <div class="tracking-stats-grid" style="margin-top: 16px;">
                     <div class="tracking-stat-card">
                         <div class="tracking-stat-value" id="finalUpdatedCount">0</div>
                         <div class="tracking-stat-label">Tickets Updated</div>
@@ -4025,10 +4056,18 @@
                         <div class="tracking-stat-label">Auto-Closed</div>
                     </div>
                     <div class="tracking-stat-card">
-                        <div class="tracking-stat-value" id="finalPackagesCount">0</div>
-                        <div class="tracking-stat-label">Packages Refreshed</div>
+                        <div class="tracking-stat-value" id="finalFailedCount" style="color: #ef4444;">0</div>
+                        <div class="tracking-stat-label">Failed</div>
                     </div>
                 </div>
+
+                <button id="toggleReportBtn" class="sf-btn" style="width: 100%; margin-top: 16px; background: #2563eb; color: white;">
+                    <i class="fas fa-external-link-alt"></i> View Full Report
+                </button>
+
+                <a href="{{ url_for('tickets.tracking_refresh_history') }}" class="sf-btn sf-btn-neutral" style="width: 100%; margin-top: 8px; text-align: center; display: block; text-decoration: none;">
+                    <i class="fas fa-history"></i> View All History
+                </a>
             </div>
         </div>
         <div class="tracking-modal-footer">
@@ -4045,6 +4084,24 @@
 
 <script>
 // Refresh Tracking Modal Functions
+function updateTicketCount() {
+    const carrier = document.getElementById('refreshCarrierFilter')?.value || 'all';
+    const category = document.getElementById('refreshCategoryFilter')?.value || 'all';
+
+    document.getElementById('ticketsToRefreshCount').textContent = '...';
+
+    fetch(`/tickets/admin/refresh-tracking-status?carrier=${carrier}&category=${category}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('ticketsToRefreshCount').textContent = data.tickets_with_tracking;
+            }
+        })
+        .catch(err => {
+            document.getElementById('ticketsToRefreshCount').textContent = '?';
+        });
+}
+
 function showRefreshTrackingModal() {
     document.getElementById('refreshTrackingModal').classList.add('active');
     // Reset to initial state
@@ -4055,17 +4112,21 @@ function showRefreshTrackingModal() {
     document.getElementById('trackingStartBtn').style.display = 'inline-flex';
     document.getElementById('trackingCloseBtn').style.display = 'none';
 
-    // Fetch count of tickets to refresh
-    fetch('/tickets/admin/refresh-tracking-status')
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('ticketsToRefreshCount').textContent = data.tickets_with_tracking;
-            }
-        })
-        .catch(err => {
-            document.getElementById('ticketsToRefreshCount').textContent = '?';
-        });
+    // Reset filters to 'all'
+    const carrierFilter = document.getElementById('refreshCarrierFilter');
+    const categoryFilter = document.getElementById('refreshCategoryFilter');
+    if (carrierFilter) carrierFilter.value = 'all';
+    if (categoryFilter) categoryFilter.value = 'all';
+
+    // Add event listeners for filter changes (only once)
+    if (!window.trackingFiltersInitialized) {
+        if (carrierFilter) carrierFilter.addEventListener('change', updateTicketCount);
+        if (categoryFilter) categoryFilter.addEventListener('change', updateTicketCount);
+        window.trackingFiltersInitialized = true;
+    }
+
+    // Fetch initial count
+    updateTicketCount();
 }
 
 function hideRefreshTrackingModal() {
@@ -4082,6 +4143,7 @@ function startRefreshTracking() {
     const log = document.getElementById('trackingLog');
     const progressBar = document.getElementById('trackingProgressBar');
     const statusText = document.getElementById('trackingStatusText');
+    const ticketsToRefresh = parseInt(document.getElementById('ticketsToRefreshCount').textContent) || 0;
 
     // Add log entry
     function addLog(message, type = 'info') {
@@ -4093,10 +4155,52 @@ function startRefreshTracking() {
     }
 
     addLog('Sending request to server...', 'info');
-    progressBar.style.width = '10%';
+    progressBar.style.width = '5%';
+
+    // Animated progress simulation (since backend processes synchronously)
+    let progress = 5;
+    let dotCount = 0;
+    const progressMessages = [
+        'Connecting to tracking API...',
+        'Fetching tracking updates...',
+        'Processing shipments...',
+        'Checking delivery status...',
+        'Updating ticket records...'
+    ];
+    let msgIndex = 0;
+
+    const progressInterval = setInterval(() => {
+        // Slowly increase progress bar (max 90% until actual completion)
+        if (progress < 90) {
+            progress += Math.random() * 2;
+            progressBar.style.width = Math.min(progress, 90) + '%';
+        }
+
+        // Animate dots
+        dotCount = (dotCount + 1) % 4;
+        const dots = '.'.repeat(dotCount + 1);
+        statusText.textContent = 'Processing' + dots + ' (this may take a few minutes)';
+
+        // Add periodic status messages
+        if (Math.random() < 0.15 && msgIndex < progressMessages.length) {
+            addLog(progressMessages[msgIndex], 'info');
+            msgIndex++;
+        }
+    }, 800);
+
+    // Store interval ID so we can clear it later
+    window.trackingProgressInterval = progressInterval;
 
     // Get CSRF token
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Get filter values
+    const carrierFilter = document.getElementById('refreshCarrierFilter')?.value || 'all';
+    const categoryFilter = document.getElementById('refreshCategoryFilter')?.value || 'all';
+
+    // Use AbortController with 15 minute timeout for bulk operations
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000); // 15 minutes
 
     fetch('/tickets/admin/refresh-all-tracking', {
         method: 'POST',
@@ -4104,11 +4208,24 @@ function startRefreshTracking() {
             'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken || '',
             'X-Requested-With': 'XMLHttpRequest'
-        }
+        },
+        body: JSON.stringify({
+            carrier: carrierFilter,
+            category: categoryFilter
+        }),
+        signal: controller.signal
     })
-    .then(r => r.json())
+    .then(r => {
+        clearTimeout(timeoutId);
+        return r.json();
+    })
     .then(data => {
+        // Clear the progress animation
+        if (window.trackingProgressInterval) {
+            clearInterval(window.trackingProgressInterval);
+        }
         progressBar.style.width = '100%';
+        statusText.textContent = 'Complete!';
 
         if (data.success) {
             const summary = data.summary;
@@ -4126,6 +4243,9 @@ function startRefreshTracking() {
                 addLog(`${summary.tickets_failed} tickets had errors`, 'error');
             }
 
+            // Store report log ID for the full report page
+            window.trackingReportLogId = data.log_id;
+
             // Switch to complete state after a moment
             setTimeout(() => {
                 document.getElementById('trackingProgressState').style.display = 'none';
@@ -4135,24 +4255,44 @@ function startRefreshTracking() {
                 // Update final stats
                 document.getElementById('finalUpdatedCount').textContent = summary.tickets_updated;
                 document.getElementById('finalAutoClosedCount').textContent = summary.tickets_auto_closed;
-                document.getElementById('finalPackagesCount').textContent = summary.total_packages_updated;
+                document.getElementById('finalFailedCount').textContent = summary.tickets_failed;
                 document.getElementById('trackingCompleteSummary').textContent =
                     `Processed ${summary.total_tickets} tickets, updated ${summary.total_packages_updated} packages.`;
+
+                // Update report button to link to full report page
+                if (data.log_id) {
+                    document.getElementById('toggleReportBtn').onclick = function() {
+                        window.open('/tickets/admin/tracking-refresh-report/' + data.log_id, '_blank');
+                    };
+                }
             }, 1000);
         } else {
             addLog(`Error: ${data.error}`, 'error');
             statusText.textContent = 'Error occurred';
             statusText.style.color = '#ef4444';
+            progressBar.style.width = '100%';
+            progressBar.style.background = '#ef4444';
             document.getElementById('trackingCloseBtn').style.display = 'inline-flex';
         }
     })
     .catch(err => {
-        addLog(`Network error: ${err.message}`, 'error');
-        statusText.textContent = 'Network error';
+        // Clear the progress animation
+        if (window.trackingProgressInterval) {
+            clearInterval(window.trackingProgressInterval);
+        }
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+            addLog('Request timed out. Check History for partial results.', 'error');
+            statusText.textContent = 'Timed out';
+        } else {
+            addLog(`Network error: ${err.message}`, 'error');
+            statusText.textContent = 'Network error';
+        }
         statusText.style.color = '#ef4444';
         document.getElementById('trackingCloseBtn').style.display = 'inline-flex';
     });
 }
+
 </script>
 {% endif %}
 

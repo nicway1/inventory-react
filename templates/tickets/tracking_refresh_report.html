@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Tracking Refresh Report #{{ log.id }}{% endblock %}
+
+{% block content %}
+<style>
+.report-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+.report-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.stat-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.stat-card.active {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 8px;
+}
+.stat-sublabel {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.tab-btn {
+    padding: 12px 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748b;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.tab-btn:hover {
+    color: #334155;
+    background: #f8fafc;
+}
+.tab-btn.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+.tab-badge {
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.ticket-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
+}
+.ticket-row:hover {
+    background: #f8fafc;
+}
+.ticket-row:last-child {
+    border-bottom: none;
+}
+.ticket-link {
+    font-weight: 600;
+    color: #1e40af;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.ticket-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-updated {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.status-closed {
+    background: #d1fae5;
+    color: #065f46;
+}
+.status-failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.status-nochange {
+    background: #f1f5f9;
+    color: #64748b;
+}
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: #94a3b8;
+}
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    display: block;
+}
+.tab-content {
+    display: none;
+}
+.tab-content.active {
+    display: block;
+}
+.meta-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+</style>
+
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
+                    <i class="fas fa-file-alt text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Tracking Refresh Report</h1>
+                    <p class="text-gray-500">#{{ log.id }}</p>
+                </div>
+            </div>
+            <div class="meta-info mt-3">
+                <div class="meta-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    {{ log.created_at.strftime('%d %b %Y, %H:%M') if log.created_at else 'N/A' }}
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-user"></i>
+                    {{ log.created_by_name or 'Unknown' }}
+                </div>
+                {% if log.duration_seconds %}
+                <div class="meta-item">
+                    <i class="fas fa-clock"></i>
+                    {% set mins = log.duration_seconds // 60 %}
+                    {% set secs = log.duration_seconds % 60 %}
+                    {% if mins > 0 %}{{ mins }}m {% endif %}{{ secs }}s
+                </div>
+                {% endif %}
+                {% if filters %}
+                {% if filters.carrier and filters.carrier != 'all' %}
+                <div class="meta-item">
+                    <i class="fas fa-truck"></i>
+                    {{ filters.carrier|capitalize }}
+                </div>
+                {% endif %}
+                {% if filters.category and filters.category != 'all' %}
+                <div class="meta-item">
+                    <i class="fas fa-folder"></i>
+                    {{ filters.category|replace('_', ' ')|title }}
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex gap-3 mt-4 md:mt-0">
+            <a href="{{ url_for('tickets.tracking_refresh_history') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-arrow-left mr-2"></i> Back to History
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card" onclick="showTab('all')">
+            <div class="stat-value text-gray-700">{{ log.total_tickets }}</div>
+            <div class="stat-label">Total Processed</div>
+        </div>
+        <div class="stat-card" id="stat-updated" onclick="showTab('updated')">
+            <div class="stat-value text-blue-600">{{ log.tickets_updated }}</div>
+            <div class="stat-label">Tickets Updated</div>
+            <div class="stat-sublabel">{{ log.total_packages_updated }} packages</div>
+        </div>
+        <div class="stat-card" id="stat-closed" onclick="showTab('closed')">
+            <div class="stat-value text-emerald-600">{{ log.tickets_auto_closed }}</div>
+            <div class="stat-label">Auto-Closed</div>
+            <div class="stat-sublabel">All packages delivered</div>
+        </div>
+        <div class="stat-card" id="stat-failed" onclick="showTab('failed')">
+            <div class="stat-value {% if log.tickets_failed > 0 %}text-red-600{% else %}text-gray-400{% endif %}">{{ log.tickets_failed }}</div>
+            <div class="stat-label">Failed</div>
+            <div class="stat-sublabel">{{ log.total_packages_failed }} packages</div>
+        </div>
+    </div>
+
+    <!-- Detailed Results -->
+    <div class="report-card">
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 px-4">
+            <div class="flex gap-2 overflow-x-auto">
+                <button class="tab-btn active" data-tab="updated" onclick="showTab('updated')">
+                    <i class="fas fa-sync-alt text-blue-500"></i>
+                    Updated
+                    <span class="tab-badge bg-blue-100 text-blue-700">{{ updated|length }}</span>
+                </button>
+                <button class="tab-btn" data-tab="closed" onclick="showTab('closed')">
+                    <i class="fas fa-check-circle text-emerald-500"></i>
+                    Auto-Closed
+                    <span class="tab-badge bg-emerald-100 text-emerald-700">{{ auto_closed|length }}</span>
+                </button>
+                <button class="tab-btn" data-tab="failed" onclick="showTab('failed')">
+                    <i class="fas fa-exclamation-circle text-red-500"></i>
+                    Failed
+                    <span class="tab-badge bg-red-100 text-red-700">{{ failed|length }}</span>
+                </button>
+                <button class="tab-btn" data-tab="nochange" onclick="showTab('nochange')">
+                    <i class="fas fa-minus-circle text-gray-400"></i>
+                    No Change
+                    <span class="tab-badge bg-gray-100 text-gray-600">{{ no_change|length }}</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="p-0">
+            <!-- Updated Tab -->
+            <div id="tab-updated" class="tab-content active">
+                {% if updated %}
+                    {% for item in updated %}
+                    <div class="ticket-row">
+                        <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket_id) }}" target="_blank" class="ticket-link">
+                            <i class="fas fa-ticket-alt"></i>
+                            Ticket #{{ item.ticket_id }}
+                            <i class="fas fa-external-link-alt text-xs text-gray-400"></i>
+                        </a>
+                        <div class="flex items-center gap-3">
+                            <span class="status-badge status-updated">
+                                <i class="fas fa-box"></i>
+                                {{ item.packages_updated }} package{{ 's' if item.packages_updated != 1 else '' }} updated
+                            </span>
+                            {% if item.status_changed %}
+                            <span class="status-badge status-closed">
+                                <i class="fas fa-check"></i>
+                                Closed
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No tickets were updated in this refresh</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Closed Tab -->
+            <div id="tab-closed" class="tab-content">
+                {% if auto_closed %}
+                    {% for item in auto_closed %}
+                    <div class="ticket-row">
+                        <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket_id) }}" target="_blank" class="ticket-link">
+                            <i class="fas fa-ticket-alt"></i>
+                            Ticket #{{ item.ticket_id }}
+                            <i class="fas fa-external-link-alt text-xs text-gray-400"></i>
+                        </a>
+                        <span class="status-badge status-closed">
+                            <i class="fas fa-truck"></i>
+                            All Packages Delivered
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No tickets were auto-closed in this refresh</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Failed Tab -->
+            <div id="tab-failed" class="tab-content">
+                {% if failed %}
+                    {% for item in failed %}
+                    <div class="ticket-row">
+                        <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket_id) }}" target="_blank" class="ticket-link">
+                            <i class="fas fa-ticket-alt"></i>
+                            Ticket #{{ item.ticket_id }}
+                            <i class="fas fa-external-link-alt text-xs text-gray-400"></i>
+                        </a>
+                        <span class="status-badge status-failed" title="{{ item.error or '' }}">
+                            <i class="fas fa-times"></i>
+                            {% if item.error %}
+                                {{ (item.error)[:50] }}{{ '...' if (item.error)|length > 50 else '' }}
+                            {% elif item.packages_failed %}
+                                {{ item.packages_failed }} package{{ 's' if item.packages_failed != 1 else '' }} failed (rate limited)
+                            {% else %}
+                                Failed to refresh
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle text-emerald-400"></i>
+                        <p>No failures occurred in this refresh</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- No Change Tab -->
+            <div id="tab-nochange" class="tab-content">
+                {% if no_change %}
+                    {% for item in no_change %}
+                    <div class="ticket-row">
+                        <a href="{{ url_for('tickets.view_ticket', ticket_id=item.ticket_id) }}" target="_blank" class="ticket-link">
+                            <i class="fas fa-ticket-alt"></i>
+                            Ticket #{{ item.ticket_id }}
+                            <i class="fas fa-external-link-alt text-xs text-gray-400"></i>
+                        </a>
+                        <span class="status-badge status-nochange">
+                            <i class="fas fa-minus"></i>
+                            No updates available
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle text-emerald-400"></i>
+                        <p>All tickets had changes in this refresh</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Handle 'all' by defaulting to 'updated'
+    if (tabName === 'all') tabName = 'updated';
+
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Update tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabName).classList.add('active');
+
+    // Update stat cards
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    const statCard = document.getElementById('stat-' + tabName);
+    if (statCard) statCard.classList.add('active');
+}
+
+// Initialize first tab as active
+document.addEventListener('DOMContentLoaded', function() {
+    showTab('updated');
+});
+</script>
+{% endblock %}

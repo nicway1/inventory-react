@@ -1031,8 +1031,8 @@ class Ship24Tracker:
         }
 
         # Get Oxylabs credentials
-        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelg1_SusC0')
-        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'm3OKbn9+BxYX')
+        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog2_v04Ol')
+        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'WU4W0o1r3j49=')
 
         debug_info['credentials'] = {
             'username': oxylabs_username,
@@ -2403,8 +2403,8 @@ class Ship24Tracker:
                 browser = await p.chromium.launch(**launch_options)
 
                 # Use Oxylabs residential proxy to bypass Cloudflare
-                oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelg1_SusC0')
-                oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'm3OKbn9+BxYX')
+                oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog2_v04Ol')
+                oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'WU4W0o1r3j49=')
 
                 context_options = {
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
