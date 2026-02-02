@@ -1011,7 +1011,7 @@
                 </div>
                 <div class="ml-3">
                     <p class="text-sm text-gray-600">{{ activity.content }}</p>
-                    <p class="text-xs text-gray-400">{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    <p class="text-xs text-gray-400">{{ activity.created_at|localtime('%Y-%m-%d %H:%M') }}</p>
                 </div>
             </div>
             {% endfor %}

@@ -37,7 +37,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-600">Created At</p>
-                        <p class="font-medium">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p class="font-medium">{{ ticket.created_at|localtime('%Y-%m-%d %H:%M') }}</p>
                     </div>
                     {% if ticket.assigned_to %}
                     <div>
@@ -48,7 +48,7 @@
                     {% if ticket.completed_at %}
                     <div>
                         <p class="text-sm text-gray-600">Completed At</p>
-                        <p class="font-medium">{{ ticket.completed_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p class="font-medium">{{ ticket.completed_at|localtime('%Y-%m-%d %H:%M') }}</p>
                     </div>
                     {% endif %}
                 </div>

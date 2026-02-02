@@ -120,7 +120,7 @@
                         </div>
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Receiving date</dt>
-                            <dd class="text-sm text-gray-900">{{ item.receiving_date.strftime('%d-%b-%y') if item.receiving_date else 'N/A' }}</dd>
+                            <dd class="text-sm text-gray-900">{{ item.receiving_date|localtime('%d-%b-%y') if item.receiving_date else 'N/A' }}</dd>
                         </div>
                         <div>
                             <dt class="text-sm font-medium text-gray-500">INVENTORY</dt>

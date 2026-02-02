@@ -490,7 +490,7 @@
                 </div>
                 <div class="attachment-info" style="flex: 1;">
                     <h4>{{ att.filename }}</h4>
-                    <p>Uploaded {{ att.created_at.strftime('%Y-%m-%d %H:%M') if att.created_at else 'Unknown' }}</p>
+                    <p>Uploaded {{ att.created_at|localtime('%Y-%m-%d %H:%M') if att.created_at else 'Unknown' }}</p>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
                     <button class="btn btn-secondary" onclick="event.stopPropagation(); extractShippingInfo({{ att.id }})" title="Extract shipping/PO info to update ticket description">

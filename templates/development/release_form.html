@@ -88,7 +88,7 @@
                         <input type="date"
                                name="planned_date"
                                id="planned_date"
-                               value="{{ release.planned_date.strftime('%Y-%m-%d') if release and release.planned_date else '' }}"
+                               value="{{ release.planned_date|localtime('%Y-%m-%d') if release and release.planned_date else '' }}"
                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                     </div>
 

@@ -383,7 +383,7 @@
                     <div class="meeting-card-title">{{ meeting.name }}</div>
                     <div class="meeting-card-date">
                         <i class="fas fa-calendar-alt"></i>
-                        {{ meeting.meeting_date.strftime('%B %d, %Y') if meeting.meeting_date else 'No date' }}
+                        {{ meeting.meeting_date|localtime('%B %d, %Y') if meeting.meeting_date else 'No date' }}
                     </div>
                 </div>
                 <div class="meeting-card-body">

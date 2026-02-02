@@ -58,9 +58,9 @@
                     </div>
                     <div class="text-lg font-bold text-gray-900">
                         {% if release.release_date %}
-                            {{ release.release_date.strftime('%m/%d/%Y') }}
+                            {{ release.release_date|localtime('%m/%d/%Y') }}
                         {% elif release.planned_date %}
-                            {{ release.planned_date.strftime('%m/%d/%Y') }}
+                            {{ release.planned_date|localtime('%m/%d/%Y') }}
                         {% else %}
                             Not set
                         {% endif %}

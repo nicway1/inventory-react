@@ -390,7 +390,7 @@
                                         <p class="text-sm text-gray-600 mt-1">{{ key.name }}</p>
                                         <p class="text-xs text-gray-500 mt-1">
                                             Usage: {{ key.usage_count }}/{{ key.limit_count }} | 
-                                            Created: {{ key.created_at.strftime('%Y-%m-%d') if key.created_at else 'N/A' }}
+                                            Created: {{ key.created_at|localtime('%Y-%m-%d') if key.created_at else 'N/A' }}
                                         </p>
                                     </div>
                                     <div class="flex space-x-2">

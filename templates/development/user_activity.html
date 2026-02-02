@@ -422,7 +422,7 @@
                         <tbody>
                             {% for session in sessions %}
                             <tr>
-                                <td>{{ session.login_at.strftime('%Y-%m-%d %H:%M') if session.login_at else '-' }}</td>
+                                <td>{{ session.login_at|localtime('%Y-%m-%d %H:%M') if session.login_at else '-' }}</td>
                                 <td>{{ session.duration_formatted }}</td>
                                 <td>
                                     {% if session.device_type == 'mobile' %}
@@ -465,7 +465,7 @@
                         {% for activity in activities %}
                         <div class="timeline-item">
                             <div class="timeline-time">
-                                {{ activity.created_at.strftime('%Y-%m-%d %H:%M') if activity.created_at else '-' }}
+                                {{ activity.created_at|localtime('%Y-%m-%d %H:%M') if activity.created_at else '-' }}
                             </div>
                             <div class="timeline-content">
                                 <div class="timeline-title">{{ activity.type }}</div>
@@ -506,9 +506,9 @@
                     <tbody>
                         {% for session in sessions[:20] %}
                         <tr>
-                            <td>{{ session.login_at.strftime('%Y-%m-%d') if session.login_at else '-' }}</td>
-                            <td>{{ session.login_at.strftime('%H:%M:%S') if session.login_at else '-' }}</td>
-                            <td>{{ session.logout_at.strftime('%H:%M:%S') if session.logout_at else '-' }}</td>
+                            <td>{{ session.login_at|localtime('%Y-%m-%d') if session.login_at else '-' }}</td>
+                            <td>{{ session.login_at|localtime('%H:%M:%S') if session.login_at else '-' }}</td>
+                            <td>{{ session.logout_at|localtime('%H:%M:%S') if session.logout_at else '-' }}</td>
                             <td>{{ session.duration_formatted }}</td>
                             <td><code>{{ session.ip_address or '-' }}</code></td>
                             <td>{{ session.browser or 'Unknown' }}</td>

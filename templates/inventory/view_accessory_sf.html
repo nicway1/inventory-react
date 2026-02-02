@@ -1403,7 +1403,7 @@
                                     </span>
                                 </td>
                                 <td>{{ ticket.priority.value if ticket.priority else '-' }}</td>
-                                <td>{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else '-' }}</td>
+                                <td>{{ ticket.created_at|localtime('%Y-%m-%d') if ticket.created_at else '-' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -1448,7 +1448,7 @@
                                 </td>
                                 <td>{{ trans.quantity or 0 }}</td>
                                 <td>{{ trans.user.username if trans.user else '-' }}</td>
-                                <td>{{ trans.transaction_date.strftime('%Y-%m-%d') if trans.transaction_date else '-' }}</td>
+                                <td>{{ trans.transaction_date|localtime('%Y-%m-%d') if trans.transaction_date else '-' }}</td>
                                 <td>{{ trans.notes or '-' }}</td>
                             </tr>
                             {% endfor %}
@@ -1496,11 +1496,11 @@
                     <div class="sf-card-body">
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Checkout Date</div>
-                            <div class="sf-detail-value">{{ accessory.checkout_date.strftime('%Y-%m-%d %H:%M') if accessory.checkout_date else '-' }}</div>
+                            <div class="sf-detail-value">{{ accessory.checkout_date|localtime('%Y-%m-%d %H:%M') if accessory.checkout_date else '-' }}</div>
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Return Date</div>
-                            <div class="sf-detail-value">{{ accessory.return_date.strftime('%Y-%m-%d %H:%M') if accessory.return_date else '-' }}</div>
+                            <div class="sf-detail-value">{{ accessory.return_date|localtime('%Y-%m-%d %H:%M') if accessory.return_date else '-' }}</div>
                         </div>
                     </div>
                 </div>
@@ -1523,7 +1523,7 @@
                             <div class="sf-timeline-content">
                                 <div class="sf-timeline-title">{{ entry.action }}</div>
                                 <div class="sf-timeline-meta">
-                                    {{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '' }}
+                                    {{ entry.created_at|localtime('%Y-%m-%d %H:%M') if entry.created_at else '' }}
                                     {% if entry.user %} by {{ entry.user.username }}{% endif %}
                                 </div>
                                 {% if entry.notes %}
@@ -1557,11 +1557,11 @@
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Created</div>
-                            <div class="sf-detail-value">{{ accessory.created_at.strftime('%Y-%m-%d %H:%M') if accessory.created_at else '-' }}</div>
+                            <div class="sf-detail-value">{{ accessory.created_at|localtime('%Y-%m-%d %H:%M') if accessory.created_at else '-' }}</div>
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Last Updated</div>
-                            <div class="sf-detail-value">{{ accessory.updated_at.strftime('%Y-%m-%d %H:%M') if accessory.updated_at else '-' }}</div>
+                            <div class="sf-detail-value">{{ accessory.updated_at|localtime('%Y-%m-%d %H:%M') if accessory.updated_at else '-' }}</div>
                         </div>
                     </div>
                 </div>

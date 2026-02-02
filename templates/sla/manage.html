@@ -173,8 +173,8 @@
                         <div class="p-4 hover:bg-gray-50 flex items-center justify-between holiday-row" data-holiday-id="{{ holiday.id }}" data-queue-id="{{ holiday.queue_id }}">
                             <div class="flex items-center space-x-4 flex-1">
                                 <div class="text-center bg-gray-100 rounded-lg px-3 py-2 min-w-[70px]">
-                                    <div class="text-sm font-bold text-gray-800">{{ holiday.holiday_date.strftime('%d') }}</div>
-                                    <div class="text-xs text-gray-600">{{ holiday.holiday_date.strftime('%b %Y') }}</div>
+                                    <div class="text-sm font-bold text-gray-800">{{ holiday.holiday_date|localtime('%d') }}</div>
+                                    <div class="text-xs text-gray-600">{{ holiday.holiday_date|localtime('%b %Y') }}</div>
                                 </div>
                                 <div class="flex-1">
                                     <div class="font-semibold text-gray-900">{{ holiday.name }}</div>

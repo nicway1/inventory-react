@@ -223,8 +223,8 @@
 
                                             <!-- Created -->
                                             <div class="col-span-2">
-                                                <div class="text-sm text-gray-900">{{ notification.created_at.strftime('%Y-%m-%d') if notification.created_at else 'N/A' }}</div>
-                                                <div class="text-xs text-gray-500">{{ notification.created_at.strftime('%H:%M') if notification.created_at else '' }}</div>
+                                                <div class="text-sm text-gray-900">{{ notification.created_at|localtime('%Y-%m-%d') if notification.created_at else 'N/A' }}</div>
+                                                <div class="text-xs text-gray-500">{{ notification.created_at|localtime('%H:%M') if notification.created_at else '' }}</div>
                                             </div>
 
                                             <!-- Actions -->
@@ -292,7 +292,7 @@
                                             
                                             <div class="mt-3 flex items-center justify-between">
                                                 <div class="text-xs text-gray-500">
-                                                    Created: {{ notification.created_at.strftime('%Y-%m-%d %H:%M') if notification.created_at else 'N/A' }}
+                                                    Created: {{ notification.created_at|localtime('%Y-%m-%d %H:%M') if notification.created_at else 'N/A' }}
                                                 </div>
                                                 <div class="flex items-center space-x-1">
                                                     <!-- Mobile Actions -->

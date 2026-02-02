@@ -7,7 +7,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Report Details</h1>
-                <p class="text-gray-600">{{ report.audit_session.country }} | Completed: {{ report.audit_session.completed_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                <p class="text-gray-600">{{ report.audit_session.country }} | Completed: {{ report.audit_session.completed_at|localtime('%B %d, %Y at %I:%M %p') }}</p>
             </div>
             <div class="flex space-x-3">
                 <a href="{{ url_for('inventory.audit_remediation', audit_id=report.audit_session.id) }}" class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 inline-flex items-center">
@@ -105,7 +105,7 @@
             </div>
             <div>
                 <span class="text-gray-600">Started at:</span>
-                <span class="font-medium ml-2">{{ report.audit_session.started_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                <span class="font-medium ml-2">{{ report.audit_session.started_at|localtime('%B %d, %Y at %I:%M %p') }}</span>
             </div>
         </div>
     </div>

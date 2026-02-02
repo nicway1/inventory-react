@@ -1035,7 +1035,7 @@
                     </div>
                     <div class="info-item">
                         <div class="info-label">Created</div>
-                        <div class="info-value">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</div>
+                        <div class="info-value">{{ user.created_at|localtime('%Y-%m-%d') if user.created_at else 'N/A' }}</div>
                     </div>
                 </div>
             </div>

@@ -177,7 +177,7 @@
                                     <span class="text-gray-400">-</span>
                                 {% endif %}
                             </td>
-                            <td class="px-4 py-3 text-sm text-gray-500">{{ ticket.created_at.strftime('%b %d, %Y') if ticket.created_at else '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">{{ ticket.created_at|localtime('%b %d, %Y') if ticket.created_at else '-' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

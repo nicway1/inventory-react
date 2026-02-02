@@ -541,7 +541,7 @@
                     <span class="sf-date">{{ user.assigned_country or '—' }}</span>
                 </td>
                 <td>
-                    <span class="sf-date">{{ user.created_at.strftime('%b %d, %Y') if user.created_at else '—' }}</span>
+                    <span class="sf-date">{{ user.created_at|localtime('%b %d, %Y') if user.created_at else '—' }}</span>
                 </td>
                 <td>
                     <a href="{{ url_for('development.view_user_profile', user_id=user.id) }}" class="sf-action-btn" title="View Profile">

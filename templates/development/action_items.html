@@ -831,7 +831,7 @@
             {% endif %}
             {% if item.due_date %}
             <span class="due-date {% if item.due_date < today %}overdue{% elif (item.due_date - today).days <= 2 %}due-soon{% endif %}" title="Due: {{ item.due_date }}">
-                <i class="fas fa-calendar-alt"></i> {{ item.due_date.strftime('%b %d') }}
+                <i class="fas fa-calendar-alt"></i> {{ item.due_date|localtime('%b %d') }}
             </span>
             {% endif %}
         </div>

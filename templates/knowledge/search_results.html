@@ -80,7 +80,7 @@
                                    class="text-decoration-none">{{ article.category.name }}</a> • 
                                 {% endif %}
                                 By {{ article.author.username }} • 
-                                Updated {{ article.updated_at.strftime('%Y-%m-%d') }}
+                                Updated {{ article.updated_at|localtime('%Y-%m-%d') }}
                                 {% if article.tags %}
                                 <br>
                                 Tags: 

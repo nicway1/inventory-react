@@ -641,18 +641,18 @@
                     <div class="sf-timeline">
                         <div class="sf-timeline-item">
                             <div class="sf-timeline-label">Created</div>
-                            <div class="sf-timeline-date">{{ post.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                            <div class="sf-timeline-date">{{ post.created_at|localtime('%b %d, %Y at %H:%M') }}</div>
                         </div>
                         {% if post.published_at %}
                         <div class="sf-timeline-item success">
                             <div class="sf-timeline-label">Published</div>
-                            <div class="sf-timeline-date">{{ post.published_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                            <div class="sf-timeline-date">{{ post.published_at|localtime('%b %d, %Y at %H:%M') }}</div>
                         </div>
                         {% endif %}
                         {% if post.updated_at and post.updated_at != post.created_at %}
                         <div class="sf-timeline-item">
                             <div class="sf-timeline-label">Last Updated</div>
-                            <div class="sf-timeline-date">{{ post.updated_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                            <div class="sf-timeline-date">{{ post.updated_at|localtime('%b %d, %Y at %H:%M') }}</div>
                         </div>
                         {% endif %}
                     </div>
@@ -761,7 +761,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem;">
             <div class="sf-help-text">
                 <i class="fas fa-info-circle"></i>
-                Last saved: {{ post.updated_at.strftime('%b %d, %Y at %H:%M') if post.updated_at else post.created_at.strftime('%b %d, %Y at %H:%M') }}
+                Last saved: {{ post.updated_at|localtime('%b %d, %Y at %H:%M') if post.updated_at else post.created_at|localtime('%b %d, %Y at %H:%M') }}
             </div>
             <div style="display: flex; gap: 0.75rem;">
                 <a href="{{ url_for('blog.admin_blog_dashboard') }}" class="sf-btn-action sf-btn-cancel">

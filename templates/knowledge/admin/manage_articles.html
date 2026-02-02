@@ -103,7 +103,7 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ article.view_count }}</td>
-                                    <td>{{ article.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ article.updated_at|localtime('%Y-%m-%d %H:%M') }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
                                             <a href="{{ url_for('knowledge.view_article', article_id=article.id) }}" 

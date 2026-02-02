@@ -106,7 +106,7 @@
                         <input type="date" 
                                id="receiving_date" 
                                name="receiving_date" 
-                               value="{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '' }}"
+                               value="{{ asset.receiving_date|localtime('%Y-%m-%d') if asset.receiving_date else '' }}"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     </div>
 

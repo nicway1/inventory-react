@@ -152,7 +152,7 @@
                                                 <span class="badge badge-secondary">Archived</span>
                                                 {% endif %}
                                             </td>
-                                            <td>{{ article.created_at.strftime('%Y-%m-%d') }}</td>
+                                            <td>{{ article.created_at|localtime('%Y-%m-%d') }}</td>
                                             <td>{{ article.view_count }}</td>
                                             <td>
                                                 <div class="btn-group btn-group-sm">

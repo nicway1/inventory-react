@@ -82,7 +82,7 @@
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <div class="flex justify-between">
                                 <p class="text-sm font-medium">{{ activity.type }}</p>
-                                <p class="text-sm text-gray-600">{{ activity.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                                <p class="text-sm text-gray-600">{{ activity.timestamp|localtime('%Y-%m-%d %H:%M') }}</p>
                             </div>
                             <p class="text-sm text-gray-600 mt-1">{{ activity.description }}</p>
                         </div>

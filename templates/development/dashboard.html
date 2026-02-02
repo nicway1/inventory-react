@@ -585,7 +585,7 @@
                                     {% endif %}
                                 </td>
                                 <td style="padding: 0.5rem 1rem; font-size: 0.8rem; color: #706e6b;">
-                                    {{ meeting.meeting_date.strftime('%b %d, %Y') }}
+                                    {{ meeting.meeting_date|localtime('%b %d, %Y') }}
                                 </td>
                                 <td style="padding: 0.5rem 1rem;">
                                     <span style="font-weight: 600;">{{ done_items }}/{{ total_items }}</span>
@@ -719,7 +719,7 @@
                                     <div style="font-size: 0.8rem; color: #706e6b; margin-top: 0.25rem;">
                                         Requested by <strong>{{ feature.requester.username if feature.requester else 'Unknown' }}</strong>
                                         {% if feature.approval_requested_at %}
-                                        <span style="margin-left: 0.5rem;">{{ feature.approval_requested_at.strftime('%b %d, %Y') }}</span>
+                                        <span style="margin-left: 0.5rem;">{{ feature.approval_requested_at|localtime('%b %d, %Y') }}</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -774,7 +774,7 @@
                                     <div style="font-size: 0.8rem; color: #706e6b; margin-top: 0.25rem;">
                                         Requested by <strong>{{ feature.requester.username if feature.requester else 'Unknown' }}</strong>
                                         {% if feature.approved_at %}
-                                        <span style="margin-left: 0.5rem;">Approved {{ feature.approved_at.strftime('%b %d, %Y') }}</span>
+                                        <span style="margin-left: 0.5rem;">Approved {{ feature.approved_at|localtime('%b %d, %Y') }}</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -979,7 +979,7 @@
                             </td>
                             <td>
                                 <span style="color: #706e6b; font-size: 0.875rem;">
-                                    {{ entry.item.updated_at.strftime('%m/%d/%Y %I:%M %p') if entry.item.updated_at else 'Never' }}
+                                    {{ entry.item.updated_at|localtime('%m/%d/%Y %I:%M %p') if entry.item.updated_at else 'Never' }}
                                 </span>
                             </td>
                             <td>
@@ -1037,7 +1037,7 @@
                                     <div class="sf-filter-label">Planned Date</div>
                                     <div style="font-weight: 600;">
                                         {% if release.planned_date %}
-                                            {{ release.planned_date.strftime('%m/%d/%Y') }}
+                                            {{ release.planned_date|localtime('%m/%d/%Y') }}
                                         {% else %}
                                             Not set
                                         {% endif %}

@@ -553,7 +553,7 @@
                 </td>
                 <td>
                     {% if post.published_at %}
-                        <span class="sf-date">{{ post.published_at.strftime('%b %d, %Y') }}</span>
+                        <span class="sf-date">{{ post.published_at|localtime('%b %d, %Y') }}</span>
                     {% else %}
                         <span class="sf-date text-muted">—</span>
                     {% endif %}

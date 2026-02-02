@@ -358,7 +358,7 @@
                 <div class="doc-card-meta">
                     <div class="doc-card-date">
                         <i class="fas fa-clock"></i>
-                        Updated {{ doc.last_modified.strftime('%b %d, %Y') }}
+                        Updated {{ doc.last_modified|localtime('%b %d, %Y') }}
                     </div>
                     <a href="{{ url_for('knowledge.view_system_doc', slug=doc.slug) }}" class="doc-card-action" onclick="event.stopPropagation();">
                         <i class="fas fa-eye"></i>

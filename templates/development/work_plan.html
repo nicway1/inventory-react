@@ -335,11 +335,11 @@
         <div class="week-tabs">
             <button class="week-tab active" onclick="switchWeek('current')">
                 <i class="fas fa-calendar-week"></i>
-                This Week ({{ week_start.strftime('%b %d') }} - {{ week_dates.friday.strftime('%b %d') }})
+                This Week ({{ week_start|localtime('%b %d') }} - {{ week_dates.friday|localtime('%b %d') }})
             </button>
             <button class="week-tab" onclick="switchWeek('next')">
                 <i class="fas fa-calendar-alt"></i>
-                Next Week ({{ next_week_start.strftime('%b %d') }} - {{ next_week_dates.friday.strftime('%b %d') }})
+                Next Week ({{ next_week_start|localtime('%b %d') }} - {{ next_week_dates.friday|localtime('%b %d') }})
             </button>
         </div>
 
@@ -383,7 +383,7 @@
                                     {% if day_date == today %}<i class="fas fa-star" style="color: #0176d3;"></i> {% endif %}
                                     {{ day_name.capitalize() }}
                                 </span>
-                                <span class="day-date">{{ day_date.strftime('%b %d') }}</span>
+                                <span class="day-date">{{ day_date|localtime('%b %d') }}</span>
                             </div>
                             <textarea id="current_{{ day_name }}_plan" class="form-control" rows="3"
                                       placeholder="What will you work on?" data-week="current"
@@ -457,7 +457,7 @@
                         <div class="day-card">
                             <div class="day-card-header">
                                 <span class="day-name">{{ day_name.capitalize() }}</span>
-                                <span class="day-date">{{ day_date.strftime('%b %d') }}</span>
+                                <span class="day-date">{{ day_date|localtime('%b %d') }}</span>
                             </div>
                             <textarea id="next_{{ day_name }}_plan" class="form-control" rows="3"
                                       placeholder="What will you work on?" data-week="next"

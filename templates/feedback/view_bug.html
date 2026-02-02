@@ -21,7 +21,7 @@
                         {{ bug.priority.value }}
                     </span>
                 </div>
-                <p class="text-gray-600">{{ bug.display_id }} • Reported {{ bug.created_at.strftime('%B %d, %Y') if bug.created_at else 'Unknown date' }}</p>
+                <p class="text-gray-600">{{ bug.display_id }} • Reported {{ bug.created_at|localtime('%B %d, %Y') if bug.created_at else 'Unknown date' }}</p>
             </div>
             <a href="{{ url_for('feedback.my_reports') }}"
                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
@@ -127,7 +127,7 @@
                     </div>
                     {% if bug.resolution_date %}
                         <p class="text-sm text-gray-500 mt-4">
-                            Resolved on {{ bug.resolution_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            Resolved on {{ bug.resolution_date|localtime('%B %d, %Y at %I:%M %p') }}
                         </p>
                     {% endif %}
                 </div>
@@ -200,7 +200,7 @@
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Created</dt>
                             <dd class="mt-1 text-sm text-gray-900">
-                                {{ bug.created_at.strftime('%B %d, %Y') if bug.created_at else 'Unknown' }}
+                                {{ bug.created_at|localtime('%B %d, %Y') if bug.created_at else 'Unknown' }}
                             </dd>
                         </div>
 
@@ -208,7 +208,7 @@
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
                             <dd class="mt-1 text-sm text-gray-900">
-                                {{ bug.updated_at.strftime('%B %d, %Y') if bug.updated_at else 'Never' }}
+                                {{ bug.updated_at|localtime('%B %d, %Y') if bug.updated_at else 'Never' }}
                             </dd>
                         </div>
                         {% endif %}

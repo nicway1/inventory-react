@@ -622,7 +622,7 @@
             <div class="commit-timeline">
                 {% set current_date = namespace(value=None) %}
                 {% for entry in dev_blog_entries %}
-                    {% set entry_date = entry.commit_date.strftime('%B %d, %Y') %}
+                    {% set entry_date = entry.commit_date|localtime('%B %d, %Y') %}
                     {% if current_date.value != entry_date %}
                         {% if current_date.value is not none %}
                         </div>
@@ -648,7 +648,7 @@
                         <div class="commit-title">{{ entry.title }}</div>
                         <div class="commit-meta">
                             <span><i class="fas fa-user"></i> {{ entry.author_name }}</span>
-                            <span><i class="fas fa-clock"></i> {{ entry.commit_date.strftime('%H:%M') }}</span>
+                            <span><i class="fas fa-clock"></i> {{ entry.commit_date|localtime('%H:%M') }}</span>
                             {% if entry.branch %}
                             <span><i class="fas fa-code-branch"></i> {{ entry.branch }}</span>
                             {% endif %}
@@ -706,7 +706,7 @@
                         {% if release.planned_date %}
                         <span class="release-meta-item">
                             <i class="fas fa-calendar-alt"></i>
-                            Planned: {{ release.planned_date.strftime('%B %d, %Y') }}
+                            Planned: {{ release.planned_date|localtime('%B %d, %Y') }}
                         </span>
                         {% endif %}
                         {% if release.days_until_release is not none %}
@@ -816,7 +816,7 @@
                         {% if release.release_date %}
                         <span class="release-meta-item">
                             <i class="fas fa-calendar-check"></i>
-                            Released: {{ release.release_date.strftime('%B %d, %Y') }}
+                            Released: {{ release.release_date|localtime('%B %d, %Y') }}
                         </span>
                         {% endif %}
                         {% if release.release_manager %}

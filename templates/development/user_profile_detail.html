@@ -460,16 +460,16 @@
                     </li>
                     <li class="sf-info-item">
                         <span class="sf-info-label">Created</span>
-                        <span class="sf-info-value">{{ user.created_at.strftime('%b %d, %Y %H:%M') if user.created_at else '—' }}</span>
+                        <span class="sf-info-value">{{ user.created_at|localtime('%b %d, %Y %H:%M') if user.created_at else '—' }}</span>
                     </li>
                     <li class="sf-info-item">
                         <span class="sf-info-label">Updated</span>
-                        <span class="sf-info-value">{{ user.updated_at.strftime('%b %d, %Y %H:%M') if user.updated_at else '—' }}</span>
+                        <span class="sf-info-value">{{ user.updated_at|localtime('%b %d, %Y %H:%M') if user.updated_at else '—' }}</span>
                     </li>
                     {% if user.is_deleted %}
                     <li class="sf-info-item">
                         <span class="sf-info-label">Deleted At</span>
-                        <span class="sf-info-value" style="color: var(--sf-red);">{{ user.deleted_at.strftime('%b %d, %Y %H:%M') if user.deleted_at else '—' }}</span>
+                        <span class="sf-info-value" style="color: var(--sf-red);">{{ user.deleted_at|localtime('%b %d, %Y %H:%M') if user.deleted_at else '—' }}</span>
                     </li>
                     {% endif %}
                 </ul>
@@ -550,7 +550,7 @@
                     </div>
                     <div class="sf-activity-content">
                         <div class="sf-activity-action">{{ activity.action }}</div>
-                        <div class="sf-activity-time">{{ activity.created_at.strftime('%b %d, %Y %H:%M') if activity.created_at else '' }}</div>
+                        <div class="sf-activity-time">{{ activity.created_at|localtime('%b %d, %Y %H:%M') if activity.created_at else '' }}</div>
                     </div>
                 </div>
                 {% endfor %}

@@ -264,11 +264,11 @@
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Created At</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ accessory.created_at.strftime('%Y-%m-%d %H:%M:%S') if accessory.created_at else 'Not available' }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{ accessory.created_at|localtime('%Y-%m-%d %H:%M:%S') if accessory.created_at else 'Not available' }}</dd>
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ accessory.updated_at.strftime('%Y-%m-%d %H:%M:%S') if accessory.updated_at else 'Not available' }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{ accessory.updated_at|localtime('%Y-%m-%d %H:%M:%S') if accessory.updated_at else 'Not available' }}</dd>
                     </div>
                 </dl>
             </div>
@@ -321,7 +321,7 @@
                                         {{ transaction.quantity }}
                                     </td>
                                     <td class="px-6 py-4">
-                                        {{ transaction.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if transaction.transaction_date else 'N/A' }}
+                                        {{ transaction.transaction_date|localtime('%Y-%m-%d %H:%M:%S') if transaction.transaction_date else 'N/A' }}
                                     </td>
                                     <td class="px-6 py-4">
                                         {{ transaction.notes or 'No notes' }}

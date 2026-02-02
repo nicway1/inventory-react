@@ -160,7 +160,7 @@
                                         {% if article.category %}{{ article.category.name }} • {% endif %}
                                         {{ article.view_count }} views
                                     </span>
-                                    <span>{{ article.created_at.strftime('%b %d, %Y') }}</span>
+                                    <span>{{ article.created_at|localtime('%b %d, %Y') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -202,7 +202,7 @@
                                         {% if article.category %}{{ article.category.name }} • {% endif %}
                                         {{ article.view_count }} views
                                     </span>
-                                    <span>Updated {{ article.updated_at.strftime('%b %d, %Y') }}</span>
+                                    <span>Updated {{ article.updated_at|localtime('%b %d, %Y') }}</span>
                                 </div>
                             </div>
                         </div>

@@ -61,7 +61,7 @@
                                     <p class="text-sm text-gray-900">{{ activity.content }}</p>
                                     <div class="mt-1 text-xs text-gray-500">
                                         By <span class="font-medium">{{ activity.user.username }}</span>
-                                        on {{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                        on {{ activity.created_at|localtime('%Y-%m-%d %H:%M:%S') }}
                                     </div>
                                 </div>
                             </div>
@@ -134,7 +134,7 @@
                                 {% endif %}
                                 <div class="mt-2 text-xs text-gray-500">
                                     By <span class="font-medium">{{ entry.user.username }}</span>
-                                    on {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    on {{ entry.created_at|localtime('%Y-%m-%d %H:%M:%S') }}
                                 </div>
                             </div>
                         </div>
@@ -191,7 +191,7 @@
                                 {% endif %}
                                 <div class="mt-2 text-xs text-gray-500">
                                     By <span class="font-medium">{{ entry.user.username }}</span>
-                                    on {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    on {{ entry.created_at|localtime('%Y-%m-%d %H:%M:%S') }}
                                 </div>
                             </div>
                         </div>

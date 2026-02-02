@@ -71,7 +71,7 @@
                                         <line x1="8" y1="2" x2="8" y2="6"/>
                                         <line x1="3" y1="10" x2="21" y2="10"/>
                                     </svg>
-                                    <span>Created {{ article.created_at.strftime('%b %d, %Y') }}</span>
+                                    <span>Created {{ article.created_at|localtime('%b %d, %Y') }}</span>
                                 </div>
                                 {% if article.updated_at != article.created_at %}
                                 <div class="kb-article-meta-item">
@@ -79,7 +79,7 @@
                                         <polyline points="23 4 23 10 17 10"/>
                                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                                     </svg>
-                                    <span>Updated {{ article.updated_at.strftime('%b %d, %Y') }}</span>
+                                    <span>Updated {{ article.updated_at|localtime('%b %d, %Y') }}</span>
                                 </div>
                                 {% endif %}
                             </div>
@@ -264,7 +264,7 @@
                                     <div class="kb-comment-avatar">{{ feedback.user.username[0]|upper }}</div>
                                     <div class="kb-comment-meta">
                                         <strong class="kb-comment-author">{{ feedback.user.username }}</strong>
-                                        <span class="kb-comment-date">{{ feedback.created_at.strftime('%b %d, %Y') }}</span>
+                                        <span class="kb-comment-date">{{ feedback.created_at|localtime('%b %d, %Y') }}</span>
                                     </div>
                                     {% if feedback.rating %}
                                     <div class="kb-comment-rating">

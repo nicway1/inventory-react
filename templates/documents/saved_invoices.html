@@ -64,7 +64,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{ invoice.date.strftime('%Y-%m-%d') if invoice.date else 'N/A' }}
+                                        {{ invoice.date|localtime('%Y-%m-%d') if invoice.date else 'N/A' }}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -85,7 +85,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{ invoice.created_at.strftime('%Y-%m-%d %H:%M') if invoice.created_at else 'N/A' }}
+                                        {{ invoice.created_at|localtime('%Y-%m-%d %H:%M') if invoice.created_at else 'N/A' }}
                                     </div>
                                     {% if invoice.creator %}
                                     <div class="text-sm text-gray-500">
@@ -166,7 +166,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-2xl font-bold text-gray-900">
-                            {{ invoices[0].created_at.strftime('%Y-%m-%d') if invoices else 'N/A' }}
+                            {{ invoices[0].created_at|localtime('%Y-%m-%d') if invoices else 'N/A' }}
                         </p>
                         <p class="text-gray-600">Latest Invoice</p>
                     </div>

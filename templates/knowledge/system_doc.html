@@ -322,7 +322,7 @@
             </span>
             <span>
                 <i class="fas fa-clock" style="margin-right: 0.25rem;"></i>
-                Updated {{ last_modified.strftime('%b %d, %Y at %H:%M') }}
+                Updated {{ last_modified|localtime('%b %d, %Y at %H:%M') }}
             </span>
         </div>
     </div>
@@ -357,7 +357,7 @@
                     </div>
                     <div class="sidebar-item">
                         <div class="sidebar-label">Last Updated</div>
-                        <div class="sidebar-value">{{ last_modified.strftime('%b %d, %Y') }}</div>
+                        <div class="sidebar-value">{{ last_modified|localtime('%b %d, %Y') }}</div>
                     </div>
                     <div class="sidebar-item">
                         <div class="sidebar-label">Type</div>

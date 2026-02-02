@@ -181,7 +181,7 @@
                         </svg>
                         Created At
                     </dt>
-                    <dd class="text-sm text-gray-900">{{ customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else 'Not available' }}</dd>
+                    <dd class="text-sm text-gray-900">{{ customer.created_at|localtime('%Y-%m-%d %H:%M:%S') if customer.created_at else 'Not available' }}</dd>
                 </div>
                 <div class="flex">
                     <dt class="flex items-center text-sm font-medium text-gray-500 mr-2">
@@ -190,7 +190,7 @@
                         </svg>
                         Last Updated
                     </dt>
-                    <dd class="text-sm text-gray-900">{{ customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else 'Not available' }}</dd>
+                    <dd class="text-sm text-gray-900">{{ customer.updated_at|localtime('%Y-%m-%d %H:%M:%S') if customer.updated_at else 'Not available' }}</dd>
                 </div>
             </dl>
         </div>
@@ -414,7 +414,7 @@
                                 {{ ticket.queue.name if ticket.queue else 'Unassigned' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else 'N/A' }}
+                                {{ ticket.created_at|localtime('%Y-%m-%d') if ticket.created_at else 'N/A' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}"

@@ -451,7 +451,7 @@
                             {{ user_type_value.replace('_', ' ') }}
                         </span>
                     </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.created_at|localtime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
                     <td class="px-4 py-4 text-right text-sm font-medium">
                         <div class="flex items-center justify-end gap-2">
                             {% if not user.is_deleted %}

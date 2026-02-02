@@ -79,11 +79,11 @@
                                 {{ release.days_until_release }}d left
                             {% endif %}
                         {% else %}
-                            {{ release.planned_date.strftime('%m/%d') }}
+                            {{ release.planned_date|localtime('%m/%d') }}
                         {% endif %}
                     </div>
                     <div class="text-sm text-gray-600">Target Date</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ release.planned_date.strftime('%B %d, %Y') }}</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ release.planned_date|localtime('%B %d, %Y') }}</div>
                 {% else %}
                     <div class="text-2xl font-bold text-gray-400">Not set</div>
                     <div class="text-sm text-gray-600">Target Date</div>
@@ -260,18 +260,18 @@
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Created</dt>
-                            <dd class="text-sm text-gray-900">{{ release.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                            <dd class="text-sm text-gray-900">{{ release.created_at|localtime('%B %d, %Y at %I:%M %p') }}</dd>
                         </div>
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-                            <dd class="text-sm text-gray-900">{{ release.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                            <dd class="text-sm text-gray-900">{{ release.updated_at|localtime('%B %d, %Y at %I:%M %p') }}</dd>
                         </div>
 
                         {% if release.release_date %}
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Released</dt>
-                            <dd class="text-sm text-gray-900">{{ release.release_date.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                            <dd class="text-sm text-gray-900">{{ release.release_date|localtime('%B %d, %Y at %I:%M %p') }}</dd>
                         </div>
                         {% endif %}
                     </dl>

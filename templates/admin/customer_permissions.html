@@ -198,7 +198,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ permission.created_at.strftime('%Y-%m-%d %H:%M') if permission.created_at else 'N/A' }}
+                            {{ permission.created_at|localtime('%Y-%m-%d %H:%M') if permission.created_at else 'N/A' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <form method="POST" action="{{ url_for('admin.delete_customer_permission', permission_id=permission.id) }}" class="inline" 

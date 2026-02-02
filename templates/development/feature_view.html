@@ -15,7 +15,7 @@
                         {{ feature.priority.value }}
                     </span>
                 </div>
-                <p class="text-gray-600">{{ feature.display_id }} • Created {{ feature.created_at.strftime('%B %d, %Y') }}</p>
+                <p class="text-gray-600">{{ feature.display_id }} • Created {{ feature.created_at|localtime('%B %d, %Y') }}</p>
             </div>
             <div class="flex space-x-2">
                 <a href="{{ url_for('development.edit_feature', id=feature.id) }}"
@@ -121,7 +121,7 @@
 
                                     <!-- Timestamp -->
                                     <div class="mt-1 text-xs text-gray-500 {% if comment.user.id == current_user.id %}text-right{% endif %}">
-                                        {{ comment.created_at.strftime('%I:%M %p') if comment.created_at else '' }}
+                                        {{ comment.created_at|localtime('%I:%M %p') if comment.created_at else '' }}
                                     </div>
                                 </div>
                             </div>
@@ -393,7 +393,7 @@
                         {% if feature.target_date %}
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Target Date</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ feature.target_date.strftime('%B %d, %Y') }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900">{{ feature.target_date|localtime('%B %d, %Y') }}</dd>
                         </div>
                         {% endif %}
 
@@ -401,7 +401,7 @@
                             <dt class="text-sm font-medium text-gray-500">Created</dt>
                             <dd class="mt-1 text-sm text-gray-900">
                                 {% if feature.created_at %}
-                                    {{ feature.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {{ feature.created_at|localtime('%B %d, %Y at %I:%M %p') }}
                                 {% else %}
                                     <span class="text-gray-400">Not specified</span>
                                 {% endif %}
@@ -412,7 +412,7 @@
                             <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
                             <dd class="mt-1 text-sm text-gray-900">
                                 {% if feature.updated_at %}
-                                    {{ feature.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {{ feature.updated_at|localtime('%B %d, %Y at %I:%M %p') }}
                                 {% else %}
                                     <span class="text-gray-400">Never updated</span>
                                 {% endif %}
@@ -446,7 +446,7 @@
                         {% if feature.target_release.planned_date %}
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-500">Planned Date:</span>
-                            <span class="text-gray-900">{{ feature.target_release.planned_date.strftime('%m/%d/%Y') }}</span>
+                            <span class="text-gray-900">{{ feature.target_release.planned_date|localtime('%m/%d/%Y') }}</span>
                         </div>
                         {% endif %}
                     </div>

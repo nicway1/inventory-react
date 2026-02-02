@@ -255,7 +255,7 @@
                                 </svg>
                                 Receiving Date
                             </dt>
-                    <dd class="text-sm text-gray-900">{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else 'N/A' }}</dd>
+                    <dd class="text-sm text-gray-900">{{ asset.receiving_date|localtime('%Y-%m-%d') if asset.receiving_date else 'N/A' }}</dd>
                 </div>
             </dl>
         </div>
@@ -498,7 +498,7 @@
                                             Asset was disposed
                                         </p>
                                         <p class="mt-1 text-sm">
-                                            Disposal date: {{ asset.history[0].created_at.strftime('%Y-%m-%d %H:%M:%S') if asset.history else 'N/A' }}
+                                            Disposal date: {{ asset.history[0].created_at|localtime('%Y-%m-%d %H:%M:%S') if asset.history else 'N/A' }}
                                         </p>
                                     </div>
                                 </div>
@@ -602,7 +602,7 @@
                         {% for entry in asset.history %}
                         <tr class="bg-white border-b hover:bg-gray-50">
                             <td class="px-6 py-4">
-                                {{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') if entry.created_at else 'N/A' }}
+                                {{ entry.created_at|localtime('%Y-%m-%d %H:%M:%S') if entry.created_at else 'N/A' }}
                             </td>
                             <td class="px-6 py-4">
                                 {{ entry.user.username if entry.user else 'System' }}
@@ -782,7 +782,7 @@
                         </span>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}
+                        {{ ticket.created_at|localtime('%Y-%m-%d %H:%M') if ticket.created_at else 'N/A' }}
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap">
                         <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}"

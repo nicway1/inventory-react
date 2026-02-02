@@ -389,7 +389,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ item.sla.due_date.strftime('%Y-%m-%d %H:%M') if item.sla.due_date else '-' }}
+                            {{ item.sla.due_date|localtime('%Y-%m-%d %H:%M') if item.sla.due_date else '-' }}
                         </td>
                     </tr>
                     {% endfor %}
@@ -578,10 +578,10 @@
                             {{ item.ticket.requester.username if item.ticket.requester else 'Unknown' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ item.ticket.created_at.strftime('%Y-%m-%d %H:%M') if item.ticket.created_at else '-' }}
+                            {{ item.ticket.created_at|localtime('%Y-%m-%d %H:%M') if item.ticket.created_at else '-' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ item.sla.due_date.strftime('%Y-%m-%d %H:%M') if item.sla.due_date else '-' }}
+                            {{ item.sla.due_date|localtime('%Y-%m-%d %H:%M') if item.sla.due_date else '-' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if item.sla.status == 'breached' %}

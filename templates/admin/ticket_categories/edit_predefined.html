@@ -129,12 +129,12 @@
                 </div>
                 <div class="mb-2">
                     <dt class="inline font-medium text-gray-600">Created:</dt>
-                    <dd class="inline ml-1">{{ config.created_at.strftime('%Y-%m-%d %H:%M:%S') if config.created_at else 'System Default' }}</dd>
+                    <dd class="inline ml-1">{{ config.created_at|localtime('%Y-%m-%d %H:%M:%S') if config.created_at else 'System Default' }}</dd>
                 </div>
                 {% if config.updated_at %}
                 <div class="mb-2">
                     <dt class="inline font-medium text-gray-600">Last Modified:</dt>
-                    <dd class="inline ml-1">{{ config.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                    <dd class="inline ml-1">{{ config.updated_at|localtime('%Y-%m-%d %H:%M:%S') }}</dd>
                 </div>
                 {% endif %}
             </dl>

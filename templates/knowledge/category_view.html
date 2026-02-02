@@ -158,7 +158,7 @@
                                     </div>
                                     {% endif %}
                                 </div>
-                                <span>Updated {{ article.updated_at.strftime('%b %d, %Y') }}</span>
+                                <span>Updated {{ article.updated_at|localtime('%b %d, %Y') }}</span>
                             </div>
                         </div>
                     </div>
@@ -187,7 +187,7 @@
                         </p>
                         {% endif %}
                         <div style="font-size: 0.75rem; color: #706e6b;">
-                            <div>{{ article.view_count }} views • {{ article.updated_at.strftime('%b %d, %Y') }}</div>
+                            <div>{{ article.view_count }} views • {{ article.updated_at|localtime('%b %d, %Y') }}</div>
                             {% if article.tags %}
                             <div style="margin-top: 0.5rem;">
                                 {% for tag in article.tags %}

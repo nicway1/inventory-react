@@ -594,7 +594,7 @@
                                     <strong>{{ session.user.username if session.user else 'Unknown' }}</strong>
                                 </a>
                             </td>
-                            <td>{{ session.login_at.strftime('%Y-%m-%d %H:%M') if session.login_at else '-' }}</td>
+                            <td>{{ session.login_at|localtime('%Y-%m-%d %H:%M') if session.login_at else '-' }}</td>
                             <td>{{ session.duration_formatted }}</td>
                             <td>
                                 {% if session.device_type == 'mobile' %}

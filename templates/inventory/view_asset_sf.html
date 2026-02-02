@@ -1189,7 +1189,7 @@
                                     </span>
                                 </td>
                                 <td>{{ ticket.priority.value if ticket.priority else '-' }}</td>
-                                <td>{{ ticket.created_at.strftime('%Y-%m-%d') if ticket.created_at else '-' }}</td>
+                                <td>{{ ticket.created_at|localtime('%Y-%m-%d') if ticket.created_at else '-' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -1264,9 +1264,9 @@
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Receiving Date</div>
-                            <div class="sf-detail-value sf-detail-view">{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '-' }}</div>
+                            <div class="sf-detail-value sf-detail-view">{{ asset.receiving_date|localtime('%Y-%m-%d') if asset.receiving_date else '-' }}</div>
                             <div class="sf-detail-edit">
-                                <input type="date" class="sf-edit-input" name="receiving_date" value="{{ asset.receiving_date.strftime('%Y-%m-%d') if asset.receiving_date else '' }}">
+                                <input type="date" class="sf-edit-input" name="receiving_date" value="{{ asset.receiving_date|localtime('%Y-%m-%d') if asset.receiving_date else '' }}">
                             </div>
                         </div>
                         <div class="sf-detail-field">
@@ -1297,7 +1297,7 @@
                             <div class="sf-timeline-content">
                                 <div class="sf-timeline-title">{{ entry.action }}</div>
                                 <div class="sf-timeline-meta">
-                                    {{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '' }}
+                                    {{ entry.created_at|localtime('%Y-%m-%d %H:%M') if entry.created_at else '' }}
                                     {% if entry.user %} by {{ entry.user.username }}{% endif %}
                                 </div>
                                 {% if entry.notes %}
@@ -1331,11 +1331,11 @@
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Created</div>
-                            <div class="sf-detail-value">{{ asset.created_at.strftime('%Y-%m-%d %H:%M') if asset.created_at else '-' }}</div>
+                            <div class="sf-detail-value">{{ asset.created_at|localtime('%Y-%m-%d %H:%M') if asset.created_at else '-' }}</div>
                         </div>
                         <div class="sf-detail-field">
                             <div class="sf-detail-label">Last Updated</div>
-                            <div class="sf-detail-value">{{ asset.updated_at.strftime('%Y-%m-%d %H:%M') if asset.updated_at else '-' }}</div>
+                            <div class="sf-detail-value">{{ asset.updated_at|localtime('%Y-%m-%d %H:%M') if asset.updated_at else '-' }}</div>
                         </div>
                     </div>
                 </div>

@@ -21,7 +21,7 @@
                         {{ bug.priority.value }}
                     </span>
                 </div>
-                <p class="text-gray-600">{{ bug.display_id }} • Reported {{ bug.created_at.strftime('%B %d, %Y') if bug.created_at else 'Unknown date' }}</p>
+                <p class="text-gray-600">{{ bug.display_id }} • Reported {{ bug.created_at|localtime('%B %d, %Y') if bug.created_at else 'Unknown date' }}</p>
             </div>
             <div class="flex space-x-2">
                 <a href="{{ url_for('development.edit_bug', id=bug.id) }}"
@@ -133,7 +133,7 @@
                     </div>
                     {% if bug.resolution_date %}
                         <p class="text-sm text-gray-500 mt-4">
-                            Resolved on {{ bug.resolution_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            Resolved on {{ bug.resolution_date|localtime('%B %d, %Y at %I:%M %p') }}
                         </p>
                     {% endif %}
                 </div>
@@ -178,7 +178,7 @@
 
                                     <!-- Timestamp -->
                                     <div class="mt-1 text-xs text-gray-500 {% if comment.user.id == current_user.id %}text-right{% endif %}">
-                                        {{ comment.created_at.strftime('%I:%M %p') if comment.created_at else '' }}
+                                        {{ comment.created_at|localtime('%I:%M %p') if comment.created_at else '' }}
                                     </div>
                                 </div>
                             </div>
@@ -555,12 +555,12 @@
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Reported</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ bug.created_at.strftime('%B %d, %Y at %I:%M %p') if bug.created_at else 'Unknown' }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.created_at|localtime('%B %d, %Y at %I:%M %p') if bug.created_at else 'Unknown' }}</dd>
                         </div>
 
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ bug.updated_at.strftime('%B %d, %Y at %I:%M %p') if bug.updated_at else 'Not updated' }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900">{{ bug.updated_at|localtime('%B %d, %Y at %I:%M %p') if bug.updated_at else 'Not updated' }}</dd>
                         </div>
 
                         {% if bug.resolution_time_days is not none %}
@@ -719,12 +719,12 @@
                         {% if bug.fixed_in_release.release_date %}
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-500">Released:</span>
-                            <span class="text-gray-900">{{ bug.fixed_in_release.release_date.strftime('%m/%d/%Y') }}</span>
+                            <span class="text-gray-900">{{ bug.fixed_in_release.release_date|localtime('%m/%d/%Y') }}</span>
                         </div>
                         {% elif bug.fixed_in_release.planned_date %}
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-500">Planned:</span>
-                            <span class="text-gray-900">{{ bug.fixed_in_release.planned_date.strftime('%m/%d/%Y') }}</span>
+                            <span class="text-gray-900">{{ bug.fixed_in_release.planned_date|localtime('%m/%d/%Y') }}</span>
                         </div>
                         {% endif %}
                     </div>

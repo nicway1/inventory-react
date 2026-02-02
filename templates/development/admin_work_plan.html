@@ -369,7 +369,7 @@
             </a>
             <span class="week-display">
                 <i class="fas fa-calendar-week" style="color: #6f42c1;"></i>
-                {{ week_start.strftime('%B %d') }} - {{ week_dates.friday.strftime('%B %d, %Y') }}
+                {{ week_start|localtime('%B %d') }} - {{ week_dates.friday|localtime('%B %d, %Y') }}
                 {% if week_offset == 0 %}<span style="color: #0176d3; font-size: 0.75rem;">(Current Week)</span>{% endif %}
             </span>
             <a href="?week={{ week_offset + 1 }}" class="week-nav-btn">
@@ -430,7 +430,7 @@
                             <div class="daily-plan {% if week_dates.monday == today %}today{% endif %}">
                                 <div class="daily-plan-header">
                                     {% if week_dates.monday == today %}<i class="fas fa-star"></i> {% endif %}
-                                    Monday ({{ week_dates.monday.strftime('%m/%d') }})
+                                    Monday ({{ week_dates.monday|localtime('%m/%d') }})
                                 </div>
                                 <div class="daily-plan-content {{ 'empty' if not plan.monday_plan else '' }}">
                                     {{ plan.monday_plan or '-' }}
@@ -439,7 +439,7 @@
                             <div class="daily-plan {% if week_dates.tuesday == today %}today{% endif %}">
                                 <div class="daily-plan-header">
                                     {% if week_dates.tuesday == today %}<i class="fas fa-star"></i> {% endif %}
-                                    Tuesday ({{ week_dates.tuesday.strftime('%m/%d') }})
+                                    Tuesday ({{ week_dates.tuesday|localtime('%m/%d') }})
                                 </div>
                                 <div class="daily-plan-content {{ 'empty' if not plan.tuesday_plan else '' }}">
                                     {{ plan.tuesday_plan or '-' }}
@@ -448,7 +448,7 @@
                             <div class="daily-plan {% if week_dates.wednesday == today %}today{% endif %}">
                                 <div class="daily-plan-header">
                                     {% if week_dates.wednesday == today %}<i class="fas fa-star"></i> {% endif %}
-                                    Wednesday ({{ week_dates.wednesday.strftime('%m/%d') }})
+                                    Wednesday ({{ week_dates.wednesday|localtime('%m/%d') }})
                                 </div>
                                 <div class="daily-plan-content {{ 'empty' if not plan.wednesday_plan else '' }}">
                                     {{ plan.wednesday_plan or '-' }}
@@ -457,7 +457,7 @@
                             <div class="daily-plan {% if week_dates.thursday == today %}today{% endif %}">
                                 <div class="daily-plan-header">
                                     {% if week_dates.thursday == today %}<i class="fas fa-star"></i> {% endif %}
-                                    Thursday ({{ week_dates.thursday.strftime('%m/%d') }})
+                                    Thursday ({{ week_dates.thursday|localtime('%m/%d') }})
                                 </div>
                                 <div class="daily-plan-content {{ 'empty' if not plan.thursday_plan else '' }}">
                                     {{ plan.thursday_plan or '-' }}
@@ -466,7 +466,7 @@
                             <div class="daily-plan {% if week_dates.friday == today %}today{% endif %}">
                                 <div class="daily-plan-header">
                                     {% if week_dates.friday == today %}<i class="fas fa-star"></i> {% endif %}
-                                    Friday ({{ week_dates.friday.strftime('%m/%d') }})
+                                    Friday ({{ week_dates.friday|localtime('%m/%d') }})
                                 </div>
                                 <div class="daily-plan-content {{ 'empty' if not plan.friday_plan else '' }}">
                                     {{ plan.friday_plan or '-' }}
@@ -491,11 +491,11 @@
                     <!-- Last Updated -->
                     <div style="font-size: 0.75rem; color: #706e6b; margin-top: 1rem; text-align: right;">
                         {% if plan.submitted_at %}
-                            Submitted: {{ plan.submitted_at.strftime('%b %d, %Y at %I:%M %p') }}
+                            Submitted: {{ plan.submitted_at|localtime('%b %d, %Y at %I:%M %p') }}
                         {% elif plan.updated_at %}
-                            Last updated: {{ plan.updated_at.strftime('%b %d, %Y at %I:%M %p') }}
+                            Last updated: {{ plan.updated_at|localtime('%b %d, %Y at %I:%M %p') }}
                         {% else %}
-                            Created: {{ plan.created_at.strftime('%b %d, %Y at %I:%M %p') if plan.created_at else 'Unknown' }}
+                            Created: {{ plan.created_at|localtime('%b %d, %Y at %I:%M %p') if plan.created_at else 'Unknown' }}
                         {% endif %}
                     </div>
                 </div>

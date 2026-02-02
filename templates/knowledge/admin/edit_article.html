@@ -248,8 +248,8 @@
                     <h3 style="font-size: 1rem; font-weight: 600; color: #181818; margin: 0 0 1rem 0;">Article Information</h3>
                     <div style="font-size: 0.875rem; color: #706e6b; line-height: 1.5;">
                         <div style="margin-bottom: 0.5rem;"><strong>Author:</strong> {{ article.author.username }}</div>
-                        <div style="margin-bottom: 0.5rem;"><strong>Created:</strong> {{ article.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
-                        <div style="margin-bottom: 0.5rem;"><strong>Updated:</strong> {{ article.updated_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Created:</strong> {{ article.created_at|localtime('%b %d, %Y at %H:%M') }}</div>
+                        <div style="margin-bottom: 0.5rem;"><strong>Updated:</strong> {{ article.updated_at|localtime('%b %d, %Y at %H:%M') }}</div>
                         <div><strong>Views:</strong> {{ article.view_count }}</div>
                     </div>
                 </div>

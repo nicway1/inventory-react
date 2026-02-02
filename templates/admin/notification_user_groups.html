@@ -139,7 +139,7 @@
                                             {{ group.member_count }} member(s)
                                         </span>
                                         <span class="text-gray-400">
-                                            Created: {{ group.created_at.strftime('%Y-%m-%d') if group.created_at else 'N/A' }}
+                                            Created: {{ group.created_at|localtime('%Y-%m-%d') if group.created_at else 'N/A' }}
                                         </span>
                                     </div>
 

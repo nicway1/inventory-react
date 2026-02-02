@@ -386,11 +386,11 @@
                 </div>
                 <div class="info-item">
                     <span class="info-label">Started At</span>
-                    <span class="info-value">{{ import_session.started_at.strftime('%Y-%m-%d %H:%M:%S') if import_session.started_at else 'N/A' }}</span>
+                    <span class="info-value">{{ import_session.started_at|localtime('%Y-%m-%d %H:%M:%S') if import_session.started_at else 'N/A' }}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Completed At</span>
-                    <span class="info-value">{{ import_session.completed_at.strftime('%Y-%m-%d %H:%M:%S') if import_session.completed_at else 'N/A' }}</span>
+                    <span class="info-value">{{ import_session.completed_at|localtime('%Y-%m-%d %H:%M:%S') if import_session.completed_at else 'N/A' }}</span>
                 </div>
             </div>
 

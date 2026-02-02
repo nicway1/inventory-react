@@ -250,7 +250,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {% if shipment.last_updated %}
-                                {{ shipment.last_updated.strftime('%Y-%m-%d %H:%M') }}
+                                {{ shipment.last_updated|localtime('%Y-%m-%d %H:%M') }}
                                 {% else %}
                                 -
                                 {% endif %}
