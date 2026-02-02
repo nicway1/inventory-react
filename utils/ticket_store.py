@@ -6,9 +6,39 @@ from models.shipment import Shipment
 from models.user import UserType
 from utils.db_manager import DatabaseManager
 import logging
+import time
 
 # Set up logging for this module
 logger = logging.getLogger(__name__)
+
+# Simple in-memory cache for ticket queries
+_ticket_cache = {}
+_cache_ttl = 30  # Cache TTL in seconds
+
+
+def _get_cache_key(user_id, user_type):
+    """Generate cache key for ticket queries"""
+    return f"tickets_{user_id}_{user_type.value if hasattr(user_type, 'value') else user_type}"
+
+
+def _is_cache_valid(cache_entry):
+    """Check if cache entry is still valid"""
+    if not cache_entry:
+        return False
+    return (time.time() - cache_entry['timestamp']) < _cache_ttl
+
+
+def clear_ticket_cache(user_id=None):
+    """Clear ticket cache. If user_id provided, clear only that user's cache."""
+    global _ticket_cache
+    if user_id:
+        keys_to_delete = [k for k in _ticket_cache if k.startswith(f"tickets_{user_id}_")]
+        for key in keys_to_delete:
+            del _ticket_cache[key]
+        logger.debug(f"Cleared ticket cache for user {user_id}")
+    else:
+        _ticket_cache = {}
+        logger.debug("Cleared all ticket cache")
 
 
 class TicketStore:
@@ -161,7 +191,10 @@ class TicketStore:
                 logger.info("Skipping automatic asset assignment for asset {asset_id} - will be handled manually")
             
             db_session.commit()
-            
+
+            # Clear ticket cache since a new ticket was created
+            clear_ticket_cache()
+
             # Send queue notifications if ticket was created in a queue
             if queue_id:
                 try:
@@ -169,7 +202,7 @@ class TicketStore:
                     send_queue_notifications(ticket, action_type="created")
                 except Exception as e:
                     logger.error(f"Error sending queue notifications: {str(e)}")
-            
+
             return ticket.id  # Return the ID instead of the ticket object
         finally:
             db_session.close()
@@ -194,8 +227,30 @@ class TicketStore:
         """Get a specific ticket by ID (alias for get_ticket)"""
         return self.get_ticket(ticket_id)
 
-    def get_user_tickets(self, user_id, user_type):
-        """Get tickets based on user's role and ID"""
+    def get_user_tickets(self, user_id, user_type, use_cache=True):
+        """Get tickets based on user's role and ID
+
+        Args:
+            user_id: The user ID
+            user_type: The user's type (UserType enum)
+            use_cache: Whether to use cached results (default True)
+        """
+        global _ticket_cache
+
+        # Check cache first
+        cache_key = _get_cache_key(user_id, user_type)
+        if use_cache and cache_key in _ticket_cache:
+            cache_entry = _ticket_cache[cache_key]
+            if _is_cache_valid(cache_entry):
+                logger.debug(f"Cache HIT for {cache_key}")
+                return cache_entry['data']
+            else:
+                # Cache expired, remove it
+                del _ticket_cache[cache_key]
+
+        logger.debug(f"Cache MISS for {cache_key}, querying database")
+        start_time = time.time()
+
         db_session = self.db_manager.get_session()
         try:
             query = db_session.query(Ticket)\
@@ -206,18 +261,39 @@ class TicketStore:
 
             # Super admin and developer can see all tickets
             if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
-                return query.order_by(Ticket.created_at.desc()).all()
-
+                tickets = query.order_by(Ticket.created_at.desc()).all()
             # COUNTRY_ADMIN and SUPERVISOR can see all tickets
             # (queue permissions will filter which tickets they can actually access)
-            if user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
-                return query.order_by(Ticket.created_at.desc()).all()
+            elif user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                tickets = query.order_by(Ticket.created_at.desc()).all()
+            else:
+                # CLIENT and regular users only see their own tickets
+                tickets = query.filter(
+                    (Ticket.requester_id == user_id) |
+                    (Ticket.assigned_to_id == user_id)
+                ).order_by(Ticket.created_at.desc()).all()
 
-            # CLIENT and regular users only see their own tickets
-            return query.filter(
-                (Ticket.requester_id == user_id) |
-                (Ticket.assigned_to_id == user_id)
-            ).order_by(Ticket.created_at.desc()).all()
+            # Eagerly access related data to ensure it's loaded before session closes
+            for ticket in tickets:
+                _ = ticket.assigned_to.username if ticket.assigned_to else None
+                _ = ticket.requester.username if ticket.requester else None
+                _ = ticket.queue.name if ticket.queue else None
+                _ = ticket.customer.name if ticket.customer else None
+
+            # Detach objects from session so they can be cached
+            db_session.expunge_all()
+
+            elapsed = time.time() - start_time
+            logger.info(f"Ticket query took {elapsed:.2f}s, found {len(tickets)} tickets")
+
+            # Store in cache
+            if use_cache:
+                _ticket_cache[cache_key] = {
+                    'data': tickets,
+                    'timestamp': time.time()
+                }
+
+            return tickets
         finally:
             db_session.close()
 
@@ -231,7 +307,9 @@ class TicketStore:
                 ticket.queue_id = queue_id
             ticket.updated_at = datetime.now()
             self.save_tickets()  # Save after updating
-        return ticket 
+            # Clear ticket cache since a ticket was assigned
+            clear_ticket_cache()
+        return ticket
 
     def save_template(self, template):
         """Save a ticket template"""
@@ -308,6 +386,8 @@ class TicketStore:
                 for key, value in kwargs.items():
                     setattr(ticket, key, value)
                 db_session.commit()
+                # Clear ticket cache since a ticket was updated
+                clear_ticket_cache()
             return ticket
         finally:
             db_session.close()
@@ -320,6 +400,8 @@ class TicketStore:
             if ticket:
                 db_session.delete(ticket)
                 db_session.commit()
+                # Clear ticket cache since a ticket was deleted
+                clear_ticket_cache()
                 return True
             return False
         finally:

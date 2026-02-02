@@ -7274,6 +7274,59 @@ def track_package(ticket_id, package_number):
                 cached_data['package_number'] = package_number
                 cached_data['tracking_number'] = tracking_number
                 cached_data['carrier'] = carrier
+
+                # Check if we should auto-close the ticket even with cached data
+                # This handles the case where status was updated but auto-close didn't run
+                cached_status = cached_data.get('shipping_status', '')
+                logger.info(f"Auto-close check: ticket {ticket_id}, cached_status={cached_status}, category={ticket.category}, status={ticket.status}")
+
+                # Check if this is an Asset Checkout (claw) ticket - use enum comparison
+                is_claw_ticket = ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
+
+                if cached_status and is_claw_ticket:
+                    status_lower = cached_status.lower()
+                    if 'delivered' in status_lower or 'received' in status_lower:
+                        if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                            logger.info(f"Ticket {ticket_id} eligible for auto-close: status={cached_status}")
+
+                            # Check if this is a single-package ticket (no other tracking numbers)
+                            has_other_packages = any([
+                                ticket.shipping_tracking_2,
+                                ticket.shipping_tracking_3,
+                                ticket.shipping_tracking_4,
+                                ticket.shipping_tracking_5
+                            ])
+
+                            should_close = False
+                            if not has_other_packages:
+                                # Single package - this package delivered means close ticket
+                                should_close = True
+                                logger.info(f"Single package ticket {ticket_id} - will auto-close")
+                            else:
+                                # Multi-package - first update this package status in DB, then check all
+                                setattr(ticket, status_field, cached_status)
+                                all_delivered = True
+                                packages = ticket.get_all_packages() if hasattr(ticket, 'get_all_packages') else []
+                                for pkg in packages:
+                                    pkg_status = (pkg.get('status') or '').lower()
+                                    if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
+                                        all_delivered = False
+                                        break
+                                if all_delivered:
+                                    should_close = True
+                                    logger.info(f"Multi-package ticket {ticket_id} - all delivered, will auto-close")
+
+                            if should_close:
+                                ticket.status = TicketStatus.RESOLVED
+                                ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered"
+                                db_session.commit()
+                                logger.info(f"SUCCESS: Auto-closed ticket {ticket_id}")
+                                cached_data['ticket_auto_closed'] = True
+                        else:
+                            logger.info(f"Ticket {ticket_id} already closed: status={ticket.status}")
+                    else:
+                        logger.info(f"Ticket {ticket_id} status not delivered: {cached_status}")
+
                 db_session.close()
                 return jsonify(cached_data)
         else:
@@ -7320,8 +7373,47 @@ def track_package(ticket_id, package_number):
                 setattr(ticket, status_field, latest_status)
                 ticket.updated_at = datetime.datetime.now()
 
+                # Auto-close for Asset Checkout (claw) tickets when delivered
+                ticket_auto_closed = False
+                from models.ticket import TicketStatus as TS  # Local import for scoping
+                is_claw_ticket = ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
+                logger.info(f"SingPost auto-close check: ticket {ticket_id}, status={latest_status}, is_claw={is_claw_ticket}")
+
+                if is_claw_ticket:
+                    latest_status_lower = (latest_status or '').lower()
+                    if 'delivered' in latest_status_lower or 'received' in latest_status_lower:
+                        if ticket.status not in [TS.RESOLVED, TS.RESOLVED_DELIVERED]:
+                            # Check if single-package ticket
+                            has_other_packages = any([
+                                ticket.shipping_tracking_2,
+                                ticket.shipping_tracking_3,
+                                ticket.shipping_tracking_4,
+                                ticket.shipping_tracking_5
+                            ])
+
+                            if not has_other_packages:
+                                ticket.status = TS.RESOLVED
+                                ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered (SingPost)"
+                                ticket_auto_closed = True
+                                logger.info(f"SUCCESS: Auto-closed ticket {ticket_id} via SingPost tracking")
+                            else:
+                                # Multi-package - check all
+                                all_delivered = True
+                                packages = ticket.get_all_packages() if hasattr(ticket, 'get_all_packages') else []
+                                for pkg in packages:
+                                    pkg_status = (pkg.get('status') or '').lower()
+                                    if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
+                                        all_delivered = False
+                                        break
+                                if all_delivered:
+                                    ticket.status = TS.RESOLVED
+                                    ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
+                                    ticket_auto_closed = True
+                                    logger.info(f"SUCCESS: Auto-closed multi-package ticket {ticket_id}")
+
                 # Save to tracking cache
                 try:
+                    from utils.tracking_cache import TrackingCache
                     TrackingCache.save_tracking_data(
                         db_session,
                         tracking_number,
@@ -7346,6 +7438,7 @@ def track_package(ticket_id, package_number):
                     'package_number': package_number,
                     'tracking_number': tracking_number,
                     'carrier': 'SingPost',
+                    'ticket_auto_closed': ticket_auto_closed,
                     'debug_info': {
                         'source': 'singpost_api',
                         'event_count': len(tracking_info),
@@ -7470,20 +7563,45 @@ def track_package(ticket_id, package_number):
                 fresh_ticket.updated_at = datetime.datetime.now()
 
                 # Check if all packages are delivered and update ticket status accordingly
-                if fresh_ticket.category and fresh_ticket.category.name == 'ASSET_CHECKOUT_CLAW':
-                    all_packages_delivered = True
-                    packages = fresh_ticket.get_all_packages()
-                    for package in packages:
-                        if not package.get('status') or 'delivered' not in package['status'].lower():
-                            all_packages_delivered = False
-                            break
+                is_claw_ticket = fresh_ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW
+                logger.info(f"Fresh tracking auto-close check: ticket {ticket_id}, status={latest_status}, category={fresh_ticket.category}, is_claw={is_claw_ticket}")
 
-                    # Automatically change ticket status to RESOLVED_DELIVERED if all packages are delivered
-                    if all_packages_delivered:
-                        from models.ticket import TicketStatus
-                        if fresh_ticket.status != TicketStatus.RESOLVED_DELIVERED:
-                            fresh_ticket.status = TicketStatus.RESOLVED_DELIVERED
-                            logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
+                if is_claw_ticket:
+                    latest_status_lower = (latest_status or '').lower()
+                    # Only check for auto-close if this package is delivered/received
+                    if 'delivered' in latest_status_lower or 'received' in latest_status_lower:
+                        # Check if this is a single-package ticket
+                        has_other_packages = any([
+                            fresh_ticket.shipping_tracking_2,
+                            fresh_ticket.shipping_tracking_3,
+                            fresh_ticket.shipping_tracking_4,
+                            fresh_ticket.shipping_tracking_5
+                        ])
+
+                        should_close = False
+                        if not has_other_packages:
+                            # Single package - this package delivered means close ticket
+                            should_close = True
+                            logger.info(f"Single package ticket {ticket_id} - package delivered, will auto-close")
+                        else:
+                            # Multi-package - check if ALL packages are delivered
+                            all_packages_delivered = True
+                            packages = fresh_ticket.get_all_packages()
+                            for package in packages:
+                                pkg_status = (package.get('status') or '').lower()
+                                if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
+                                    all_packages_delivered = False
+                                    break
+                            if all_packages_delivered:
+                                should_close = True
+                                logger.info(f"Multi-package ticket {ticket_id} - all packages delivered, will auto-close")
+
+                        if should_close:
+                            from models.ticket import TicketStatus
+                            if fresh_ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                                fresh_ticket.status = TicketStatus.RESOLVED
+                                fresh_ticket.notes = (fresh_ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered"
+                                logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED")
 
                 db_session.commit()
                 logger.info(f"Updated ticket {ticket_id} package {package_number} with status: {latest_status}")
@@ -13628,9 +13746,10 @@ def refresh_single_ticket_tracking(ticket, db_session):
                     if is_singpost_tracking_number(tracking_num):
                         if singpost_client.is_configured():
                             try:
-                                tracking_info = singpost_client.track_item(tracking_num)
-                                if tracking_info:
-                                    latest_status = tracking_info[0].get('status', 'Unknown')
+                                result = singpost_client.track_single(tracking_num)
+                                if result and result.get('success'):
+                                    tracking_info = result.get('events', [])
+                                    latest_status = result.get('status', 'Unknown')
                             except Exception as sp_err:
                                 logger.warning(f"SingPost tracking failed for {tracking_num}: {sp_err}")
 
@@ -13695,13 +13814,15 @@ def refresh_single_ticket_tracking(ticket, db_session):
                 all_delivered = True
                 packages = ticket.get_all_packages() if hasattr(ticket, 'get_all_packages') else []
                 for package in packages:
-                    status = package.get('status', '')
-                    if not status or 'delivered' not in status.lower():
+                    pkg_status = (package.get('status') or '').lower()
+                    # Check for delivered, received, or customer received
+                    if not pkg_status or ('delivered' not in pkg_status and 'received' not in pkg_status):
                         all_delivered = False
                         break
 
                 if all_delivered and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
-                    ticket.status = TicketStatus.RESOLVED_DELIVERED
+                    ticket.status = TicketStatus.RESOLVED
+                    ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
                     results['status_changed'] = True
                     logger.info(f"Auto-closed ticket {ticket.id} - all packages delivered")
 
@@ -13715,9 +13836,9 @@ def refresh_single_ticket_tracking(ticket, db_session):
                 if is_singpost_tracking_number(tracking_num):
                     if singpost_client.is_configured():
                         try:
-                            tracking_info = singpost_client.track_item(tracking_num)
-                            if tracking_info:
-                                latest_status = tracking_info[0].get('status', 'Unknown')
+                            result = singpost_client.track_single(tracking_num)
+                            if result and result.get('success'):
+                                latest_status = result.get('status', 'Unknown')
                         except:
                             pass
 
@@ -13800,14 +13921,16 @@ def refresh_all_tracking():
                 if result['status_changed']:
                     results_summary['tickets_auto_closed'] += 1
 
+                # Commit after each ticket to prevent timeout from losing all progress
+                db_session.commit()
+
             except Exception as ticket_err:
+                db_session.rollback()  # Rollback failed ticket only
                 results_summary['tickets_failed'] += 1
                 results_summary['details'].append({
                     'ticket_id': ticket.id,
                     'error': str(ticket_err)
                 })
-
-        db_session.commit()
 
         return jsonify({
             'success': True,

@@ -2,6 +2,7 @@ from flask import Flask, redirect, url_for, render_template, session, jsonify, r
 from flask_cors import CORS
 from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_caching import Cache
 from dotenv import load_dotenv
 import logging
 
@@ -126,6 +127,18 @@ def create_app():
 
     # Initialize CORS
     CORS(app)
+
+    # Initialize Flask-Caching
+    # Use simple in-memory cache for single-process deployments
+    # For multi-process (e.g., gunicorn workers), consider Redis or Memcached
+    cache_config = {
+        'CACHE_TYPE': 'SimpleCache',
+        'CACHE_DEFAULT_TIMEOUT': 60,  # Default 60 seconds
+    }
+    app.config.from_mapping(cache_config)
+    cache = Cache(app)
+    # Make cache available globally
+    app.cache = cache
 
     # Initialize CSRF protection
     csrf = CSRFProtect(app)

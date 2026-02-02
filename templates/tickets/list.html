@@ -477,6 +477,24 @@
         color: #1f2937;
     }
 
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-group .sf-filter-label {
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Problem filter highlight */
+    #problemFilter:not([value=""]) {
+        background-color: #fef2f2;
+        border-color: #f87171;
+    }
+
     .sf-action-menu {
         position: relative;
     }
@@ -1484,51 +1502,117 @@
                         </button>
                     </div>
                     
-                    <div class="sf-filter-section">
-                        <span class="sf-filter-label">Status:</span>
-                        <select class="sf-filter-select" id="statusFilter" onchange="filterTickets()">
-                            <option value="">All</option>
-                            <option value="New">New</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="On Hold">On Hold</option>
-                            <option value="Resolved">Resolved</option>
-                            <option value="Resolved (All Package Delivered)">Resolved (All Package Delivered)</option>
-                            {% for status in custom_statuses %}
-                            <option value="{{ status.name }}">{{ status.name }}</option>
-                            {% endfor %}
-                        </select>
-                        
-                        <span class="sf-filter-label">Priority:</span>
-                        <select class="sf-filter-select" id="priorityFilter" onchange="filterTickets()">
-                            <option value="">All</option>
-                            <option value="Critical">Critical</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                        </select>
-                        
-                        <span class="sf-filter-label">Category:</span>
-                        <select class="sf-filter-select" id="categoryFilter" onchange="filterTickets()">
-                            <option value="">All</option>
-                            <option value="Asset Repair">Asset Repair</option>
-                            <option value="Bulk Delivery Quotation">Bulk Delivery Quotation</option>
-                            <option value="Repair Quote">Repair Quote</option>
-                            <option value="ITAD Quote">ITAD Quote</option>
-                            <option value="Asset Checkout (claw)">Asset Checkout (claw)</option>
-                            <option value="Asset Return (claw)">Asset Return</option>
-                            <option value="Asset Intake">Asset Intake</option>
-                            <option value="Internal Transfer">Internal Transfer</option>
-                        </select>
+                    <!-- Row 1: Primary Filters -->
+                    <div class="sf-filter-section" style="flex-wrap: wrap; gap: 12px;">
+                        <div class="filter-group">
+                            <span class="sf-filter-label">Status:</span>
+                            <select class="sf-filter-select" id="statusFilter" onchange="filterTickets()">
+                                <option value="">All</option>
+                                <option value="New">New</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Resolved">Resolved</option>
+                                <option value="Resolved (All Package Delivered)">Resolved (All Package Delivered)</option>
+                                {% for status in custom_statuses %}
+                                <option value="{{ status.name }}">{{ status.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                        <span class="sf-filter-label">Queue:</span>
-                        <select class="sf-filter-select" id="queueFilter" onchange="filterTickets()">
-                            <option value="">All</option>
-                            {% for queue in queues %}
-                            <option value="{{ queue.name }}">{{ queue.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="filter-group">
+                            <span class="sf-filter-label">Priority:</span>
+                            <select class="sf-filter-select" id="priorityFilter" onchange="filterTickets()">
+                                <option value="">All</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
 
-                        <div class="flex items-center ml-auto">
+                        <div class="filter-group">
+                            <span class="sf-filter-label">Category:</span>
+                            <select class="sf-filter-select" id="categoryFilter" onchange="filterTickets()">
+                                <option value="">All</option>
+                                <option value="Asset Repair">Asset Repair</option>
+                                <option value="Bulk Delivery Quotation">Bulk Delivery Quotation</option>
+                                <option value="Repair Quote">Repair Quote</option>
+                                <option value="ITAD Quote">ITAD Quote</option>
+                                <option value="Asset Checkout (claw)">Asset Checkout (claw)</option>
+                                <option value="Asset Return (claw)">Asset Return</option>
+                                <option value="Asset Intake">Asset Intake</option>
+                                <option value="Internal Transfer">Internal Transfer</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <span class="sf-filter-label">Queue:</span>
+                            <select class="sf-filter-select" id="queueFilter" onchange="filterTickets()">
+                                <option value="">All</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.name }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Shipping & Problem Filters -->
+                    <div class="sf-filter-section" style="flex-wrap: wrap; gap: 12px; margin-top: 8px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                        <div class="filter-group">
+                            <span class="sf-filter-label">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                </svg>
+                                Carrier:
+                            </span>
+                            <select class="sf-filter-select" id="carrierFilter" onchange="filterTickets()">
+                                <option value="">All Carriers</option>
+                                <option value="singpost">SingPost</option>
+                                <option value="dhl">DHL</option>
+                                <option value="fedex">FedEx</option>
+                                <option value="ups">UPS</option>
+                                <option value="bluedart">BlueDart</option>
+                                <option value="dtdc">DTDC</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <span class="sf-filter-label">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                                </svg>
+                                Tracking:
+                            </span>
+                            <select class="sf-filter-select" id="trackingStatusFilter" onchange="filterTickets()">
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_transit">In Transit</option>
+                                <option value="out_for_delivery">Out for Delivery</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="no_tracking">No Tracking</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <span class="sf-filter-label" style="color: #dc2626;">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                Problems:
+                            </span>
+                            <select class="sf-filter-select" id="problemFilter" onchange="filterTickets()" style="border-color: #fca5a5;">
+                                <option value="">No Filter</option>
+                                <option value="delivered_not_closed">Delivered but Not Closed</option>
+                                <option value="no_tracking">Missing Tracking Number</option>
+                                <option value="stale_tracking">Stale Tracking (7+ days)</option>
+                                <option value="open_30_days">Open 30+ Days</option>
+                                <option value="no_carrier">Missing Carrier</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center ml-auto gap-2">
+                            <span id="problemCount" class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700 hidden">0 issues</span>
                             <a href="{{ url_for('tickets.list_tickets') }}" class="sf-button">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -1568,7 +1652,7 @@
                         </thead>
                         <tbody>
                             {% for ticket in tickets %}
-                            <tr data-ticket-id="{{ ticket.id }}" data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}" data-description="{{ (ticket.description or '')|e }}" data-notes="{{ (ticket.notes or '')|e }}" data-return-description="{{ (ticket.return_description or '')|e }}" data-queue="{{ ticket.queue.name if ticket.queue else '' }}" data-company-id="{{ ticket.requester.company_id if ticket.requester and ticket.requester.company_id else '' }}">
+                            <tr data-ticket-id="{{ ticket.id }}" data-status="{{ ticket.status.value if ticket.status else '' }}" data-priority="{{ ticket.priority.value if ticket.priority else '' }}" data-category="{{ ticket.get_category_display_name() }}" data-requester-id="{{ ticket.requester_id if ticket.requester_id else '' }}" data-created="{{ ticket.created_at.isoformat() }}" data-updated="{{ ticket.updated_at.isoformat() if ticket.updated_at else ticket.created_at.isoformat() }}" data-description="{{ (ticket.description or '')|e }}" data-notes="{{ (ticket.notes or '')|e }}" data-return-description="{{ (ticket.return_description or '')|e }}" data-queue="{{ ticket.queue.name if ticket.queue else '' }}" data-company-id="{{ ticket.requester.company_id if ticket.requester and ticket.requester.company_id else '' }}" data-carrier="{{ (ticket.shipping_carrier or '')|lower }}" data-tracking="{{ ticket.shipping_tracking or '' }}" data-tracking-status="{{ (ticket.shipping_status or 'Pending')|lower }}">
                                 <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
                                 <td>
                                     {% if ticket.id %}
@@ -1767,6 +1851,9 @@
         const priorityFilter = document.getElementById('priorityFilter').value;
         const categoryFilter = document.getElementById('categoryFilter').value;
         const queueFilter = document.getElementById('queueFilter').value;
+        const carrierFilter = document.getElementById('carrierFilter').value;
+        const trackingStatusFilter = document.getElementById('trackingStatusFilter').value;
+        const problemFilter = document.getElementById('problemFilter').value;
         const searchText = document.getElementById('searchInput').value.toLowerCase();
 
         // Update queue display
@@ -1808,11 +1895,72 @@
             const subject = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
             const caseNumber = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
 
+            // Get shipping data attributes
+            const carrier = row.getAttribute('data-carrier') || '';
+            const tracking = row.getAttribute('data-tracking') || '';
+            const trackingStatus = row.getAttribute('data-tracking-status') || '';
+            const updatedAt = row.getAttribute('data-updated') || row.getAttribute('data-created');
+            const createdAt = row.getAttribute('data-created');
+
             // Check if row matches all filters
             const matchesStatus = !statusFilter || status === statusFilter;
             const matchesPriority = !priorityFilter || priority === priorityFilter;
             const matchesCategory = !categoryFilter || category === categoryFilter;
             const matchesQueue = !queueFilter || queue === queueFilter;
+
+            // Carrier filter
+            let matchesCarrier = true;
+            if (carrierFilter) {
+                if (carrierFilter === 'other') {
+                    matchesCarrier = carrier && !['singpost', 'dhl', 'fedex', 'ups', 'bluedart', 'dtdc'].includes(carrier);
+                } else {
+                    matchesCarrier = carrier === carrierFilter;
+                }
+            }
+
+            // Tracking status filter
+            let matchesTrackingStatus = true;
+            if (trackingStatusFilter) {
+                if (trackingStatusFilter === 'no_tracking') {
+                    matchesTrackingStatus = !tracking || tracking.trim() === '';
+                } else if (trackingStatusFilter === 'in_transit') {
+                    matchesTrackingStatus = trackingStatus.includes('transit') || trackingStatus.includes('shipped');
+                } else if (trackingStatusFilter === 'out_for_delivery') {
+                    matchesTrackingStatus = trackingStatus.includes('out for delivery');
+                } else if (trackingStatusFilter === 'delivered') {
+                    matchesTrackingStatus = trackingStatus.includes('delivered') || trackingStatus.includes('received');
+                } else if (trackingStatusFilter === 'pending') {
+                    matchesTrackingStatus = trackingStatus === 'pending' || trackingStatus === '';
+                }
+            }
+
+            // Problem filter - finds tickets with issues
+            let matchesProblem = true;
+            if (problemFilter) {
+                const isResolved = status === 'RESOLVED' || status === 'RESOLVED_DELIVERED';
+                const isDelivered = trackingStatus.includes('delivered') || trackingStatus.includes('received');
+                const hasTracking = tracking && tracking.trim() !== '';
+                const hasCarrier = carrier && carrier.trim() !== '';
+
+                // Calculate days since last update
+                const lastUpdate = new Date(updatedAt);
+                const created = new Date(createdAt);
+                const now = new Date();
+                const daysSinceUpdate = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
+                const daysSinceCreated = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+
+                if (problemFilter === 'delivered_not_closed') {
+                    matchesProblem = isDelivered && !isResolved;
+                } else if (problemFilter === 'no_tracking') {
+                    matchesProblem = !hasTracking && !isResolved;
+                } else if (problemFilter === 'stale_tracking') {
+                    matchesProblem = hasTracking && daysSinceUpdate >= 7 && !isResolved && !isDelivered;
+                } else if (problemFilter === 'open_30_days') {
+                    matchesProblem = daysSinceCreated >= 30 && !isResolved;
+                } else if (problemFilter === 'no_carrier') {
+                    matchesProblem = hasTracking && !hasCarrier && !isResolved;
+                }
+            }
             // Handle search logic - either single search or bulk search
             let matchesSearch = true;
             if (isBulkSearchMode && bulkSearchIds.length > 0) {
@@ -1862,7 +2010,7 @@
                 matchesTab = ticketCreated >= sevenDaysAgo;
             }
             
-            if (matchesStatus && matchesPriority && matchesCategory && matchesQueue && matchesSearch && matchesTab) {
+            if (matchesStatus && matchesPriority && matchesCategory && matchesQueue && matchesCarrier && matchesTrackingStatus && matchesProblem && matchesSearch && matchesTab) {
                 filteredItems.push(row);
                 row.style.display = '';
             } else {
@@ -1888,6 +2036,15 @@
             matchesElement.classList.add('hidden');
         }
 
+        // Update problem count indicator
+        const problemCountEl = document.getElementById('problemCount');
+        if (problemFilter && filteredItems.length > 0) {
+            problemCountEl.textContent = `${filteredItems.length} issue${filteredItems.length !== 1 ? 's' : ''}`;
+            problemCountEl.classList.remove('hidden');
+        } else {
+            problemCountEl.classList.add('hidden');
+        }
+
         // Reset to first page and update pagination
         currentPage = 1;
         updatePagination();
@@ -1898,7 +2055,14 @@
         document.getElementById('statusFilter').value = '';
         document.getElementById('priorityFilter').value = '';
         document.getElementById('categoryFilter').value = '';
+        document.getElementById('queueFilter').value = '';
+        document.getElementById('carrierFilter').value = '';
+        document.getElementById('trackingStatusFilter').value = '';
+        document.getElementById('problemFilter').value = '';
         document.getElementById('searchInput').value = '';
+
+        // Hide problem count badge
+        document.getElementById('problemCount').classList.add('hidden');
 
         // Clear bulk search as well
         document.getElementById('bulkSearchInput').value = '';
