@@ -209,9 +209,10 @@ class Ticket(Base):
         self.updated_at = datetime.utcnow()
 
     def get_category_display_name(self):
-        """Get the display name for the ticket category"""
+        """Get the display name for the ticket category (hides 'claw' designation)"""
         if self.category:
-            return self.category.value
+            # Remove (claw) from display name for cleaner UI
+            return self.category.value.replace(' (claw)', '')
         else:
             # For custom categories, extract from description
             if self.description and self.description.startswith('[CUSTOM CATEGORY:'):

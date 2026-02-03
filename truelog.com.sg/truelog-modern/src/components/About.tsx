@@ -12,6 +12,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { GlowCard } from './ui';
 
+// TrueLog Brand Colors
+const TRUELOG_BLUE = '#385CF2';
+const TRUELOG_CYAN = '#0E9ED5';
+
 interface CounterProps {
   target: number;
   suffix?: string;
@@ -62,7 +66,6 @@ const About: React.FC = () => {
       suffix: '+',
       label: 'Happy Clients',
       description: 'Trusted by businesses worldwide',
-      gradient: 'from-blue-500 to-indigo-600',
     },
     {
       icon: GlobeAsiaAustraliaIcon,
@@ -70,7 +73,6 @@ const About: React.FC = () => {
       suffix: '+',
       label: 'Countries Served',
       description: 'Global logistics network',
-      gradient: 'from-cyan-500 to-blue-600',
     },
     {
       icon: TrophyIcon,
@@ -78,7 +80,6 @@ const About: React.FC = () => {
       suffix: '+',
       label: 'Years Experience',
       description: 'Industry expertise and knowledge',
-      gradient: 'from-amber-500 to-orange-600',
     },
     {
       icon: CheckCircleIcon,
@@ -86,7 +87,6 @@ const About: React.FC = () => {
       suffix: '%',
       label: 'Success Rate',
       description: 'Reliable and efficient service',
-      gradient: 'from-emerald-500 to-green-600',
     }
   ];
 
@@ -95,25 +95,21 @@ const About: React.FC = () => {
       icon: ShieldCheckIcon,
       title: 'Reliability',
       description: 'We deliver on our promises with consistent, dependable service that you can count on.',
-      gradient: 'from-blue-500 to-indigo-600',
     },
     {
       icon: LightBulbIcon,
       title: 'Innovation',
       description: 'Leveraging cutting-edge technology and modern solutions to optimize your supply chain.',
-      gradient: 'from-purple-500 to-pink-600',
     },
     {
       icon: EyeIcon,
       title: 'Transparency',
       description: 'Clear communication and full visibility into your logistics operations at every step.',
-      gradient: 'from-cyan-500 to-blue-600',
     },
     {
       icon: SparklesIcon,
       title: 'Excellence',
       description: 'Committed to exceeding expectations and delivering world-class logistics solutions.',
-      gradient: 'from-amber-500 to-orange-600',
     }
   ];
 
@@ -141,23 +137,37 @@ const About: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="inline-block px-4 py-2 bg-primary-100 text-primary-700 rounded-full text-sm font-medium mb-6"
+              className="inline-block px-4 py-2 rounded-full text-sm font-medium mb-6"
+              style={{ 
+                background: `linear-gradient(135deg, ${TRUELOG_BLUE}15 0%, ${TRUELOG_CYAN}15 100%)`,
+                border: `1px solid ${TRUELOG_BLUE}30`,
+                color: TRUELOG_BLUE
+              }}
             >
               About Truelog
             </motion.span>
 
-            <h2 className="text-4xl lg:text-5xl font-heading font-bold text-secondary-900 mb-6 leading-tight">
+            {/* H2 - Inter Bold, 28-32px, #000000 */}
+            <h2 className="text-[28px] lg:text-[32px] font-bold text-black mb-6 leading-tight">
               Leading Logistics{' '}
-              <span className="gradient-text block">Innovation in Singapore</span>
+              <span style={{ 
+                background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                Innovation in Singapore
+              </span>
             </h2>
 
-            <p className="text-lg text-secondary-600 mb-6 leading-relaxed">
+            {/* Body Text - Inter Regular, 14-16px */}
+            <p className="text-[16px] text-black mb-6 leading-relaxed">
               Truelog is Singapore's premier integrated logistics solutions provider,
               delivering comprehensive freight forwarding, warehousing, and specialized
               IT logistics services across the Asia-Pacific region and beyond.
             </p>
 
-            <p className="text-lg text-secondary-600 mb-8 leading-relaxed">
+            <p className="text-[16px] text-black mb-8 leading-relaxed">
               With over 15 years of industry expertise, we combine traditional logistics
               excellence with modern technology to provide seamless, efficient, and
               cost-effective supply chain solutions for businesses of all sizes.
@@ -176,11 +186,12 @@ const About: React.FC = () => {
                 >
                   <motion.div
                     whileHover={{ scale: 1.2 }}
-                    className="w-6 h-6 rounded-full bg-gradient-to-r from-primary-500 to-accent-cyan flex items-center justify-center mr-4 flex-shrink-0"
+                    className="w-6 h-6 rounded-full flex items-center justify-center mr-4 flex-shrink-0"
+                    style={{ background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)` }}
                   >
                     <CheckCircleIcon className="h-4 w-4 text-white" />
                   </motion.div>
-                  <span className="text-secondary-700 group-hover:text-secondary-900 transition-colors">
+                  <span className="text-black group-hover:text-slate-900 transition-colors">
                     {feature}
                   </span>
                 </motion.div>
@@ -196,31 +207,44 @@ const About: React.FC = () => {
             transition={{ duration: 0.8, type: 'spring' }}
             className="relative"
           >
-            <GlowCard className="p-8 bg-gradient-to-br from-secondary-50 to-primary-50" glowColor="gradient">
+            <GlowCard className="p-8 bg-gradient-to-br from-slate-50 to-blue-50" glowColor="gradient">
               <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className="text-center p-6 bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl"
+                    className="text-center p-6 rounded-xl"
+                    style={{ background: `linear-gradient(135deg, ${TRUELOG_BLUE}10 0%, ${TRUELOG_BLUE}20 100%)` }}
                   >
-                    <div className="text-3xl font-bold gradient-text">
+                    <div 
+                      className="text-3xl font-bold"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                      }}
+                    >
                       <AnimatedCounter target={500} suffix="+" />
                     </div>
-                    <div className="text-sm text-secondary-600 mt-1">Clients</div>
+                    <div className="text-sm text-black mt-1">Clients</div>
                   </motion.div>
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className="text-center p-6 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl"
+                    className="text-center p-6 rounded-xl"
+                    style={{ background: `linear-gradient(135deg, ${TRUELOG_CYAN}10 0%, ${TRUELOG_CYAN}20 100%)` }}
                   >
-                    <div className="text-3xl font-bold text-cyan-600">
+                    <div className="text-3xl font-bold" style={{ color: TRUELOG_CYAN }}>
                       <AnimatedCounter target={50} suffix="+" />
                     </div>
-                    <div className="text-sm text-secondary-600 mt-1">Countries</div>
+                    <div className="text-sm text-black mt-1">Countries</div>
                   </motion.div>
                 </div>
 
-                <div className="h-36 bg-gradient-to-r from-primary-500 via-purple-500 to-accent-cyan rounded-xl flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px]" />
+                <div 
+                  className="h-36 rounded-xl flex items-center justify-center relative overflow-hidden"
+                  style={{ background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)` }}
+                >
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
                   <span className="text-white font-semibold text-lg relative z-10">Singapore Logistics Hub</span>
                 </div>
               </div>
@@ -237,8 +261,18 @@ const About: React.FC = () => {
                     whileHover={{ y: -5 }}
                     className="bg-white rounded-xl p-4 shadow-md flex-1 text-center"
                   >
-                    <div className="text-xs text-secondary-500 mb-1">{cert.split(' ')[0]}</div>
-                    <div className="text-sm font-bold gradient-text">{cert.includes(' ') ? cert.split(' ')[1] : 'Certified'}</div>
+                    <div className="text-xs text-slate-500 mb-1">{cert.split(' ')[0]}</div>
+                    <div 
+                      className="text-sm font-bold"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                      }}
+                    >
+                      {cert.includes(' ') ? cert.split(' ')[1] : 'Certified'}
+                    </div>
                   </motion.div>
                 ))}
               </div>
@@ -253,7 +287,13 @@ const About: React.FC = () => {
               animate={{ y: [0, -10, 0] }}
               className="absolute -top-6 -right-6"
             >
-              <div className="bg-gradient-to-br from-primary-500 to-purple-600 text-white rounded-2xl p-5 shadow-xl shadow-primary-500/30">
+              <div 
+                className="text-white rounded-2xl p-5 shadow-xl"
+                style={{ 
+                  background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+                  boxShadow: `0 10px 40px -10px ${TRUELOG_BLUE}50`
+                }}
+              >
                 <div className="text-2xl font-bold">15+</div>
                 <div className="text-xs text-white/80">Years</div>
               </div>
@@ -280,20 +320,24 @@ const About: React.FC = () => {
               <GlowCard className="p-8 bg-white text-center h-full" glowColor="primary">
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  className={`w-16 h-16 bg-gradient-to-br ${achievement.gradient} rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg`}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+                    boxShadow: `0 10px 30px -10px ${TRUELOG_BLUE}40`
+                  }}
                 >
                   <achievement.icon className="h-8 w-8 text-white" />
                 </motion.div>
-                <div className="text-4xl font-bold text-secondary-900 mb-2">
+                <div className="text-4xl font-bold text-black mb-2">
                   <AnimatedCounter
                     target={achievement.number}
                     suffix={achievement.suffix}
                   />
                 </div>
-                <div className="text-lg font-semibold text-secondary-800 mb-2">
+                <div className="text-lg font-semibold text-black mb-2">
                   {achievement.label}
                 </div>
-                <div className="text-sm text-secondary-500">
+                <div className="text-sm text-slate-500">
                   {achievement.description}
                 </div>
               </GlowCard>
@@ -313,15 +357,28 @@ const About: React.FC = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="inline-block px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-4"
+            className="inline-block px-4 py-2 rounded-full text-sm font-medium mb-4"
+            style={{ 
+              background: `${TRUELOG_CYAN}15`,
+              border: `1px solid ${TRUELOG_CYAN}30`,
+              color: TRUELOG_CYAN
+            }}
           >
             Our Values
           </motion.span>
-          <h3 className="text-3xl lg:text-4xl font-heading font-bold text-secondary-900 mb-4">
+          {/* H2 style */}
+          <h3 className="text-[28px] lg:text-[32px] font-bold text-black mb-4">
             The Principles That{' '}
-            <span className="gradient-text">Guide Us</span>
+            <span style={{ 
+              background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Guide Us
+            </span>
           </h3>
-          <p className="text-xl text-secondary-600 max-w-3xl mx-auto">
+          <p className="text-[16px] text-black max-w-3xl mx-auto">
             Our core values define our commitment to excellence and shape every interaction with our clients.
           </p>
         </motion.div>
@@ -338,14 +395,22 @@ const About: React.FC = () => {
             >
               <motion.div
                 whileHover={{ scale: 1.1, y: -5 }}
-                className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${value.gradient} flex items-center justify-center mx-auto mb-6 shadow-lg transition-shadow group-hover:shadow-xl`}
+                className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transition-shadow group-hover:shadow-xl"
+                style={{ 
+                  background: `linear-gradient(135deg, ${TRUELOG_BLUE} 0%, ${TRUELOG_CYAN} 100%)`,
+                  boxShadow: `0 10px 30px -10px ${TRUELOG_BLUE}40`
+                }}
               >
                 <value.icon className="h-10 w-10 text-white" />
               </motion.div>
-              <h4 className="text-xl font-bold text-secondary-900 mb-3 group-hover:gradient-text transition-all">
+              {/* H3 style - Inter Medium, 20-24px, #0E9ED5 */}
+              <h4 
+                className="text-[20px] lg:text-[24px] font-medium mb-3 transition-all"
+                style={{ color: TRUELOG_CYAN }}
+              >
                 {value.title}
               </h4>
-              <p className="text-secondary-600 leading-relaxed">
+              <p className="text-[14px] lg:text-[16px] text-black leading-relaxed">
                 {value.description}
               </p>
             </motion.div>

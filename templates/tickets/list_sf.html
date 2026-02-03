@@ -1388,6 +1388,9 @@
             <button onclick="showRefreshTrackingModal()" class="sf-btn sf-btn-neutral" style="background: #059669; border-color: #059669; color: white;">
                 <i class="fas fa-sync-alt"></i> Refresh All Tracking
             </button>
+            <button onclick="refreshAllStatuses()" class="sf-btn sf-btn-neutral" style="background: #0891b2; border-color: #0891b2; color: white;" id="refreshStatusesBtn">
+                <i class="fas fa-sync"></i> Refresh All Statuses
+            </button>
             {% endif %}
             {% if current_user.is_admin or current_user.is_supervisor or current_user.is_developer %}
             <!-- Import/Export Dropdown -->
@@ -1405,12 +1408,14 @@
                     <a href="{{ url_for('tickets.bulk_import_asset_return') }}" class="sf-dropdown-item">
                         <i class="fas fa-undo"></i> Bulk Import Returns
                     </a>
+                    {% if user_has_firstbase_access %}
                     <a href="{{ url_for('tickets.bulk_import_1stbase') }}" class="sf-dropdown-item">
                         <i class="fas fa-building"></i> 1stbase Import
                     </a>
                     <a href="{{ url_for('tickets.import_from_retool') }}" class="sf-dropdown-item">
                         <i class="fas fa-tools"></i> Import from Retool
                     </a>
+                    {% endif %}
                     <div class="sf-dropdown-divider"></div>
                     <div class="sf-dropdown-divider-label">Export</div>
                     <a href="{{ url_for('tickets.list_tickets_sf') }}?showExportWizard=true" class="sf-dropdown-item">
@@ -1528,6 +1533,17 @@
                     <!-- Populated by JS -->
                 </div>
             </div>
+
+            <!-- Carrier Filter -->
+            <div class="sf-filter-section">
+                <div class="sf-filter-header" onclick="toggleFilter('carrierFilter')">
+                    <span class="sf-filter-label">Carrier</span>
+                    <span class="sf-filter-count" id="carrierFilterCount">0</span>
+                </div>
+                <div class="sf-filter-content" id="carrierFilter">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
         </div>
 
         <!-- Main Area -->
@@ -1627,6 +1643,73 @@
                 </div>
             </div>
 
+            <!-- Bulk Actions Panel -->
+            <div class="sf-bulk-actions-panel" id="bulkActionsPanel" style="display: none; background: white; border: 1px solid var(--sf-gray-200); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-check-square" style="color: var(--sf-blue);"></i>
+                        <span style="font-weight: 600;" id="selectedCount">0 tickets selected</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        <!-- Assign to Queue -->
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.875rem; color: var(--sf-gray-600);">Queue:</label>
+                            <select id="bulkQueueSelect" class="sf-select" style="padding: 0.375rem 0.75rem; border: 1px solid var(--sf-gray-300); border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">-- Select Queue --</option>
+                                {% for queue in queues %}
+                                <option value="{{ queue.id }}">{{ queue.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button onclick="bulkAssignQueue()" class="sf-btn sf-btn-brand" style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
+                                <i class="fas fa-layer-group"></i> Assign
+                            </button>
+                        </div>
+
+                        <!-- Assign to User -->
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.875rem; color: var(--sf-gray-600);">Assignee:</label>
+                            <select id="bulkUserSelect" class="sf-select" style="padding: 0.375rem 0.75rem; border: 1px solid var(--sf-gray-300); border-radius: 0.375rem; font-size: 0.875rem; max-width: 200px;">
+                                <option value="">-- Select User --</option>
+                                {% if current_user.is_super_admin or current_user.is_developer %}
+                                    <!-- Super admins see all users -->
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.username }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <!-- Regular users only see themselves -->
+                                    <option value="{{ current_user.id }}">{{ current_user.username }} (Me)</option>
+                                {% endif %}
+                            </select>
+                            <button onclick="bulkAssignUser()" class="sf-btn" style="padding: 0.375rem 0.75rem; font-size: 0.875rem; background: #10b981; border-color: #10b981; color: white;">
+                                <i class="fas fa-user"></i> Assign
+                            </button>
+                        </div>
+
+                        <!-- Update Status -->
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.875rem; color: var(--sf-gray-600);">Status:</label>
+                            <select id="bulkStatusSelect" class="sf-select" style="padding: 0.375rem 0.75rem; border: 1px solid var(--sf-gray-300); border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">-- Select Status --</option>
+                                <option value="NEW">New</option>
+                                <option value="IN_PROGRESS">In Progress</option>
+                                <option value="ON_HOLD">On Hold</option>
+                                <option value="RESOLVED">Resolved</option>
+                                {% for status in custom_statuses %}
+                                <option value="{{ status.name }}">{{ status.display_name or status.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button onclick="bulkUpdateStatus()" class="sf-btn" style="padding: 0.375rem 0.75rem; font-size: 0.875rem; background: #8b5cf6; border-color: #8b5cf6; color: white;">
+                                <i class="fas fa-flag"></i> Update
+                            </button>
+                        </div>
+
+                        <button onclick="clearSelection()" class="sf-btn sf-btn-neutral" style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
+                            <i class="fas fa-times"></i> Clear Selection
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Monday.com-style Board -->
             <div class="monday-board" id="mondayBoard">
                 <div class="monday-board-header">
@@ -1653,6 +1736,9 @@
                     <table class="monday-board-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" title="Select all visible tickets">
+                                </th>
                                 <th>Ticket / Service Job</th>
                                 <th>Outbound Initiated</th>
                                 <th>Outbound Label</th>
@@ -1786,7 +1872,7 @@
                                 <th class="sortable" data-sort="queue" onclick="sortTable('queue')">Queue</th>
                                 <th class="sortable" data-sort="sla" onclick="sortTable('sla')">SLA</th>
                                 <th class="sortable" data-sort="created" onclick="sortTable('created')">Created</th>
-                                <th>Actions</th>
+                                <th class="sortable" data-sort="carrier" onclick="sortTable('carrier')">Carrier</th>
                             </tr>
                         </thead>
                         <tbody id="ticketTableBody">
@@ -2009,7 +2095,7 @@
             {
                 id: {{ ticket.id }},
                 subject: {{ ticket.subject | tojson }},
-                category: {{ (ticket.category.value if ticket.category else None) | tojson }},
+                category: {{ (ticket.get_category_display_name() if ticket.category else None) | tojson }},
                 priority: {{ (ticket.priority.value if ticket.priority else 'MEDIUM') | tojson }},
                 status: {{ (ticket.custom_status if ticket.custom_status else (ticket.status.value if ticket.status else 'NEW')) | tojson }},
                 queue: {{ (ticket.queue.name if ticket.queue else 'Unassigned') | tojson }},
@@ -2118,6 +2204,20 @@
             `;
         }).join('');
         document.getElementById('queueFilter').innerHTML = queueHtml;
+
+        // Build carrier filter
+        const carriers = [...new Set(allTickets.map(t => t.shipping_carrier))].filter(c => c);
+        const carrierHtml = carriers.map(carrier => {
+            const count = allTickets.filter(t => t.shipping_carrier === carrier).length;
+            return `
+                <label class="sf-checkbox-item">
+                    <input type="checkbox" value="${carrier}" onchange="applyFilters()">
+                    ${carrier}
+                    <span class="count">${count}</span>
+                </label>
+            `;
+        }).join('');
+        document.getElementById('carrierFilter').innerHTML = carrierHtml;
     }
 
     // Apply filters
@@ -2130,12 +2230,14 @@
         const selectedPriorities = getCheckedValues('priorityFilter');
         const selectedCategories = getCheckedValues('categoryFilter');
         const selectedQueues = getCheckedValues('queueFilter');
+        const selectedCarriers = getCheckedValues('carrierFilter');
 
         // Update filter counts
         document.getElementById('statusFilterCount').textContent = selectedStatuses.length || '0';
         document.getElementById('priorityFilterCount').textContent = selectedPriorities.length || '0';
         document.getElementById('categoryFilterCount').textContent = selectedCategories.length || '0';
         document.getElementById('queueFilterCount').textContent = selectedQueues.length || '0';
+        document.getElementById('carrierFilterCount').textContent = selectedCarriers.length || '0';
 
         filteredTickets = allTickets.filter(ticket => {
             // Search filter - handle both single and bulk search modes
@@ -2192,6 +2294,11 @@
 
             // Queue filter
             if (selectedQueues.length > 0 && !selectedQueues.includes(ticket.queue)) {
+                return false;
+            }
+
+            // Carrier filter
+            if (selectedCarriers.length > 0 && !selectedCarriers.includes(ticket.shipping_carrier)) {
                 return false;
             }
 
@@ -2351,8 +2458,12 @@
     function sortAndRender() {
         // Sort
         filteredTickets.sort((a, b) => {
-            let aVal = a[sortColumn] || '';
-            let bVal = b[sortColumn] || '';
+            // Map column names to data properties
+            let column = sortColumn;
+            if (sortColumn === 'carrier') column = 'shipping_carrier';
+            
+            let aVal = a[column] || '';
+            let bVal = b[column] || '';
 
             if (sortColumn === 'id') {
                 aVal = parseInt(aVal);
@@ -2398,20 +2509,16 @@
                     <tr>
                         <td><a href="/tickets/${ticket.id}" class="sf-table-link">#${ticket.id}</a></td>
                         <td>
-                            <a href="/tickets/${ticket.id}" class="sf-table-link">${escapeHtml(ticket.subject.substring(0, 50))}${ticket.subject.length > 50 ? '...' : ''}</a>
+                            <a href="/tickets/${ticket.id}" class="sf-table-link">${escapeHtml(ticket.subject)}</a>
                             ${ticket.customer_name ? `<br><small style="color: var(--sf-gray-600);">${escapeHtml(ticket.customer_name)}</small>` : ''}
                         </td>
-                        <td>${ticket.category ? ticket.category.replace('_', ' ') : 'N/A'}</td>
+                        <td>${ticket.category ? ticket.category.replace('_', ' ').replace(' (claw)', '') : 'N/A'}</td>
                         <td><span class="sf-badge" style="background: ${priorityStyle.bg}; color: ${priorityStyle.color};">${ticket.priority || 'N/A'}</span></td>
                         <td><span class="sf-badge" style="background: ${statusStyle.bg}; color: ${statusStyle.color};">${ticket.status ? ticket.status.replace('_', ' ') : 'N/A'}</span></td>
                         <td>${escapeHtml(ticket.queue || 'Unassigned')}</td>
                         <td>${renderSlaBadge(ticket)}</td>
                         <td>${createdDate}</td>
-                        <td>
-                            <a href="/tickets/${ticket.id}" class="sf-btn sf-btn-neutral" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
+                        <td>${ticket.shipping_carrier || '—'}</td>
                     </tr>
                 `;
             }).join('');
@@ -3146,7 +3253,10 @@
         const progress = calculateTicketProgress(ticket);
 
         return `
-            <tr class="monday-item-row ${collapsedClass}" data-group-color="${groupColor}" data-group="${groupName}">
+            <tr class="monday-item-row ${collapsedClass}" data-group-color="${groupColor}" data-group="${groupName}" data-ticket-id="${ticket.id}">
+                <td style="width: 40px; text-align: center;">
+                    <input type="checkbox" class="ticket-checkbox" data-ticket-id="${ticket.id}" onchange="updateSelectionCount()" onclick="event.stopPropagation()">
+                </td>
                 <td>
                     <div class="monday-item-name">
                         <a href="${ticketUrl}" class="monday-item-link">TICK-${String(ticket.id).padStart(4, '0')}</a>
@@ -4100,6 +4210,260 @@ function updateTicketCount() {
         .catch(err => {
             document.getElementById('ticketsToRefreshCount').textContent = '?';
         });
+}
+
+// Bulk Operations - Selection Management
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const ticketCheckboxes = document.querySelectorAll('.ticket-checkbox:not([disabled])');
+
+    ticketCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const selectedCheckboxes = document.querySelectorAll('.ticket-checkbox:checked');
+    const count = selectedCheckboxes.length;
+    const bulkActionsPanel = document.getElementById('bulkActionsPanel');
+    const selectedCountSpan = document.getElementById('selectedCount');
+
+    if (count > 0) {
+        bulkActionsPanel.style.display = 'block';
+        selectedCountSpan.textContent = `${count} ticket${count !== 1 ? 's' : ''} selected`;
+    } else {
+        bulkActionsPanel.style.display = 'none';
+    }
+
+    // Update selectAll checkbox state
+    const allCheckboxes = document.querySelectorAll('.ticket-checkbox:not([disabled])');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+        selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.ticket-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAllCheckbox').checked = false;
+    updateSelectionCount();
+}
+
+function getSelectedTicketIds() {
+    const selectedCheckboxes = document.querySelectorAll('.ticket-checkbox:checked');
+    return Array.from(selectedCheckboxes).map(cb => parseInt(cb.dataset.ticketId));
+}
+
+// Bulk assign to queue
+async function bulkAssignQueue() {
+    const queueId = document.getElementById('bulkQueueSelect').value;
+    const ticketIds = getSelectedTicketIds();
+
+    if (ticketIds.length === 0) {
+        alert('Please select at least one ticket');
+        return;
+    }
+
+    const queueSelect = document.getElementById('bulkQueueSelect');
+    const queueName = queueSelect.options[queueSelect.selectedIndex].text;
+
+    if (!confirm(`Assign ${ticketIds.length} ticket(s) to queue: ${queueName}?`)) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    try {
+        const response = await fetch('/tickets/bulk-assign-queue', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || ''
+            },
+            body: JSON.stringify({
+                ticket_ids: ticketIds,
+                queue_id: queueId || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Successfully assigned ${data.updated} ticket(s)`);
+            clearSelection();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error assigning tickets: ' + error.message);
+    }
+}
+
+// Bulk assign to user
+async function bulkAssignUser() {
+    const userId = document.getElementById('bulkUserSelect').value;
+    const ticketIds = getSelectedTicketIds();
+
+    if (ticketIds.length === 0) {
+        alert('Please select at least one ticket');
+        return;
+    }
+
+    const userSelect = document.getElementById('bulkUserSelect');
+    const userName = userSelect.options[userSelect.selectedIndex].text;
+
+    if (!confirm(`Assign ${ticketIds.length} ticket(s) to user: ${userName}?`)) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    try {
+        const response = await fetch('/tickets/bulk-assign-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || ''
+            },
+            body: JSON.stringify({
+                ticket_ids: ticketIds,
+                user_id: userId || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Successfully assigned ${data.updated} ticket(s)`);
+            clearSelection();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error assigning tickets: ' + error.message);
+    }
+}
+
+// Bulk update status
+async function bulkUpdateStatus() {
+    const status = document.getElementById('bulkStatusSelect').value;
+    const ticketIds = getSelectedTicketIds();
+
+    if (ticketIds.length === 0) {
+        alert('Please select at least one ticket');
+        return;
+    }
+
+    if (!status) {
+        alert('Please select a status');
+        return;
+    }
+
+    const statusSelect = document.getElementById('bulkStatusSelect');
+    const statusName = statusSelect.options[statusSelect.selectedIndex].text;
+
+    if (!confirm(`Update ${ticketIds.length} ticket(s) to status: ${statusName}?`)) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    try {
+        const response = await fetch('/tickets/bulk-update-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || ''
+            },
+            body: JSON.stringify({
+                ticket_ids: ticketIds,
+                status: status
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Successfully updated ${data.updated} ticket(s)`);
+            clearSelection();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating tickets: ' + error.message);
+    }
+}
+
+// Refresh all ticket statuses
+function refreshAllStatuses() {
+    const btn = document.getElementById('refreshStatusesBtn');
+    const originalHTML = btn.innerHTML;
+
+    // Disable button and show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    fetch('/tickets/refresh-all-statuses', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken || ''
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            }).catch(() => {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const message = `Refreshed ticket statuses!\n` +
+                          `Updated: ${data.updated}\n` +
+                          `Closed: ${data.closed}`;
+
+            if (data.errors && data.errors.length > 0) {
+                console.warn('Some tickets had errors:', data.errors);
+                alert(message + `\n\nWarning: ${data.errors.length} tickets had errors (see console)`);
+            } else {
+                alert(message);
+            }
+
+            // Reload the page to show updated statuses
+            window.location.reload();
+        } else {
+            const errorMsg = typeof data.error === 'object' ? JSON.stringify(data.error) : data.error;
+            alert('Error refreshing statuses: ' + errorMsg);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    })
+    .catch(error => {
+        console.error('Full error:', error);
+        const errorMsg = error.message || error.toString();
+        alert('Error refreshing statuses: ' + errorMsg);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    });
 }
 
 function showRefreshTrackingModal() {

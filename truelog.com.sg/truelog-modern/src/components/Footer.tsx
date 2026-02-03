@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MagneticButton } from './ui';
+
+// TrueLog Brand Colors
+const TRUELOG_BLUE = '#385CF2';
+const TRUELOG_CYAN = '#0E9ED5';
 
 const Footer: React.FC = () => {
   const footerLinks = {
@@ -52,15 +55,31 @@ const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-secondary-950 relative overflow-hidden">
+    <footer className="bg-slate-950 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl" />
+        <motion.div 
+          className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl"
+          style={{ background: `${TRUELOG_BLUE}08` }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+          transition={{ duration: 10, repeat: Infinity }}
+        />
+        <motion.div 
+          className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full blur-3xl"
+          style={{ background: `${TRUELOG_CYAN}08` }}
+          animate={{ scale: [1.1, 1, 1.1], opacity: [0.8, 0.5, 0.8] }}
+          transition={{ duration: 10, repeat: Infinity, delay: 2 }}
+        />
       </div>
 
       {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
+      <div 
+        className="absolute inset-0" 
+        style={{ 
+          background: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
+        }} 
+      />
 
       {/* Main Footer Content */}
       <div className="relative container-custom pt-20 pb-12">
@@ -86,30 +105,51 @@ const Footer: React.FC = () => {
               </motion.div>
             </Link>
 
-            <p className="text-secondary-400 leading-relaxed mb-6 max-w-sm">
+            <p className="text-slate-400 leading-relaxed mb-6 max-w-sm text-[14px]">
               TrueLog offers comprehensive logistics solutions, from freight forwarding
               to IT logistics, ensuring efficiency and reliability across Singapore and beyond.
             </p>
 
             {/* Contact Info */}
-            <div className="space-y-3 text-secondary-400">
+            <div className="space-y-3 text-slate-400">
               <motion.a
-                href="mailto:contact@truelog.com.sg"
+                href="mailto:sales@truelog.com.sg"
                 className="flex items-center gap-3 hover:text-white transition-colors group"
                 whileHover={{ x: 5 }}
               >
-                <div className="w-8 h-8 bg-secondary-800 rounded-lg flex items-center justify-center group-hover:bg-primary-600 transition-colors">
+                <div 
+                  className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ '--hover-bg': TRUELOG_CYAN } as React.CSSProperties}
+                  onMouseEnter={(e) => e.currentTarget.style.background = TRUELOG_CYAN}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#1e293b'}
+                >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                contact@truelog.com.sg
+                sales@truelog.com.sg
+              </motion.a>
+              <motion.a
+                href="tel:+6569093756"
+                className="flex items-center gap-3 hover:text-white transition-colors group"
+                whileHover={{ x: 5 }}
+              >
+                <div 
+                  className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center"
+                  onMouseEnter={(e) => e.currentTarget.style.background = TRUELOG_CYAN}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#1e293b'}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </div>
+                +65 6909 3756
               </motion.a>
               <motion.div
                 className="flex items-center gap-3"
                 whileHover={{ x: 5 }}
               >
-                <div className="w-8 h-8 bg-secondary-800 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   </svg>
@@ -134,11 +174,14 @@ const Footer: React.FC = () => {
                   <li key={link.name}>
                     <Link
                       to={link.href}
-                      className="text-secondary-400 hover:text-white transition-colors duration-200 text-sm inline-block group"
+                      className="text-slate-400 hover:text-white transition-colors duration-200 text-sm inline-block group"
                     >
                       <span className="relative">
                         {link.name}
-                        <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-gradient-to-r from-primary-500 to-accent-cyan transition-all duration-300 group-hover:w-full" />
+                        <span 
+                          className="absolute -bottom-0.5 left-0 w-0 h-px transition-all duration-300 group-hover:w-full"
+                          style={{ background: `linear-gradient(90deg, ${TRUELOG_BLUE}, ${TRUELOG_CYAN})` }}
+                        />
                       </span>
                     </Link>
                   </li>
@@ -154,14 +197,14 @@ const Footer: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="border-t border-secondary-800 pt-12 mb-12"
+          className="border-t border-slate-800 pt-12 mb-12"
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <div>
               <h3 className="text-xl font-semibold text-white mb-2">
                 Stay Updated with Industry Insights
               </h3>
-              <p className="text-secondary-400">
+              <p className="text-slate-400 text-[14px]">
                 Get the latest logistics trends, tips, and company updates delivered to your inbox.
               </p>
             </div>
@@ -169,11 +212,24 @@ const Footer: React.FC = () => {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 px-5 py-3.5 bg-secondary-800/50 text-white rounded-xl border border-secondary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-secondary-500 transition-all"
+                className="flex-1 px-5 py-3.5 bg-slate-800/50 text-white rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:border-transparent placeholder-slate-500 transition-all"
+                style={{ '--tw-ring-color': TRUELOG_CYAN } as React.CSSProperties}
+                onFocus={(e) => e.currentTarget.style.borderColor = TRUELOG_CYAN}
+                onBlur={(e) => e.currentTarget.style.borderColor = '#334155'}
               />
-              <MagneticButton variant="primary" size="md">
-                Subscribe
-              </MagneticButton>
+              {/* CTA Button - Inter Bold, ALL CAPS, White on #0E9ED5 */}
+              <motion.button
+                className="px-6 py-3.5 rounded-xl font-bold uppercase tracking-wider text-white text-[14px] transition-all duration-300"
+                style={{ backgroundColor: TRUELOG_CYAN }}
+                whileHover={{ 
+                  scale: 1.02, 
+                  boxShadow: `0 10px 30px -10px ${TRUELOG_CYAN}80`,
+                  backgroundColor: '#0b7aa6'
+                }}
+                whileTap={{ scale: 0.98 }}
+              >
+                SUBSCRIBE
+              </motion.button>
             </div>
           </div>
         </motion.div>
@@ -184,7 +240,7 @@ const Footer: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="border-t border-secondary-800 pt-8"
+          className="border-t border-slate-800 pt-8"
         >
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             {/* Social Icons */}
@@ -197,7 +253,16 @@ const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   whileHover={{ y: -3, scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
-                  className="w-10 h-10 bg-secondary-800 rounded-xl flex items-center justify-center text-secondary-400 hover:bg-gradient-to-br hover:from-primary-600 hover:to-purple-600 hover:text-white transition-all duration-300"
+                  className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all duration-300"
+                  style={{ '--hover-bg': `linear-gradient(135deg, ${TRUELOG_BLUE}, ${TRUELOG_CYAN})` } as React.CSSProperties}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = `linear-gradient(135deg, ${TRUELOG_BLUE}, ${TRUELOG_CYAN})`;
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#1e293b';
+                    e.currentTarget.style.color = '#94a3b8';
+                  }}
                 >
                   <span className="text-sm font-medium">{social.icon}</span>
                 </motion.a>
@@ -205,7 +270,7 @@ const Footer: React.FC = () => {
             </div>
 
             {/* Certifications */}
-            <div className="flex items-center gap-6 text-secondary-500 text-sm">
+            <div className="flex items-center gap-6 text-slate-500 text-sm">
               {['IATA Certified', 'FIATA Member', 'ISO 9001'].map((cert, index) => (
                 <motion.span
                   key={cert}
@@ -215,7 +280,10 @@ const Footer: React.FC = () => {
                   transition={{ delay: 0.2 + index * 0.1 }}
                   className="flex items-center gap-2"
                 >
-                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full" />
+                  <span 
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: TRUELOG_CYAN }}
+                  />
                   {cert}
                 </motion.span>
               ))}
@@ -225,18 +293,18 @@ const Footer: React.FC = () => {
       </div>
 
       {/* Bottom Bar */}
-      <div className="relative border-t border-secondary-800">
+      <div className="relative border-t border-slate-800">
         <div className="container-custom py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
-              className="text-secondary-500 text-sm"
+              className="text-slate-500 text-sm"
             >
               © {new Date().getFullYear()} Truelog. All rights reserved.
             </motion.div>
-            <div className="flex gap-6 text-secondary-500 text-sm">
+            <div className="flex gap-6 text-slate-500 text-sm">
               {['Privacy Policy', 'Terms of Service', 'Cookie Settings'].map((item) => (
                 <Link
                   key={item}
@@ -244,7 +312,10 @@ const Footer: React.FC = () => {
                   className="hover:text-white transition-colors duration-200 relative group"
                 >
                   {item}
-                  <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-primary-500 transition-all duration-300 group-hover:w-full" />
+                  <span 
+                    className="absolute -bottom-0.5 left-0 w-0 h-px transition-all duration-300 group-hover:w-full"
+                    style={{ backgroundColor: TRUELOG_CYAN }}
+                  />
                 </Link>
               ))}
             </div>

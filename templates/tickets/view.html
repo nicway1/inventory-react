@@ -3704,6 +3704,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                     </div>
 
                     <!-- Shipping Portal Tabs for Asset Checkout (claw) -->
+                    {% if user_has_firstbase_access %}
                     <div class="sf-card mb-6">
                         <div class="sf-card-header">
                             <div class="flex justify-between items-center">
@@ -4031,7 +4032,8 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                     // All modal functions will be defined at the bottom of the file to avoid conflicts
                     </script>
-                    
+                    {% endif %}
+
                     <!-- Single Package Tracking Section for Other Asset Checkout Categories -->
                     {% elif (ticket.category and (ticket.category.name == 'ASSET_CHECKOUT_MAIN' or 
                           ticket.category.name == 'ASSET_CHECKOUT_SINGPOST' or 

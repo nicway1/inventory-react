@@ -578,7 +578,129 @@ def list_tickets_sf():
     finally:
         sla_db.close()
 
-    return render_template('tickets/list_sf.html', tickets=tickets, user=user, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data)
+    # Get all users for bulk assign dropdown
+    from models.user import User
+    users_db = db_manager.get_session()
+    try:
+        users = users_db.query(User).order_by(User.username).all()
+
+        # Check if current user has access to firstbase company
+        from models.company import Company
+        user_has_firstbase_access = current_user.is_super_admin or current_user.is_developer
+        if not user_has_firstbase_access:
+            try:
+                # Check company permissions
+                firstbase_company = users_db.query(Company).filter(
+                    Company.name.ilike('%firstbase%')
+                ).first()
+                if firstbase_company:
+                    user_has_firstbase_access = current_user.can_access_company(firstbase_company.id)
+            except Exception as e:
+                logger.error(f"Error checking Firstbase access in list view: {str(e)}")
+                user_has_firstbase_access = False
+    except:
+        users = []
+        user_has_firstbase_access = False
+    finally:
+        users_db.close()
+
+    return render_template('tickets/list_sf.html', tickets=tickets, user=user, users=users, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data, user_has_firstbase_access=user_has_firstbase_access)
+
+
+@tickets_bp.route('/refresh-all-statuses', methods=['POST'])
+@login_required
+def refresh_all_statuses():
+    """
+    Refresh all ticket statuses based on their current shipment/return status.
+    This applies the same auto-update logic that runs when viewing individual tickets.
+    """
+    db_session = None
+    try:
+        db_session = db_manager.get_session()
+
+        # Get all non-resolved tickets that might need status updates
+        tickets = db_session.query(Ticket).filter(
+            Ticket.status.in_([TicketStatus.NEW, TicketStatus.IN_PROGRESS, TicketStatus.ON_HOLD])
+        ).all()
+
+        updated_count = 0
+        closed_count = 0
+        errors = []
+
+        for ticket in tickets:
+            try:
+                original_status = ticket.status
+
+                # Auto-update status for Asset Return (Claw) tickets based on progress
+                if ticket.category == TicketCategory.ASSET_RETURN_CLAW:
+                    # Check for "received" or "delivered" (case-insensitive)
+                    return_received = ticket.shipping_status and ("received" in ticket.shipping_status.lower() or "delivered" in ticket.shipping_status.lower())
+                    replacement_received = ticket.replacement_status and ("received" in ticket.replacement_status.lower() or "delivered" in ticket.replacement_status.lower())
+
+                    # Check if there's a replacement tracking
+                    has_replacement = ticket.replacement_tracking and ticket.replacement_tracking.strip()
+
+                    # Auto-close logic
+                    should_close = False
+                    if return_received:
+                        if not has_replacement:
+                            should_close = True
+                        elif replacement_received:
+                            should_close = True
+
+                    if should_close and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                        ticket.status = TicketStatus.RESOLVED
+                        ticket.custom_status = None
+                        ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed via bulk refresh: Return received at warehouse. Case completed!"
+                        logger.info(f"Bulk refresh: Auto-closed ticket {ticket.id}")
+                    # Set to IN_PROGRESS if any progress has been made and status is still NEW
+                    elif ticket.status == TicketStatus.NEW:
+                        has_progress = (
+                            ticket.shipping_tracking or
+                            (ticket.shipping_status and ticket.shipping_status not in ['Pending', 'Information Received']) or
+                            return_received or
+                            replacement_received
+                        )
+                        if has_progress:
+                            ticket.status = TicketStatus.IN_PROGRESS
+                            ticket.custom_status = None
+                            logger.info(f"Bulk refresh: Updated ticket {ticket.id} to IN_PROGRESS")
+
+                # Track if status changed (after all the logic above)
+                if original_status != ticket.status:
+                    if ticket.status == TicketStatus.RESOLVED:
+                        closed_count += 1
+                    else:
+                        updated_count += 1
+
+            except Exception as e:
+                errors.append(f"Ticket {ticket.id}: {str(e)}")
+                logger.error(f"Error refreshing ticket {ticket.id}: {str(e)}")
+                continue
+
+        db_session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Refreshed {len(tickets)} tickets',
+            'updated': updated_count,
+            'closed': closed_count,
+            'errors': errors
+        })
+
+    except Exception as e:
+        if db_session:
+            db_session.rollback()
+        logger.error(f"Error in bulk refresh: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if db_session:
+            db_session.close()
 
 
 @tickets_bp.route('/export/csv')
@@ -2813,10 +2935,11 @@ Additional Notes:
 @login_required
 def view_ticket(ticket_id):
     """View a ticket"""
+    from models.company import Company
     db_session = db_manager.get_session()
     try:
         db_session.expire_all()
-        
+
         # Load ticket with all relationships
         logger.info("Loading ticket with relationships...")
         ticket = db_session.query(Ticket).options(
@@ -2885,6 +3008,7 @@ def view_ticket(ticket_id):
 
             if should_close and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                 ticket.status = TicketStatus.RESOLVED
+                ticket.custom_status = None  # Clear custom status when setting system status
                 ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Return received at warehouse. Case completed!"
                 db_session.commit()
                 logger.info(f"Auto-closed ticket {ticket_id} on view - return received at warehouse")
@@ -2899,6 +3023,7 @@ def view_ticket(ticket_id):
                 )
                 if has_progress:
                     ticket.status = TicketStatus.IN_PROGRESS
+                    ticket.custom_status = None  # Clear custom status when setting system status
                     db_session.commit()
                     logger.info(f"Auto-updated ticket {ticket_id} status to IN_PROGRESS based on case progress")
 
@@ -3141,6 +3266,19 @@ def view_ticket(ticket_id):
                 package_items = ticket.get_package_items(package_number, db_session=db_session)
                 packages_items_data[package_number] = package_items
 
+        # Check if current user has access to firstbase company (for Shipping Portal visibility)
+        user_has_firstbase_access = current_user.is_super_admin or current_user.is_developer
+        if not user_has_firstbase_access:
+            try:
+                firstbase_company = db_session.query(Company).filter(
+                    Company.name.ilike('%firstbase%')
+                ).first()
+                if firstbase_company:
+                    user_has_firstbase_access = current_user.can_access_company(firstbase_company.id)
+            except Exception as e:
+                logger.error(f"Error checking Firstbase access: {str(e)}")
+                user_has_firstbase_access = False
+
         return render_template(
             'tickets/view.html',
             ticket=ticket,
@@ -3166,7 +3304,8 @@ def view_ticket(ticket_id):
             custom_statuses=custom_statuses_list,
             out_of_stock_accessories=out_of_stock_accessories,
             accessible_queue_ids=accessible_queue_ids,
-            checkin_data=checkin_data
+            checkin_data=checkin_data,
+            user_has_firstbase_access=user_has_firstbase_access
         )
         
     except Exception as e:
@@ -4442,6 +4581,7 @@ def update_tracking_status(ticket_id, tracking_type):
                 ticket.shipment.update_tracking(status, details)
                 if is_delivered:
                     ticket.status = 'Resolved'
+                    ticket.custom_status = None  # Clear custom status when setting system status
                     ticket.updated_at = datetime.datetime.now()
             elif tracking_type == 'rma_return' and ticket.return_tracking:
                 ticket.return_tracking.update_tracking(status, details)
@@ -4452,6 +4592,7 @@ def update_tracking_status(ticket_id, tracking_type):
                 if is_delivered:
                     ticket.update_rma_status('Completed')
                     ticket.status = 'Resolved'
+                    ticket.custom_status = None  # Clear custom status when setting system status
             
             ticket_store.save_tickets()
             return jsonify({
@@ -4509,6 +4650,7 @@ def update_tracking(ticket_id):
 
             if is_delivered and ticket.status != TicketStatus.RESOLVED:
                 ticket.status = TicketStatus.RESOLVED
+                ticket.custom_status = None  # Clear custom status when setting system status
                 status_changed = True
 
             # Update ticket tracking information
@@ -4524,6 +4666,7 @@ def update_tracking(ticket_id):
                 if is_delivered and ticket.rma_status == RMAStatus.REPLACEMENT_SHIPPED:
                     ticket.rma_status = RMAStatus.COMPLETED
                     ticket.status = TicketStatus.RESOLVED
+                    ticket.custom_status = None  # Clear custom status when setting system status
                     status_changed = True
 
         db_session.commit()
@@ -4592,6 +4735,7 @@ def update_shipment_progress(ticket_id):
                 return jsonify({'success': False, 'error': 'Package must be shipped first'}), 400
 
             ticket.status = TicketStatus.RESOLVED
+            ticket.custom_status = None  # Clear custom status when setting system status
             message = 'Package marked as received by customer'
 
             # Add comment to ticket
@@ -4657,6 +4801,7 @@ def update_return_progress(ticket_id):
 
             ticket.return_status = 'Received at Warehouse'
             ticket.status = TicketStatus.RESOLVED
+            ticket.custom_status = None  # Clear custom status when setting system status
             message = 'Return received at warehouse. Ticket resolved.'
 
             # Add comment to ticket
@@ -7334,6 +7479,7 @@ def track_package(ticket_id, package_number):
 
                             if should_close:
                                 ticket.status = TicketStatus.RESOLVED
+                                ticket.custom_status = None  # Clear custom status when setting system status
                                 ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered"
                                 db_session.commit()
                                 logger.info(f"SUCCESS: Auto-closed ticket {ticket_id}")
@@ -7409,6 +7555,7 @@ def track_package(ticket_id, package_number):
 
                             if not has_other_packages:
                                 ticket.status = TS.RESOLVED
+                                ticket.custom_status = None  # Clear custom status when setting system status
                                 ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered (SingPost)"
                                 ticket_auto_closed = True
                                 logger.info(f"SUCCESS: Auto-closed ticket {ticket_id} via SingPost tracking")
@@ -7423,6 +7570,7 @@ def track_package(ticket_id, package_number):
                                         break
                                 if all_delivered:
                                     ticket.status = TS.RESOLVED
+                                    ticket.custom_status = None  # Clear custom status when setting system status
                                     ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
                                     ticket_auto_closed = True
                                     logger.info(f"SUCCESS: Auto-closed multi-package ticket {ticket_id}")
@@ -7616,6 +7764,7 @@ def track_package(ticket_id, package_number):
                             from models.ticket import TicketStatus
                             if fresh_ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                                 fresh_ticket.status = TicketStatus.RESOLVED
+                                fresh_ticket.custom_status = None  # Clear custom status when setting system status
                                 fresh_ticket.notes = (fresh_ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Package delivered"
                                 logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED")
 
@@ -7756,6 +7905,7 @@ def generate_package_mock_tracking_data(tracking_number, ticket_id, package_numb
                     from models.ticket import TicketStatus
                     if ticket.status != TicketStatus.RESOLVED_DELIVERED:
                         ticket.status = TicketStatus.RESOLVED_DELIVERED
+                        ticket.custom_status = None  # Clear custom status when setting system status
                         logger.info(f"Automatically changed ticket {ticket_id} status to RESOLVED_DELIVERED due to all packages being delivered")
 
             db_session.commit()
@@ -8247,6 +8397,7 @@ def mark_return_received(ticket_id):
 
             if should_close and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                 ticket.status = TicketStatus.RESOLVED
+                ticket.custom_status = None  # Clear custom status when setting system status
                 ticket.notes = (ticket.notes or "") + f"\n[{singapore_time_str}] Ticket auto-closed: Return received at warehouse. Case completed!"
 
                 # Update linked assets to "In Stock" status when Asset Return is resolved
@@ -8261,6 +8412,7 @@ def mark_return_received(ticket_id):
             # Set to IN_PROGRESS if status is NEW and not closing
             elif ticket.status == TicketStatus.NEW:
                 ticket.status = TicketStatus.IN_PROGRESS
+                ticket.custom_status = None  # Clear custom status when setting system status
                 logger.info(f"Updated ticket {ticket_id} status to IN_PROGRESS")
 
         db_session.commit()
@@ -8310,6 +8462,7 @@ def mark_replacement_received(ticket_id):
             return_received = ticket.shipping_status and ("received" in ticket.shipping_status.lower() or "delivered" in ticket.shipping_status.lower())
             if return_received:
                 ticket.status = TicketStatus.RESOLVED
+                ticket.custom_status = None  # Clear custom status when setting system status
                 logger.info(f"Auto-closing ticket {ticket_id} - both return and replacement shipments received")
 
                 # Update linked assets to "In Stock" status when Asset Return is resolved
@@ -8324,6 +8477,7 @@ def mark_replacement_received(ticket_id):
             # Set to IN_PROGRESS if status is NEW
             elif ticket.status == TicketStatus.NEW:
                 ticket.status = TicketStatus.IN_PROGRESS
+                ticket.custom_status = None  # Clear custom status when setting system status
                 logger.info(f"Updated ticket {ticket_id} status to IN_PROGRESS")
 
         db_session.commit()
@@ -8573,6 +8727,7 @@ def update_shipping_status(ticket_id):
                 if 'customer received' in status_lower or 'delivered' in status_lower or 'received' in status_lower:
                     if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                         ticket.status = TicketStatus.RESOLVED
+                        ticket.custom_status = None  # Clear custom status when setting system status
                         ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Customer received package"
                         logger.info(f"Auto-closed Asset Checkout (claw) ticket {ticket_id} - status set to '{status}'")
                         ticket_auto_closed = True
@@ -12941,6 +13096,7 @@ def checkin_asset(ticket_id):
         # Auto-close ticket if all assets are checked in
         if progress['pending'] == 0 and progress['total'] > 0:
             ticket.status = TicketStatus.RESOLVED
+            ticket.custom_status = None  # Clear custom status when setting system status
             db_session.commit()
             ticket_closed = True
 
@@ -13073,6 +13229,7 @@ def undo_checkin(ticket_id, asset_id):
         # If ticket was resolved, reopen it
         if ticket.status == TicketStatus.RESOLVED:
             ticket.status = TicketStatus.IN_PROGRESS
+            ticket.custom_status = None  # Clear custom status when setting system status
 
         db_session.commit()
 
@@ -13844,6 +14001,7 @@ def refresh_single_ticket_tracking(ticket, db_session):
 
                 if all_delivered and ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                     ticket.status = TicketStatus.RESOLVED
+                    ticket.custom_status = None  # Clear custom status when setting system status
                     ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: All packages delivered"
                     results['status_changed'] = True
                     logger.info(f"Auto-closed ticket {ticket.id} - all packages delivered")
@@ -13920,6 +14078,7 @@ def refresh_single_ticket_tracking(ticket, db_session):
                         'collected' in status_lower):
                         if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                             ticket.status = TicketStatus.RESOLVED
+                            ticket.custom_status = None  # Clear custom status when setting system status
                             ticket.notes = (ticket.notes or "") + f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}] Ticket auto-closed: Return received at warehouse. Case completed!"
                             results['status_changed'] = True
                             logger.info(f"Auto-closed ticket {ticket.id} - return received at warehouse")
@@ -13991,6 +14150,7 @@ def refresh_single_ticket_tracking(ticket, db_session):
                         if ticket.category == TicketCategory.ASSET_CHECKOUT_CLAW:
                             if ticket.status not in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
                                 ticket.status = TicketStatus.RESOLVED
+                                ticket.custom_status = None  # Clear custom status when setting system status
                                 results['status_changed'] = True
                 else:
                     results['packages_failed'] += 1

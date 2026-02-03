@@ -5,6 +5,10 @@ import { Bars3Icon, XMarkIcon, ChevronDownIcon, SunIcon, MoonIcon } from '@heroi
 import { MagneticButton } from './ui';
 import { useTheme } from '../contexts/ThemeContext';
 
+// TrueLog Brand Colors
+const TRUELOG_BLUE = '#385CF2';
+const TRUELOG_CYAN = '#0E9ED5';
+
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -83,15 +87,19 @@ const Header: React.FC = () => {
                   to={item.href}
                   className={`relative px-4 py-2 text-sm font-medium transition-colors duration-200 flex items-center gap-1 ${
                     isActive(item.href)
-                      ? 'text-primary-600 dark:text-primary-400'
-                      : 'text-secondary-700 hover:text-primary-600 dark:text-white/90 dark:hover:text-white'
+                      ? 'dark:text-white'
+                      : 'text-secondary-700 dark:text-white/90 dark:hover:text-white'
                   }`}
+                  style={isActive(item.href) ? { color: TRUELOG_BLUE } : undefined}
+                  onMouseEnter={(e) => !isActive(item.href) && (e.currentTarget.style.color = TRUELOG_BLUE)}
+                  onMouseLeave={(e) => !isActive(item.href) && (e.currentTarget.style.color = '')}
                 >
                   <span className="relative">
                     {item.name}
                     {/* Animated underline */}
                     <motion.span
-                      className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-cyan rounded-full"
+                      className="absolute -bottom-1 left-0 h-0.5 rounded-full"
+                      style={{ background: `linear-gradient(90deg, ${TRUELOG_BLUE}, ${TRUELOG_CYAN})` }}
                       initial={{ width: 0 }}
                       animate={{ width: isActive(item.href) ? '100%' : 0 }}
                       whileHover={{ width: '100%' }}
@@ -116,7 +124,7 @@ const Header: React.FC = () => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                      className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-secondary-100 overflow-hidden"
+                      className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-secondary-100 dark:border-slate-700 overflow-hidden"
                     >
                       <div className="p-2">
                         {item.dropdown.map((subItem, index) => (
@@ -128,12 +136,24 @@ const Header: React.FC = () => {
                           >
                             <Link
                               to={subItem.href}
-                              className="flex flex-col px-4 py-3 rounded-xl text-secondary-700 hover:bg-primary-50 hover:text-primary-600 transition-all duration-200 group"
+                              className="flex flex-col px-4 py-3 rounded-xl text-secondary-700 dark:text-slate-300 transition-all duration-200 group"
+                              style={{ '--hover-bg': `${TRUELOG_BLUE}10` } as React.CSSProperties}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${TRUELOG_BLUE}10`;
+                                e.currentTarget.style.color = TRUELOG_BLUE;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '';
+                                e.currentTarget.style.color = '';
+                              }}
                             >
                               <span className="font-medium text-sm group-hover:translate-x-1 transition-transform duration-200">
                                 {subItem.name}
                               </span>
-                              <span className="text-xs text-secondary-500 group-hover:text-primary-500">
+                              <span 
+                                className="text-xs text-secondary-500 dark:text-slate-400 transition-colors"
+                                style={{ '--hover-color': TRUELOG_CYAN } as React.CSSProperties}
+                              >
                                 {subItem.description}
                               </span>
                             </Link>
@@ -163,17 +183,39 @@ const Header: React.FC = () => {
                 <MoonIcon className="h-5 w-5" />
               )}
             </motion.button>
-            <a
+            <motion.a
               href="https://www.truelog.site/auth/login"
               target="_blank"
               rel="noopener noreferrer"
-              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 border border-primary-600 text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/20`}
+              className="px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200"
+              style={{ 
+                border: `1px solid ${TRUELOG_BLUE}`,
+                color: TRUELOG_BLUE
+              }}
+              whileHover={{ 
+                backgroundColor: `${TRUELOG_BLUE}10`,
+                scale: 1.02
+              }}
+              whileTap={{ scale: 0.98 }}
             >
               Client Login
-            </a>
-            <MagneticButton variant="primary" size="md" glow>
-              Get Quote
-            </MagneticButton>
+            </motion.a>
+            {/* CTA Button - Inter Bold, ALL CAPS, White on #0E9ED5 */}
+            <motion.button
+              className="px-5 py-2.5 text-[14px] font-bold uppercase tracking-wider rounded-xl text-white transition-all duration-300"
+              style={{ 
+                backgroundColor: TRUELOG_CYAN,
+                boxShadow: `0 4px 20px -5px ${TRUELOG_CYAN}60`
+              }}
+              whileHover={{ 
+                scale: 1.02,
+                boxShadow: `0 8px 30px -5px ${TRUELOG_CYAN}80`,
+                backgroundColor: '#0b7aa6'
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              GET QUOTE
+            </motion.button>
           </div>
 
           {/* Mobile menu button */}
@@ -222,7 +264,7 @@ const Header: React.FC = () => {
               <motion.div
                 initial={{ y: -20 }}
                 animate={{ y: 0 }}
-                className="px-2 pt-2 pb-6 space-y-1 bg-white/95 backdrop-blur-lg rounded-2xl mt-2 border border-secondary-100 shadow-xl"
+                className="px-2 pt-2 pb-6 space-y-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-lg rounded-2xl mt-2 border border-secondary-100 dark:border-slate-700 shadow-xl"
               >
                 {navigation.map((item, index) => (
                   <motion.div
@@ -235,9 +277,13 @@ const Header: React.FC = () => {
                       to={item.href}
                       className={`block px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
                         isActive(item.href)
-                          ? 'bg-primary-50 text-primary-600'
-                          : 'text-secondary-700 hover:bg-secondary-50 hover:text-primary-600'
+                          ? 'text-white'
+                          : 'text-secondary-700 dark:text-slate-300 hover:text-white'
                       }`}
+                      style={isActive(item.href) ? { 
+                        backgroundColor: `${TRUELOG_BLUE}15`,
+                        color: TRUELOG_BLUE
+                      } : undefined}
                       onClick={() => setIsMenuOpen(false)}
                     >
                       {item.name}
@@ -249,7 +295,10 @@ const Header: React.FC = () => {
                           <Link
                             key={subItem.name}
                             to={subItem.href}
-                            className="block px-4 py-2 text-sm text-secondary-600 hover:text-primary-600 transition-colors duration-200"
+                            className="block px-4 py-2 text-sm text-secondary-600 dark:text-slate-400 transition-colors duration-200"
+                            style={{ '--hover-color': TRUELOG_BLUE } as React.CSSProperties}
+                            onMouseEnter={(e) => e.currentTarget.style.color = TRUELOG_BLUE}
+                            onMouseLeave={(e) => e.currentTarget.style.color = ''}
                             onClick={() => setIsMenuOpen(false)}
                           >
                             {subItem.name}
@@ -269,13 +318,25 @@ const Header: React.FC = () => {
                     href="https://www.truelog.site/auth/login"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full px-4 py-3 text-center font-medium rounded-xl border border-primary-600 text-primary-600 hover:bg-primary-50 transition-all duration-200"
+                    className="block w-full px-4 py-3 text-center font-medium rounded-xl transition-all duration-200"
+                    style={{ 
+                      border: `1px solid ${TRUELOG_BLUE}`,
+                      color: TRUELOG_BLUE
+                    }}
                   >
                     Client Login
                   </a>
-                  <MagneticButton variant="primary" size="md" className="w-full">
-                    Get Quote
-                  </MagneticButton>
+                  {/* Mobile CTA Button */}
+                  <motion.button
+                    className="w-full px-4 py-3 text-[14px] font-bold uppercase tracking-wider rounded-xl text-white transition-all duration-300"
+                    style={{ 
+                      backgroundColor: TRUELOG_CYAN,
+                      boxShadow: `0 4px 20px -5px ${TRUELOG_CYAN}60`
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    GET QUOTE
+                  </motion.button>
                 </motion.div>
               </motion.div>
             </motion.div>

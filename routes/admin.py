@@ -3761,16 +3761,48 @@ def test_email():
 
 
 @admin_bp.route('/csv-import')
-@admin_required
+@login_required
 def csv_import():
     """CSV Import for Asset Checkout Tickets"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has csv_import permission
+    user = db_manager.get_user(session['user_id'])
+
+    # Super admins and developers always have access
+    if not (user.is_super_admin or user.is_developer):
+        # Check UserImportPermission
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'csv_import')
+            if not has_permission:
+                flash('You do not have permission to access CSV Import (Checkout)', 'error')
+                return redirect(url_for('main.dashboard'))
+        finally:
+            db_session.close()
+
     return render_template('admin/csv_import.html')
 
 
 @admin_bp.route('/csv-import/upload', methods=['POST'])
-@admin_required 
+@login_required
 def csv_import_upload():
     """Upload and parse CSV file for ticket import"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has csv_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'csv_import')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access CSV Import (Checkout)'})
+        finally:
+            db_session.close()
+
     try:
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': 'No file provided'})
@@ -3874,9 +3906,23 @@ def csv_import_upload():
 
 
 @admin_bp.route('/csv-import/load-data', methods=['GET'])
-@admin_required
+@login_required
 def csv_import_load_data():
     """Load CSV data from a file_id parameter"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has csv_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'csv_import')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access CSV Import (Checkout)'})
+        finally:
+            db_session.close()
+
     try:
         file_id = request.args.get('file_id')
 
@@ -4059,9 +4105,23 @@ def group_orders_by_id(data):
         return [], data
 
 @admin_bp.route('/csv-import/preview-ticket', methods=['POST'])
-@admin_required
+@login_required
 def csv_import_preview_ticket():
     """Preview a single ticket from CSV data with enhanced features"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has csv_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'csv_import')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access CSV Import (Checkout)'})
+        finally:
+            db_session.close()
+
     try:
         data = request.json
         row_index = data.get('row_index')
@@ -4613,9 +4673,23 @@ def csv_import_preview_ticket():
         return jsonify({'success': False, 'error': f'Failed to generate preview: {str(e)}'})
 
 @admin_bp.route('/csv-import/import-ticket', methods=['POST'])
-@admin_required
+@login_required
 def csv_import_import_ticket():
     """Import a ticket from CSV data with enhanced data flow"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has csv_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'csv_import')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access CSV Import (Checkout)'})
+        finally:
+            db_session.close()
+
     try:
         data = request.json
         row_index = data.get('row_index')
@@ -5146,10 +5220,23 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 
 
 @admin_bp.route('/csv-import/bulk-import', methods=['POST'])
-@admin_required
+@login_required
 def csv_import_bulk_import():
     """Import multiple tickets from CSV data"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
     from routes.import_manager import create_import_session, update_import_session
+
+    # Check if user has csv_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'csv_import')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access CSV Import (Checkout)'})
+        finally:
+            db_session.close()
 
     import_session_id = None
     try:
@@ -7744,6 +7831,13 @@ def get_users_for_cloning():
         db_session.close()
 
 
+@admin_bp.route('/mass-create-users', methods=['GET'])
+@admin_required
+def mass_create_users_page():
+    """Display the mass user creation page"""
+    return render_template('admin/mass_create_users.html')
+
+
 @admin_bp.route('/mass-create-users', methods=['POST'])
 @login_required
 def mass_create_users():
@@ -7757,6 +7851,7 @@ def mass_create_users():
     from models.user_visibility_permission import UserVisibilityPermission
     from models.user_mention_permission import UserMentionPermission
     from models.user_import_permission import UserImportPermission
+    from models.user import UserType
     import secrets
     import string
 
@@ -7766,36 +7861,45 @@ def mass_create_users():
         user_count = request.form.get('user_count')
         auto_password = request.form.get('auto_password') == 'on'
 
-        if not source_user_id or not user_count:
-            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        if not user_count:
+            return jsonify({'success': False, 'error': 'Missing required field: user_count'}), 400
 
-        source_user_id = int(source_user_id)
         user_count = int(user_count)
 
-        # Get source user
-        source_user = db_session.query(User).filter(User.id == source_user_id).first()
-        if not source_user:
-            return jsonify({'success': False, 'error': 'Source user not found'}), 404
+        # Get source user and permissions if source_user_id is provided
+        source_user = None
+        source_company_perms = []
+        source_country_perms = []
+        source_queue_perms = []
+        source_visibility_perms = []
+        source_mention_perms = []
+        source_import_perms = []
 
-        # Get source user's permissions
-        source_company_perms = db_session.query(UserCompanyPermission).filter(
-            UserCompanyPermission.user_id == source_user_id
-        ).all()
-        source_country_perms = db_session.query(UserCountryPermission).filter(
-            UserCountryPermission.user_id == source_user_id
-        ).all()
-        source_queue_perms = db_session.query(UserQueuePermission).filter(
-            UserQueuePermission.user_id == source_user_id
-        ).all()
-        source_visibility_perms = db_session.query(UserVisibilityPermission).filter(
-            UserVisibilityPermission.user_id == source_user_id
-        ).all()
-        source_mention_perms = db_session.query(UserMentionPermission).filter(
-            UserMentionPermission.user_id == source_user_id
-        ).all()
-        source_import_perms = db_session.query(UserImportPermission).filter(
-            UserImportPermission.user_id == source_user_id
-        ).all()
+        if source_user_id:
+            source_user_id = int(source_user_id)
+            source_user = db_session.query(User).filter(User.id == source_user_id).first()
+            if not source_user:
+                return jsonify({'success': False, 'error': 'Source user not found'}), 404
+
+            # Get source user's permissions
+            source_company_perms = db_session.query(UserCompanyPermission).filter(
+                UserCompanyPermission.user_id == source_user_id
+            ).all()
+            source_country_perms = db_session.query(UserCountryPermission).filter(
+                UserCountryPermission.user_id == source_user_id
+            ).all()
+            source_queue_perms = db_session.query(UserQueuePermission).filter(
+                UserQueuePermission.user_id == source_user_id
+            ).all()
+            source_visibility_perms = db_session.query(UserVisibilityPermission).filter(
+                UserVisibilityPermission.user_id == source_user_id
+            ).all()
+            source_mention_perms = db_session.query(UserMentionPermission).filter(
+                UserMentionPermission.user_id == source_user_id
+            ).all()
+            source_import_perms = db_session.query(UserImportPermission).filter(
+                UserImportPermission.user_id == source_user_id
+            ).all()
 
         created_users = []
         errors = []
@@ -7822,15 +7926,15 @@ def mass_create_users():
             elif not password:
                 password = 'TempPass123!'  # Default password if none provided
 
-            # Create new user with cloned settings
+            # Create new user with cloned settings (or defaults if no source user)
             new_user = User(
                 username=username,
                 email=email,
-                user_type=source_user.user_type,
-                company_id=source_user.company_id,
-                assigned_country=source_user.assigned_country,
-                role=source_user.role,
-                mention_filter_enabled=source_user.mention_filter_enabled,
+                user_type=source_user.user_type if source_user else UserType.CLIENT,
+                company_id=source_user.company_id if source_user else None,
+                assigned_country=source_user.assigned_country if source_user else None,
+                role=source_user.role if source_user else None,
+                mention_filter_enabled=source_user.mention_filter_enabled if source_user else False,
                 is_deleted=False
             )
             new_user.set_password(password)
@@ -7894,21 +7998,26 @@ def mass_create_users():
             created_users.append({
                 'username': username,
                 'email': email,
-                'password': password if auto_password else '[User provided]'
+                'password': password
             })
+
+            # Send welcome email
+            try:
+                send_welcome_email(email, username, password)
+            except Exception as e:
+                logger.error(f'Failed to send welcome email to {email}: {str(e)}')
 
         db_session.commit()
 
         # Build response message
-        message = f"Created {len(created_users)} users cloned from {source_user.username}"
+        if source_user:
+            message = f"Created {len(created_users)} users cloned from {source_user.username}"
+        else:
+            message = f"Created {len(created_users)} users"
         if errors:
             message += f"\n\nErrors:\n" + "\n".join(errors)
 
-        if auto_password and created_users:
-            message += "\n\nGenerated Passwords:\n"
-            for u in created_users:
-                if u['password'] != '[User provided]':
-                    message += f"  {u['username']}: {u['password']}\n"
+        message += f"\n\n✅ Welcome emails sent to all {len(created_users)} users."
 
         return jsonify({
             'success': True,

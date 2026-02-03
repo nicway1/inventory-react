@@ -317,6 +317,14 @@ def create_app():
         except:
             return []
 
+    @app.template_filter('hide_claw')
+    def hide_claw_filter(text):
+        """Template filter to hide (claw) from category names"""
+        if not text:
+            return ""
+        # Remove " (claw)" from the text
+        return str(text).replace(' (claw)', '')
+
     @app.route('/activity/<int:activity_id>/read', methods=['POST'])
     @login_required
     def mark_activity_read(activity_id):
