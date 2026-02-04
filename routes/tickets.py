@@ -1901,11 +1901,26 @@ def create_ticket():
 
         # Get parent-eligible companies (exclude child companies) for parent company selection
         # Only parent companies and standalone companies can be selected as parents
-        parent_eligible_companies = db_session.query(Company)\
-            .filter(Company.parent_company_id == None)\
-            .order_by(Company.name)\
-            .all()
-        parent_companies_list = [c.name for c in parent_eligible_companies]
+        # Filter by user permissions
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # SUPER_ADMIN/DEVELOPER can see all parent-eligible companies
+            parent_eligible_companies = db_session.query(Company)\
+                .filter(Company.parent_company_id == None)\
+                .order_by(Company.name)\
+                .all()
+            parent_companies_list = [c.name for c in parent_eligible_companies]
+        elif permitted_company_ids:
+            # Use the user's permitted companies, filtered to only parent-eligible ones
+            parent_eligible_companies = db_session.query(Company)\
+                .filter(
+                    Company.id.in_(permitted_company_ids),
+                    Company.parent_company_id == None
+                )\
+                .order_by(Company.name)\
+                .all()
+            parent_companies_list = [c.name for c in parent_eligible_companies]
+        else:
+            parent_companies_list = []
         
         # Get all enabled categories (both predefined and custom)
         from models.ticket_category_config import CategoryDisplayConfig
