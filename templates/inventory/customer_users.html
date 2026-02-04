@@ -5,6 +5,7 @@
     <div class="mb-6 flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-900">Customer Users</h1>
         <div class="flex space-x-4">
+            {% if current_user.permissions and current_user.permissions.can_import_data %}
             <a href="{{ url_for('inventory.import_customers') }}"
                class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -12,6 +13,7 @@
                 </svg>
                 Import Customers
             </a>
+            {% endif %}
             <a href="{{ url_for('inventory.export_customer_users') }}"
                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">

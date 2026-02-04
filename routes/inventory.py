@@ -4676,24 +4676,53 @@ def add_customer_user():
                 flash(f'Error creating customer: {str(e)}', 'error')
                 return redirect(url_for('inventory.list_customer_users'))
         
-        # For GET request, get unique company names from both assets and companies table
-        company_names_from_assets = db_session.query(Asset.customer)\
-            .filter(Asset.customer.isnot(None))\
-            .distinct()\
-            .all()
-        company_names_from_companies = db_session.query(Company.name)\
-            .distinct()\
-            .all()
-            
-        # Combine and deduplicate company names
-        all_companies = set()
-        for company in company_names_from_assets:
-            if company[0]:  # Check if the company name is not None
-                all_companies.add(company[0])
-        for company in company_names_from_companies:
-            if company[0]:  # Check if the company name is not None
-                all_companies.add(company[0])
-                
+        # For GET request, get unique company names based on user permissions
+        user = current_user
+
+        # SUPER_ADMIN and DEVELOPER can see all companies
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            company_names_from_assets = db_session.query(Asset.customer)\
+                .filter(Asset.customer.isnot(None))\
+                .distinct()\
+                .all()
+            company_names_from_companies = db_session.query(Company.name)\
+                .distinct()\
+                .all()
+
+            # Combine and deduplicate company names
+            all_companies = set()
+            for company in company_names_from_assets:
+                if company[0]:
+                    all_companies.add(company[0])
+            for company in company_names_from_companies:
+                if company[0]:
+                    all_companies.add(company[0])
+        else:
+            # For COUNTRY_ADMIN and SUPERVISOR, filter by company permissions
+            from models.user_company_permission import UserCompanyPermission
+
+            company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+
+            all_companies = set()
+            if company_permissions:
+                permitted_company_ids = [perm.company_id for perm in company_permissions]
+                permitted_companies = db_session.query(Company).filter(
+                    Company.id.in_(permitted_company_ids)
+                ).all()
+
+                # Add permitted company names and include child companies
+                for company in permitted_companies:
+                    if company.name:
+                        all_companies.add(company.name)
+                    # Include child companies of parent companies
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        for child in company.child_companies.all():
+                            if child.name:
+                                all_companies.add(child.name)
+
         # Sort the company names
         companies = sorted(list(all_companies))
         

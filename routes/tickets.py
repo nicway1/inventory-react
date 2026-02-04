@@ -33,6 +33,7 @@ from dotenv import load_dotenv
 from models.comment import Comment
 from flask_login import current_user
 from models.user import User, UserType, Country
+from utils.countries import COUNTRIES
 from datetime import timezone, timedelta
 import datetime
 import uuid
@@ -2059,29 +2060,9 @@ def create_ticket():
                 'company': u.company.name if u.company else None
             } for u in all_users]
 
-        # Get all unique countries from both enum and existing customers
-        countries_dict = {}  # Use dict with name as key to avoid duplicates
-
-        # Add predefined enum countries
-        for country in Country:
-            countries_dict[country.name] = {'name': country.name, 'value': country.value}
-
-        # Add custom countries from customer_users table
-        from models.customer_user import CustomerUser
-        custom_countries = db_session.query(CustomerUser.country)\
-            .filter(CustomerUser.country.isnot(None))\
-            .distinct()\
-            .all()
-
-        for country_tuple in custom_countries:
-            country_str = country_tuple[0]
-            if country_str and country_str not in countries_dict:
-                # Format for display: convert NORTH_KOREA to "North Korea"
-                display_value = country_str.replace('_', ' ').title()
-                countries_dict[country_str] = {'name': country_str, 'value': display_value}
-
-        # Convert dict values to sorted list (sort by display value)
-        all_countries = sorted(list(countries_dict.values()), key=lambda x: x['value'])
+        # Use the same comprehensive country list as /customer-users/add
+        # Simple list of all world countries (alphabetically sorted)
+        all_countries = COUNTRIES
 
         # Helper function to generate template context
         def get_template_context(form_data=None):
