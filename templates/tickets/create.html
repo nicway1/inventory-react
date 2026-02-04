@@ -551,7 +551,7 @@
                     </div>
 
                     <!-- Package Tracking Section -->
-                    <div>
+                    <div id="packageTrackingSection">
                         <label class="block text-sm font-medium text-gray-700 mb-3">Package Tracking (Optional)</label>
                         <div class="space-y-4 bg-gray-50 p-4 rounded-lg">
                             <p class="text-sm text-gray-600">Add tracking numbers for up to 5 packages. Each package can later have specific assets assigned to it.</p>
@@ -694,10 +694,10 @@
                     </div>
 
                     <!-- Notes -->
-                    <div>
+                    <div id="checkoutNotesSection">
                         <label for="checkout_notes" class="block text-sm font-medium text-gray-700">Notes</label>
-                        <textarea id="checkout_notes" 
-                                  name="notes" 
+                        <textarea id="checkout_notes"
+                                  name="notes"
                                   rows="3"
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
@@ -886,15 +886,25 @@
                         </div>
                     </div>
 
-                    <!-- Return Description -->
-                    <div>
+                    <!-- Return Description (Hidden) -->
+                    <div id="returnDescriptionSection" class="hidden">
                         <label for="return_description" class="block text-sm font-medium text-gray-700">Return Description</label>
                         <textarea id="return_description"
                                   name="return_description"
                                   rows="3"
-                                  required
                                   placeholder="Please describe what assets are being returned and why"
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Order ID (Optional) -->
+                    <div>
+                        <label for="return_order_id" class="block text-sm font-medium text-gray-700">Order ID (Optional)</label>
+                        <input type="text"
+                               id="return_order_id"
+                               name="order_id"
+                               placeholder="e.g., FB-12345"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500">Enter order ID for reference</p>
                     </div>
 
                     <!-- Reported Issue -->
@@ -971,11 +981,11 @@
                         </p>
                     </div>
 
-                    <!-- Notes -->
-                    <div>
+                    <!-- Notes (Hidden for Asset Return) -->
+                    <div id="returnNotesSection" class="hidden">
                         <label for="return_notes" class="block text-sm font-medium text-gray-700">Notes</label>
-                        <textarea id="return_notes" 
-                                  name="notes" 
+                        <textarea id="return_notes"
+                                  name="notes"
                                   rows="3"
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
@@ -1664,7 +1674,13 @@ function onCategoryChange() {
     // Show general fields by default
     if (generalPriorityField) generalPriorityField.classList.remove('hidden');
     if (generalDescriptionField) generalDescriptionField.classList.remove('hidden');
-    
+
+    // Show Package Tracking and Notes sections by default (hidden for Asset Checkout)
+    const packageTrackingSection = document.getElementById('packageTrackingSection');
+    const checkoutNotesSection = document.getElementById('checkoutNotesSection');
+    if (packageTrackingSection) packageTrackingSection.classList.remove('hidden');
+    if (checkoutNotesSection) checkoutNotesSection.classList.remove('hidden');
+
     // Hide the general subject field by default (only show for custom categories)
     const generalSubjectFieldDiv = document.getElementById('generalSubjectField');
     if (generalSubjectFieldDiv) generalSubjectFieldDiv.classList.add('hidden');
@@ -1725,20 +1741,27 @@ function onCategoryChange() {
     if (category === 'ASSET_RETURN_CLAW') {
         // Show ONLY the asset return fields
         assetReturnFields.classList.remove('hidden');
-        document.getElementById('return_notes').disabled = false; // Enable Asset Return notes
         document.getElementById('queue_id').disabled = false; // Enable Asset Return queue
-        console.log('Enabled Asset Return notes field');
-        
-        // Make required fields for asset return
+
+        // Hide Notes and Description for Asset Return (they are hidden by default in HTML)
+        // Also hide general Description field
+        if (generalDescriptionField) {
+            generalDescriptionField.classList.add('hidden');
+            const generalDescriptionTextarea = document.getElementById('description');
+            if (generalDescriptionTextarea) generalDescriptionTextarea.required = false;
+        }
+        console.log('Hidden Notes and Description for Asset Return');
+
+        // Make required fields for asset return (return_description is now optional/hidden)
         document.getElementById('return_customer_id').required = true;
-        document.getElementById('return_description').required = true;
+        document.getElementById('return_description').required = false; // Now optional since hidden
         document.getElementById('return_shipping_address').required = true;
         document.getElementById('outbound_tracking').required = false;
-        
+
         // Set a dummy value in asset_checkout_serial for form validation
         document.getElementById('asset_checkout_serial').value = 'ASSET_RETURN_NO_ASSET';
         console.log('Set dummy value in asset_checkout_serial for Asset Return');
-        
+
         return; // Exit early to avoid running the other logic
     }
 
@@ -1760,18 +1783,28 @@ function onCategoryChange() {
         document.getElementById('customer_id').required = true;
         document.getElementById('checkout_serial_number').required = true;
         document.getElementById('shipping_address').required = true;
-        document.getElementById('checkout_notes').disabled = false; // Enable Asset Checkout notes
         document.getElementById('checkout_queue_id').disabled = false; // Enable Asset Checkout queue
-        console.log('Enabled Asset Checkout notes field');
-        
+
+        // Hide Package Tracking, Notes, and Description for Asset Checkout
+        const packageTrackingSection = document.getElementById('packageTrackingSection');
+        const checkoutNotesSection = document.getElementById('checkoutNotesSection');
+        if (packageTrackingSection) packageTrackingSection.classList.add('hidden');
+        if (checkoutNotesSection) checkoutNotesSection.classList.add('hidden');
+        if (generalDescriptionField) {
+            generalDescriptionField.classList.add('hidden');
+            const generalDescriptionTextarea = document.getElementById('description');
+            if (generalDescriptionTextarea) generalDescriptionTextarea.required = false;
+        }
+        console.log('Hidden Package Tracking, Notes, and Description for Asset Checkout');
+
         // Show asset selection for checkout categories
         if (assetSelectionContainer) {
             assetSelectionContainer.classList.remove('hidden');
         }
-        
+
         // Remove any tracking pattern for Asset Checkout (claw)
         $('#shipping_tracking').removeAttr('pattern');
-        
+
         // Make sure hidden field is populated
         const serial = $('#checkout_serial_number').val();
         if (serial) {
@@ -2243,7 +2276,7 @@ $(document).ready(function() {
             return false;
         }
         
-        // For ASSET_RETURN_CLAW, validate outbound tracking number is provided
+        // For ASSET_RETURN_CLAW, validate required fields
         else if (category === 'ASSET_RETURN_CLAW') {
             console.log('Validating ASSET_RETURN_CLAW category...');
             // Validate customer selection
@@ -2254,16 +2287,9 @@ $(document).ready(function() {
                 alert('Please select a customer');
                 return false;
             }
-            
-            // Validate description
-            const description = $('#return_description').val();
-            if (!description) {
-                console.log('Submit validation failed: Description not provided. Preventing submission.');
-                e.preventDefault();
-                alert('Please provide a return description');
-                return false;
-            }
-            
+
+            // Description is now optional (hidden field)
+
             // Validate shipping address
             const shippingAddress = $('#return_shipping_address').val();
             if (!shippingAddress) {
@@ -2272,19 +2298,19 @@ $(document).ready(function() {
                 alert('Please provide a shipping address');
                 return false;
             }
-            
+
             // Tracking validation is now optional
             // No check for outbound tracking - it's now optional
-            
+
             // Set a default subject if not provided
             if (!$('#subject').val()) {
                 const customer = $('#return_customer_id option:selected').text();
                 $('#subject').val(`Asset Return (claw) - ${customer}`);
             }
-            
+
             // Explicitly bypass any asset validation for return tickets by setting a dummy value
             $('#asset_checkout_serial').val('ASSET_RETURN_NO_ASSET');
-            
+
             console.log('Submit validation passed for Asset Return. Submitting form...');
             return true; // Allow the form to submit
         }
@@ -2651,18 +2677,15 @@ function removeAsset(button) {
 // Function to submit the Asset Return form bypassing normal validation
 function submitAssetReturnForm() {
     console.log('Custom Asset Return submit function called');
-    
+
     // Validate required fields for asset return
     if (!$('#return_customer_id').val()) {
         alert('Please select a customer');
         return false;
     }
-    
-    if (!$('#return_description').val()) {
-        alert('Please provide a return description');
-        return false;
-    }
-    
+
+    // Description is now optional (hidden field)
+
     if (!$('#return_shipping_address').val()) {
         alert('Please provide a return address');
         return false;
@@ -2774,6 +2797,15 @@ function submitAssetReturnForm() {
         damageInput.name = 'damage_description';
         damageInput.value = $('#return_damage_description').val();
         form.appendChild(damageInput);
+    }
+
+    // Add order_id if provided
+    if ($('#return_order_id').val()) {
+        const orderIdInput = document.createElement('input');
+        orderIdInput.type = 'hidden';
+        orderIdInput.name = 'order_id';
+        orderIdInput.value = $('#return_order_id').val();
+        form.appendChild(orderIdInput);
     }
 
     // Add subject

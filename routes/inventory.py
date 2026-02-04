@@ -5055,7 +5055,12 @@ def search():
 
             # Filter tickets by country AND queue permissions
             if user.assigned_countries:
-                ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
+                ticket_query = ticket_query.filter(
+                    or_(
+                        Ticket.country.in_(user.assigned_countries),
+                        Ticket.country == None
+                    )
+                )
 
             if accessible_queue_ids:
                 ticket_query = ticket_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
