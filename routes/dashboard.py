@@ -243,7 +243,9 @@ def load_widget_data(user, layout):
                         'display_id': t.display_id,
                         'customer_name': t.customer.name if t.customer else None,
                         'shipping_tracking': t.shipping_tracking,
-                        'shipping_status': t.shipping_status
+                        'shipping_status': t.shipping_status,
+                        'return_tracking': t.return_tracking,
+                        'return_tracking_status': t.return_tracking_status
                     } for t in shipments
                 ]
             }

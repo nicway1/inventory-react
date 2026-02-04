@@ -85,6 +85,7 @@ class Ticket(Base):
     return_description = Column(String(1000))  # Dedicated field for Asset Return descriptions
     return_tracking = Column(String(100))
     return_carrier = Column(String(50), default='singpost')  # Carrier for return shipment
+    return_tracking_status = Column(String(100), default='Pending')  # Status for return tracking
     replacement_tracking = Column(String(100))
     warranty_number = Column(String(100))
     serial_number = Column(String(100))
