@@ -1810,13 +1810,22 @@ def create_ticket():
 
                     logger.debug(f"[ASSET DEBUG] Permitted customer_user IDs: {len(permitted_customer_user_ids)}")
 
+                    # Get company names for matching assets by customer field
+                    all_company_names = [c.name.strip() for c in permitted_companies]
+
                     # SUPERVISOR/COUNTRY_ADMIN can only see assets from permitted companies
+                    # Match by company_id, customer_id, or customer name string
+                    name_conditions = [func.lower(Asset.customer).like(f"%{name.lower()}%") for name in all_company_names]
+
                     assets_query = assets_query.filter(
                         or_(
                             Asset.company_id.in_(permitted_company_ids),
-                            Asset.customer_id.in_(permitted_customer_user_ids)
+                            Asset.customer_id.in_(permitted_customer_user_ids),
+                            *name_conditions  # Also match by customer name string
                         )
                     )
+
+                    logger.debug(f"[ASSET DEBUG] Filtering by {len(permitted_company_ids)} company IDs and {len(all_company_names)} company names")
                 else:
                     # No permissions - show no assets
                     logger.debug(f"User {user.username} has no company permissions - showing 0 assets")
