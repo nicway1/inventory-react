@@ -1918,14 +1918,14 @@ def create_ticket():
                 'group': None
             },
             'Asset Checkout': {
-                'key': 'ASSET_CHECKOUT',
+                'key': 'ASSET_CHECKOUT_CLAW',  # Using _CLAW variant as it's the enabled one
                 'icon_color': 'green',
                 'icon': 'box',
                 'description': 'Ship device to customer with tracking',
                 'group': None
             },
             'Asset Return': {
-                'key': 'ASSET_RETURN',
+                'key': 'ASSET_RETURN_CLAW',  # Using _CLAW variant as it's the enabled one
                 'icon_color': 'red',
                 'icon': 'return',
                 'description': 'Receive device back from customer',
