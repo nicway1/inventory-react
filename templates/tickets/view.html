@@ -6905,22 +6905,22 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     <input type="text" id="po" name="po" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
                                 </div>
                                 <div>
-                                    <label for="customer" class="block text-sm font-medium text-gray-700">Customer</label>
-                                     <input type="text" id="customer" name="customer" list="asset-modal-customer-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <datalist id="asset-modal-customer-list">
-                                         {% for cust in asset_modal_customers %}
-                                        <option value="{{ cust }}"></option>
+                                    <label for="customer" class="block text-sm font-medium text-gray-700">Customer *</label>
+                                    <select id="customer" name="customer" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Select a customer...</option>
+                                        {% for cust in asset_modal_customers %}
+                                        <option value="{{ cust }}">{{ cust }}</option>
                                         {% endfor %}
-                                    </datalist>
+                                    </select>
                                 </div>
                                 <div>
-                                    <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
-                                     <input type="text" id="country" name="country" list="asset-modal-country-list" maxlength="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                                    <datalist id="asset-modal-country-list">
-                                         {% for c in asset_modal_countries %}
-                                        <option value="{{ c }}"></option>
+                                    <label for="country" class="block text-sm font-medium text-gray-700">Country *</label>
+                                    <select id="country" name="country" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">Select a country...</option>
+                                        {% for c in asset_modal_countries %}
+                                        <option value="{{ c }}">{{ c }}</option>
                                         {% endfor %}
-                                    </datalist>
+                                    </select>
                                 </div>
                                 <div>
                                     <label for="erased" class="flex items-center space-x-2">
