@@ -2369,6 +2369,14 @@ def system_config():
         from utils.timezone_helper import get_timezone_choices
         timezone_choices = get_timezone_choices()
 
+        # Get custom issue types
+        custom_issue_types = []
+        try:
+            from models.custom_issue_type import CustomIssueType
+            custom_issue_types = db_session.query(CustomIssueType).order_by(CustomIssueType.name).all()
+        except Exception as e:
+            logger.warning(f"Could not load custom_issue_types: {str(e)}")
+
         return render_template('admin/system_config.html',
                              user=user,
                              firecrawl_keys=firecrawl_keys,
@@ -2380,11 +2388,102 @@ def system_config():
                              default_ticket_view=default_ticket_view,
                              default_inventory_view=default_inventory_view,
                              system_timezone=system_timezone,
-                             timezone_choices=timezone_choices)
+                             timezone_choices=timezone_choices,
+                             custom_issue_types=custom_issue_types)
     except Exception as e:
         db_session.rollback()
         flash(f'Error loading system configuration: {str(e)}', 'error')
         return redirect(url_for('main.index'))
+    finally:
+        db_session.close()
+
+
+# Custom Issue Type Management Routes
+@admin_bp.route('/issue-types/add', methods=['POST'])
+@super_admin_required
+def add_issue_type():
+    """Add a new custom issue type"""
+    from models.custom_issue_type import CustomIssueType
+
+    db_session = db_manager.get_session()
+    try:
+        name = request.form.get('name', '').strip()
+
+        if not name:
+            flash('Issue type name is required', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        # Check if it already exists
+        existing = db_session.query(CustomIssueType).filter_by(name=name).first()
+        if existing:
+            flash(f'Issue type "{name}" already exists', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        # Create new issue type
+        issue_type = CustomIssueType(name=name, is_active=True)
+        db_session.add(issue_type)
+        db_session.commit()
+
+        flash(f'Issue type "{name}" added successfully', 'success')
+        return redirect(url_for('admin.system_config'))
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error adding issue type: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/issue-types/<int:issue_type_id>/toggle', methods=['POST'])
+@super_admin_required
+def toggle_issue_type(issue_type_id):
+    """Toggle active status of an issue type"""
+    from models.custom_issue_type import CustomIssueType
+
+    db_session = db_manager.get_session()
+    try:
+        issue_type = db_session.query(CustomIssueType).get(issue_type_id)
+        if not issue_type:
+            flash('Issue type not found', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        issue_type.is_active = not issue_type.is_active
+        db_session.commit()
+
+        status = "enabled" if issue_type.is_active else "disabled"
+        flash(f'Issue type "{issue_type.name}" {status} successfully', 'success')
+        return redirect(url_for('admin.system_config'))
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error toggling issue type: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
+    finally:
+        db_session.close()
+
+
+@admin_bp.route('/issue-types/<int:issue_type_id>/delete', methods=['POST'])
+@super_admin_required
+def delete_issue_type(issue_type_id):
+    """Delete a custom issue type"""
+    from models.custom_issue_type import CustomIssueType
+
+    db_session = db_manager.get_session()
+    try:
+        issue_type = db_session.query(CustomIssueType).get(issue_type_id)
+        if not issue_type:
+            flash('Issue type not found', 'error')
+            return redirect(url_for('admin.system_config'))
+
+        name = issue_type.name
+        db_session.delete(issue_type)
+        db_session.commit()
+
+        flash(f'Issue type "{name}" deleted successfully', 'success')
+        return redirect(url_for('admin.system_config'))
+    except Exception as e:
+        db_session.rollback()
+        flash(f'Error deleting issue type: {str(e)}', 'error')
+        return redirect(url_for('admin.system_config'))
     finally:
         db_session.close()
 

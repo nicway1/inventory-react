@@ -1834,11 +1834,18 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Issue Type</label>
                                             <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" onchange="toggleCustomIssueType(this)">
                                                 <option value="">-- Select Issue Type --</option>
+                                                <!-- Default Issue Types -->
                                                 <option value="Wrong Accessories">Wrong Accessories Assigned</option>
                                                 <option value="Wrong Address">Wrong Shipping Address</option>
                                                 <option value="Missing Items">Missing Items</option>
                                                 <option value="Damaged Items">Damaged Items</option>
                                                 <option value="Tracking Issue">Tracking Issue</option>
+                                                <!-- Custom Issue Types from Database -->
+                                                {% if custom_issue_types %}
+                                                    {% for issue_type in custom_issue_types %}
+                                                    <option value="{{ issue_type.name }}">{{ issue_type.name }}</option>
+                                                    {% endfor %}
+                                                {% endif %}
                                                 <option value="Other">Other (Custom)</option>
                                             </select>
                                         </div>

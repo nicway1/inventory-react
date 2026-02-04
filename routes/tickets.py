@@ -3500,6 +3500,14 @@ def view_ticket(ticket_id):
                 logger.error(f"Error checking Firstbase access: {str(e)}")
                 user_has_firstbase_access = False
 
+        # Get custom issue types for "Report an Issue" dropdown
+        custom_issue_types = []
+        try:
+            from models.custom_issue_type import CustomIssueType
+            custom_issue_types = db_session.query(CustomIssueType).filter_by(is_active=True).order_by(CustomIssueType.name).all()
+        except Exception as e:
+            logger.warning(f"Could not load custom_issue_types: {str(e)}")
+
         return render_template(
             'tickets/view.html',
             ticket=ticket,
@@ -3525,6 +3533,7 @@ def view_ticket(ticket_id):
             model_product_map=model_product_map,
             model_type_map=model_type_map,
             custom_statuses=custom_statuses_list,
+            custom_issue_types=custom_issue_types,  # Custom issue types for Report an Issue dropdown
             out_of_stock_accessories=out_of_stock_accessories,
             accessible_queue_ids=accessible_queue_ids,
             checkin_data=checkin_data,
