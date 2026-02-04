@@ -6,7 +6,7 @@ class UserQueuePermission(Base):
     """Per-user queue permissions (separate from company-level permissions)"""
     __tablename__ = 'user_queue_permissions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     queue_id = Column(Integer, ForeignKey('queues.id', ondelete='CASCADE'), nullable=False)
     can_view = Column(Boolean, default=True)

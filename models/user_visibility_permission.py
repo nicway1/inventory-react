@@ -6,7 +6,7 @@ class UserVisibilityPermission(Base):
     """Controls which users a SUPERVISOR/COUNTRY_ADMIN can see in dropdowns (e.g., Change Case Owner)"""
     __tablename__ = 'user_visibility_permissions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)  # The supervisor/country_admin
     visible_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)  # User they can see
 

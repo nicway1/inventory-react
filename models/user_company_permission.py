@@ -5,7 +5,7 @@ from models.base import Base
 class UserCompanyPermission(Base):
     __tablename__ = 'user_company_permissions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     company_id = Column(Integer, ForeignKey('companies.id'), nullable=False)
     can_view = Column(Boolean, default=True)

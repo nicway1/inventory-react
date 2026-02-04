@@ -4646,6 +4646,16 @@ def add_customer_user():
                     if not company:
                         # Create new company if it doesn't exist
                         company = Company(name=company_name_normalized)
+
+                        # Handle parent company if provided
+                        parent_company_name = request.form.get('parent_company')
+                        if parent_company_name:
+                            parent_company_normalized = parent_company_name.strip().upper()
+                            parent_company = db_session.query(Company).filter(Company.name == parent_company_normalized).first()
+                            if parent_company:
+                                company.parent_company_id = parent_company.id
+                                parent_company.is_parent_company = True
+
                         db_session.add(company)
                         db_session.flush()
 

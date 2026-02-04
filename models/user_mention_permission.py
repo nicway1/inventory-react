@@ -12,7 +12,7 @@ class UserMentionPermission(Base):
     """
     __tablename__ = 'user_mention_permissions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     # Type: 'user' or 'group'
     target_type = Column(String(20), nullable=False)

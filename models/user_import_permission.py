@@ -12,7 +12,7 @@ class UserImportPermission(Base):
     """Controls which import types a user can access"""
     __tablename__ = 'user_import_permissions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     import_type = Column(String(50), nullable=False)  # 'inventory', 'customers', 'csv_import', 'asset_return', '1stbase', 'retool'
 

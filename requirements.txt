@@ -46,7 +46,7 @@ pandas==1.5.3
 openpyxl==3.1.2
 xlsxwriter==3.1.9
 # For markdown rendering in knowledge base
-markdown==3.10
+markdown==3.9
 # SingPost tracking API
 aiohttp==3.9.1
 zeep==4.2.1

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Tracking Refresh History{% endblock %}
+
+{% block content %}
+<style>
+.history-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.history-header {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+.log-entry {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+}
+.log-entry:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-color: #cbd5e1;
+}
+.log-date {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+.log-stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+}
+.log-stat {
+    font-size: 0.875rem;
+}
+.log-stat-value {
+    font-weight: 600;
+    color: #1e293b;
+}
+.btn-view {
+    background: #3b82f6;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.875rem;
+    display: inline-block;
+    margin-top: 8px;
+}
+.btn-view:hover {
+    background: #2563eb;
+    color: white;
+}
+.btn-back {
+    background: #64748b;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.875rem;
+    display: inline-block;
+    margin-bottom: 20px;
+}
+.btn-back:hover {
+    background: #475569;
+    color: white;
+}
+</style>
+
+<div class="container mt-4">
+    <a href="{{ url_for('tickets.list_tickets_sf') }}" class="btn-back">
+        <i class="fas fa-arrow-left"></i> Back to Tickets
+    </a>
+
+    <div class="history-card">
+        <div class="history-header">
+            <i class="fas fa-history"></i> Tracking Refresh History
+        </div>
+
+        {% if logs %}
+            {% for log in logs %}
+            <div class="log-entry">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <div style="font-weight: 600; color: #1e293b;">
+                            Refresh #{{ log.id }}
+                        </div>
+                        <div class="log-date">
+                            <i class="fas fa-clock"></i>
+                            {{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else 'Unknown' }}
+                        </div>
+                        <div class="log-stats">
+                            <div class="log-stat">
+                                <span class="log-stat-value">{{ log.tickets_processed or 0 }}</span>
+                                tickets processed
+                            </div>
+                            <div class="log-stat">
+                                <span class="log-stat-value">{{ log.packages_updated or 0 }}</span>
+                                packages updated
+                            </div>
+                            {% if log.errors_count %}
+                            <div class="log-stat" style="color: #dc2626;">
+                                <span class="log-stat-value">{{ log.errors_count }}</span>
+                                errors
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('tickets.tracking_refresh_report', log_id=log.id) }}" class="btn-view">
+                            <i class="fas fa-eye"></i> View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 16px;"></i>
+                <div>No tracking refresh history found</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
