@@ -1822,6 +1822,8 @@ def create_ticket():
 
         assets = assets_query.all()
 
+        logger.debug(f"[ASSET DEBUG] User: {user.username}, Type: {user.user_type.value}, Assets from query: {len(assets)}")
+
         assets_data = [{
             'id': asset.id,
             'serial_number': asset.serial_num,
@@ -1829,6 +1831,10 @@ def create_ticket():
             'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
             'asset_tag': asset.asset_tag
         } for asset in assets]
+
+        logger.debug(f"[ASSET DEBUG] Total assets loaded: {len(assets_data)}")
+        if assets_data:
+            logger.debug(f"[ASSET DEBUG] First 3 assets: {assets_data[:3]}")
 
         # Get all customers for the dropdown (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
@@ -1896,15 +1902,25 @@ def create_ticket():
 
         # Filter categories based on user permissions (for SUPERVISOR/COUNTRY_ADMIN)
         if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
-            from models.user_category_permission import UserCategoryPermission
-            allowed_category_keys = UserCategoryPermission.get_user_allowed_categories(db_session, user.id)
+            try:
+                from models.user_category_permission import UserCategoryPermission
+                allowed_category_keys = UserCategoryPermission.get_user_allowed_categories(db_session, user.id)
 
-            # Filter to only show categories the user has permission for
-            if allowed_category_keys:
-                all_categories = [cat for cat in all_categories if cat['value'] in allowed_category_keys]
-            else:
-                # No permissions = no categories available
-                all_categories = []
+                logger.debug(f"[CATEGORY DEBUG] User {user.username} allowed categories: {allowed_category_keys}")
+
+                # Filter to only show categories the user has permission for
+                if allowed_category_keys:
+                    all_categories = [cat for cat in all_categories if cat['value'] in allowed_category_keys]
+                else:
+                    # No permissions = no categories available
+                    all_categories = []
+
+                logger.debug(f"[CATEGORY DEBUG] Filtered categories count: {len(all_categories)}")
+            except Exception as e:
+                logger.error(f"[CATEGORY DEBUG] Error loading category permissions: {str(e)}")
+                logger.error(f"[CATEGORY DEBUG] This likely means the user_category_permissions table doesn't exist - run migration!")
+                # If there's an error, don't filter categories (show all)
+                logger.debug(f"[CATEGORY DEBUG] Showing all categories due to error")
         # SUPER_ADMIN and DEVELOPER see all categories without restriction
 
         # Build category guide data structure (maps display names to guide info)
