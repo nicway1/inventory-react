@@ -253,8 +253,16 @@ def list_tickets():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
 
-    # Get tickets based on user type (use enum, not session string value)
-    tickets = ticket_store.get_user_tickets(user_id, user.user_type)
+    # Get queue IDs for filtering (for COUNTRY_ADMIN/SUPERVISOR)
+    queue_ids = None
+    if not user.is_super_admin and not user.is_developer:
+        accessible_queue_ids = user.get_accessible_queue_ids()
+        queue_ids = accessible_queue_ids
+        logging.info(f"Will filter by {len(queue_ids) if queue_ids else 0} queue IDs in database query")
+
+    # Get tickets based on user type with queue filter applied in database (MUCH faster!)
+    tickets = ticket_store.get_user_tickets(user_id, user.user_type, queue_ids=queue_ids)
+    logging.info(f"Got {len(tickets)} tickets from get_user_tickets (already filtered by queue in database)")
 
     # Apply date filtering if date parameters are provided
     if date_from or date_to:
@@ -281,27 +289,6 @@ def list_tickets():
 
         tickets = filtered_by_date
         logging.info(f"Applied date filter: {date_from} to {date_to}, {len(tickets)} tickets match")
-
-    # Filter tickets based on queue access permissions
-    if not user.is_super_admin and not user.is_developer:
-        logging.info(f"Filtering tickets for user {user.username} (type: {user.user_type.value})")
-        logging.info(f"Total tickets before filtering: {len(tickets)}")
-        # Batch-load accessible queue IDs ONCE instead of N separate queries
-        accessible_queue_ids = user.get_accessible_queue_ids()
-
-        filtered_tickets = []
-        for ticket in tickets:
-            # Only show tickets that have a queue AND the user has access to that queue
-            if ticket.queue_id and ticket.queue_id in accessible_queue_ids:
-                filtered_tickets.append(ticket)
-                logging.debug(f"✓ Ticket {ticket.id} allowed (queue: {ticket.queue.name if ticket.queue else 'None'})")
-            # For COUNTRY_ADMIN users, exclude tickets without a queue (unassigned tickets)
-            elif not ticket.queue_id:
-                logging.debug(f"✗ Ticket {ticket.id} denied (no queue - unassigned)")
-            else:
-                logging.debug(f"✗ Ticket {ticket.id} denied (queue: {ticket.queue.name if ticket.queue else 'None'} - no permission)")
-        tickets = filtered_tickets
-        logging.info(f"Total tickets after filtering: {len(tickets)}")
 
     # Get queues for the filter dropdown, filtered by user permissions
     from models.queue import Queue
@@ -413,8 +400,17 @@ def list_tickets_sf():
     # Get tickets based on user type (use enum, not session string value)
     logging.info(f"DEBUG SF - user_id: {user_id}, user.user_type: {user.user_type}, type: {type(user.user_type)}")
     logging.info(f"DEBUG SF - is_super_admin: {user.is_super_admin}, is_developer: {user.is_developer}")
-    tickets = ticket_store.get_user_tickets(user_id, user.user_type)
-    logging.info(f"DEBUG SF - got {len(tickets)} tickets from get_user_tickets")
+
+    # Get queue IDs for filtering (for COUNTRY_ADMIN/SUPERVISOR)
+    queue_ids = None
+    if not user.is_super_admin and not user.is_developer:
+        accessible_queue_ids = user.get_accessible_queue_ids()
+        queue_ids = accessible_queue_ids
+        logging.info(f"DEBUG SF - Will filter by {len(queue_ids) if queue_ids else 0} queue IDs in database query")
+
+    # Get tickets with queue filter applied in database (MUCH faster!)
+    tickets = ticket_store.get_user_tickets(user_id, user.user_type, queue_ids=queue_ids)
+    logging.info(f"DEBUG SF - got {len(tickets)} tickets from get_user_tickets (already filtered by queue in database)")
 
     # Apply date filtering if date parameters are provided
     if date_from or date_to:
@@ -438,24 +434,6 @@ def list_tickets_sf():
 
             filtered_by_date.append(ticket)
         tickets = filtered_by_date
-
-    # Filter tickets based on queue access permissions
-    if not user.is_super_admin and not user.is_developer:
-        logging.info(f"DEBUG SF - applying queue filter (not admin/developer)")
-        # Batch-load accessible queue IDs ONCE instead of 2585 separate queries
-        accessible_queue_ids = user.get_accessible_queue_ids()
-        logging.info(f"DEBUG SF - User has access to {len(accessible_queue_ids) if accessible_queue_ids is not None else 'all'} queues")
-
-        filtered_tickets = []
-        for ticket in tickets:
-            if ticket.queue_id and ticket.queue_id in accessible_queue_ids:
-                filtered_tickets.append(ticket)
-            elif not ticket.queue_id:
-                pass  # Exclude unassigned tickets for non-admin users
-        tickets = filtered_tickets
-        logging.info(f"DEBUG SF - after queue filter: {len(tickets)} tickets")
-    else:
-        logging.info(f"DEBUG SF - skipping queue filter (admin/developer)")
 
     logging.info(f"DEBUG SF - final ticket count: {len(tickets)}")
 
