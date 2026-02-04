@@ -230,7 +230,7 @@ def global_search():
                     # Filter by country if assigned
                     if user.assigned_countries:
                         asset_query = asset_query.filter(Asset.country.in_(user.assigned_countries))
-                    # Filter by company permissions
+                    # Filter by company permissions (if configured)
                     if permitted_company_ids:
                         asset_query = asset_query.filter(
                             or_(
@@ -238,8 +238,7 @@ def global_search():
                                 Asset.customer.in_(permitted_company_names) if permitted_company_names else sa_false()
                             )
                         )
-                    else:
-                        asset_query = asset_query.filter(Asset.id == -1)
+                    # If no company permissions configured, show all assets (supervisor has access)
 
                 # Apply search filters (matching web version)
                 assets = asset_query.filter(
@@ -300,10 +299,10 @@ def global_search():
                 if user.user_type == UserType.CLIENT and user.company_id:
                     customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
                 elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                    # Filter by company permissions (if configured)
                     if permitted_company_ids:
                         customer_query = customer_query.filter(CustomerUser.company_id.in_(permitted_company_ids))
-                    else:
-                        customer_query = customer_query.filter(CustomerUser.id == -1)
+                    # If no company permissions configured, show all customers (supervisor has access)
                 elif user.user_type == UserType.DEVELOPER and user.company_id:
                     customer_query = customer_query.filter(CustomerUser.company_id == user.company_id)
                 
@@ -346,11 +345,10 @@ def global_search():
                     # Filter by country if assigned
                     if user.assigned_countries:
                         ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
-                    # Filter by queue permissions
+                    # Filter by queue permissions (if configured)
                     if accessible_queue_ids:
                         ticket_query = ticket_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
-                    else:
-                        ticket_query = ticket_query.filter(Ticket.id == -1)
+                    # If no queue permissions configured, show all tickets (supervisor has access)
 
                 # Build ticket search filters
                 ticket_filters = [
@@ -429,11 +427,10 @@ def global_search():
                             # Filter by country if assigned
                             if user.assigned_countries:
                                 related_tickets_query = related_tickets_query.filter(Ticket.country.in_(user.assigned_countries))
-                            # Filter by queue permissions
+                            # Filter by queue permissions (if configured)
                             if accessible_queue_ids:
                                 related_tickets_query = related_tickets_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
-                            else:
-                                related_tickets_query = related_tickets_query.filter(Ticket.id == -1)
+                            # If no queue permissions configured, show all tickets (supervisor has access)
 
                         related_tickets = related_tickets_query.filter(or_(*related_filters)).order_by(Ticket.created_at.desc()).limit(limit).all()
                         
