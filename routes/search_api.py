@@ -368,6 +368,7 @@ def global_search():
                     Ticket.shipping_tracking.ilike(f'%{search_term}%'),
                     Ticket.return_tracking.ilike(f'%{search_term}%'),
                     Ticket.shipping_tracking_2.ilike(f'%{search_term}%'),
+                    Ticket.firstbaseorderid.ilike(f'%{search_term}%'),
                     # Search by customer name
                     CustomerUser.name.ilike(f'%{search_term}%'),
                     CustomerUser.email.ilike(f'%{search_term}%')

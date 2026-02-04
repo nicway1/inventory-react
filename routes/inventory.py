@@ -5135,8 +5135,9 @@ def search():
                 Ticket.shipping_tracking.ilike(f'%{search_term}%'),
                 Ticket.return_tracking.ilike(f'%{search_term}%'),
                 Ticket.shipping_tracking_2.ilike(f'%{search_term}%'),
+                Ticket.firstbaseorderid.ilike(f'%{search_term}%'),
                 # Search by ticket ID (e.g., "TICK-1001" or just "1001")
-                *([Ticket.id == int(search_term.replace('TICK-', '').replace('#', ''))] 
+                *([Ticket.id == int(search_term.replace('TICK-', '').replace('#', ''))]
                   if search_term.replace('TICK-', '').replace('#', '').isdigit() else [])
             )
         ).all()
