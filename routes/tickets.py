@@ -1802,14 +1802,18 @@ def create_ticket():
                     from models.customer_user import CustomerUser
 
                     # Get customer_user IDs from permitted companies
-                    permitted_customer_ids = db_session.query(CustomerUser.id).filter(
-                        CustomerUser.company_id.in_(permitted_company_ids)
-                    ).subquery()
+                    permitted_customer_user_ids = [
+                        row[0] for row in db_session.query(CustomerUser.id).filter(
+                            CustomerUser.company_id.in_(permitted_company_ids)
+                        ).all()
+                    ]
+
+                    logger.debug(f"[ASSET DEBUG] Permitted customer_user IDs: {len(permitted_customer_user_ids)}")
 
                     assets_query = assets_query.filter(
                         or_(
                             Asset.company_id.in_(permitted_company_ids),
-                            Asset.customer_id.in_(permitted_customer_ids)
+                            Asset.customer_id.in_(permitted_customer_user_ids)
                         )
                     )
                 else:
