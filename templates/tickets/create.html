@@ -737,66 +737,6 @@
                         <p class="mt-1 text-sm text-gray-500">Select who will be responsible for this case. Default: {{ user.username }}</p>
                     </div>
                     {% endif %}
-                    
-                    <!-- CSV Upload for Accessories -->
-                    <div>
-                        <label for="accessories_csv" class="block text-sm font-medium text-gray-700">
-                            Import Accessories from CSV (Optional)
-                        </label>
-                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md" id="csvDropZone">
-                            <div class="space-y-1 text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                                <div class="flex text-sm text-gray-600">
-                                    <label for="accessories_csv" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                                        <span>Upload CSV file</span>
-                                        <input id="accessories_csv" name="accessories_csv" type="file" accept=".csv" class="sr-only" onchange="handleCsvUpload(this)">
-                                    </label>
-                                    <p class="pl-1">or drag and drop</p>
-                                </div>
-                                <p class="text-xs text-gray-500">CSV files only</p>
-                            </div>
-                        </div>
-                        <div id="csvFileName" class="mt-2 text-sm text-gray-600 hidden"></div>
-                        <p class="mt-1 text-sm text-gray-500">
-                            Upload a CSV file containing accessory information to automatically detect and assign accessories to this checkout.
-                        </p>
-                    </div>
-                    
-                    <!-- Accessory Selection (populated from CSV) -->
-                    <div id="accessorySelectionContainer" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700 mb-3">
-                            Select Accessories from CSV
-                        </label>
-                        <div id="accessoryPreview" class="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3">
-                            <!-- Accessory items will be populated here -->
-                        </div>
-                        <div id="selectedAccessoriesSummary" class="mt-4 hidden">
-                            <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Accessories:</h4>
-                            <div id="selectedAccessoriesList" class="space-y-1"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Hidden field to store selected accessories -->
-                    <input type="hidden" id="selected_accessories" name="selected_accessories" value="">
-                    
-                    <!-- Debug: Test button to simulate accessory selection -->
-                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <h4 class="text-sm font-medium text-yellow-800 mb-2">Debug: Test Accessory Assignment</h4>
-                        <div class="space-x-2">
-                            <button type="button" onclick="testAccessoryAssignment()" 
-                                    class="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600">
-                                Test: Add Sample Accessories
-                            </button>
-                            <button type="button" onclick="debugFormSubmission()" 
-                                    class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
-                                Debug: Test Form Data
-                            </button>
-                        </div>
-                        <p class="text-xs text-yellow-700 mt-1">Use these buttons to test the CSV accessory functionality</p>
-                    </div>
-                    
                     <!-- DEBUG: Queue field added for Asset Checkout - v2.0 -->
                 </div>
 
