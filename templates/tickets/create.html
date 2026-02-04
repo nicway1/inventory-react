@@ -532,11 +532,22 @@
                     <!-- Shipping Address -->
                     <div>
                         <label for="shipping_address" class="block text-sm font-medium text-gray-700">Shipping Address</label>
-                        <textarea id="shipping_address" 
-                                  name="shipping_address" 
+                        <textarea id="shipping_address"
+                                  name="shipping_address"
                                   rows="3"
                                   required
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <!-- Order ID -->
+                    <div>
+                        <label for="order_id" class="block text-sm font-medium text-gray-700">Order ID (Optional)</label>
+                        <input type="text"
+                               id="order_id"
+                               name="order_id"
+                               placeholder="e.g., FB-12345"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500">Enter order ID for reference and duplicate prevention</p>
                     </div>
 
                     <!-- Package Tracking Section -->

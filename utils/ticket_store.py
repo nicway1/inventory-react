@@ -132,10 +132,10 @@ class TicketStore:
         with open(self.TICKETS_FILE, 'w') as f:
             json.dump(tickets_data, f, indent=2)
 
-    def create_ticket(self, subject, description, requester_id, category=None, priority='Medium', 
-                     asset_id=None, country=None, damage_description=None, apple_diagnostics=None, 
+    def create_ticket(self, subject, description, requester_id, category=None, priority='Medium',
+                     asset_id=None, country=None, damage_description=None, apple_diagnostics=None,
                      image_path=None, repair_status=None, customer_id=None, shipping_address=None,
-                     shipping_tracking=None, shipping_carrier='singpost', return_tracking=None, queue_id=None, notes=None, return_description=None, case_owner_id=None):
+                     shipping_tracking=None, shipping_carrier='singpost', return_tracking=None, queue_id=None, notes=None, return_description=None, case_owner_id=None, firstbaseorderid=None):
         """Create a new ticket"""
         db_session = self.db_manager.get_session()
         try:
@@ -180,7 +180,8 @@ class TicketStore:
                 return_tracking=return_tracking,
                 queue_id=queue_id,
                 notes=notes,
-                return_description=return_description
+                return_description=return_description,
+                firstbaseorderid=firstbaseorderid
             )
             db_session.add(ticket)
             db_session.flush()  # Flush to get the ticket ID

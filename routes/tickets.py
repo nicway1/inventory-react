@@ -2178,6 +2178,7 @@ def create_ticket():
                 customer_id = request.form.get('customer_id')
                 shipping_address = request.form.get('shipping_address')
                 shipping_tracking = request.form.get('shipping_tracking', '')  # Optional
+                order_id = request.form.get('order_id', '')  # Optional order ID
                 notes = request.form.get('notes', '')
                 # queue_id and case_owner_id already extracted at line 1143-1145
 
@@ -2357,7 +2358,8 @@ Additional Notes:
                             shipping_carrier=shipping_carrier,
                             queue_id=queue_id,
                             notes=notes,
-                            case_owner_id=int(case_owner_id) if case_owner_id else None
+                            case_owner_id=int(case_owner_id) if case_owner_id else None,
+                            firstbaseorderid=order_id if order_id else None
                         )
                         logger.info(f"[TICKET CREATION DEBUG] Successfully created ticket with ID: {ticket_id}")
                     except Exception as ticket_creation_error:
