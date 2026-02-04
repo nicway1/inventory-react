@@ -3432,14 +3432,19 @@ def view_ticket(ticket_id):
             if user_company_permissions:
                 permitted_company_ids = [perm.company_id for perm in user_company_permissions]
 
-                # Include child companies of any parent companies
+                # Include child companies of any parent companies AND parent companies of any child companies
                 permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
                 all_permitted_ids = list(permitted_company_ids)
 
                 for company in permitted_companies:
+                    # If this is a parent company, include all its children
                     if company.is_parent_company or company.child_companies.count() > 0:
                         child_ids = [c.id for c in company.child_companies.all()]
                         all_permitted_ids.extend(child_ids)
+
+                    # If this is a child company, include its parent
+                    if company.parent_company_id:
+                        all_permitted_ids.append(company.parent_company_id)
 
                 # Include cross-company permissions
                 cross_company_ids = []
