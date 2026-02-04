@@ -123,8 +123,8 @@
                                 </div>
                             </div>
 
-                            <!-- Asset Checkout (claw) -->
-                            <div class="category-guide-item p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer transition-all" data-category="Asset Checkout (claw)">
+                            <!-- Asset Checkout -->
+                            <div class="category-guide-item p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer transition-all" data-category="Asset Checkout">
                                 <div class="flex items-start">
                                     <div class="flex-shrink-0 w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
                                         <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,14 +132,14 @@
                                         </svg>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-900">Asset Checkout (claw)</p>
+                                        <p class="text-sm font-medium text-gray-900">Asset Checkout</p>
                                         <p class="text-xs text-gray-500 mt-0.5">Ship device to customer with tracking</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Asset Return (claw) -->
-                            <div class="category-guide-item p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer transition-all" data-category="Asset Return (claw)">
+                            <!-- Asset Return -->
+                            <div class="category-guide-item p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer transition-all" data-category="Asset Return">
                                 <div class="flex items-start">
                                     <div class="flex-shrink-0 w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
                                         <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +147,7 @@
                                         </svg>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-900">Asset Return (claw)</p>
+                                        <p class="text-sm font-medium text-gray-900">Asset Return</p>
                                         <p class="text-xs text-gray-500 mt-0.5">Receive device back from customer</p>
                                     </div>
                                 </div>
@@ -270,7 +270,7 @@
                                     class="block w-full px-4 py-3 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-gray-700 text-base transition-all">
                                 <option value="">-- Select a Category --</option>
                                 {% for category in categories %}
-                                <option value="{{ category.value }}" {% if form and form.category == category.value %}selected{% endif %}>{{ category.display_name }}</option>
+                                <option value="{{ category.value }}" {% if form and form.category == category.value %}selected{% endif %}>{{ category.display_name|hide_claw }}</option>
                                 {% endfor %}
                             </select>
                             <p class="mt-2 text-xs text-gray-500">
