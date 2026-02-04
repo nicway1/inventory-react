@@ -1829,17 +1829,34 @@ def create_ticket():
 
         logger.debug(f"[ASSET DEBUG] User: {user.username}, Type: {user.user_type.value}, Assets from query: {len(assets)}")
 
-        assets_data = [{
-            'id': asset.id,
-            'serial_number': asset.serial_num,
-            'model': asset.model,
-            'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
-            'asset_tag': asset.asset_tag
-        } for asset in assets]
+        # Build assets data with error handling
+        assets_data = []
+        try:
+            for asset in assets:
+                try:
+                    asset_dict = {
+                        'id': asset.id,
+                        'serial_number': asset.serial_num,
+                        'model': asset.model,
+                        'customer': asset.customer_user.company.name if asset.customer_user and asset.customer_user.company else asset.customer,
+                        'asset_tag': asset.asset_tag
+                    }
+                    assets_data.append(asset_dict)
+                except Exception as e:
+                    logger.error(f"[ASSET DEBUG] Error processing asset {asset.id}: {str(e)}")
+                    logger.error(f"[ASSET DEBUG] Asset details - serial_num: {getattr(asset, 'serial_num', 'N/A')}, customer_user: {getattr(asset, 'customer_user', 'N/A')}")
+                    continue  # Skip this asset and continue with others
+
+            logger.debug(f"[ASSET DEBUG] Successfully processed {len(assets_data)} out of {len(assets)} assets")
+        except Exception as e:
+            logger.error(f"[ASSET DEBUG] Fatal error building assets_data: {str(e)}")
+            assets_data = []
 
         logger.debug(f"[ASSET DEBUG] Total assets loaded: {len(assets_data)}")
         if assets_data:
             logger.debug(f"[ASSET DEBUG] First 3 assets: {assets_data[:3]}")
+        else:
+            logger.error(f"[ASSET DEBUG] WARNING: assets_data is EMPTY despite query returning {len(assets)} assets!")
 
         # Get all customers for the dropdown (filtered by company for non-SUPER_ADMIN users)
         customers = get_filtered_customers(db_session, user)
