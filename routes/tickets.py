@@ -4841,6 +4841,57 @@ def update_return_progress(ticket_id):
     finally:
         db_session.close()
 
+@tickets_bp.route('/<int:ticket_id>/begin-processing', methods=['POST'])
+@login_required
+def begin_processing(ticket_id):
+    """Begin processing a case - updates status to IN_PROGRESS (for Asset Return/Checkout claw)"""
+    db_session = db_manager.get_session()
+    try:
+        ticket = db_session.query(Ticket).get(ticket_id)
+        if not ticket:
+            return jsonify({'success': False, 'error': 'Ticket not found'}), 404
+
+        # Verify this is an Asset Return (claw) or Asset Checkout (claw) ticket
+        if ticket.category not in [TicketCategory.ASSET_RETURN_CLAW, TicketCategory.ASSET_CHECKOUT_CLAW]:
+            return jsonify({'success': False, 'error': 'This feature is only for Asset Return (claw) and Asset Checkout (claw) tickets'}), 400
+
+        # Verify the current user is the Case Owner
+        if ticket.assigned_to_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Only the Case Owner can begin processing'}), 403
+
+        # Verify status is NEW
+        if ticket.status != TicketStatus.NEW:
+            return jsonify({'success': False, 'error': 'Case has already been started'}), 400
+
+        # Update status to IN_PROGRESS
+        ticket.status = TicketStatus.IN_PROGRESS
+        ticket.custom_status = None  # Clear custom status when setting system status
+        ticket.updated_at = singapore_now_as_utc()
+
+        # Add comment to track this action
+        comment = Comment(
+            ticket_id=ticket.id,
+            user_id=current_user.id,
+            content=f'Case processing started by {current_user.username}',
+            created_at=singapore_now_as_utc()
+        )
+        db_session.add(comment)
+
+        db_session.commit()
+        logger.info(f"Ticket {ticket_id} processing started by user {current_user.username}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Case processing started successfully. Status updated to In Progress.'
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        logger.error(f"Error starting case processing: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db_session.close()
+
 @tickets_bp.route('/<int:ticket_id>/upload', methods=['POST'])
 @login_required
 def upload_attachment(ticket_id):

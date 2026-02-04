@@ -1456,6 +1456,22 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 {% endif %}
                             </div>
                         </div>
+
+                        <!-- Begin Processing Button (only for Asset Return/Checkout claw and Case Owner) -->
+                        {% if ticket.category and ticket.category.name in ['ASSET_RETURN_CLAW', 'ASSET_CHECKOUT_CLAW'] and current_user.id == ticket.assigned_to_id and ticket.status and ticket.status.name == 'NEW' %}
+                        <div class="sf-field-row mt-3">
+                            <div class="sf-field-value">
+                                <button id="beginProcessingBtn"
+                                        class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors duration-200">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Begin Processing
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="space-y-2">
                         <div class="sf-field-row">
@@ -13659,6 +13675,42 @@ function updateReturnProgress(progressType, ticketId) {
         alert('An error occurred while updating return progress');
     });
 }
+
+// Begin Processing button handler
+document.addEventListener('DOMContentLoaded', function() {
+    const beginProcessingBtn = document.getElementById('beginProcessingBtn');
+    if (beginProcessingBtn) {
+        beginProcessingBtn.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to begin processing this case? This will update the status to "In Progress".')) {
+                return;
+            }
+
+            const ticketId = {{ ticket.id }};
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            fetch(`/tickets/${ticketId}/begin-processing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Case processing started successfully');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Failed to start case processing');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while starting case processing');
+            });
+        });
+    }
+});
 
 console.log('🟢 Main script block complete!');
 </script>
