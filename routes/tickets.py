@@ -3413,6 +3413,75 @@ def view_ticket(ticket_id):
                 package_items = ticket.get_package_items(package_number, db_session=db_session)
                 packages_items_data[package_number] = package_items
 
+        # Get companies and countries for Create New Asset modal dropdowns
+        # Get companies the user has access to (for Customer dropdown)
+        from models.user_company_permission import UserCompanyPermission
+        from models.company_customer_permission import CompanyCustomerPermission
+
+        if current_user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # SUPER_ADMIN/DEVELOPER can see all companies
+            all_companies_query = db_session.query(Company).order_by(Company.name).all()
+            asset_modal_customers = [c.name for c in all_companies_query]
+        elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Get companies this user has permission to view
+            user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=current_user.id,
+                can_view=True
+            ).all()
+
+            if user_company_permissions:
+                permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+
+                # Include child companies of any parent companies
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                all_permitted_ids = list(permitted_company_ids)
+
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_ids = [c.id for c in company.child_companies.all()]
+                        all_permitted_ids.extend(child_ids)
+
+                # Include cross-company permissions
+                cross_company_ids = []
+                for company_id in all_permitted_ids:
+                    additional_ids = db_session.query(CompanyCustomerPermission.customer_company_id)\
+                        .filter(
+                            CompanyCustomerPermission.company_id == company_id,
+                            CompanyCustomerPermission.can_view == True
+                        ).all()
+                    cross_company_ids.extend([cid[0] for cid in additional_ids])
+
+                permitted_company_ids = list(set(all_permitted_ids + cross_company_ids))
+                permitted_companies_final = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                asset_modal_customers = sorted([c.name for c in permitted_companies_final])
+            else:
+                asset_modal_customers = []
+        elif current_user.company_id:
+            # CLIENT users - only their company
+            user_company = db_session.query(Company).get(current_user.company_id)
+            asset_modal_customers = [user_company.name] if user_company else []
+        else:
+            asset_modal_customers = []
+
+        # Get countries the user has access to (for Country dropdown)
+        from models.user_country_permission import UserCountryPermission
+
+        if current_user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # SUPER_ADMIN/DEVELOPER can see all countries
+            asset_modal_countries = COUNTRIES
+        elif current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Get countries this user has permission to view
+            current_user_fresh = db_session.query(User).get(current_user.id)
+            user_country_perms = [cp.country for cp in current_user_fresh.country_permissions] if current_user_fresh else []
+            if user_country_perms:
+                # Filter COUNTRIES list to only include user's permitted countries
+                asset_modal_countries = [c for c in COUNTRIES if c in user_country_perms]
+            else:
+                asset_modal_countries = []
+        else:
+            # Regular users get all countries
+            asset_modal_countries = COUNTRIES
+
         # Check if current user has access to firstbase company (for Shipping Portal visibility)
         user_has_firstbase_access = current_user.is_super_admin or current_user.is_developer
         if not user_has_firstbase_access:
@@ -3446,6 +3515,8 @@ def view_ticket(ticket_id):
             asset_modal_statuses=list(AssetStatus),
             asset_modal_models=asset_modal_models,
             asset_modal_types=asset_modal_types,
+            asset_modal_customers=asset_modal_customers,  # Companies for Create New Asset Customer dropdown
+            asset_modal_countries=asset_modal_countries,  # Countries for Create New Asset Country dropdown
             model_product_map=model_product_map,
             model_type_map=model_type_map,
             custom_statuses=custom_statuses_list,
