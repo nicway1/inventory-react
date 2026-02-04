@@ -2,5 +2,3 @@ product_title,org_name,person_name,primary_email,phone_number,serial_number,orde
 MacBook Pro 14,Acme Corporation,John Smith,john.smith@acme.com,1234567890,C02XL1234567,ORD-001,ITEM-001,Pending,Main Office,123 Business Street,Suite 100,New York,NY,10001,US
 Dell Latitude 5540,Acme Corporation,Jane Doe,jane.doe@acme.com,1234567891,ABC123DEF456,ORD-002,ITEM-002,Pending,Branch Office,456 Corporate Ave,,Los Angeles,CA,90001,US
 ThinkPad X1 Carbon,Tech Solutions Inc,Bob Wilson,bob.wilson@techsol.com,6512345678,PF2ABC123,ORD-003,ITEM-003,Pending,Singapore HQ,1 Raffles Place,#20-01,Singapore,,048616,SG
-HP EliteBook 840,Global Enterprises,Alice Johnson,alice.j@global.com,9876543210,5CD1234ABC,ORD-004,ITEM-004,Shipped,London Office,10 Downing Street,,London,,SW1A 2AA,GB
-Lenovo ThinkPad T14,StartUp Inc,Charlie Brown,charlie@startup.com,5551234567,PF3XYZ789,ORD-005,ITEM-005,Pending,Toronto Office,100 Queen Street West,Floor 5,Toronto,ON,M5H 2N2,CA

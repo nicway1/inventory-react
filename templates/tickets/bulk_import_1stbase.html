@@ -52,29 +52,28 @@
             <div class="mb-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Required Columns:</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
-                    <li><code class="bg-gray-100 px-1 rounded">ship_to_first_name</code> - Customer's first name</li>
-                    <li><code class="bg-gray-100 px-1 rounded">ship_to_last_name</code> - Customer's last name</li>
-                    <li><code class="bg-gray-100 px-1 rounded">email</code> - Customer's email (used for auto-creation)</li>
-                    <li><code class="bg-gray-100 px-1 rounded">country</code> - Country code (SG, PH, MX, JP, IN, IL, etc.)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">product_title</code> - Product name/model (e.g., MacBook Pro 14)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">org_name</code> - Organization/Company name</li>
+                    <li><code class="bg-gray-100 px-1 rounded">person_name</code> - Full customer name (e.g., John Smith)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">primary_email</code> - Customer's email (used for auto-creation)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">serial_number</code> - Asset serial number</li>
+                    <li><code class="bg-gray-100 px-1 rounded">country</code> - Country code (US, SG, GB, CA, etc.)</li>
                 </ul>
             </div>
 
             <div class="mb-4">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">Additional Columns (Auto-Extracted):</h3>
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Optional Columns:</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
-                    <li><code class="bg-gray-100 px-1 rounded">san</code> - Customer's phone number</li>
-                    <li><code class="bg-gray-100 px-1 rounded">company</code> - Company name (will be auto-created if needed)</li>
-                    <li><code class="bg-gray-100 px-1 rounded">order_id</code> - Order identifier</li>
-                    <li><code class="bg-gray-100 px-1 rounded">product_description</code> - Product details</li>
-                    <li><code class="bg-gray-100 px-1 rounded">serial_number1Z83RR694236566929</code> - Asset serial number</li>
-                    <li><code class="bg-gray-100 px-1 rounded">address_line_1</code> - Street address</li>
-                    <li><code class="bg-gray-100 px-1 rounded">address_line_2</code> - Apartment/Unit</li>
+                    <li><code class="bg-gray-100 px-1 rounded">phone_number</code> - Customer's phone number</li>
+                    <li><code class="bg-gray-100 px-1 rounded">order_id</code> - Order identifier (e.g., ORD-001)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">order_item_id</code> - Order item ID (e.g., ITEM-001)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">status</code> - Order status (e.g., Pending, Shipped)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">office_name</code> - Office/Location name</li>
+                    <li><code class="bg-gray-100 px-1 rounded">address_line1</code> - Street address line 1</li>
+                    <li><code class="bg-gray-100 px-1 rounded">address_line2</code> - Street address line 2 (Apartment/Suite)</li>
                     <li><code class="bg-gray-100 px-1 rounded">city</code> - City</li>
                     <li><code class="bg-gray-100 px-1 rounded">state</code> - State/Province</li>
-                    <li><code class="bg-gray-100 px-1 rounded">zip</code> - Postal code</li>
-                    <li><code class="bg-gray-100 px-1 rounded">secondary_email</code> - Alternative email</li>
-                    <li><code class="bg-gray-100 px-1 rounded">Notes 1 (exceptions - any legacy device, or wiping questions)</code> - Notes field 1</li>
-                    <li><code class="bg-gray-100 px-1 rounded">Notes 2 (TL acknowledges order and prepares kit)</code> - Notes field 2</li>
+                    <li><code class="bg-gray-100 px-1 rounded">postal_code</code> - Postal/ZIP code</li>
                 </ul>
             </div>
 
@@ -82,7 +81,7 @@
                 <p class="text-sm text-yellow-800">
                     <strong>Auto Customer Creation:</strong> If a customer with the provided email doesn't exist,
                     a new customer will be automatically created with the information from the CSV.
-                    The system will combine first_name and last_name for the customer name.
+                    The person_name will be split into first and last name automatically.
                 </p>
             </div>
         </div>

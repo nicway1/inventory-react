@@ -1,1 +1,1 @@
-ship_to_first_name,ship_to_last_name,email,country,san,company,order_id,product_description,serial_number,address_line_1,address_line_2,city,state,zip,secondary_email,Notes 1 (exceptions - any legacy device or wiping questions),Notes 2 (TL acknowledges order and prepares kit)
+product_title,org_name,person_name,primary_email,phone_number,serial_number,order_id,order_item_id,status,office_name,address_line1,address_line2,city,state,postal_code,country

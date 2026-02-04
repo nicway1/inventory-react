@@ -12086,8 +12086,8 @@ def bulk_import_1stbase():
                 stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
                 csv_reader = csv.DictReader(stream)
 
-                # Validate headers - 1stbase format
-                required_headers = ['ship_to_first_name', 'ship_to_last_name', 'email', 'country']
+                # Validate headers - Updated format
+                required_headers = ['product_title', 'org_name', 'person_name', 'primary_email', 'serial_number', 'country']
                 headers = csv_reader.fieldnames
 
                 missing_headers = [h for h in required_headers if h not in headers]
@@ -12164,27 +12164,31 @@ def bulk_import_1stbase():
                 row_number = 1
                 for row in csv_reader:
                     row_number += 1
-                    # Combine first and last name
-                    first_name = row.get('ship_to_first_name', '').strip()
-                    last_name = row.get('ship_to_last_name', '').strip()
-                    customer_name = f"{first_name} {last_name}".strip()
+                    # Parse person_name into first and last name
+                    person_name = row.get('person_name', '').strip()
+                    name_parts = person_name.split(' ', 1)  # Split on first space
+                    first_name = name_parts[0] if name_parts else ''
+                    last_name = name_parts[1] if len(name_parts) > 1 else ''
+                    customer_name = person_name
 
                     # Check if name is empty
                     name_is_empty = not customer_name
 
                     # Build customer address from components
                     address_parts = []
-                    if row.get('address_line_1', '').strip():
-                        address_parts.append(row.get('address_line_1', '').strip())
-                    if row.get('address_line_2', '').strip():
-                        address_parts.append(row.get('address_line_2', '').strip())
+                    if row.get('office_name', '').strip():
+                        address_parts.append(row.get('office_name', '').strip())
+                    if row.get('address_line1', '').strip():
+                        address_parts.append(row.get('address_line1', '').strip())
+                    if row.get('address_line2', '').strip():
+                        address_parts.append(row.get('address_line2', '').strip())
                     city_state_zip = []
                     if row.get('city', '').strip():
                         city_state_zip.append(row.get('city', '').strip())
                     if row.get('state', '').strip():
                         city_state_zip.append(row.get('state', '').strip())
-                    if row.get('zip', '').strip():
-                        city_state_zip.append(row.get('zip', '').strip())
+                    if row.get('postal_code', '').strip():
+                        city_state_zip.append(row.get('postal_code', '').strip())
                     if city_state_zip:
                         address_parts.append(', '.join(city_state_zip))
                     customer_address = ', '.join(address_parts) if address_parts else ''
@@ -12200,24 +12204,24 @@ def bulk_import_1stbase():
                     row_data = {
                         'row_number': row_number,
                         'customer_name': customer_name,
-                        'customer_email': row.get('email', ''),
-                        'customer_phone': row.get('san', ''),
-                        'customer_company': row.get('company', ''),
+                        'customer_email': row.get('primary_email', ''),
+                        'customer_phone': row.get('phone_number', ''),
+                        'customer_company': row.get('org_name', ''),
                         'customer_country': mapped_country,
                         'customer_address': customer_address,
-                        'return_description': f"Order: {row.get('order_id', 'N/A')} | Product: {row.get('product_description', 'N/A')} | Serial: {row.get('serial_number1Z83RR694236566929', 'N/A')}",
-                        'asset_serial_number': row.get('serial_number1Z83RR694236566929', ''),
+                        'return_description': f"Order: {row.get('order_id', 'N/A')} | Product: {row.get('product_title', 'N/A')} | Serial: {row.get('serial_number', 'N/A')} | Status: {row.get('status', 'N/A')}",
+                        'asset_serial_number': row.get('serial_number', ''),
                         'order_id': order_id,
-                        'product_description': row.get('product_description', ''),
-                        'address_line_1': row.get('address_line_1', ''),
-                        'address_line_2': row.get('address_line_2', ''),
+                        'product_description': row.get('product_title', ''),
+                        'address_line_1': row.get('address_line1', ''),
+                        'address_line_2': row.get('address_line2', ''),
                         'city': row.get('city', ''),
                         'state': row.get('state', ''),
-                        'zip': row.get('zip', ''),
-                        'secondary_email': row.get('secondary_email', ''),
+                        'zip': row.get('postal_code', ''),
+                        'secondary_email': '',
                         'priority': 'Medium',
                         'queue_name': mapped_country,  # Use mapped country as queue name
-                        'notes': row.get('Notes 1 (exceptions - any legacy device, or wiping questions)', '') or row.get('Notes 2 (TL acknowledges order and prepares kit)', ''),
+                        'notes': f"Office: {row.get('office_name', '')} | Item ID: {row.get('order_item_id', '')} | Status: {row.get('status', '')}",
                         'name_is_empty': name_is_empty,  # Validation flag
                         'is_duplicate': is_duplicate,  # Duplicate order_id flag
                         'first_name': first_name,
