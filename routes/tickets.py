@@ -1907,6 +1907,74 @@ def create_ticket():
                 all_categories = []
         # SUPER_ADMIN and DEVELOPER see all categories without restriction
 
+        # Build category guide data structure (maps display names to guide info)
+        # This will be filtered to only include categories the user can create
+        category_guide = {
+            'Asset Repair': {
+                'key': 'ASSET_REPAIR',
+                'icon_color': 'orange',
+                'icon': 'settings',
+                'description': 'Submit device for repair with damage details',
+                'group': None
+            },
+            'Asset Checkout': {
+                'key': 'ASSET_CHECKOUT',
+                'icon_color': 'green',
+                'icon': 'box',
+                'description': 'Ship device to customer with tracking',
+                'group': None
+            },
+            'Asset Return': {
+                'key': 'ASSET_RETURN',
+                'icon_color': 'red',
+                'icon': 'return',
+                'description': 'Receive device back from customer',
+                'group': None
+            },
+            'Asset Intake': {
+                'key': 'ASSET_INTAKE',
+                'icon_color': 'blue',
+                'icon': 'upload',
+                'description': 'Register new batch of devices into inventory',
+                'group': None
+            },
+            'Internal Transfer': {
+                'key': 'INTERNAL_TRANSFER',
+                'icon_color': 'indigo',
+                'icon': 'transfer',
+                'description': 'Transfer device between customers/locations',
+                'group': None
+            },
+            'Bulk Delivery Quotation': {
+                'key': 'BULK_DELIVERY_QUOTATION',
+                'icon_color': 'yellow',
+                'icon': 'document',
+                'description': 'Request quote for bulk shipments',
+                'group': 'Quotations'
+            },
+            'Repair Quote': {
+                'key': 'REPAIR_QUOTE',
+                'icon_color': 'teal',
+                'icon': 'money',
+                'description': 'Request repair cost estimate',
+                'group': 'Quotations'
+            },
+            'ITAD Quote': {
+                'key': 'ITAD_QUOTE',
+                'icon_color': 'pink',
+                'icon': 'trash',
+                'description': 'IT Asset Disposal quotation',
+                'group': 'Quotations'
+            }
+        }
+
+        # Filter category guide to only include allowed categories
+        allowed_category_values = {cat['value'] for cat in all_categories}
+        filtered_category_guide = {
+            display_name: info for display_name, info in category_guide.items()
+            if info['key'] in allowed_category_values
+        }
+
         # Get all users for case owner selection (admin and super admin only)
         users_for_assignment = []
         if user.is_admin:
@@ -1955,6 +2023,7 @@ def create_ticket():
                 'customers': customers,
                 'priorities': priorities_list,
                 'categories': all_categories,
+                'category_guide': filtered_category_guide,
                 'queues': queues,
                 'Country': all_countries,
                 'is_client': is_client,
