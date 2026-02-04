@@ -1893,7 +1893,20 @@ def create_ticket():
                         'display_name': config['display_name'],
                         'sections': custom_category.sections_list  # Include section information
                     })
-        
+
+        # Filter categories based on user permissions (for SUPERVISOR/COUNTRY_ADMIN)
+        if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_category_permission import UserCategoryPermission
+            allowed_category_keys = UserCategoryPermission.get_user_allowed_categories(db_session, user.id)
+
+            # Filter to only show categories the user has permission for
+            if allowed_category_keys:
+                all_categories = [cat for cat in all_categories if cat['value'] in allowed_category_keys]
+            else:
+                # No permissions = no categories available
+                all_categories = []
+        # SUPER_ADMIN and DEVELOPER see all categories without restriction
+
         # Get all users for case owner selection (admin and super admin only)
         users_for_assignment = []
         if user.is_admin:

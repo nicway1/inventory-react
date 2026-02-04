@@ -51,6 +51,7 @@ class User(Base, UserMixin):
     queue_permissions = relationship("UserQueuePermission", back_populates="user", cascade="all, delete-orphan")
     visibility_permissions = relationship("UserVisibilityPermission", foreign_keys="UserVisibilityPermission.user_id", back_populates="user", cascade="all, delete-orphan")
     import_permissions = relationship("UserImportPermission", foreign_keys="UserImportPermission.user_id", back_populates="user", cascade="all, delete-orphan")
+    category_permissions = relationship("UserCategoryPermission", foreign_keys="UserCategoryPermission.user_id", back_populates="user", cascade="all, delete-orphan")
     # service_records relationship removed - ServiceRecord has multiple FKs to User (requested_by, completed_by, performed_by)
     # Temporarily commenting out SavedInvoice relationship to fix import order
     # created_invoices = relationship("SavedInvoice", back_populates="creator", lazy="dynamic")

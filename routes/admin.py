@@ -863,6 +863,7 @@ def edit_user(user_id):
     from models.user_mention_permission import UserMentionPermission
     from models.user_visibility_permission import UserVisibilityPermission
     from models.user_import_permission import UserImportPermission
+    from models.user_category_permission import UserCategoryPermission
     from models.group import Group
 
     logger.info("DEBUG: Entering edit_user route for user_id={user_id}")
@@ -881,6 +882,11 @@ def edit_user(user_id):
     ).order_by(Company.name).all()
     queues = db_session.query(Queue).all()
     logger.info("DEBUG: Found {len(companies)} companies")
+
+    # Convert to dicts early to avoid DetachedInstanceError after session close
+    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
+    parent_companies_data = _format_parent_companies(parent_companies)
+    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
 
     # Get unique countries from assets for COUNTRY_ADMIN dropdown
     from models.asset import Asset
@@ -941,6 +947,32 @@ def edit_user(user_id):
     if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
         allowed_import_types = UserImportPermission.get_user_allowed_types(db_session, user.id)
 
+    # Get existing category permissions
+    allowed_category_keys = []
+    if user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+        allowed_category_keys = UserCategoryPermission.get_user_allowed_categories(db_session, user.id)
+
+    # Get all available categories (both predefined and custom) for the permission panel
+    from models.ticket_category_config import CategoryDisplayConfig, TicketCategoryConfig
+    all_available_categories = []
+    enabled_display_configs = CategoryDisplayConfig.get_enabled_categories()
+
+    # Add enabled predefined categories
+    for config in enabled_display_configs:
+        if config['is_predefined']:
+            all_available_categories.append({
+                'key': config['key'],
+                'display_name': config['display_name']
+            })
+
+    # Add enabled custom categories
+    for config in enabled_display_configs:
+        if not config['is_predefined']:
+            all_available_categories.append({
+                'key': config['key'],
+                'display_name': config['display_name']
+            })
+
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -956,6 +988,7 @@ def edit_user(user_id):
         mention_group_ids = request.form.getlist('mention_group_ids')
         visibility_user_ids = request.form.getlist('visibility_user_ids')
         import_permissions = request.form.getlist('import_permissions')
+        category_permissions = request.form.getlist('category_permissions')
 
         logger.info(f"DEBUG: Form submission - user_type={user_type}, company_id={company_id}, parent_company_ids={parent_company_ids}, assigned_countries={assigned_countries}")
         logger.info(f"DEBUG: child_company_ids={child_company_ids}, queue_ids={queue_ids}")
@@ -979,9 +1012,6 @@ def edit_user(user_id):
             if user_type == 'CLIENT' and not company_id:
                 logger.info("DEBUG: CLIENT type but no company selected")
                 flash('Company selection is required for Client users', 'error')
-                companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                parent_companies_data = _format_parent_companies(parent_companies)
-                queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                 return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                      parent_companies=parent_companies_data, queues=queues_data,
                                      existing_parent_companies=existing_parent_companies,
@@ -997,9 +1027,6 @@ def edit_user(user_id):
             if user_type in ['COUNTRY_ADMIN', 'SUPERVISOR']:
                 if not assigned_countries:
                     flash('At least one country selection is required for Country Admin/Supervisor', 'error')
-                    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-                    parent_companies_data = _format_parent_companies(parent_companies)
-                    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
                     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                                          parent_companies=parent_companies_data, queues=queues_data,
                                          existing_parent_companies=existing_parent_companies,
@@ -1122,6 +1149,10 @@ def edit_user(user_id):
                 # Update import permissions
                 UserImportPermission.set_user_permissions(db_session, user.id, import_permissions)
                 logger.info(f"DEBUG: Updated import permissions for user {user.id}: {import_permissions}")
+
+                # Update category permissions
+                UserCategoryPermission.set_user_permissions(db_session, user.id, category_permissions)
+                logger.info(f"DEBUG: Updated category permissions for user {user.id}: {category_permissions}")
             else:
                 # Clean up permissions if changing from COUNTRY_ADMIN/SUPERVISOR to another type
                 from models.user_country_permission import UserCountryPermission
@@ -1130,6 +1161,7 @@ def edit_user(user_id):
                 db_session.query(UserQueuePermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserVisibilityPermission).filter_by(user_id=user.id).delete()
                 db_session.query(UserImportPermission).filter_by(user_id=user.id).delete()
+                db_session.query(UserCategoryPermission).filter_by(user_id=user.id).delete()
                 # Also clean up mention permissions
                 user.mention_filter_enabled = False
                 db_session.query(UserMentionPermission).filter_by(user_id=user.id).delete()
@@ -1145,9 +1177,6 @@ def edit_user(user_id):
             db_session.close()
 
     logger.info("DEBUG: Rendering edit_user template")
-    companies_data = [{'id': c.id, 'name': c.name} for c in companies]
-    parent_companies_data = _format_parent_companies(parent_companies)
-    queues_data = [{'id': q.id, 'name': q.name} for q in queues]
     return render_template('admin/edit_user.html', user=user, companies=companies_data,
                          parent_companies=parent_companies_data, queues=queues_data,
                          existing_parent_companies=existing_parent_companies,
@@ -1158,7 +1187,9 @@ def edit_user(user_id):
                          allowed_mention_users=allowed_mention_users,
                          allowed_mention_groups=allowed_mention_groups,
                          allowed_visible_users=allowed_visible_users,
-                         allowed_import_types=allowed_import_types)
+                         allowed_import_types=allowed_import_types,
+                         allowed_category_keys=allowed_category_keys,
+                         all_available_categories=all_available_categories)
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
