@@ -1898,6 +1898,14 @@ def create_ticket():
             companies_list = []
 
         logger.debug(f"Found {len(companies_list)} companies for dropdown (filtered by permissions)")
+
+        # Get parent-eligible companies (exclude child companies) for parent company selection
+        # Only parent companies and standalone companies can be selected as parents
+        parent_eligible_companies = db_session.query(Company)\
+            .filter(Company.parent_company_id == None)\
+            .order_by(Company.name)\
+            .all()
+        parent_companies_list = [c.name for c in parent_eligible_companies]
         
         # Get all enabled categories (both predefined and custom)
         from models.ticket_category_config import CategoryDisplayConfig
@@ -2076,6 +2084,7 @@ def create_ticket():
                 'is_client': is_client,
                 'user': user,
                 'companies': companies_list,
+                'parent_companies': parent_companies_list,
                 'users_for_assignment': users_for_assignment,
                 'form': form_data
             }
