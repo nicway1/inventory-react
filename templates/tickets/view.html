@@ -7851,19 +7851,23 @@ window.clearTableHighlight = function() {
 window.renderExistingAssets = function() {
     const tbody = document.getElementById('existingAssetsTableBody');
     if (!tbody) return;
-    
+
     let filteredAssets = filterAssets();
-    
+
     if (filteredAssets.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No assets found</td></tr>';
         return;
     }
-    
-    tbody.innerHTML = filteredAssets.map(asset => `
-        <tr class="hover:bg-gray-50 cursor-pointer" onclick="toggleAssetSelection(${asset.id})">
+
+    tbody.innerHTML = filteredAssets.map(asset => {
+        const isSelected = selectedAssetIds.includes(asset.id);
+        const rowClass = isSelected ? 'hover:bg-gray-50 cursor-pointer bg-blue-50 border-blue-200' : 'hover:bg-gray-50 cursor-pointer';
+        return `
+        <tr class="${rowClass}" onclick="toggleAssetSelection(${asset.id})">
             <td class="px-6 py-4 whitespace-nowrap">
-                <input type="checkbox" name="selectedAssets" value="${asset.id}" 
-                       onchange="handleAssetSelectionChange(${asset.id})" 
+                <input type="checkbox" name="selectedAssets" value="${asset.id}"
+                       ${isSelected ? 'checked' : ''}
+                       onchange="handleAssetSelectionChange(${asset.id})"
                        class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded">
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${asset.asset_tag || ''}</td>
@@ -7875,7 +7879,8 @@ window.renderExistingAssets = function() {
                 </span>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 };
 
 // Filter assets based on search and status
@@ -8097,19 +8102,7 @@ window.assignSelectedAssets = function() {
 
 // Filter existing assets (called on search/filter change)
 window.filterExistingAssets = function() {
-    // Clear dropdown selection when filtering
-    const dropdown = document.getElementById('assetDropdownSelect');
-    if (dropdown) {
-        // Clear all selections in multiselect dropdown
-        Array.from(dropdown.selectedOptions).forEach(option => {
-            option.selected = false;
-        });
-    }
-    
-    // Clear selection state
-    selectedAssetIds = [];
-    updateAssignButton();
-    
+    // Don't clear selections - preserve user's choices while filtering
     renderExistingAssets();
 };
 
