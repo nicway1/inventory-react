@@ -1777,9 +1777,7 @@ def create_ticket():
                     logger.debug(f"SUPERVISOR/COUNTRY_ADMIN asset filtering - permitted company IDs: {permitted_company_ids}")
 
                     # Filter assets by company_id OR by customer_user's company_id
-                    # Note: or_ is already imported at module level from sqlalchemy
-                    from models.customer_user import CustomerUser
-
+                    # Note: CustomerUser is already imported at module level (line 24)
                     # Get customer_user IDs from permitted companies
                     permitted_customer_user_ids = [
                         row[0] for row in db_session.query(CustomerUser.id).filter(
