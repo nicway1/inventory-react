@@ -345,7 +345,12 @@ def global_search():
                 elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
                     # Filter by country if assigned
                     if user.assigned_countries:
-                        ticket_query = ticket_query.filter(Ticket.country.in_(user.assigned_countries))
+                        ticket_query = ticket_query.filter(
+                            or_(
+                                Ticket.country.in_(user.assigned_countries),
+                                Ticket.country == None
+                            )
+                        )
                     # Filter by queue permissions
                     if accessible_queue_ids:
                         ticket_query = ticket_query.filter(Ticket.queue_id.in_(accessible_queue_ids))
@@ -428,7 +433,12 @@ def global_search():
                         elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
                             # Filter by country if assigned
                             if user.assigned_countries:
-                                related_tickets_query = related_tickets_query.filter(Ticket.country.in_(user.assigned_countries))
+                                related_tickets_query = related_tickets_query.filter(
+                                    or_(
+                                        Ticket.country.in_(user.assigned_countries),
+                                        Ticket.country == None
+                                    )
+                                )
                             # Filter by queue permissions
                             if accessible_queue_ids:
                                 related_tickets_query = related_tickets_query.filter(Ticket.queue_id.in_(accessible_queue_ids))

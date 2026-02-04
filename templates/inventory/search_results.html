@@ -98,7 +98,6 @@
                         </div>
                     </button>
 
-                    {% if user.is_super_admin %}
                     <div class="w-px bg-gray-200"></div>
 
                     <button onclick="scrollToSection('customers-section')" class="slds-stat group flex items-center gap-3 {{ 'opacity-40' if not customers }}">
@@ -112,7 +111,6 @@
                             <div class="text-xs text-gray-500 uppercase tracking-wide">Customers</div>
                         </div>
                     </button>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -380,7 +378,6 @@
     </div>
 
     <!-- Customers Section -->
-    {% if user.is_super_admin %}
     <div id="customers-section" class="slds-card mb-6 transition-all duration-300">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
@@ -437,10 +434,9 @@
             </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- No Results -->
-    {% if not assets and not accessories and not tickets and not related_tickets and (not user.is_super_admin or not customers) %}
+    {% if not assets and not accessories and not tickets and not related_tickets and not customers %}
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="p-12 text-center">
             <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">

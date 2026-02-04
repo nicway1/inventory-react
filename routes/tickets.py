@@ -2629,6 +2629,7 @@ Additional Notes:
                 shipping_address = request.form.get('shipping_address')
                 outbound_tracking = request.form.get('shipping_tracking', '')  # Renamed for clarity
                 inbound_tracking = request.form.get('return_tracking', '')  # Optional return tracking
+                order_id = request.form.get('order_id', '')  # Optional order ID
                 notes = request.form.get('notes', '')
                 damage_description = request.form.get('damage_description', '')  # Reported issue
                 # queue_id and case_owner_id already extracted at line 1143-1145
@@ -2701,7 +2702,8 @@ Shipping Method: Claw (Ship24)"""
                         notes=notes,
                         return_description=user_return_description,
                         damage_description=damage_description if damage_description else None,
-                        case_owner_id=int(case_owner_id) if case_owner_id else None
+                        case_owner_id=int(case_owner_id) if case_owner_id else None,
+                        firstbaseorderid=order_id if order_id else None
                     )
 
                     logger.info(f"Asset Return ticket created successfully with ID: {ticket_id}")  # Debug log

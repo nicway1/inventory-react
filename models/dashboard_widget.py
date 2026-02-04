@@ -191,7 +191,7 @@ register_widget(WidgetDefinition(
     icon='fas fa-layer-group',
     color='orange',
     required_permissions=[],
-    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT'],  # Hidden for COUNTRY_ADMIN and SUPERVISOR
+    required_user_types=['SUPER_ADMIN', 'DEVELOPER', 'CLIENT', 'SUPERVISOR'],
     data_loader='load_queue_stats',
     screenshot='support_queues.png'
 ))
