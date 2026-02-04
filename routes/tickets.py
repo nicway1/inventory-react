@@ -1857,6 +1857,7 @@ def create_ticket():
                 queues.append(queue)
 
         # Get companies for the customer creation modal dropdown - filtered by user permissions
+        from models.company import Company
         if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
             # SUPER_ADMIN/DEVELOPER can see all companies
             company_names_from_assets = db_session.query(Asset.customer)\
@@ -1866,7 +1867,6 @@ def create_ticket():
             companies_list = sorted([company[0] for company in company_names_from_assets if company[0]])
         elif permitted_company_ids:
             # Use the same permitted company IDs we calculated for assets
-            from models.company import Company
             permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
             companies_list = sorted([c.name for c in permitted_companies])
         elif user.company_id:
