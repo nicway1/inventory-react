@@ -1810,10 +1810,15 @@ def create_ticket():
 
                     logger.debug(f"[ASSET DEBUG] Permitted customer_user IDs: {len(permitted_customer_user_ids)}")
 
+                    # SUPERVISOR/COUNTRY_ADMIN can see:
+                    # 1. Assets from permitted companies
+                    # 2. Assets from permitted customer_users
+                    # 3. Assets with no company assigned (company_id = None)
                     assets_query = assets_query.filter(
                         or_(
                             Asset.company_id.in_(permitted_company_ids),
-                            Asset.customer_id.in_(permitted_customer_user_ids)
+                            Asset.customer_id.in_(permitted_customer_user_ids),
+                            Asset.company_id == None  # Include unassigned assets
                         )
                     )
                 else:
