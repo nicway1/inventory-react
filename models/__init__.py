@@ -23,6 +23,7 @@ from models.company_queue_permission import CompanyQueuePermission
 from models.user_queue_permission import UserQueuePermission
 from models.user_visibility_permission import UserVisibilityPermission
 from models.user_import_permission import UserImportPermission
+from models.user_category_permission import UserCategoryPermission
 from models.import_session import ImportSession
 from models.company_customer_permission import CompanyCustomerPermission
 from models.tracking_history import TrackingHistory
@@ -94,6 +95,7 @@ __all__ = [
     "UserQueuePermission",
     "UserVisibilityPermission",
     "UserImportPermission",
+    "UserCategoryPermission",
     "ImportSession",
     "CompanyCustomerPermission",
     "TrackingHistory",
