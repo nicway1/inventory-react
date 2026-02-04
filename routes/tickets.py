@@ -285,10 +285,13 @@ def list_tickets():
     if not user.is_super_admin and not user.is_developer:
         logging.info(f"Filtering tickets for user {user.username} (type: {user.user_type.value})")
         logging.info(f"Total tickets before filtering: {len(tickets)}")
+        # Batch-load accessible queue IDs ONCE instead of N separate queries
+        accessible_queue_ids = user.get_accessible_queue_ids()
+
         filtered_tickets = []
         for ticket in tickets:
             # Only show tickets that have a queue AND the user has access to that queue
-            if ticket.queue_id and user.can_access_queue(ticket.queue_id):
+            if ticket.queue_id and ticket.queue_id in accessible_queue_ids:
                 filtered_tickets.append(ticket)
                 logging.debug(f"✓ Ticket {ticket.id} allowed (queue: {ticket.queue.name if ticket.queue else 'None'})")
             # For COUNTRY_ADMIN users, exclude tickets without a queue (unassigned tickets)
@@ -340,9 +343,10 @@ def list_tickets():
             queues = [queue for queue, count in queues_with_counts if queue.id in accessible_queue_ids]
             logging.info(f"Loaded {len(queues)}/{len(queues_with_counts)} queues for COUNTRY_ADMIN/SUPERVISOR")
         else:
-            # For CLIENT and other users
+            # For CLIENT and other users - batch load queue permissions
+            accessible_queue_ids = user.get_accessible_queue_ids()
             all_queues = [queue for queue, count in queues_with_counts]
-            queues = [queue for queue in all_queues if user.can_access_queue(queue.id)]
+            queues = [queue for queue in all_queues if queue.id in accessible_queue_ids]
             logging.info(f"Loaded {len(queues)}/{len(all_queues)} queues based on user permissions")
 
         for queue in queues:
@@ -437,9 +441,13 @@ def list_tickets_sf():
     # Filter tickets based on queue access permissions
     if not user.is_super_admin and not user.is_developer:
         logging.info(f"DEBUG SF - applying queue filter (not admin/developer)")
+        # Batch-load accessible queue IDs ONCE instead of 2585 separate queries
+        accessible_queue_ids = user.get_accessible_queue_ids()
+        logging.info(f"DEBUG SF - User has access to {len(accessible_queue_ids) if accessible_queue_ids is not None else 'all'} queues")
+
         filtered_tickets = []
         for ticket in tickets:
-            if ticket.queue_id and user.can_access_queue(ticket.queue_id):
+            if ticket.queue_id and ticket.queue_id in accessible_queue_ids:
                 filtered_tickets.append(ticket)
             elif not ticket.queue_id:
                 pass  # Exclude unassigned tickets for non-admin users
@@ -489,9 +497,10 @@ def list_tickets_sf():
             queues = [queue for queue, count in queues_with_counts if queue.id in accessible_queue_ids]
             logging.info(f"DEBUG SF - COUNTRY_ADMIN/SUPERVISOR sees {len(queues)}/{len(queues_with_counts)} queues")
         else:
-            # For CLIENT and other users
+            # For CLIENT and other users - batch load queue permissions
+            accessible_queue_ids = user.get_accessible_queue_ids()
             all_queues = [queue for queue, count in queues_with_counts]
-            queues = [queue for queue in all_queues if user.can_access_queue(queue.id)]
+            queues = [queue for queue in all_queues if queue.id in accessible_queue_ids]
     except Exception as e:
         logging.error(f"Error loading queues: {str(e)}")
         queues = []
@@ -849,9 +858,11 @@ def export_tickets_csv():
 
         # Filter tickets based on queue access permissions (same as list_tickets)
         if not user.is_super_admin and not user.is_developer:
+            # Batch-load accessible queue IDs to avoid N+1 queries
+            accessible_queue_ids = user.get_accessible_queue_ids()
             filtered_tickets = []
             for ticket in tickets:
-                if ticket.queue_id and user.can_access_queue(ticket.queue_id):
+                if ticket.queue_id and ticket.queue_id in accessible_queue_ids:
                     filtered_tickets.append(ticket)
                 elif not ticket.queue_id:
                     filtered_tickets.append(ticket)
@@ -3439,9 +3450,10 @@ def list_queues():
             accessible_queue_ids = [q[0] for q in queue_permissions]
             queues = db_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).all() if accessible_queue_ids else []
         else:
-            # Other users (CLIENT) - filter by can_access_queue
+            # Other users (CLIENT) - batch load queue permissions
+            accessible_queue_ids = user.get_accessible_queue_ids(db_session)
             all_queues = db_session.query(Queue).all()
-            queues = [q for q in all_queues if user.can_access_queue(q.id)]
+            queues = [q for q in all_queues if q.id in accessible_queue_ids]
         
         # Get ticket counts for each queue to avoid detached session issues
         queue_ticket_counts = {}

@@ -136,11 +136,10 @@ def load_widget_data(user, layout):
             if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
                 queues = db.query(Queue).all()
             else:
-                queues = []
+                # Batch-load accessible queue IDs to avoid N+1 queries
+                accessible_queue_ids = user.get_accessible_queue_ids(db)
                 all_queues = db.query(Queue).all()
-                for queue in all_queues:
-                    if user.can_access_queue(queue.id):
-                        queues.append(queue)
+                queues = [queue for queue in all_queues if queue.id in accessible_queue_ids]
 
             queue_data = []
             for queue in queues:
@@ -230,9 +229,11 @@ def load_widget_data(user, layout):
 
             # Filter by queue access for non-admin users
             if not user.is_super_admin and not user.is_developer:
+                # Batch-load accessible queue IDs to avoid N+1 queries
+                accessible_queue_ids = user.get_accessible_queue_ids(db)
                 # Get all shipments first, then filter by queue access
                 all_shipments = shipment_query.order_by(Ticket.created_at.desc()).all()
-                shipments = [t for t in all_shipments if t.queue_id and user.can_access_queue(t.queue_id)][:20]
+                shipments = [t for t in all_shipments if t.queue_id and t.queue_id in accessible_queue_ids][:20]
             else:
                 shipments = shipment_query.order_by(Ticket.created_at.desc()).limit(20).all()
             widget_data['shipments'] = {

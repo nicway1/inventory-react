@@ -152,20 +152,59 @@ class User(Base, UserMixin):
                 
         return False
 
-    def can_access_queue(self, queue_id):
-        """Check if user has access to a specific queue based on user-level permissions"""
-        from sqlalchemy.orm import Session
-        from database import engine
+    def get_accessible_queue_ids(self, db_session=None):
+        """Batch-load all queue IDs this user can access (optimized for filtering)"""
+        from models.user_queue_permission import UserQueuePermission
+
+        # Super admins and developers can access all queues
+        if self.is_super_admin or self.is_developer:
+            return None  # None means "all queues"
+
+        # Use provided session or create a new one
+        session_provided = db_session is not None
+        if not session_provided:
+            from sqlalchemy.orm import Session
+            from database import engine
+            db_session = Session(engine)
+
+        try:
+            # Batch load all queue IDs user can view in one query
+            queue_ids = db_session.query(UserQueuePermission.queue_id).filter(
+                UserQueuePermission.user_id == self.id,
+                UserQueuePermission.can_view == True
+            ).all()
+
+            return set(qid[0] for qid in queue_ids)
+        except Exception as e:
+            logging.error(f"Error loading accessible queue IDs: {str(e)}")
+            return set()
+        finally:
+            if not session_provided:
+                db_session.close()
+
+    def can_access_queue(self, queue_id, db_session=None):
+        """Check if user has access to a specific queue based on user-level permissions
+
+        Args:
+            queue_id: The queue ID to check
+            db_session: Optional existing database session (avoids creating new sessions)
+        """
         from models.user_queue_permission import UserQueuePermission
 
         # Super admins and developers can access all queues
         if self.is_super_admin or self.is_developer:
             return True
 
-        session = Session(engine)
+        # Use provided session or create a new one
+        session_provided = db_session is not None
+        if not session_provided:
+            from sqlalchemy.orm import Session
+            from database import engine
+            db_session = Session(engine)
+
         try:
             # Check if there are specific permissions for this user and queue
-            permission = session.query(UserQueuePermission).filter_by(
+            permission = db_session.query(UserQueuePermission).filter_by(
                 user_id=self.id, queue_id=queue_id).first()
 
             # If a permission record exists, check the can_view flag
@@ -178,7 +217,8 @@ class User(Base, UserMixin):
             logging.error(f"Error checking queue access: {str(e)}")
             return False
         finally:
-            session.close()
+            if not session_provided:
+                db_session.close()
 
     def can_create_in_queue(self, queue_id):
         """Check if user has permission to create tickets in a specific queue"""
