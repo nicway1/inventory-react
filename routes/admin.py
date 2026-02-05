@@ -9082,6 +9082,7 @@ def asset_checkout_import_import_ticket():
     """Import a ticket from CSV data with enhanced data flow"""
     from models.user_import_permission import UserImportPermission
     from flask import session
+    from routes.import_manager import create_import_session, update_import_session
 
     # Check if user has asset_checkout_import permission
     user = db_manager.get_user(session['user_id'])
@@ -9094,6 +9095,7 @@ def asset_checkout_import_import_ticket():
         finally:
             db_session.close()
 
+    import_session_id = None
     try:
         data = request.json
         row_index = data.get('row_index')
@@ -9590,9 +9592,36 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 
                 # Commit all assignments at once to avoid database locks
                 db_session.commit()
-            
+
+            # Create import session to track this import in Import Manager
+            try:
+                import_session_id, display_id = create_import_session(
+                    import_type='asset_checkout',
+                    user_id=current_user.id,
+                    file_name=primary_item.get('order_id', 'Single ticket import'),
+                    notes=f"Single ticket import: {subject}"
+                )
+                logger.info(f"Created import session {display_id} for single ticket import")
+
+                # Update import session with success
+                import_data = [{
+                    'ticket_id': ticket.display_id,
+                    'order_id': primary_item.get('order_id', ''),
+                    'customer': primary_item.get('person_name', ''),
+                    'status': 'success'
+                }]
+                update_import_session(
+                    import_session_id,
+                    success_count=1,
+                    fail_count=0,
+                    import_data=import_data,
+                    status='completed'
+                )
+            except Exception as e:
+                logger.error(f"Failed to create/update import session: {str(e)}")
+
             return jsonify({
-                'success': True, 
+                'success': True,
                 'ticket_id': ticket.id,
                 'ticket_display_id': ticket.display_id,
                 'customer_created': customer_created,
@@ -9600,17 +9629,31 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                 'assigned_assets': assigned_assets,
                 'message': f'Ticket {ticket.display_id} created successfully. Customer {"created" if customer_created else "updated"}. {len(assigned_assets)} assets and {len(assigned_accessories)} accessories assigned.'
             })
-            
+
         except Exception as e:
             db_session.rollback()
             raise e
         finally:
             db_session.close()
-            
+
     except Exception as e:
         logger.error(f"Error importing ticket: {str(e)}")
         import traceback
         traceback.print_exc()
+
+        # Update import session with failure if it was created
+        if import_session_id:
+            try:
+                update_import_session(
+                    import_session_id,
+                    success_count=0,
+                    fail_count=1,
+                    error_details=str(e),
+                    status='failed'
+                )
+            except Exception as update_error:
+                logger.error(f"Failed to update import session with error: {str(update_error)}")
+
         return jsonify({'success': False, 'error': f'Failed to import ticket: {str(e)}'})
 
 
