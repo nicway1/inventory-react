@@ -4286,8 +4286,11 @@ def csv_import_preview_ticket():
             primary_item = row
             
         # Validate that primary_item has required fields
-        if not primary_item or not primary_item.get('product_title'):
-            return jsonify({'success': False, 'error': f'Invalid item data: {primary_item}'})
+        if not primary_item:
+            return jsonify({'success': False, 'error': 'Cannot preview ticket: Item data is missing or invalid. Please check your CSV file.'})
+
+        if not primary_item.get('product_title'):
+            return jsonify({'success': False, 'error': 'Cannot preview ticket: Product title is required but missing. Please add the product title and try again.'})
         
         # Enhanced category mapping with queue routing
         def determine_category_and_queue(product_title, category_code):
@@ -8552,8 +8555,11 @@ def asset_checkout_import_preview_ticket():
             primary_item = row
             
         # Validate that primary_item has required fields
-        if not primary_item or not primary_item.get('product_title'):
-            return jsonify({'success': False, 'error': f'Invalid item data: {primary_item}'})
+        if not primary_item:
+            return jsonify({'success': False, 'error': 'Cannot preview ticket: Item data is missing or invalid. Please check your CSV file.'})
+
+        if not primary_item.get('product_title'):
+            return jsonify({'success': False, 'error': 'Cannot preview ticket: Product title is required but missing. Please add the product title and try again.'})
         
         # Enhanced category mapping with queue routing
         def determine_category_and_queue(product_title, category_code):
