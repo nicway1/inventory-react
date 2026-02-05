@@ -4341,7 +4341,11 @@ def csv_import_preview_ticket():
                 serial_number = item.get('serial_number', '')
                 brand = item.get('brand', '')
                 category = item.get('category_code', '')
-                
+
+                logger.info(f"CSV_PREVIEW_DEBUG: ===== Starting search for item =====")
+                logger.info(f"CSV_PREVIEW_DEBUG: Product: '{product_title}', Serial: '{serial_number}', Brand: '{brand}', Category: '{category}'")
+                logger.info(f"CSV_PREVIEW_DEBUG: User type: {current_user.user_type.value if current_user.user_type else 'None'}")
+
                 # Initialize matches list
                 matches = []
 
@@ -4366,6 +4370,8 @@ def csv_import_preview_ticket():
                         if perm.company_id not in accessible_company_ids:
                             accessible_company_ids.append(perm.company_id)
 
+                    logger.info(f"CSV_PREVIEW_DEBUG: Supervisor/Country Admin - Accessible company IDs: {accessible_company_ids}")
+
                     # Filter assets to only show those from accessible companies
                     # Do NOT show unassigned assets (company_id is NULL)
                     if accessible_company_ids:
@@ -4374,20 +4380,26 @@ def csv_import_preview_ticket():
                         )
                     else:
                         # If no accessible companies, show no assets
+                        logger.info(f"CSV_PREVIEW_DEBUG: No accessible companies - asset search disabled")
                         asset_query = asset_query.filter(Asset.id == -1)
+                else:
+                    logger.info(f"CSV_PREVIEW_DEBUG: Admin/Developer - No company filtering applied")
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
+                    logger.info(f"CSV_PREVIEW_DEBUG: Searching assets by serial number: '{serial_number}'")
                     serial_matches = asset_query.filter(
                         Asset.serial_num.ilike(f'%{serial_number}%')
                     ).all()
-                    
+                    logger.info(f"CSV_PREVIEW_DEBUG: Found {len(serial_matches)} asset(s) matching serial number")
+
                     for asset in serial_matches:
                         # Check availability status
                         is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
                         status_display = asset.status.value if asset.status else 'Unknown'
                         availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
-                        
+                        logger.info(f"CSV_PREVIEW_DEBUG: - Asset ID {asset.id}: {asset.name or asset.model} | Serial: {asset.serial_num} | Company ID: {asset.company_id} | Status: {status_display}")
+
                         matches.append({
                             'match_type': 'Serial Number (Asset)',
                             'item_type': 'asset',
@@ -4398,9 +4410,10 @@ def csv_import_preview_ticket():
                             'is_available': is_available,
                             'confidence': 'High'
                         })
-                
+
                 # 2. Search by product name in assets (medium priority) - IMPROVED ALGORITHM
                 if product_title and len(matches) < 3:
+                    logger.info(f"CSV_PREVIEW_DEBUG: Searching assets by product title: '{product_title}'")
                     # First try exact phrase matches (highest relevance)
                     exact_phrase_matches = asset_query.filter(
                         or_(
@@ -4409,6 +4422,7 @@ def csv_import_preview_ticket():
                             Asset.hardware_type.ilike(f'%{product_title}%')
                         )
                     ).limit(3).all()
+                    logger.info(f"CSV_PREVIEW_DEBUG: Found {len(exact_phrase_matches)} asset(s) with exact phrase match")
                     
                     for asset in exact_phrase_matches:
                         if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
@@ -4497,23 +4511,29 @@ def csv_import_preview_ticket():
                 # 4. Search for accessories - IMPROVED ALGORITHM
                 # For supervisors, only show accessories if their company has any
                 should_search_accessories = True
+                logger.info(f"CSV_PREVIEW_DEBUG: Checking if should search accessories...")
                 # UserType already imported above
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                     user_company_id = current_user.company_id
+                    logger.info(f"CSV_PREVIEW_DEBUG: Supervisor/Country Admin - User company ID: {user_company_id}")
                     if user_company_id:
                         company_accessory_count = db_session.query(Accessory).filter(
                             Accessory.company_id == user_company_id
                         ).count()
+                        logger.info(f"CSV_PREVIEW_DEBUG: Company has {company_accessory_count} accessories")
                         should_search_accessories = company_accessory_count > 0
                     else:
+                        logger.info(f"CSV_PREVIEW_DEBUG: No company ID - accessory search disabled")
                         should_search_accessories = False
+
+                logger.info(f"CSV_PREVIEW_DEBUG: Should search accessories: {should_search_accessories}")
 
                 if should_search_accessories:
                     from models.accessory_alias import AccessoryAlias
                     accessory_query = db_session.query(Accessory)
 
                     # Debug logging for accessory matching
-                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                    logger.info(f"CSV_PREVIEW_DEBUG: Searching for accessories with product_title='{product_title}'")
 
                 # Search by exact product name in accessories (highest priority)
                 if product_title and should_search_accessories:
@@ -4682,7 +4702,10 @@ def csv_import_preview_ticket():
                         stock_status = "Found but Not Available"
                 else:
                     stock_status = "Not Found"
-                
+
+                logger.info(f"CSV_PREVIEW_DEBUG: Total matches found: {len(matches)} | Stock status: {stock_status}")
+                logger.info(f"CSV_PREVIEW_DEBUG: ===== End search for item =====\n")
+
                 inventory_info.append({
                     'product_title': product_title,
                     'serial_number': serial_number,
@@ -8656,7 +8679,11 @@ def asset_checkout_import_preview_ticket():
                 serial_number = item.get('serial_number', '')
                 brand = item.get('brand', '')
                 category = item.get('category_code', '')
-                
+
+                logger.info(f"CSV_PREVIEW_DEBUG: ===== Starting search for item =====")
+                logger.info(f"CSV_PREVIEW_DEBUG: Product: '{product_title}', Serial: '{serial_number}', Brand: '{brand}', Category: '{category}'")
+                logger.info(f"CSV_PREVIEW_DEBUG: User type: {current_user.user_type.value if current_user.user_type else 'None'}")
+
                 # Initialize matches list
                 matches = []
 
@@ -8681,6 +8708,8 @@ def asset_checkout_import_preview_ticket():
                         if perm.company_id not in accessible_company_ids:
                             accessible_company_ids.append(perm.company_id)
 
+                    logger.info(f"CSV_PREVIEW_DEBUG: Supervisor/Country Admin - Accessible company IDs: {accessible_company_ids}")
+
                     # Filter assets to only show those from accessible companies
                     # Do NOT show unassigned assets (company_id is NULL)
                     if accessible_company_ids:
@@ -8689,20 +8718,26 @@ def asset_checkout_import_preview_ticket():
                         )
                     else:
                         # If no accessible companies, show no assets
+                        logger.info(f"CSV_PREVIEW_DEBUG: No accessible companies - asset search disabled")
                         asset_query = asset_query.filter(Asset.id == -1)
+                else:
+                    logger.info(f"CSV_PREVIEW_DEBUG: Admin/Developer - No company filtering applied")
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
+                    logger.info(f"CSV_PREVIEW_DEBUG: Searching assets by serial number: '{serial_number}'")
                     serial_matches = asset_query.filter(
                         Asset.serial_num.ilike(f'%{serial_number}%')
                     ).all()
-                    
+                    logger.info(f"CSV_PREVIEW_DEBUG: Found {len(serial_matches)} asset(s) matching serial number")
+
                     for asset in serial_matches:
                         # Check availability status
                         is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
                         status_display = asset.status.value if asset.status else 'Unknown'
                         availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
-                        
+                        logger.info(f"CSV_PREVIEW_DEBUG: - Asset ID {asset.id}: {asset.name or asset.model} | Serial: {asset.serial_num} | Company ID: {asset.company_id} | Status: {status_display}")
+
                         matches.append({
                             'match_type': 'Serial Number (Asset)',
                             'item_type': 'asset',
@@ -8713,9 +8748,10 @@ def asset_checkout_import_preview_ticket():
                             'is_available': is_available,
                             'confidence': 'High'
                         })
-                
+
                 # 2. Search by product name in assets (medium priority) - IMPROVED ALGORITHM
                 if product_title and len(matches) < 3:
+                    logger.info(f"CSV_PREVIEW_DEBUG: Searching assets by product title: '{product_title}'")
                     # First try exact phrase matches (highest relevance)
                     exact_phrase_matches = asset_query.filter(
                         or_(
@@ -8724,6 +8760,7 @@ def asset_checkout_import_preview_ticket():
                             Asset.hardware_type.ilike(f'%{product_title}%')
                         )
                     ).limit(3).all()
+                    logger.info(f"CSV_PREVIEW_DEBUG: Found {len(exact_phrase_matches)} asset(s) with exact phrase match")
                     
                     for asset in exact_phrase_matches:
                         if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
@@ -8812,23 +8849,29 @@ def asset_checkout_import_preview_ticket():
                 # 4. Search for accessories - IMPROVED ALGORITHM
                 # For supervisors, only show accessories if their company has any
                 should_search_accessories = True
+                logger.info(f"CSV_PREVIEW_DEBUG: Checking if should search accessories...")
                 # UserType already imported above
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                     user_company_id = current_user.company_id
+                    logger.info(f"CSV_PREVIEW_DEBUG: Supervisor/Country Admin - User company ID: {user_company_id}")
                     if user_company_id:
                         company_accessory_count = db_session.query(Accessory).filter(
                             Accessory.company_id == user_company_id
                         ).count()
+                        logger.info(f"CSV_PREVIEW_DEBUG: Company has {company_accessory_count} accessories")
                         should_search_accessories = company_accessory_count > 0
                     else:
+                        logger.info(f"CSV_PREVIEW_DEBUG: No company ID - accessory search disabled")
                         should_search_accessories = False
+
+                logger.info(f"CSV_PREVIEW_DEBUG: Should search accessories: {should_search_accessories}")
 
                 if should_search_accessories:
                     from models.accessory_alias import AccessoryAlias
                     accessory_query = db_session.query(Accessory)
 
                     # Debug logging for accessory matching
-                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                    logger.info(f"CSV_PREVIEW_DEBUG: Searching for accessories with product_title='{product_title}'")
 
                 # Search by exact product name in accessories (highest priority)
                 if product_title and should_search_accessories:
@@ -8997,7 +9040,10 @@ def asset_checkout_import_preview_ticket():
                         stock_status = "Found but Not Available"
                 else:
                     stock_status = "Not Found"
-                
+
+                logger.info(f"CSV_PREVIEW_DEBUG: Total matches found: {len(matches)} | Stock status: {stock_status}")
+                logger.info(f"CSV_PREVIEW_DEBUG: ===== End search for item =====\n")
+
                 inventory_info.append({
                     'product_title': product_title,
                     'serial_number': serial_number,
