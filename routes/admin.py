@@ -4345,7 +4345,23 @@ def csv_import_preview_ticket():
                 
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
-                
+
+                # Filter assets by company access for supervisors
+                from flask_login import current_user
+                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    # Get list of accessible company IDs
+                    accessible_company_ids = []
+                    for perm in current_user.company_permissions:
+                        if perm.can_view:
+                            accessible_company_ids.append(perm.company_id)
+
+                    # Filter asset query to only include assets from accessible companies
+                    if accessible_company_ids:
+                        asset_query = asset_query.filter(Asset.company_id.in_(accessible_company_ids))
+                    else:
+                        # No accessible companies, no assets to show
+                        asset_query = asset_query.filter(Asset.id == -1)
+
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
                     serial_matches = asset_query.filter(
@@ -4465,14 +4481,26 @@ def csv_import_preview_ticket():
                             })
                 
                 # 4. Search for accessories - IMPROVED ALGORITHM
-                from models.accessory_alias import AccessoryAlias
-                accessory_query = db_session.query(Accessory)
+                # For supervisors, only show accessories if their company has any
+                should_search_accessories = True
+                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    user_company_id = current_user.company_id
+                    if user_company_id:
+                        company_accessory_count = db_session.query(Accessory).filter(
+                            Accessory.company_id == user_company_id
+                        ).count()
+                        should_search_accessories = company_accessory_count > 0
+                    else:
+                        should_search_accessories = False
 
-                # Debug logging for accessory matching
-                logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                if should_search_accessories:
+                    from models.accessory_alias import AccessoryAlias
+                    accessory_query = db_session.query(Accessory)
 
+                    # Debug logging for accessory matching
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")\n
                 # Search by exact product name in accessories (highest priority)
-                if product_title:
+                if product_title and should_search_accessories:
                     # First try exact phrase matches (including aliases)
                     # Get accessories that match by name, model, or alias
                     alias_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
@@ -4519,7 +4547,7 @@ def csv_import_preview_ticket():
                         })
                 
                 # 5. Search accessories by intelligent keyword matching
-                if len(matches) < 5:
+                if len(matches) < 5 and should_search_accessories:
                     # Extract meaningful keywords (filter out common words)
                     common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
                     search_terms = [term.lower() for term in product_title.split()
@@ -4607,7 +4635,7 @@ def csv_import_preview_ticket():
                                     })
                 
                 # 6. Search accessories by brand
-                if brand and len(matches) < 5:
+                if brand and len(matches) < 5 and should_search_accessories:
                     brand_accessory_matches = accessory_query.filter(
                         Accessory.manufacturer.ilike(f'%{brand}%')
                     ).limit(2).all()
@@ -4656,11 +4684,19 @@ def csv_import_preview_ticket():
             primary_item.get('category_code', '')
         )
         
-        # Get available queues for selection
+        # Get available queues for selection (filtered by user permissions for supervisors)
         available_queues = []
         queue_session = db_manager.get_session()
         try:
-            queues = queue_session.query(Queue).all()
+            from flask_login import current_user
+
+            # For supervisors, only show queues they have access to
+            if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                accessible_queue_ids = current_user.get_accessible_queue_ids(queue_session)
+                queues = queue_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).all() if accessible_queue_ids else []
+            else:
+                queues = queue_session.query(Queue).all()
+
             for queue in queues:
                 available_queues.append({
                     'id': queue.id,
@@ -8614,7 +8650,23 @@ def asset_checkout_import_preview_ticket():
                 
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
-                
+
+                # Filter assets by company access for supervisors
+                from flask_login import current_user
+                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    # Get list of accessible company IDs
+                    accessible_company_ids = []
+                    for perm in current_user.company_permissions:
+                        if perm.can_view:
+                            accessible_company_ids.append(perm.company_id)
+
+                    # Filter asset query to only include assets from accessible companies
+                    if accessible_company_ids:
+                        asset_query = asset_query.filter(Asset.company_id.in_(accessible_company_ids))
+                    else:
+                        # No accessible companies, no assets to show
+                        asset_query = asset_query.filter(Asset.id == -1)
+
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
                     serial_matches = asset_query.filter(
@@ -8734,14 +8786,26 @@ def asset_checkout_import_preview_ticket():
                             })
                 
                 # 4. Search for accessories - IMPROVED ALGORITHM
-                from models.accessory_alias import AccessoryAlias
-                accessory_query = db_session.query(Accessory)
+                # For supervisors, only show accessories if their company has any
+                should_search_accessories = True
+                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    user_company_id = current_user.company_id
+                    if user_company_id:
+                        company_accessory_count = db_session.query(Accessory).filter(
+                            Accessory.company_id == user_company_id
+                        ).count()
+                        should_search_accessories = company_accessory_count > 0
+                    else:
+                        should_search_accessories = False
 
-                # Debug logging for accessory matching
-                logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+                if should_search_accessories:
+                    from models.accessory_alias import AccessoryAlias
+                    accessory_query = db_session.query(Accessory)
 
+                    # Debug logging for accessory matching
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")\n
                 # Search by exact product name in accessories (highest priority)
-                if product_title:
+                if product_title and should_search_accessories:
                     # First try exact phrase matches (including aliases)
                     # Get accessories that match by name, model, or alias
                     alias_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
@@ -8788,7 +8852,7 @@ def asset_checkout_import_preview_ticket():
                         })
                 
                 # 5. Search accessories by intelligent keyword matching
-                if len(matches) < 5:
+                if len(matches) < 5 and should_search_accessories:
                     # Extract meaningful keywords (filter out common words)
                     common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
                     search_terms = [term.lower() for term in product_title.split()
@@ -8876,7 +8940,7 @@ def asset_checkout_import_preview_ticket():
                                     })
                 
                 # 6. Search accessories by brand
-                if brand and len(matches) < 5:
+                if brand and len(matches) < 5 and should_search_accessories:
                     brand_accessory_matches = accessory_query.filter(
                         Accessory.manufacturer.ilike(f'%{brand}%')
                     ).limit(2).all()
@@ -8925,11 +8989,19 @@ def asset_checkout_import_preview_ticket():
             primary_item.get('category_code', '')
         )
         
-        # Get available queues for selection
+        # Get available queues for selection (filtered by user permissions for supervisors)
         available_queues = []
         queue_session = db_manager.get_session()
         try:
-            queues = queue_session.query(Queue).all()
+            from flask_login import current_user
+
+            # For supervisors, only show queues they have access to
+            if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                accessible_queue_ids = current_user.get_accessible_queue_ids(queue_session)
+                queues = queue_session.query(Queue).filter(Queue.id.in_(accessible_queue_ids)).all() if accessible_queue_ids else []
+            else:
+                queues = queue_session.query(Queue).all()
+
             for queue in queues:
                 available_queues.append({
                     'id': queue.id,
