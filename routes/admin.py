@@ -4704,9 +4704,6 @@ def csv_import_preview_ticket():
         available_queues = []
         queue_session = db_manager.get_session()
         try:
-            from flask_login import current_user
-            from models.enums import UserType
-
             # For supervisors, only show queues they have access to
             if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                 accessible_queue_ids = current_user.get_accessible_queue_ids(queue_session)
@@ -4729,9 +4726,7 @@ def csv_import_preview_ticket():
         user_session = db_manager.get_session()
         try:
             from models.user import User
-            from models.enums import UserType
-            from flask_login import current_user
-            
+
             # Check if user is admin or super admin
             is_admin = current_user.is_admin or current_user.is_super_admin
             
@@ -9024,9 +9019,6 @@ def asset_checkout_import_preview_ticket():
         available_queues = []
         queue_session = db_manager.get_session()
         try:
-            from flask_login import current_user
-            from models.enums import UserType
-
             # For supervisors, only show queues they have access to
             if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                 accessible_queue_ids = current_user.get_accessible_queue_ids(queue_session)
@@ -9049,9 +9041,7 @@ def asset_checkout_import_preview_ticket():
         user_session = db_manager.get_session()
         try:
             from models.user import User
-            from models.enums import UserType
-            from flask_login import current_user
-            
+
             # Check if user is admin or super admin
             is_admin = current_user.is_admin or current_user.is_super_admin
             
