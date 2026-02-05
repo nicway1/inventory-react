@@ -176,7 +176,7 @@
                     </thead>
                     <tbody>
                         {% for row in preview_data %}
-                        <tr class="{% if row.name_is_empty %}error-row{% elif row.is_duplicate %}duplicate-row{% endif %}" data-name-empty="{{ row.name_is_empty }}" data-customer-name="{{ row.customer_name }}" data-is-duplicate="{{ row.is_duplicate }}">
+                        <tr class="{% if row.has_missing_fields %}error-row{% elif row.is_duplicate %}duplicate-row{% endif %}" data-name-empty="{{ row.name_is_empty }}" data-customer-name="{{ row.customer_name }}" data-is-duplicate="{{ row.is_duplicate }}" data-has-missing-fields="{{ row.has_missing_fields }}">
                             <td class="row-number">
                                 {{ row.row_number }}
                                 <input type="hidden" name="row_{{ loop.index0 }}_number" value="{{ row.row_number }}">
@@ -212,7 +212,7 @@
                                 <input type="email"
                                        name="row_{{ loop.index0 }}_customer_email"
                                        value="{{ row.customer_email }}"
-                                       class="required-field"
+                                       class="required-field {% if not row.customer_email %}error-field{% endif %}"
                                        required
                                        placeholder="email@example.com">
                             </td>
@@ -220,7 +220,7 @@
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_phone"
                                        value="{{ row.customer_phone }}"
-                                       class="required-field"
+                                       class="required-field {% if not row.customer_phone %}error-field{% endif %}"
                                        required
                                        placeholder="+65-1234-5678">
                             </td>
@@ -228,7 +228,7 @@
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_company"
                                        value="{{ row.customer_company }}"
-                                       class="required-field"
+                                       class="required-field {% if not row.customer_company %}error-field{% endif %}"
                                        required
                                        placeholder="Company name">
                             </td>
@@ -236,7 +236,7 @@
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_address"
                                        value="{{ row.customer_address }}"
-                                       class="required-field"
+                                       class="required-field {% if not row.customer_address %}error-field{% endif %}"
                                        required
                                        placeholder="Full address">
                                 <!-- Hidden fields for address components (legacy support) -->
@@ -248,7 +248,7 @@
                             </td>
                             <td>
                                 <select name="row_{{ loop.index0 }}_customer_country"
-                                        class="required-field"
+                                        class="required-field {% if not row.customer_country %}error-field{% endif %}"
                                         required>
                                     <option value="">Select country</option>
                                     {% for country in countries %}
@@ -261,7 +261,7 @@
                             </td>
                             <td>
                                 <textarea name="row_{{ loop.index0 }}_return_description"
-                                          class="required-field"
+                                          class="required-field {% if not row.return_description %}error-field{% endif %}"
                                           required
                                           placeholder="Describe the return issue">{{ row.return_description }}</textarea>
                             </td>

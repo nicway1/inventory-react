@@ -11707,16 +11707,25 @@ def bulk_import_asset_return():
                     customer_address = direct_address if direct_address else built_address
 
                     customer_name = row.get('customer_name', '').strip()
+                    customer_email = row.get('customer_email', '').strip()
+                    customer_phone = row.get('customer_phone', '').strip()
+                    customer_company = row.get('customer_company', '').strip()
+                    customer_country = row.get('customer_country', '').strip()
+                    return_description = row.get('return_description', '').strip()
+
+                    # Check if any required field is missing
+                    missing_required_fields = not customer_name or not customer_email or not customer_phone or not customer_company or not customer_address or not customer_country or not return_description
+
                     preview_data.append({
                         'row_number': row_number,
                         'order_id': row.get('order-Id', '').strip(),
                         'customer_name': customer_name,
-                        'customer_email': row.get('customer_email', ''),
-                        'customer_phone': row.get('customer_phone', ''),
-                        'customer_company': row.get('customer_company', ''),
-                        'customer_country': row.get('customer_country', ''),
+                        'customer_email': customer_email,
+                        'customer_phone': customer_phone,
+                        'customer_company': customer_company,
+                        'customer_country': customer_country,
                         'customer_address': customer_address,
-                        'return_description': row.get('return_description', ''),
+                        'return_description': return_description,
                         'reported_issue': row.get('Reported_Issue', ''),
                         'asset_serial_number': row.get('asset_serial_number', ''),
                         'priority': row.get('priority', 'Medium'),
@@ -11728,7 +11737,8 @@ def bulk_import_asset_return():
                         'city': row.get('city', ''),
                         'state': row.get('state', ''),
                         'zip': row.get('zip', ''),
-                        'name_is_empty': not customer_name  # Flag for empty names
+                        'name_is_empty': not customer_name,  # Flag for empty names
+                        'has_missing_fields': missing_required_fields  # Flag for any missing required field
                     })
 
                 # Get available countries, queues, and users for dropdowns
