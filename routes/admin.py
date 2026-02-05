@@ -4348,6 +4348,7 @@ def csv_import_preview_ticket():
 
                 # Filter assets by company access for supervisors
                 from flask_login import current_user
+                from models.enums import UserType
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                     # Get list of accessible company IDs
                     accessible_company_ids = []
@@ -4483,6 +4484,7 @@ def csv_import_preview_ticket():
                 # 4. Search for accessories - IMPROVED ALGORITHM
                 # For supervisors, only show accessories if their company has any
                 should_search_accessories = True
+                # UserType already imported above
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                     user_company_id = current_user.company_id
                     if user_company_id:
@@ -4690,6 +4692,7 @@ def csv_import_preview_ticket():
         queue_session = db_manager.get_session()
         try:
             from flask_login import current_user
+            from models.enums import UserType
 
             # For supervisors, only show queues they have access to
             if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
@@ -8654,6 +8657,7 @@ def asset_checkout_import_preview_ticket():
 
                 # Filter assets by company access for supervisors
                 from flask_login import current_user
+                from models.enums import UserType
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                     # Get list of accessible company IDs
                     accessible_company_ids = []
@@ -8789,6 +8793,7 @@ def asset_checkout_import_preview_ticket():
                 # 4. Search for accessories - IMPROVED ALGORITHM
                 # For supervisors, only show accessories if their company has any
                 should_search_accessories = True
+                # UserType already imported above
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
                     user_company_id = current_user.company_id
                     if user_company_id:
@@ -8996,6 +9001,7 @@ def asset_checkout_import_preview_ticket():
         queue_session = db_manager.get_session()
         try:
             from flask_login import current_user
+            from models.enums import UserType
 
             # For supervisors, only show queues they have access to
             if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
