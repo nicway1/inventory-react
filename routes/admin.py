@@ -4106,9 +4106,9 @@ def cleanup_old_csv_files():
                 if current_time - file_time > 3600:
                     try:
                         os.remove(file_path)
-                        logger.info("Cleaned up old CSV file: {filename}")
+                        logger.info(f"Cleaned up old CSV file: {filename}")
                     except Exception as e:
-                        logger.info("Failed to clean up file {filename}: {e}")
+                        logger.info(f"Failed to clean up file {filename}: {e}")
     except Exception as e:
         logger.info("Error in cleanup: {e}")
 
@@ -8387,9 +8387,9 @@ def cleanup_old_csv_files():
                 if current_time - file_time > 3600:
                     try:
                         os.remove(file_path)
-                        logger.info("Cleaned up old CSV file: {filename}")
+                        logger.info(f"Cleaned up old CSV file: {filename}")
                     except Exception as e:
-                        logger.info("Failed to clean up file {filename}: {e}")
+                        logger.info(f"Failed to clean up file {filename}: {e}")
     except Exception as e:
         logger.info("Error in cleanup: {e}")
 

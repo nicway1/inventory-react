@@ -788,6 +788,13 @@ document.getElementById('selectAll').addEventListener('change', function() {
 function markRowAsImported(rowIndex, ticketId, updatedFields = {}) {
     // Find the table row
     const tbody = document.getElementById('ticketsTableBody');
+
+    // Check if tbody exists before accessing it
+    if (!tbody) {
+        console.warn('Table body not found. Cannot mark row as imported.');
+        return;
+    }
+
     const rows = tbody.querySelectorAll('tr');
 
     if (rowIndex < rows.length) {
