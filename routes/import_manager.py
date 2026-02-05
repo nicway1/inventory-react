@@ -83,8 +83,12 @@ def dashboard():
         if date_to:
             query = query.filter(ImportSession.started_at <= datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1))
 
-        # For COUNTRY_ADMIN/SUPERVISOR, only show their own imports or imports they have permission for
+        # For COUNTRY_ADMIN/SUPERVISOR, only show their own imports
         if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Restrict to only their own imports
+            query = query.filter(ImportSession.user_id == current_user.id)
+
+            # Also filter by allowed import types
             allowed_types = get_user_allowed_imports(current_user)
             if allowed_types:
                 query = query.filter(ImportSession.import_type.in_(allowed_types))
@@ -102,16 +106,35 @@ def dashboard():
         today = datetime.utcnow().date()
         this_month_start = today.replace(day=1)
 
-        total_imports = db_session.query(func.count(ImportSession.id)).scalar() or 0
-        this_month_imports = db_session.query(func.count(ImportSession.id)).filter(
+        # Build stats query base
+        stats_query = db_session.query(func.count(ImportSession.id))
+
+        # Filter stats for COUNTRY_ADMIN/SUPERVISOR to show only their own
+        if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            stats_query = stats_query.filter(ImportSession.user_id == current_user.id)
+
+        total_imports = stats_query.scalar() or 0
+
+        this_month_query = db_session.query(func.count(ImportSession.id)).filter(
             ImportSession.started_at >= this_month_start
-        ).scalar() or 0
-        successful_imports = db_session.query(func.count(ImportSession.id)).filter(
+        )
+        if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            this_month_query = this_month_query.filter(ImportSession.user_id == current_user.id)
+        this_month_imports = this_month_query.scalar() or 0
+
+        successful_query = db_session.query(func.count(ImportSession.id)).filter(
             ImportSession.status == 'completed'
-        ).scalar() or 0
-        failed_imports = db_session.query(func.count(ImportSession.id)).filter(
+        )
+        if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            successful_query = successful_query.filter(ImportSession.user_id == current_user.id)
+        successful_imports = successful_query.scalar() or 0
+
+        failed_query = db_session.query(func.count(ImportSession.id)).filter(
             ImportSession.status == 'failed'
-        ).scalar() or 0
+        )
+        if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            failed_query = failed_query.filter(ImportSession.user_id == current_user.id)
+        failed_imports = failed_query.scalar() or 0
 
         success_rate = round((successful_imports / total_imports * 100) if total_imports > 0 else 0, 1)
 
@@ -193,6 +216,12 @@ def view_session(session_id):
 
         # Check permission for COUNTRY_ADMIN/SUPERVISOR
         if current_user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            # Can only view their own import sessions
+            if import_session.user_id != current_user.id:
+                flash('You do not have permission to view this import session.', 'error')
+                return redirect(url_for('import_manager.dashboard'))
+
+            # Also check if import type is allowed
             allowed_types = get_user_allowed_imports(current_user)
             if import_session.import_type not in allowed_types:
                 flash('You do not have permission to view this import session.', 'error')
