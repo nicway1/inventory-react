@@ -172,8 +172,6 @@
                             <th style="min-width: 120px;">Asset Serial</th>
                             <th style="min-width: 90px;">Priority</th>
                             <th style="min-width: 100px;">Queue</th>
-                            <th style="min-width: 150px;">Case Owner</th>
-                            <th style="min-width: 200px;">Notes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -285,21 +283,6 @@
                                     </option>
                                     {% endfor %}
                                 </select>
-                            </td>
-                            <td>
-                                <select name="row_{{ loop.index0 }}_case_owner_email">
-                                    <option value="">None</option>
-                                    {% for case_user in users %}
-                                    <option value="{{ case_user.email }}"
-                                            {% if row.case_owner_email == case_user.email %}selected{% endif %}>
-                                        {{ case_user.username }} ({{ case_user.email }})
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <textarea name="row_{{ loop.index0 }}_notes"
-                                          placeholder="Additional notes">{{ row.notes }}</textarea>
                             </td>
                         </tr>
                         {% endfor %}
