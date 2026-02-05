@@ -164,9 +164,9 @@
                             <th style="min-width: 50px; width: 50px;">Row</th>
                             <th style="min-width: 150px;">Customer Name <span class="required-star">*</span></th>
                             <th style="min-width: 180px;">Email <span class="required-star">*</span></th>
-                            <th style="min-width: 120px;">Phone</th>
-                            <th style="min-width: 130px;">Company</th>
-                            <th style="min-width: 350px;">Customer Address</th>
+                            <th style="min-width: 120px;">Phone <span class="required-star">*</span></th>
+                            <th style="min-width: 130px;">Company <span class="required-star">*</span></th>
+                            <th style="min-width: 350px;">Customer Address <span class="required-star">*</span></th>
                             <th style="min-width: 110px;">Country <span class="required-star">*</span></th>
                             <th style="min-width: 200px;">Return Description <span class="required-star">*</span></th>
                             <th style="min-width: 120px;">Asset Serial</th>
@@ -220,18 +220,24 @@
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_phone"
                                        value="{{ row.customer_phone }}"
+                                       class="required-field"
+                                       required
                                        placeholder="+65-1234-5678">
                             </td>
                             <td>
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_company"
                                        value="{{ row.customer_company }}"
+                                       class="required-field"
+                                       required
                                        placeholder="Company name">
                             </td>
                             <td>
                                 <input type="text"
                                        name="row_{{ loop.index0 }}_customer_address"
                                        value="{{ row.customer_address }}"
+                                       class="required-field"
+                                       required
                                        placeholder="Full address">
                                 <!-- Hidden fields for address components (legacy support) -->
                                 <input type="hidden" name="row_{{ loop.index0 }}_address_line_1" value="{{ row.address_line_1 or '' }}">
