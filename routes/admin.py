@@ -4498,7 +4498,8 @@ def csv_import_preview_ticket():
                     accessory_query = db_session.query(Accessory)
 
                     # Debug logging for accessory matching
-                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")\n
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+
                 # Search by exact product name in accessories (highest priority)
                 if product_title and should_search_accessories:
                     # First try exact phrase matches (including aliases)
@@ -8803,7 +8804,8 @@ def asset_checkout_import_preview_ticket():
                     accessory_query = db_session.query(Accessory)
 
                     # Debug logging for accessory matching
-                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")\n
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+
                 # Search by exact product name in accessories (highest priority)
                 if product_title and should_search_accessories:
                     # First try exact phrase matches (including aliases)
