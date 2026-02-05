@@ -4359,17 +4359,12 @@ def csv_import_preview_ticket():
                     ).all()
                     accessible_company_ids = [perm.company_id for perm in company_perms]
 
-                    # Filter asset query to include assets from accessible companies OR unassigned assets
+                    # Filter asset query to only include assets from accessible companies
                     if accessible_company_ids:
-                        asset_query = asset_query.filter(
-                            or_(
-                                Asset.company_id.in_(accessible_company_ids),
-                                Asset.company_id.is_(None)  # Also show unassigned assets
-                            )
-                        )
+                        asset_query = asset_query.filter(Asset.company_id.in_(accessible_company_ids))
                     else:
-                        # No accessible companies, only show unassigned assets
-                        asset_query = asset_query.filter(Asset.company_id.is_(None))
+                        # No accessible companies, no assets to show
+                        asset_query = asset_query.filter(Asset.id == -1)
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
@@ -8676,17 +8671,12 @@ def asset_checkout_import_preview_ticket():
                     ).all()
                     accessible_company_ids = [perm.company_id for perm in company_perms]
 
-                    # Filter asset query to include assets from accessible companies OR unassigned assets
+                    # Filter asset query to only include assets from accessible companies
                     if accessible_company_ids:
-                        asset_query = asset_query.filter(
-                            or_(
-                                Asset.company_id.in_(accessible_company_ids),
-                                Asset.company_id.is_(None)  # Also show unassigned assets
-                            )
-                        )
+                        asset_query = asset_query.filter(Asset.company_id.in_(accessible_company_ids))
                     else:
-                        # No accessible companies, only show unassigned assets
-                        asset_query = asset_query.filter(Asset.company_id.is_(None))
+                        # No accessible companies, no assets to show
+                        asset_query = asset_query.filter(Asset.id == -1)
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
