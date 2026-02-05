@@ -4346,26 +4346,6 @@ def csv_import_preview_ticket():
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
 
-                # Filter assets by company access for supervisors
-                from flask_login import current_user
-                from models.enums import UserType
-                from models.user_company_permission import UserCompanyPermission
-                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
-                    # Get list of accessible company IDs from database
-                    accessible_company_ids = []
-                    company_perms = db_session.query(UserCompanyPermission).filter(
-                        UserCompanyPermission.user_id == current_user.id,
-                        UserCompanyPermission.can_view == True
-                    ).all()
-                    accessible_company_ids = [perm.company_id for perm in company_perms]
-
-                    # Filter asset query to only include assets from accessible companies
-                    if accessible_company_ids:
-                        asset_query = asset_query.filter(Asset.company_id.in_(accessible_company_ids))
-                    else:
-                        # No accessible companies, no assets to show
-                        asset_query = asset_query.filter(Asset.id == -1)
-
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
                     serial_matches = asset_query.filter(
@@ -8657,26 +8637,6 @@ def asset_checkout_import_preview_ticket():
                 
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
-
-                # Filter assets by company access for supervisors
-                from flask_login import current_user
-                from models.enums import UserType
-                from models.user_company_permission import UserCompanyPermission
-                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
-                    # Get list of accessible company IDs from database
-                    accessible_company_ids = []
-                    company_perms = db_session.query(UserCompanyPermission).filter(
-                        UserCompanyPermission.user_id == current_user.id,
-                        UserCompanyPermission.can_view == True
-                    ).all()
-                    accessible_company_ids = [perm.company_id for perm in company_perms]
-
-                    # Filter asset query to only include assets from accessible companies
-                    if accessible_company_ids:
-                        asset_query = asset_query.filter(Asset.company_id.in_(accessible_company_ids))
-                    else:
-                        # No accessible companies, no assets to show
-                        asset_query = asset_query.filter(Asset.id == -1)
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
