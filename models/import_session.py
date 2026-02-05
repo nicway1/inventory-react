@@ -34,6 +34,7 @@ class ImportSession(Base):
     TYPE_INVENTORY = 'inventory'
     TYPE_CUSTOMERS = 'customers'
     TYPE_CSV_IMPORT = 'csv_import'
+    TYPE_ASSET_CHECKOUT = 'asset_checkout'
     TYPE_ASSET_RETURN = 'asset_return'
     TYPE_1STBASE = '1stbase'
     TYPE_RETOOL = 'retool'
@@ -42,9 +43,10 @@ class ImportSession(Base):
     TYPE_NAMES = {
         'inventory': 'Import Inventory/Assets',
         'customers': 'Import Customers',
-        'csv_import': 'CSV Import (Checkout)',
-        'asset_return': 'Bulk Import Asset Return',
-        '1stbase': 'Bulk Import 1stBase',
+        'csv_import': 'Import (Firstbase Checkout)',
+        'asset_checkout': 'Import Asset Checkout Tickets',
+        'asset_return': 'Import Asset Return Tickets',
+        '1stbase': 'Import Firstbase Asset Returns Tickets',
         'retool': 'Import from Retool'
     }
 
@@ -53,6 +55,7 @@ class ImportSession(Base):
         'inventory': 'fas fa-boxes',
         'customers': 'fas fa-users',
         'csv_import': 'fas fa-file-csv',
+        'asset_checkout': 'fas fa-file-upload',
         'asset_return': 'fas fa-undo',
         '1stbase': 'fas fa-database',
         'retool': 'fas fa-tools'
@@ -63,6 +66,7 @@ class ImportSession(Base):
         'inventory': 'purple',
         'customers': 'blue',
         'csv_import': 'green',
+        'asset_checkout': 'blue',
         'asset_return': 'orange',
         '1stbase': 'indigo',
         'retool': 'teal'

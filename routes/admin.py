@@ -3947,9 +3947,9 @@ def csv_import_upload():
         # Generate unique file ID
         import uuid
         file_id = str(uuid.uuid4())
-        
-        # Read and parse CSV
-        csv_content = file.read().decode('utf-8')
+
+        # Read and parse CSV (UTF-8-sig handles BOM if present)
+        csv_content = file.read().decode('utf-8-sig')
         csv_reader = csv.DictReader(io.StringIO(csv_content))
         
         # Convert to list and validate
@@ -3961,7 +3961,7 @@ def csv_import_upload():
                 raw_data.append(cleaned_row)
         
         if not raw_data:
-            return jsonify({'success': False, 'error': 'No valid data found in CSV'})
+            return jsonify({'success': False, 'error': 'No data found in CSV'})
         
         # Group orders by order_id
         grouped_data, individual_data = group_orders_by_id(raw_data)
@@ -8162,3 +8162,1593 @@ def mass_create_users():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         db_session.close()
+
+# =============================================================================
+# ASSET CHECKOUT IMPORT - Cloned from CSV Import
+# =============================================================================
+
+@admin_bp.route('/asset-checkout-import')
+@login_required
+def asset_checkout_import():
+    """CSV Import for Asset Checkout Tickets"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has asset_checkout_import permission
+    user = db_manager.get_user(session['user_id'])
+
+    # Super admins and developers always have access
+    if not (user.is_super_admin or user.is_developer):
+        # Check UserImportPermission
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'asset_checkout')
+            if not has_permission:
+                flash('You do not have permission to access Import Asset Checkout', 'error')
+                return redirect(url_for('main.dashboard'))
+        finally:
+            db_session.close()
+
+    return render_template('admin/asset_checkout_import.html')
+
+
+@admin_bp.route('/asset-checkout-import/upload', methods=['POST'])
+@login_required
+def asset_checkout_import_upload():
+    """Upload and parse CSV file for ticket import"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has asset_checkout_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'asset_checkout')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access Import Asset Checkout'})
+        finally:
+            db_session.close()
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'})
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'error': 'File must be a CSV'})
+
+        # Generate unique file ID
+        import uuid
+        file_id = str(uuid.uuid4())
+
+        # Read and parse CSV (UTF-8-sig handles BOM if present)
+        csv_content = file.read().decode('utf-8-sig')
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+        
+        # Convert to list and validate
+        raw_data = []
+        for row in csv_reader:
+            # Clean and validate the row
+            cleaned_row = clean_csv_row(row)
+            if cleaned_row:  # Add all rows (even with validation errors)
+                raw_data.append(cleaned_row)
+        
+        if not raw_data:
+            return jsonify({'success': False, 'error': 'No data found in CSV'})
+        
+        # Group orders by order_id
+        grouped_data, individual_data = group_orders_by_id(raw_data)
+
+        # Combine grouped and individual data for display
+        display_data = grouped_data + individual_data
+
+        # Check for duplicates against existing database tickets
+        db_session = db_manager.get_session()
+        try:
+            existing_order_ids = set()
+            existing_tickets = db_session.query(Ticket.firstbaseorderid).filter(
+                Ticket.firstbaseorderid.isnot(None)
+            ).all()
+            existing_order_ids = {ticket.firstbaseorderid for ticket in existing_tickets}
+        except:
+            existing_order_ids = set()
+        finally:
+            db_session.close()
+
+        # Mark tickets as duplicate, processing, or having validation errors
+        duplicate_count = 0
+        processing_count = 0
+        empty_name_count = 0
+        validation_error_count = 0
+        for row in display_data:
+            order_id = row.get('order_id', '').strip()
+            status = row.get('status', '').upper()
+            person_name = row.get('person_name', '').strip()
+
+            row['is_duplicate'] = order_id and order_id in existing_order_ids
+            row['is_processing'] = status == 'PROCESSING'
+            has_validation_errors = row.get('has_validation_errors', False)
+            row['cannot_import'] = row['is_duplicate'] or row['is_processing'] or has_validation_errors
+
+            if row['is_duplicate']:
+                duplicate_count += 1
+            if row['is_processing']:
+                processing_count += 1
+            if not person_name:
+                empty_name_count += 1
+            if has_validation_errors:
+                validation_error_count += 1
+
+        # Store in temporary file with file_id
+        temp_file = os.path.join(tempfile.gettempdir(), f'asset_checkout_import_{file_id}.json')
+        with open(temp_file, 'w') as f:
+            json.dump(display_data, f)
+
+        # Clean up old files (older than 1 hour)
+        cleanup_old_csv_files()
+
+        # Calculate importable count
+        cannot_import_count = sum(1 for row in display_data if row.get('cannot_import', False))
+        importable_count = len(display_data) - cannot_import_count
+
+        return jsonify({
+            'success': True,
+            'file_id': file_id,
+            'total_rows': len(display_data),
+            'grouped_orders': len(grouped_data),
+            'individual_rows': len(individual_data),
+            'duplicate_count': duplicate_count,
+            'processing_count': processing_count,
+            'empty_name_count': empty_name_count,
+            'validation_error_count': validation_error_count,
+            'importable_count': importable_count,
+            'data': display_data,  # Include the actual data for display
+            'message': f'Successfully processed {len(raw_data)} rows into {len(display_data)} tickets ({len(grouped_data)} grouped orders, {len(individual_data)} individual items)'
+        })
+        
+    except Exception as e:
+        logger.info("Error in CSV upload: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to process CSV: {str(e)}'})
+
+
+@admin_bp.route('/asset-checkout-import/load-data', methods=['GET'])
+@login_required
+def asset_checkout_import_load_data():
+    """Load CSV data from a file_id parameter"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has asset_checkout_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'asset_checkout')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access Import Asset Checkout'})
+        finally:
+            db_session.close()
+
+    try:
+        file_id = request.args.get('file_id')
+
+        if not file_id:
+            return jsonify({'success': False, 'error': 'Missing file_id parameter'})
+
+        # Load data from temporary file
+        temp_file = os.path.join(tempfile.gettempdir(), f'asset_checkout_import_{file_id}.json')
+
+        if not os.path.exists(temp_file):
+            return jsonify({'success': False, 'error': 'CSV data not found. The file may have expired. Please upload again.'})
+
+        with open(temp_file, 'r') as f:
+            display_data = json.load(f)
+
+        # Calculate statistics
+        duplicate_count = sum(1 for row in display_data if row.get('is_duplicate', False))
+        processing_count = sum(1 for row in display_data if row.get('is_processing', False))
+        cannot_import_count = sum(1 for row in display_data if row.get('cannot_import', False))
+        importable_count = len(display_data) - cannot_import_count
+
+        return jsonify({
+            'success': True,
+            'file_id': file_id,
+            'total_count': len(display_data),
+            'duplicate_count': duplicate_count,
+            'processing_count': processing_count,
+            'importable_count': importable_count,
+            'data': display_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error loading CSV data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to load CSV data: {str(e)}'})
+
+
+def cleanup_old_csv_files():
+    """Clean up CSV files older than 1 hour"""
+    try:
+        import time
+        temp_dir = tempfile.gettempdir()
+        current_time = time.time()
+        
+        for filename in os.listdir(temp_dir):
+            if filename.startswith('asset_checkout_import_') and filename.endswith('.json'):
+                file_path = os.path.join(temp_dir, filename)
+                file_time = os.path.getmtime(file_path)
+                # Remove files older than 1 hour (3600 seconds)
+                if current_time - file_time > 3600:
+                    try:
+                        os.remove(file_path)
+                        logger.info("Cleaned up old CSV file: {filename}")
+                    except Exception as e:
+                        logger.info("Failed to clean up file {filename}: {e}")
+    except Exception as e:
+        logger.info("Error in cleanup: {e}")
+
+def clean_csv_row(row):
+    """Clean and validate a CSV row for Asset Checkout Import"""
+    try:
+        # Required fields for new format
+        required_fields = ['order_item_id', 'order_id', 'product_title', 'person_name', 'org_name', 'phone_number', 'address_line1', 'city', 'state', 'postal_code', 'primary_email']
+
+        # Clean whitespace and handle quoted empty values
+        cleaned = {}
+        for key, value in row.items():
+            if value is None:
+                cleaned[key] = ''
+            else:
+                # Strip whitespace and handle quoted spaces like " "
+                cleaned_value = str(value).strip()
+                if cleaned_value in ['" "', "'  '", '""', "''"]:
+                    cleaned_value = ''
+                cleaned[key] = cleaned_value
+
+        # Check if required fields are present and non-empty, track missing fields
+        missing_fields = []
+        for field in required_fields:
+            if not cleaned.get(field):
+                missing_fields.append(field)
+
+        # Set default values for optional fields
+        defaults = {
+            'serial_number': cleaned.get('serial_number') or '',
+            'brand': cleaned.get('brand') or '',
+            'address_line2': cleaned.get('address_line2') or '',
+            'priority': cleaned.get('priority') or '2',  # Default to medium priority
+        }
+
+        # Update cleaned row with defaults
+        for key, default_value in defaults.items():
+            if not cleaned.get(key):
+                cleaned[key] = default_value
+
+        # Add validation info to row
+        cleaned['has_validation_errors'] = len(missing_fields) > 0
+        cleaned['missing_fields'] = missing_fields
+        cleaned['validation_error_message'] = f"Missing required fields: {', '.join(missing_fields)}" if missing_fields else ''
+
+        return cleaned
+
+    except Exception as e:
+        logger.info(f"Error cleaning row: {e}")
+        return None
+
+def group_orders_by_id(data):
+    """Group CSV rows by order_id"""
+    try:
+        order_groups = {}
+        individual_items = []
+        
+        # Group by order_id
+        for row in data:
+            order_id = row.get('order_id', '').strip()
+            if order_id:
+                if order_id not in order_groups:
+                    order_groups[order_id] = []
+                order_groups[order_id].append(row)
+            else:
+                # No order_id, treat as individual
+                individual_items.append(row)
+        
+        grouped_orders = []
+        
+        # Process groups
+        for order_id, items in order_groups.items():
+            if len(items) > 1:
+                # Multiple items - create grouped order
+                primary_item = items[0]  # Use first item as primary
+                
+                # Create item summary
+                product_titles = [item['product_title'] for item in items]
+                if len(product_titles) <= 3:
+                    title_summary = ', '.join(product_titles)
+                else:
+                    title_summary = f"{', '.join(product_titles[:2])} and {len(product_titles) - 2} more..."
+                
+                grouped_order = {
+                    'is_grouped': True,
+                    'order_id': order_id,
+                    'item_count': len(items),
+                    'title_summary': title_summary,
+                    'all_items': items,
+                    # Include primary item data for compatibility
+                    **primary_item
+                }
+                grouped_orders.append(grouped_order)
+            else:
+                # Single item, add to individual
+                item = items[0]
+                item['is_grouped'] = False
+                individual_items.append(item)
+        
+        # Mark individual items
+        for item in individual_items:
+            if 'is_grouped' not in item:
+                item['is_grouped'] = False
+        
+        return grouped_orders, individual_items
+        
+    except Exception as e:
+        logger.info("Error grouping orders: {e}")
+        return [], data
+
+@admin_bp.route('/asset-checkout-import/preview-ticket', methods=['POST'])
+@login_required
+def asset_checkout_import_preview_ticket():
+    """Preview a single ticket from CSV data with enhanced features"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has asset_checkout_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'asset_checkout')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access Import Asset Checkout'})
+        finally:
+            db_session.close()
+
+    try:
+        data = request.json
+        row_index = data.get('row_index')
+        is_grouped = data.get('is_grouped', False)
+        file_id = data.get('file_id')
+        
+        if file_id is None or row_index is None:
+            return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
+            
+        # Load data from file
+        temp_file = os.path.join(tempfile.gettempdir(), f'asset_checkout_import_{file_id}.json')
+        if not os.path.exists(temp_file):
+            return jsonify({'success': False, 'error': 'CSV data not found. Please re-upload your file.'})
+            
+        with open(temp_file, 'r') as f:
+            csv_data = json.load(f)
+        
+        if row_index >= len(csv_data):
+            return jsonify({'success': False, 'error': 'Invalid row index'})
+            
+        row = csv_data[row_index]
+        
+        if is_grouped:
+            all_items = row.get('all_items', [row])
+            if not all_items or len(all_items) == 0:
+                return jsonify({'success': False, 'error': 'No items found in grouped order'})
+            primary_item = all_items[0]
+            if not primary_item:
+                return jsonify({'success': False, 'error': 'Primary item is null in grouped order'})
+        else:
+            all_items = [row]
+            primary_item = row
+            
+        # Validate that primary_item has required fields
+        if not primary_item or not primary_item.get('product_title'):
+            return jsonify({'success': False, 'error': f'Invalid item data: {primary_item}'})
+        
+        # Enhanced category mapping with queue routing
+        def determine_category_and_queue(product_title, category_code):
+            """Determine category and queue based on product type"""
+            product_lower = product_title.lower()
+            category_lower = category_code.lower() if category_code else ""
+            
+            # Accessory detection patterns
+            accessory_keywords = [
+                'adapter', 'cable', 'charger', 'mouse', 'keyboard', 'headset', 
+                'webcam', 'dock', 'hub', 'dongle', 'stand', 'pad', 'cover',
+                'case', 'sleeve', 'bag', 'power supply', 'cord', 'usb'
+            ]
+            
+            # Computer/laptop detection patterns  
+            computer_keywords = [
+                'macbook', 'laptop', 'computer', 'imac', 'pc', 'desktop', 
+                'workstation', 'tower', 'all-in-one', 'surface', 'thinkpad'
+            ]
+            
+            # Check if it's an accessory
+            is_accessory = (
+                any(keyword in product_lower for keyword in accessory_keywords) or
+                any(keyword in category_lower for keyword in ['accessory', 'peripheral', 'cable', 'adapter'])
+            )
+            
+            # Check if it's a computer/laptop
+            is_computer = (
+                any(keyword in product_lower for keyword in computer_keywords) or
+                any(keyword in category_lower for keyword in ['computer', 'laptop', 'desktop'])
+            )
+            
+            if is_accessory:
+                return 'ASSET_CHECKOUT_CLAW', 'Checkout Accessories'
+            elif is_computer:
+                return 'ASSET_CHECKOUT_CLAW', 'Tech Asset'
+            else:
+                return 'ASSET_CHECKOUT_CLAW', 'General'
+        
+        # Check inventory for each item
+        db_session = db_manager.get_session()
+        try:
+            inventory_info = []
+            for item in all_items:
+                product_title = item.get('product_title', '')
+                serial_number = item.get('serial_number', '')
+                brand = item.get('brand', '')
+                category = item.get('category_code', '')
+                
+                # Initialize matches list
+                matches = []
+                
+                # Search for matching assets in inventory
+                asset_query = db_session.query(Asset)
+                
+                # 1. Search by serial number (highest priority for assets)
+                if serial_number:
+                    serial_matches = asset_query.filter(
+                        Asset.serial_num.ilike(f'%{serial_number}%')
+                    ).all()
+                    
+                    for asset in serial_matches:
+                        # Check availability status
+                        is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                        status_display = asset.status.value if asset.status else 'Unknown'
+                        availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
+                        
+                        matches.append({
+                            'match_type': 'Serial Number (Asset)',
+                            'item_type': 'asset',
+                            'id': asset.id,
+                            'name': asset.name or asset.model,
+                            'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                            'availability': availability_text,
+                            'is_available': is_available,
+                            'confidence': 'High'
+                        })
+                
+                # 2. Search by product name in assets (medium priority) - IMPROVED ALGORITHM
+                if product_title and len(matches) < 3:
+                    # First try exact phrase matches (highest relevance)
+                    exact_phrase_matches = asset_query.filter(
+                        or_(
+                            Asset.name.ilike(f'%{product_title}%'),
+                            Asset.model.ilike(f'%{product_title}%'),
+                            Asset.hardware_type.ilike(f'%{product_title}%')
+                        )
+                    ).limit(3).all()
+                    
+                    for asset in exact_phrase_matches:
+                        if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                            is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                            status_display = asset.status.value if asset.status else 'Unknown'
+                            availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
+                            
+                            matches.append({
+                                'match_type': 'Exact Phrase (Asset)',
+                                'item_type': 'asset',
+                                'id': asset.id,
+                                'name': asset.name or asset.model,
+                                'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                'availability': availability_text,
+                                'is_available': is_available,
+                                'confidence': 'High'
+                            })
+                    
+                    # If still need more matches, try smart keyword matching
+                    if len(matches) < 3:
+                        # Extract meaningful keywords (filter out common words)
+                        common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
+                        search_terms = [term.lower() for term in product_title.split() 
+                                      if len(term) > 3 and term.lower() not in common_words]
+                        
+                        # Only proceed if we have meaningful terms
+                        if search_terms:
+                            # Create a query that requires multiple term matches for better relevance
+                            conditions = []
+                            for term in search_terms[:3]:  # Limit to first 3 meaningful terms
+                                conditions.append(
+                                    or_(
+                                        Asset.name.ilike(f'%{term}%'),
+                                        Asset.model.ilike(f'%{term}%'),
+                                        Asset.hardware_type.ilike(f'%{term}%'),
+                                        Asset.manufacturer.ilike(f'%{term}%')
+                                    )
+                                )
+                            
+                            # Try to find assets that match multiple terms
+                            if len(conditions) >= 2:
+                                multi_term_matches = asset_query.filter(
+                                    and_(*conditions[:2])  # Require at least 2 terms to match
+                                ).limit(2).all()
+                                
+                                for asset in multi_term_matches:
+                                    if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                                        is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                                        status_display = asset.status.value if asset.status else 'Unknown'
+                                        availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
+                                        
+                                        matches.append({
+                                            'match_type': 'Multi-term Match (Asset)',
+                                            'item_type': 'asset',
+                                            'id': asset.id,
+                                            'name': asset.name or asset.model,
+                                            'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                            'availability': availability_text,
+                                            'is_available': is_available,
+                                            'confidence': 'Medium'
+                                        })
+                
+                # 3. Search by brand in assets (lower priority)
+                if brand and len(matches) < 3:
+                    brand_matches = asset_query.filter(
+                        Asset.manufacturer.ilike(f'%{brand}%')
+                    ).limit(2).all()
+                    
+                    for asset in brand_matches:
+                        if not any(m.get('id') == asset.id and m.get('item_type') == 'asset' for m in matches):
+                            is_available = asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']
+                            status_display = asset.status.value if asset.status else 'Unknown'
+                            availability_text = f"Available ({status_display})" if is_available else f"Not Available ({status_display})"
+                            
+                            matches.append({
+                                'match_type': 'Brand (Asset)',
+                                'item_type': 'asset',
+                                'id': asset.id,
+                                'name': asset.name or asset.model,
+                                'identifier': f"Tag: {asset.asset_tag or 'N/A'} | Serial: {asset.serial_num or 'N/A'}",
+                                'availability': availability_text,
+                                'is_available': is_available,
+                                'confidence': 'Low'
+                            })
+                
+                # 4. Search for accessories - IMPROVED ALGORITHM
+                from models.accessory_alias import AccessoryAlias
+                accessory_query = db_session.query(Accessory)
+
+                # Debug logging for accessory matching
+                logger.info(f"CSV_ACCESSORY_DEBUG: Searching for accessories with product_title='{product_title}'")
+
+                # Search by exact product name in accessories (highest priority)
+                if product_title:
+                    # First try exact phrase matches (including aliases)
+                    # Get accessories that match by name, model, or alias
+                    alias_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
+                        AccessoryAlias.alias_name.ilike(f'%{product_title}%')
+                    ).subquery()
+
+                    exact_accessory_matches = accessory_query.filter(
+                        or_(
+                            Accessory.name.ilike(f'%{product_title}%'),
+                            Accessory.model_no.ilike(f'%{product_title}%'),
+                            Accessory.id.in_(alias_subquery)
+                        )
+                    ).limit(3).all()
+                    
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Found {len(exact_accessory_matches)} exact phrase matches")
+
+                    for accessory in exact_accessory_matches:
+                        is_available = accessory.available_quantity > 0
+                        availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+
+                        # Check if this match was via alias
+                        matched_via_alias = False
+                        matched_alias_name = None
+                        for alias in accessory.aliases:
+                            if product_title.lower() in alias.alias_name.lower():
+                                matched_via_alias = True
+                                matched_alias_name = alias.alias_name
+                                break
+
+                        match_type = 'Exact Phrase (Accessory - Alias)' if matched_via_alias else 'Exact Phrase (Accessory)'
+                        identifier = f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}"
+                        if matched_via_alias:
+                            identifier = f"Matched via alias: {matched_alias_name} | {identifier}"
+
+                        matches.append({
+                            'match_type': match_type,
+                            'item_type': 'accessory',
+                            'id': accessory.id,
+                            'name': accessory.name,
+                            'identifier': identifier,
+                            'availability': availability_text,
+                            'is_available': is_available,
+                            'confidence': 'High'
+                        })
+                
+                # 5. Search accessories by intelligent keyword matching
+                if len(matches) < 5:
+                    # Extract meaningful keywords (filter out common words)
+                    common_words = {'with', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'by', 'from'}
+                    search_terms = [term.lower() for term in product_title.split()
+                                  if len(term) > 3 and term.lower() not in common_words] if product_title else []
+
+                    logger.info(f"CSV_ACCESSORY_DEBUG: Intelligent search terms: {search_terms}")
+
+                    if search_terms:
+                        # Try multi-term matching for better relevance
+                        conditions = []
+                        for term in search_terms[:3]:  # Limit to first 3 meaningful terms
+                            # Create subquery for alias matching
+                            alias_term_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
+                                AccessoryAlias.alias_name.ilike(f'%{term}%')
+                            ).subquery()
+
+                            conditions.append(
+                                or_(
+                                    Accessory.name.ilike(f'%{term}%'),
+                                    Accessory.category.ilike(f'%{term}%'),
+                                    Accessory.manufacturer.ilike(f'%{term}%'),
+                                    Accessory.model_no.ilike(f'%{term}%'),
+                                    Accessory.id.in_(alias_term_subquery)
+                                )
+                            )
+
+                        # Try to find accessories that match multiple terms
+                        if len(conditions) >= 2:
+                            logger.info(f"CSV_ACCESSORY_DEBUG: Searching for multi-term matches")
+                            multi_term_accessory_matches = accessory_query.filter(
+                                and_(*conditions[:2])  # Require at least 2 terms to match
+                            ).limit(2).all()
+                            
+                            for accessory in multi_term_accessory_matches:
+                                if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
+                                    is_available = accessory.available_quantity > 0
+                                    availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                                    
+                                    matches.append({
+                                        'match_type': 'Multi-term Match (Accessory)',
+                                        'item_type': 'accessory',
+                                        'id': accessory.id,
+                                        'name': accessory.name,
+                                        'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                                        'availability': availability_text,
+                                        'is_available': is_available,
+                                        'confidence': 'Medium'
+                                    })
+                        
+                        # If still need matches, try single meaningful term matches (lower priority)
+                        elif len(matches) < 5 and search_terms:
+                            # Use only the most specific term (usually the product type)
+                            primary_term = search_terms[0]  # Usually the most important term
+                            logger.info(f"CSV_ACCESSORY_DEBUG: Searching single term matches for: '{primary_term}'")
+
+                            # Create subquery for alias matching
+                            alias_single_subquery = db_session.query(AccessoryAlias.accessory_id).filter(
+                                AccessoryAlias.alias_name.ilike(f'%{primary_term}%')
+                            ).subquery()
+
+                            single_term_matches = accessory_query.filter(
+                                or_(
+                                    Accessory.name.ilike(f'%{primary_term}%'),
+                                    Accessory.category.ilike(f'%{primary_term}%'),
+                                    Accessory.manufacturer.ilike(f'%{primary_term}%'),
+                                    Accessory.model_no.ilike(f'%{primary_term}%'),
+                                    Accessory.id.in_(alias_single_subquery)
+                                )
+                            ).limit(2).all()
+                            
+                            for accessory in single_term_matches:
+                                if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
+                                    is_available = accessory.available_quantity > 0
+                                    availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                                    
+                                    matches.append({
+                                        'match_type': 'Single Term Match (Accessory)',
+                                        'item_type': 'accessory',
+                                        'id': accessory.id,
+                                        'name': accessory.name,
+                                        'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                                        'availability': availability_text,
+                                        'is_available': is_available,
+                                        'confidence': 'Low'
+                                    })
+                
+                # 6. Search accessories by brand
+                if brand and len(matches) < 5:
+                    brand_accessory_matches = accessory_query.filter(
+                        Accessory.manufacturer.ilike(f'%{brand}%')
+                    ).limit(2).all()
+                    
+                    for accessory in brand_accessory_matches:
+                        if not any(m.get('id') == accessory.id and m.get('item_type') == 'accessory' for m in matches):
+                            is_available = accessory.available_quantity > 0
+                            availability_text = f"Available (Qty: {accessory.available_quantity})" if is_available else "Out of Stock"
+                            
+                            matches.append({
+                                'match_type': 'Brand (Accessory)',
+                                'item_type': 'accessory',
+                                'id': accessory.id,
+                                'name': accessory.name,
+                                'identifier': f"Category: {accessory.category or 'N/A'} | Model: {accessory.model_no or 'N/A'}",
+                                'availability': availability_text,
+                                'is_available': is_available,
+                                'confidence': 'Low'
+                            })
+                
+                # Determine overall stock status
+                if matches:
+                    # Check if any match is available
+                    available_matches = [m for m in matches if m.get('is_available', False)]
+                    if available_matches:
+                        stock_status = "In Stock"
+                    else:
+                        stock_status = "Found but Not Available"
+                else:
+                    stock_status = "Not Found"
+                
+                inventory_info.append({
+                    'product_title': product_title,
+                    'serial_number': serial_number,
+                    'brand': brand,
+                    'category': category,
+                    'matches': matches[:5],  # Limit to top 5 matches
+                    'stock_status': stock_status
+                })
+        finally:
+            db_session.close()
+        
+        # Determine category and suggested queue
+        primary_category, suggested_queue = determine_category_and_queue(
+            primary_item.get('product_title', ''),
+            primary_item.get('category_code', '')
+        )
+        
+        # Get available queues for selection
+        available_queues = []
+        queue_session = db_manager.get_session()
+        try:
+            queues = queue_session.query(Queue).all()
+            for queue in queues:
+                available_queues.append({
+                    'id': queue.id,
+                    'name': queue.name,
+                    'description': queue.description,
+                    'suggested': queue.name == suggested_queue
+                })
+        finally:
+            queue_session.close()
+        
+        # Get all users for case owner selection (admin and super admin only)
+        available_users = []
+        user_session = db_manager.get_session()
+        try:
+            from models.user import User
+            from models.enums import UserType
+            from flask_login import current_user
+            
+            # Check if user is admin or super admin
+            is_admin = current_user.is_admin or current_user.is_super_admin
+            
+            if is_admin:
+                all_users = user_session.query(User).all()
+                for user in all_users:
+                    available_users.append({
+                        'id': user.id,
+                        'name': user.username,
+                        'email': user.email,
+                        'is_current': user.id == current_user.id
+                    })
+        except Exception as e:
+            logger.info("Error getting users for case owner selection: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            user_session.close()
+        
+        # Create enhanced ticket preview
+        if is_grouped:
+            subject = f"Asset Checkout - Order {row['order_id']} ({row['item_count']} items)"
+            description = f"Multi-item asset checkout request for {primary_item['person_name']} from {primary_item['org_name']} - {row['item_count']} items total"
+
+            # Create asset list for grouped items
+            asset_list = []
+            for item in all_items:
+                asset_list.append({
+                    'product_title': item['product_title'],
+                    'brand': item.get('brand', ''),
+                    'serial_number': item.get('serial_number', ''),
+                    'order_item_id': item.get('order_item_id', '')
+                })
+        else:
+            subject = f"Asset Checkout - {row['product_title']}"
+            description = f"Asset checkout request for {row['person_name']} from {row['org_name']}"
+            asset_list = [{
+                'product_title': row['product_title'],
+                'brand': row.get('brand', ''),
+                'serial_number': row.get('serial_number', ''),
+                'order_item_id': row.get('order_item_id', '')
+            }]
+
+        # Format shipping address
+        address_parts = []
+        if primary_item.get('address_line1'):
+            address_parts.append(primary_item['address_line1'])
+        if primary_item.get('address_line2'):
+            address_parts.append(primary_item['address_line2'])
+        if primary_item.get('city') or primary_item.get('state') or primary_item.get('postal_code'):
+            city_state = ', '.join(filter(None, [primary_item.get('city'), primary_item.get('state'), primary_item.get('postal_code')]))
+            address_parts.append(city_state)
+        shipping_address = '\n'.join(address_parts).strip()
+
+        # Format order details for notes
+        order_notes = f"""Order Details:
+- Order ID: {primary_item.get('order_id', '')}
+- Order Item ID: {primary_item.get('order_item_id', '')}
+- Priority: {primary_item.get('priority', '2')}
+- Phone: {primary_item.get('phone_number', '')}"""
+
+        # Check if person_name is empty
+        person_name = primary_item.get('person_name', '').strip() if primary_item.get('person_name') else ''
+        name_is_empty = not person_name
+
+        # Log if name is empty for debugging
+        if name_is_empty:
+            logger.info(f"CSV Import Preview: Empty customer name detected for order {primary_item.get('order_id')}")
+
+        # Map priority to display value (supports both numeric and text, case-insensitive)
+        priority_value = str(primary_item.get('priority', '2')).strip().lower()
+        priority_display_map = {
+            '1': 'LOW',
+            '2': 'MEDIUM',
+            '3': 'HIGH',
+            '4': 'CRITICAL',
+            'low': 'LOW',
+            'medium': 'MEDIUM',
+            'high': 'HIGH',
+            'critical': 'CRITICAL'
+        }
+        priority_display = priority_display_map.get(priority_value, 'MEDIUM')
+
+        ticket_preview = {
+            'subject': subject,
+            'description': description,
+            'category': primary_category,
+            'priority': priority_display,
+            'status': 'OPEN',
+            'is_grouped': is_grouped,
+            'item_count': len(all_items),
+            'customer_info': {
+                'name': person_name,
+                'email': primary_item['primary_email'],
+                'phone': primary_item['phone_number'],
+                'company': primary_item['org_name']
+            },
+            'name_is_empty': name_is_empty,
+            'has_validation_errors': primary_item.get('has_validation_errors', False),
+            'missing_fields': primary_item.get('missing_fields', []),
+            'validation_error_message': primary_item.get('validation_error_message', ''),
+            'asset_info': asset_list[0],  # Always provide first asset for compatibility
+            'all_assets': asset_list,  # All assets for grouped display
+            'shipping_address': shipping_address,
+            'notes': order_notes,
+            'available_queues': available_queues,
+            'suggested_queue_id': next((q['id'] for q in available_queues if q['suggested']), None),
+            'available_users': available_users,
+            'inventory_info': inventory_info,
+            'shipping_info': {
+                'address_line1': primary_item.get('address_line1', ''),
+                'address_line2': primary_item.get('address_line2', ''),
+                'city': primary_item.get('city', ''),
+                'state': primary_item.get('state', ''),
+                'postal_code': primary_item.get('postal_code', ''),
+                'phone_number': primary_item.get('phone_number', '')
+            },
+            'order_info': {
+                'order_id': primary_item.get('order_id', ''),
+                'order_item_id': primary_item.get('order_item_id', ''),
+                'priority': primary_item.get('priority', '2'),
+                'brand': primary_item.get('brand', ''),
+                'org_name': primary_item.get('org_name', '')
+            }
+        }
+
+        return jsonify({'success': True, 'preview': ticket_preview})
+
+    except Exception as e:
+        logger.info("Error in preview: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to generate preview: {str(e)}'})
+
+@admin_bp.route('/asset-checkout-import/import-ticket', methods=['POST'])
+@login_required
+def asset_checkout_import_import_ticket():
+    """Import a ticket from CSV data with enhanced data flow"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+
+    # Check if user has asset_checkout_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'asset_checkout')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access Import Asset Checkout'})
+        finally:
+            db_session.close()
+
+    try:
+        data = request.json
+        row_index = data.get('row_index')
+        is_grouped = data.get('is_grouped', False)
+        file_id = data.get('file_id')
+        selected_queue_id = data.get('queue_id')  # Get selected queue
+        selected_case_owner_id = data.get('case_owner_id')  # Get selected case owner
+        selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
+        selected_assets = data.get('selected_assets', [])  # Get selected assets
+        updated_fields = data.get('updated_fields', {})  # Get updated field values from editable preview
+
+        # Add logging to see what we're receiving
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        logger.info(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
+        logger.info("[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
+        logger.info("[CSV IMPORT] Selected assets data: {selected_assets}")
+        if updated_fields:
+            logger.info(f"[CSV IMPORT] Updated fields: {updated_fields}")
+        
+        if file_id is None or row_index is None:
+            return jsonify({'success': False, 'error': 'Missing file_id or row_index'})
+        
+        # Load data from file
+        temp_file = os.path.join(tempfile.gettempdir(), f'asset_checkout_import_{file_id}.json')
+        if not os.path.exists(temp_file):
+            return jsonify({'success': False, 'error': 'CSV data not found. Please re-upload your file.'})
+            
+        with open(temp_file, 'r') as f:
+            csv_data = json.load(f)
+        
+        if row_index >= len(csv_data):
+            return jsonify({'success': False, 'error': 'Invalid row index'})
+            
+        row = csv_data[row_index]
+        
+        # Check if the ticket has PROCESSING status and block import
+        if row.get('status') == 'PROCESSING':
+            return jsonify({
+                'success': False, 
+                'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
+            })
+        
+        if is_grouped:
+            all_items = row.get('all_items', [row])
+            if not all_items or len(all_items) == 0:
+                return jsonify({'success': False, 'error': 'No items found in grouped order'})
+            
+            # Check if any item in grouped order has PROCESSING status
+            for item in all_items:
+                if item.get('status') == 'PROCESSING':
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Cannot import tickets with PROCESSING status. One or more items in this order are still processing.'
+                    })
+        else:
+            all_items = [row]
+        
+        primary_item = all_items[0]
+        
+
+        # Merge updated fields from preview into primary_item
+        if updated_fields:
+            for field_name, field_value in updated_fields.items():
+                primary_item[field_name] = field_value
+                logger.info(f"[CSV IMPORT] Updated {field_name} = {field_value}")
+        db_session = db_manager.get_session()
+        try:
+            # Configure SQLite for better concurrency
+            from sqlalchemy import text
+            db_session.execute(text("PRAGMA journal_mode=WAL;"))
+            db_session.execute(text("PRAGMA synchronous=NORMAL;"))
+            db_session.execute(text("PRAGMA busy_timeout=30000;"))  # 30 second timeout
+            
+            # 1. CREATE CUSTOMER FIRST (as requested)
+            from models.customer_user import CustomerUser
+            from models.company import Company
+
+            # Check if customer already exists
+            customer = db_session.query(CustomerUser).filter(
+                CustomerUser.email == primary_item['primary_email']
+            ).first()
+
+            customer_created = False
+            if not customer:
+                # Get or create company (normalize name to uppercase for comparison)
+                org_name = primary_item.get('org_name', '').strip().upper() if primary_item.get('org_name') else None
+                company = None
+                if org_name:
+                    company = db_session.query(Company).filter(
+                        Company.name == org_name
+                    ).first()
+
+                if not company and org_name:
+                    company = Company(
+                        name=org_name,
+                        description=f"Auto-created from CSV import",
+                        contact_email=primary_item['primary_email']
+                    )
+                    db_session.add(company)
+                    db_session.flush()
+                
+                # Create customer with address from shipping information
+                customer_address = f"{primary_item.get('address_line1', '')}\n{primary_item.get('address_line2', '')}\n{primary_item.get('city', '')}, {primary_item.get('state', '')} {primary_item.get('postal_code', '')}".strip()
+                if not customer_address or customer_address.replace('\n', '').replace(',', '').strip() == '':
+                    customer_address = "Address not provided"
+                
+                # Map city to country as requested by user, with fallback to country_code
+                city_to_country_mapping = {
+                    'Singapore': Country.SINGAPORE,
+                    'Kuala Lumpur': Country.MALAYSIA,
+                    'Bangkok': Country.THAILAND,
+                    'Manila': Country.PHILIPPINES,
+                    'Jakarta': Country.INDONESIA,
+                    'Ho Chi Minh City': Country.VIETNAM,
+                    'Hanoi': Country.VIETNAM,
+                    'Seoul': Country.SOUTH_KOREA,
+                    'Tokyo': Country.JAPAN,
+                    'Osaka': Country.JAPAN,
+                    'Sydney': Country.AUSTRALIA,
+                    'Melbourne': Country.AUSTRALIA,
+                    'Mumbai': Country.INDIA,
+                    'Delhi': Country.INDIA,
+                    'Bangalore': Country.INDIA,
+                    'Tel Aviv': Country.ISRAEL,
+                    'Jerusalem': Country.ISRAEL,
+                    'Toronto': Country.CANADA,
+                    'Vancouver': Country.CANADA,
+                    'New York': Country.USA,
+                    'Los Angeles': Country.USA,
+                    'San Francisco': Country.USA,
+                    'Hong Kong': Country.HONG_KONG,
+                    'Taipei': Country.TAIWAN,
+                    'Beijing': Country.CHINA,
+                    'Shanghai': Country.CHINA
+                }
+                
+                # First try to map from city, then fallback to country_code
+                city = primary_item.get('city', '')
+                country_code = primary_item.get('country_code', '')
+                
+                if city and city in city_to_country_mapping:
+                    customer_country = city_to_country_mapping[city]
+                else:
+                    # Fallback to country code mapping
+                    country_code_mapping = {
+                        'SG': Country.SINGAPORE,
+                        'US': Country.USA,
+                        'JP': Country.JAPAN,
+                        'IN': Country.INDIA,
+                        'AU': Country.AUSTRALIA,
+                        'PH': Country.PHILIPPINES,
+                        'IL': Country.ISRAEL,
+                        'CA': Country.CANADA,
+                        'TW': Country.TAIWAN,
+                        'CN': Country.CHINA,
+                        'HK': Country.HONG_KONG,
+                        'MY': Country.MALAYSIA,
+                        'TH': Country.THAILAND,
+                        'VN': Country.VIETNAM,
+                        'KR': Country.SOUTH_KOREA,
+                        'ID': Country.INDONESIA
+                    }
+                    customer_country = country_code_mapping.get(country_code, Country.SINGAPORE)
+                
+                # Use updated customer name if provided, otherwise use person_name from CSV
+                customer_name = primary_item.get('person_name', '')
+
+                # Validate that we have a customer name
+                if not customer_name or not customer_name.strip():
+                    return jsonify({
+                        'success': False,
+                        'error': 'Customer name is required. Please provide a valid customer name.'
+                    })
+
+                customer = CustomerUser(
+                    name=customer_name,
+                    email=primary_item['primary_email'],
+                    contact_number=primary_item.get('phone_number', ''),
+                    address=customer_address,
+                    company_id=company.id,
+                    country=customer_country
+                )
+                db_session.add(customer)
+                db_session.flush()
+                customer_created = True
+            
+            # 2. DETERMINE CATEGORY AND QUEUE
+            def determine_category_and_queue(product_title, category_code):
+                """Determine category based on product type"""
+                product_lower = product_title.lower()
+                category_lower = category_code.lower() if category_code else ""
+                
+                # Accessory detection patterns
+                accessory_keywords = [
+                    'adapter', 'cable', 'charger', 'mouse', 'keyboard', 'headset', 
+                    'webcam', 'dock', 'hub', 'dongle', 'stand', 'pad', 'cover',
+                    'case', 'sleeve', 'bag', 'power supply', 'cord', 'usb'
+                ]
+                
+                # Computer/laptop detection patterns  
+                computer_keywords = [
+                    'macbook', 'laptop', 'computer', 'imac', 'pc', 'desktop', 
+                    'workstation', 'tower', 'all-in-one', 'surface', 'thinkpad'
+                ]
+                
+                # Check if it's an accessory
+                is_accessory = (
+                    any(keyword in product_lower for keyword in accessory_keywords) or
+                    any(keyword in category_lower for keyword in ['accessory', 'peripheral', 'cable', 'adapter'])
+                )
+                
+                if is_accessory:
+                    return 'ASSET_CHECKOUT_CLAW'  # Route accessories to checkout queue
+                else:
+                    return 'ASSET_CHECKOUT_CLAW'  # Route computers to tech asset queue
+            
+            # Get ticket category enum value
+            category_name = determine_category_and_queue(
+                primary_item.get('product_title', ''),
+                primary_item.get('category_code', '')
+            )
+            
+            # Convert string to TicketCategory enum
+            try:
+                category = getattr(TicketCategory, category_name)
+            except AttributeError:
+                # If category name doesn't exist in enum, use default
+                category = TicketCategory.ASSET_CHECKOUT_CLAW
+            
+            # 3. MAP PRIORITY (supports numeric and text values, case-insensitive)
+            priority_value = str(primary_item.get('priority', '2')).strip().lower()
+            priority_mapping = {
+                '1': TicketPriority.LOW,
+                '2': TicketPriority.MEDIUM,
+                '3': TicketPriority.HIGH,
+                '4': TicketPriority.CRITICAL,
+                'low': TicketPriority.LOW,
+                'medium': TicketPriority.MEDIUM,
+                'high': TicketPriority.HIGH,
+                'critical': TicketPriority.CRITICAL
+            }
+            priority = priority_mapping.get(priority_value, TicketPriority.MEDIUM)
+            
+            # 4. CREATE ENHANCED DESCRIPTION WITH SELECTED ITEMS
+            selected_items_text = ""
+            if selected_assets:
+                selected_items_text += f"""
+
+Selected Assets from Inventory:
+"""
+                for asset in selected_assets:
+                    selected_items_text += f"- {asset.get('assetName', 'Unknown Asset')} (ID: {asset.get('assetId', 'N/A')})\n"
+            
+            if selected_accessories:
+                selected_items_text += f"""
+
+Selected Accessories from Inventory:
+"""
+                for acc in selected_accessories:
+                    selected_items_text += f"- {acc.get('accessoryName', 'Unknown Accessory')} (ID: {acc.get('accessoryId', 'N/A')})\n"
+            
+            if is_grouped:
+                # Create description for multiple items
+                
+                description = f"""Asset Checkout Request - CSV Import (Multi-Item Order)
+
+Customer Information:
+- Name: {primary_item['person_name']}
+- Company: {primary_item['org_name']}
+- Email: {primary_item['primary_email']}
+- Phone: {primary_item['phone_number']}
+
+Order Information:
+- Order ID: {primary_item['order_id']}
+- Total Items: {len(all_items)}
+- Priority: {primary_item.get('priority', '2')}
+
+Asset Information ({len(all_items)} items):
+"""
+                for i, item in enumerate(all_items, 1):
+                    description += f"""
+Item {i}:
+- Product: {item['product_title']}
+- Brand: {item.get('brand', 'Not specified')}
+- Serial Number: {item.get('serial_number', 'Not specified')}
+- Item ID: {item['order_item_id']}
+"""
+                
+                description += selected_items_text
+                description += f"""
+Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+                
+                subject = f"Asset Checkout - Order {primary_item['order_id']} ({len(all_items)} items)"
+                
+            else:
+                # Single item description
+                description = f"""Asset Checkout Request - CSV Import
+
+Customer Information:
+- Name: {primary_item['person_name']}
+- Company: {primary_item['org_name']}
+- Email: {primary_item['primary_email']}
+- Phone: {primary_item['phone_number']}
+
+Asset Information:
+- Product: {primary_item['product_title']}
+- Brand: {primary_item.get('brand', 'Not specified')}
+- Serial Number: {primary_item.get('serial_number', 'Not specified')}
+- Priority: {primary_item.get('priority', '2')}
+{selected_items_text}
+Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+
+                subject = f"Asset Checkout - {primary_item['product_title']}"
+            
+            # 5. FORMAT SHIPPING ADDRESS (as requested)
+            shipping_address = f"""{primary_item.get('address_line1', '')}
+{primary_item.get('address_line2', '')}
+{primary_item.get('city', '')}, {primary_item.get('state', '')} {primary_item.get('postal_code', '')}""".strip()
+
+            # 6. FORMAT ORDER DETAILS FOR NOTES (as requested)
+            order_notes = f"""Order Details from CSV Import:
+- Order ID: {primary_item.get('order_id', '')}
+- Order Item ID: {primary_item.get('order_item_id', '')}
+- Priority: {primary_item.get('priority', '2')}"""
+
+            # 7. CREATE THE TICKET WITH PROPER DATA FLOW
+            # Determine case owner (assigned_to_id)
+            case_owner_id = current_user.id  # Default to current user
+            if selected_case_owner_id:
+                try:
+                    case_owner_id = int(selected_case_owner_id)
+                    logger.info("[CSV DEBUG] Using selected case owner: {case_owner_id}")
+                except (ValueError, TypeError):
+                    logger.info("[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
+            
+            logger.info("[CSV DEBUG] Creating ticket with subject: {subject}")
+            ticket = Ticket(
+                subject=subject,
+                description=description,
+                customer_id=customer.id,
+                category=category,
+                priority=priority,
+                status=TicketStatus.NEW,
+                requester_id=current_user.id,
+                assigned_to_id=case_owner_id,  # Set case owner
+                queue_id=int(selected_queue_id) if selected_queue_id else None,  # Assign to selected queue
+                shipping_address=shipping_address,  # Shipping info goes to shipping_address field
+                notes=order_notes,  # Order details go to Notes field
+                firstbaseorderid=primary_item.get('order_id', None)  # Store Order ID for duplicate prevention
+            )
+            
+            db_session.add(ticket)
+            db_session.flush()  # Ensure ticket gets an ID
+            db_session.commit()
+            logger.info("[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
+            
+            # Send queue notifications for the imported ticket
+            try:
+                from utils.queue_notification_sender import send_queue_notifications
+                send_queue_notifications(ticket, action_type="created")
+            except Exception as e:
+                logger.error(f"Error sending queue notifications for CSV imported ticket: {str(e)}")
+            
+            # 8. ASSIGN SELECTED ASSETS AND ACCESSORIES TO TICKET
+            assigned_accessories = []
+            assigned_assets = []
+            
+            # Assign selected assets
+            logger.info("[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
+            logger.info("[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
+            
+            # Check for duplicate asset IDs in the selection
+            asset_ids = [asset_data.get('assetId') for asset_data in selected_assets if asset_data.get('assetId')]
+            unique_asset_ids = list(set(asset_ids))
+            logger.info("[CSV DEBUG] Asset IDs: {asset_ids}")
+            logger.info("[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
+            if len(asset_ids) != len(unique_asset_ids):
+                logger.info("[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
+            
+            if selected_assets:
+                from models.asset import Asset
+                logger.info("[CSV DEBUG] Processing {len(selected_assets)} selected assets")
+                
+                # Deduplicate assets by ID to prevent constraint violations
+                processed_asset_ids = set()
+                
+                for asset_data in selected_assets:
+                    asset_id = asset_data.get('assetId')
+                    logger.info("[CSV DEBUG] Processing asset ID: {asset_id}")
+                    if asset_id and asset_id not in processed_asset_ids:
+                        processed_asset_ids.add(asset_id)
+                        # Get the asset from database
+                        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+                        if asset:
+                            logger.info("[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
+                            if asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
+                                # Use the existing function to safely assign asset
+                                try:
+                                    logger.info("[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
+                                    success = safely_assign_asset_to_ticket(ticket, asset, db_session)
+                                    if success:
+                                        assigned_assets.append(asset.name)
+                                        logger.info("[CSV DEBUG] Successfully assigned asset {asset.name}")
+                                        
+                                        # Also assign the asset to the customer and update status
+                                        if ticket.customer_id:
+                                            asset.customer_id = ticket.customer_id
+                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                        
+                                        if ticket.assigned_to_id:
+                                            asset.assigned_to_id = ticket.assigned_to_id
+                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                        
+                                        # Update asset status to DEPLOYED
+                                        from models.asset import AssetStatus
+                                        asset.status = AssetStatus.DEPLOYED
+                                        logger.info("[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                                        
+                                        # Create activity log for asset assignment
+                                        from models.activity import Activity
+                                        
+                                        # Use current_user.id, fallback to admin user
+                                        activity_user_id = current_user.id if current_user else 1
+                                        
+                                        activity = Activity(
+                                            user_id=activity_user_id,
+                                            type='asset_assigned',
+                                            content=f'Assigned asset "{asset.name}" (Serial: {asset.serial_num}) to ticket #{ticket.display_id}',
+                                            reference_id=ticket.id
+                                        )
+                                        db_session.add(activity)
+                                    else:
+                                        logger.info("[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
+                                except Exception as e:
+                                    logger.info("[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
+                                    import traceback
+                                    traceback.print_exc()
+                            else:
+                                logger.info("[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
+                        else:
+                            logger.info("[CSV DEBUG] Asset {asset_id} not found in database")
+                    elif asset_id in processed_asset_ids:
+                        logger.info("[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
+            
+            # Commit asset assignments
+            if assigned_assets:
+                logger.info("[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
+                db_session.commit()
+            
+            # Assign selected accessories
+            if selected_accessories:
+                from models.ticket import TicketAccessory
+                from models.accessory import Accessory
+                
+                for acc_data in selected_accessories:
+                    accessory_id = acc_data.get('accessoryId')
+                    if accessory_id:
+                        # Get the accessory from database
+                        accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+                        if accessory and accessory.available_quantity > 0:
+                            # Create ticket-accessory assignment
+                            ticket_accessory = TicketAccessory(
+                                ticket_id=ticket.id,
+                                name=accessory.name,
+                                category=accessory.category,
+                                quantity=1,
+                                condition='Good',
+                                notes=f'Assigned from CSV import',
+                                original_accessory_id=accessory.id
+                            )
+                            db_session.add(ticket_accessory)
+                            
+                            # Update accessory quantity (decrease available)
+                            accessory.available_quantity -= 1
+                            if accessory.available_quantity == 0:
+                                accessory.status = 'Out of Stock'
+                            
+                            assigned_accessories.append(accessory.name)
+                            
+                            # Create activity log for accessory assignment
+                            from models.activity import Activity
+                            
+                            # Use current_user.id, fallback to admin user
+                            activity_user_id = current_user.id if current_user else 1
+                            
+                            activity = Activity(
+                                user_id=activity_user_id,
+                                type='accessory_assigned',
+                                content=f'Assigned accessory "{accessory.name}" to ticket #{ticket.display_id}',
+                                reference_id=ticket.id
+                            )
+                            db_session.add(activity)
+                
+                # Commit all assignments at once to avoid database locks
+                db_session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'ticket_id': ticket.id,
+                'ticket_display_id': ticket.display_id,
+                'customer_created': customer_created,
+                'assigned_accessories': assigned_accessories,
+                'assigned_assets': assigned_assets,
+                'message': f'Ticket {ticket.display_id} created successfully. Customer {"created" if customer_created else "updated"}. {len(assigned_assets)} assets and {len(assigned_accessories)} accessories assigned.'
+            })
+            
+        except Exception as e:
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.info("Error importing ticket: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to import ticket: {str(e)}'})
+
+
+@admin_bp.route('/asset-checkout-import/bulk-import', methods=['POST'])
+@login_required
+def asset_checkout_import_bulk_import():
+    """Import multiple tickets from CSV data"""
+    from models.user_import_permission import UserImportPermission
+    from flask import session
+    from routes.import_manager import create_import_session, update_import_session
+
+    # Check if user has asset_checkout_import permission
+    user = db_manager.get_user(session['user_id'])
+    if not (user.is_super_admin or user.is_developer):
+        db_session = db_manager.get_session()
+        try:
+            has_permission = UserImportPermission.user_can_access(db_session, user.id, 'asset_checkout')
+            if not has_permission:
+                return jsonify({'success': False, 'error': 'You do not have permission to access Import Asset Checkout'})
+        finally:
+            db_session.close()
+
+    import_session_id = None
+    try:
+        data = request.get_json()
+        row_indices = data.get('row_indices', [])
+        auto_create_customer = data.get('auto_create_customer', True)
+        selected_accessories = data.get('selected_accessories', [])  # Get selected accessories
+        selected_assets = data.get('selected_assets', [])  # Get selected assets
+
+        if 'asset_checkout_import_file' not in session:
+            return jsonify({'success': False, 'error': 'No CSV data found. Please upload a file first.'})
+        
+        # Load CSV data from temporary file
+        import json
+        import os
+        import tempfile
+        
+        csv_filename = session['asset_checkout_import_file']
+        csv_filepath = os.path.join(tempfile.gettempdir(), csv_filename)
+        
+        if not os.path.exists(csv_filepath):
+            return jsonify({'success': False, 'error': 'CSV data file not found. Please upload the file again.'})
+        
+        try:
+            with open(csv_filepath, 'r') as f:
+                file_data = json.load(f)
+                # Handle both old format (list) and new format (dict with grouped data)
+                if isinstance(file_data, list):
+                    csv_data = file_data  # Old format
+                else:
+                    csv_data = file_data.get('grouped_orders', file_data.get('individual_rows', []))
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Error reading CSV data: {str(e)}'})
+
+        # Create ImportSession to track this import
+        try:
+            import_session_id, display_id = create_import_session(
+                import_type='asset_checkout',
+                user_id=current_user.id,
+                file_name=session.get('asset_checkout_import_file', 'Unknown file'),
+                notes=f"CSV checkout import with {len(row_indices)} selected rows"
+            )
+            logger.info(f"Created import session {display_id} for CSV import")
+        except Exception as e:
+            logger.error(f"Failed to create import session: {str(e)}")
+
+        results = []
+
+        for row_index in row_indices:
+            if row_index >= len(csv_data):
+                results.append({'row_index': row_index, 'success': False, 'error': 'Invalid row index'})
+                continue
+
+            row = csv_data[row_index]
+
+            # Check if ticket cannot be imported (processing or duplicate)
+            if row.get('cannot_import', False):
+                if row.get('is_duplicate', False):
+                    results.append({
+                        'row_index': row_index,
+                        'success': False,
+                        'error': f'Order ID {row.get("order_id")} already exists in database'
+                    })
+                elif row.get('is_processing', False):
+                    results.append({
+                        'row_index': row_index,
+                        'success': False,
+                        'error': 'Cannot import tickets with PROCESSING status. Please wait for the order to progress to another status before importing.'
+                    })
+                else:
+                    results.append({
+                        'row_index': row_index,
+                        'success': False,
+                        'error': 'Ticket cannot be imported'
+                    })
+                continue
+            
+            # Import single ticket (reuse the logic)
+            try:
+                result = asset_checkout_import_import_ticket_internal(csv_data[row_index], auto_create_customer, selected_accessories, selected_assets, current_user.id)
+                results.append({'row_index': row_index, **result})
+            except Exception as e:
+                results.append({'row_index': row_index, 'success': False, 'error': str(e)})
+        
+        successful_imports = sum(1 for r in results if r.get('success'))
+        failed_imports = len(row_indices) - successful_imports
+
+        # Update ImportSession with results
+        if import_session_id:
+            try:
+                status = 'completed' if successful_imports > 0 else 'failed'
+                error_details = [r.get('error') for r in results if not r.get('success') and r.get('error')]
+                # Store successful imports data (limit to first 100)
+                import_data = [r for r in results if r.get('success')][:100]
+                print(f"[CSV_IMPORT_DEBUG] About to update session {import_session_id}")
+                print(f"[CSV_IMPORT_DEBUG] results count: {len(results)}, successful: {successful_imports}, import_data count: {len(import_data)}")
+                if import_data:
+                    print(f"[CSV_IMPORT_DEBUG] First import_data item: {import_data[0]}")
+                logger.info(f"asset_checkout_import_bulk_import: Updating session {import_session_id}, results has {len(results)} items, import_data has {len(import_data) if import_data else 0} items")
+                update_import_session(import_session_id, success_count=successful_imports, fail_count=failed_imports,
+                                     import_data=import_data, error_details=error_details[:50] if error_details else None, status=status)
+                print(f"[CSV_IMPORT_DEBUG] update_import_session returned successfully")
+            except Exception as e:
+                print(f"[CSV_IMPORT_DEBUG] EXCEPTION in update: {str(e)}")
+                logger.error(f"Failed to update import session: {str(e)}")
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total_processed': len(row_indices),
+            'successful_imports': successful_imports,
+            'failed_imports': failed_imports
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Bulk import error: {str(e)}'})
+
+

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Bulk Import Asset Return Tickets{% endblock %}
+{% block title %}Import Asset Return Tickets{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Bulk Import Asset Return Tickets</h1>
-            <p class="mt-2 text-gray-600">Upload a CSV file to create multiple Asset Return tickets with automatic customer creation</p>
+            <h1 class="text-3xl font-bold text-gray-900">Import Asset Return Tickets</h1>
+            <p class="mt-2 text-gray-600">Upload a CSV file to create Asset Return tickets with automatic customer creation</p>
         </div>
 
         <!-- Instructions Card -->
@@ -59,9 +59,13 @@
             <div class="mb-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Required Columns:</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                    <li><code class="bg-gray-100 px-1 rounded">order-Id</code> - Order ID for tracking</li>
                     <li><code class="bg-gray-100 px-1 rounded">customer_name</code> - Full name of the customer</li>
                     <li><code class="bg-gray-100 px-1 rounded">customer_email</code> - Customer's email (used for auto-creation)</li>
-                    <li><code class="bg-gray-100 px-1 rounded">customer_country</code> - Must be: SINGAPORE, USA, INDIA, or JAPAN</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_phone</code> - Customer's phone number</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_company</code> - Company name (will be auto-created if needed)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_address</code> - Full address (e.g. "123 Main St, City, State 12345")</li>
+                    <li><code class="bg-gray-100 px-1 rounded">customer_country</code> - Country code (e.g. USA, SINGAPORE, INDIA, JAPAN)</li>
                     <li><code class="bg-gray-100 px-1 rounded">return_description</code> - Description of the return/issue</li>
                 </ul>
             </div>
@@ -69,14 +73,9 @@
             <div class="mb-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Optional Columns:</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
-                    <li><code class="bg-gray-100 px-1 rounded">customer_phone</code> - Customer's phone number</li>
-                    <li><code class="bg-gray-100 px-1 rounded">customer_company</code> - Company name (will be auto-created if needed)</li>
-                    <li><code class="bg-gray-100 px-1 rounded">customer_address</code> - Full address (e.g. "123 Main St, City, State 12345")</li>
+                    <li><code class="bg-gray-100 px-1 rounded">Reported_Issue</code> - Detailed issue reported by customer</li>
                     <li><code class="bg-gray-100 px-1 rounded">asset_serial_number</code> - Serial number of the asset</li>
-                    <li><code class="bg-gray-100 px-1 rounded">priority</code> - Low, Medium, High, Critical (default: Medium)</li>
-                    <li><code class="bg-gray-100 px-1 rounded">queue_name</code> - Queue to assign the ticket</li>
-                    <li><code class="bg-gray-100 px-1 rounded">case_owner_email</code> - Email of the case owner</li>
-                    <li><code class="bg-gray-100 px-1 rounded">notes</code> - Additional notes</li>
+                    <li><code class="bg-gray-100 px-1 rounded">priority</code> - Low, Medium, High, or Critical (default: Medium)</li>
                 </ul>
             </div>
 

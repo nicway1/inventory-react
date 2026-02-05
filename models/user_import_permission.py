@@ -23,10 +23,11 @@ class UserImportPermission(Base):
     VALID_TYPES = [
         'inventory',      # Import Inventory/Assets
         'customers',      # Import Customers
-        'csv_import',     # CSV Import (Checkout Tickets)
-        'asset_return',   # Bulk Import Asset Return
-        '1stbase',        # Bulk Import 1stBase
-        'retool'          # Import from Retool
+        'csv_import',     # Import (Firstbase Checkout Tickets)
+        'asset_checkout', # Import Asset Checkout Tickets
+        'asset_return',   # Import Asset Return Tickets
+        '1stbase',        # Import Firstbase Asset Returns Tickets
+        # 'retool'        # Import from Retool (HIDDEN - integrated into csv_import)
     ]
 
     # Import type display info
@@ -46,22 +47,29 @@ class UserImportPermission(Base):
             'route': 'inventory.import_customers'
         },
         'csv_import': {
-            'name': 'CSV Import (Checkout)',
-            'description': 'Import asset checkout tickets from CSV',
+            'name': 'Import (Firstbase Asset Checkout Tickets)',
+            'description': 'Import Firstbase asset checkout tickets from CSV',
             'icon': 'fas fa-file-csv',
             'color': 'green',
             'route': 'admin.csv_import'
         },
+        'asset_checkout': {
+            'name': 'Import Asset Checkout Tickets',
+            'description': 'Import asset checkout tickets from CSV',
+            'icon': 'fas fa-file-upload',
+            'color': 'blue',
+            'route': 'admin.asset_checkout_import'
+        },
         'asset_return': {
-            'name': 'Bulk Import Asset Return',
-            'description': 'Bulk import asset return tickets',
+            'name': 'Import Asset Return Tickets',
+            'description': 'Import asset return tickets from CSV',
             'icon': 'fas fa-undo',
             'color': 'orange',
             'route': 'tickets.bulk_import_asset_return'
         },
         '1stbase': {
-            'name': 'Bulk Import 1stBase',
-            'description': 'Import 1stBase orders as tickets',
+            'name': 'Import Firstbase Asset Returns Tickets',
+            'description': 'Import Firstbase asset return orders as tickets',
             'icon': 'fas fa-database',
             'color': 'indigo',
             'route': 'tickets.bulk_import_1stbase'

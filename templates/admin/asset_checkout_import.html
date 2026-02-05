@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Import (Firstbase Asset Checkout Tickets){% endblock %}
+{% block title %}Import Asset Checkout Tickets{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Import (Firstbase Asset Checkout Tickets)</h1>
-            <p class="mt-2 text-gray-600">Upload a CSV file to create Firstbase Asset Checkout tickets with automatic customer creation</p>
+            <h1 class="text-3xl font-bold text-gray-900">Import Asset Checkout Tickets</h1>
+            <p class="mt-2 text-gray-600">Upload a CSV file to create Asset Checkout tickets with automatic customer creation</p>
         </div>
 
         <!-- Instructions Card -->
@@ -26,7 +26,7 @@
         <div class="bg-white shadow-md rounded-lg p-6 mb-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Download Templates</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <a href="{{ url_for('static', filename='csv_templates/csv_import_template.csv') }}"
+                <a href="{{ url_for('static', filename='csv_templates/asset_checkout_import_template.csv') }}"
                    download
                    class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,7 +34,7 @@
                     </svg>
                     Download Template (Empty)
                 </a>
-                <a href="{{ url_for('static', filename='samples/csv_import_sample.csv') }}"
+                <a href="{{ url_for('static', filename='csv_templates/asset_checkout_import_sample.csv') }}"
                    download
                    class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,21 +52,24 @@
             <div class="mb-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Required Columns:</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
-                    <li><code class="bg-gray-100 px-1 rounded">product_title</code> - Product name/description</li>
+                    <li><code class="bg-gray-100 px-1 rounded">order_item_id</code> - Item ID (e.g., "item-001")</li>
+                    <li><code class="bg-gray-100 px-1 rounded">order_id</code> - Order ID (e.g., "order-001")</li>
+                    <li><code class="bg-gray-100 px-1 rounded">product_title</code> - Product name (e.g., "MacBook Pro 16")</li>
                     <li><code class="bg-gray-100 px-1 rounded">person_name</code> - Customer's full name</li>
-                    <li><code class="bg-gray-100 px-1 rounded">primary_email</code> - Customer's email (used for auto-creation)</li>
                     <li><code class="bg-gray-100 px-1 rounded">org_name</code> - Company/Organization name</li>
+                    <li><code class="bg-gray-100 px-1 rounded">phone_number</code> - Contact phone number</li>
+                    <li><code class="bg-gray-100 px-1 rounded">address_line1</code>, <code class="bg-gray-100 px-1 rounded">city</code>, <code class="bg-gray-100 px-1 rounded">state</code>, <code class="bg-gray-100 px-1 rounded">postal_code</code> - Shipping address</li>
+                    <li><code class="bg-gray-100 px-1 rounded">primary_email</code> - Customer's email</li>
                 </ul>
             </div>
 
             <div class="mb-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Optional Columns:</h3>
                 <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
-                    <li><code class="bg-gray-100 px-1 rounded">phone_number</code> - Customer's phone</li>
-                    <li><code class="bg-gray-100 px-1 rounded">brand</code>, <code class="bg-gray-100 px-1 rounded">serial_number</code> - Asset details</li>
-                    <li><code class="bg-gray-100 px-1 rounded">order_id</code>, <code class="bg-gray-100 px-1 rounded">order_item_id</code> - Order reference</li>
-                    <li><code class="bg-gray-100 px-1 rounded">address_line1</code>, <code class="bg-gray-100 px-1 rounded">city</code>, <code class="bg-gray-100 px-1 rounded">state</code>, <code class="bg-gray-100 px-1 rounded">postal_code</code>, <code class="bg-gray-100 px-1 rounded">country_code</code> - Shipping</li>
-                    <li><code class="bg-gray-100 px-1 rounded">priority</code>, <code class="bg-gray-100 px-1 rounded">status</code>, <code class="bg-gray-100 px-1 rounded">preferred_condition</code></li>
+                    <li><code class="bg-gray-100 px-1 rounded">serial_number</code> - Asset serial number (if applicable)</li>
+                    <li><code class="bg-gray-100 px-1 rounded">brand</code> - Product brand/manufacturer</li>
+                    <li><code class="bg-gray-100 px-1 rounded">address_line2</code> - Additional address details</li>
+                    <li><code class="bg-gray-100 px-1 rounded">priority</code> - Priority level: 1/low, 2/medium, 3/high, 4/critical (case-insensitive, defaults to medium)</li>
                 </ul>
             </div>
 
@@ -124,32 +127,6 @@
                     </button>
                 </div>
             </form>
-        </div>
-
-        <!-- Retool Interface -->
-        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">
-                <i class="fas fa-tools text-blue-600 mr-2"></i>
-                Firstbase 3PL Orders
-            </h2>
-            <p class="text-sm text-gray-600 mb-4">Use the interface below to view, filter, and download orders from the Firstbase 3PL system.</p>
-            <div class="border-2 border-gray-200 rounded-lg overflow-hidden" style="height: 600px;">
-                <iframe
-                    id="retoolFrame"
-                    src="https://retool.firstbase.com/apps/59550038-9ae3-11ee-9805-13a1c97ab189/External%20Apps/3PL%20Orders"
-                    width="100%"
-                    height="100%"
-                    frameborder="0"
-                    allow="clipboard-write"
-                    style="border: none;">
-                </iframe>
-            </div>
-            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p class="text-sm text-blue-800">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    <strong>How to use:</strong> Use the Retool interface above to filter and view orders, then click the "Download" button to get a CSV file. Upload that CSV file using the form above.
-                </p>
-            </div>
         </div>
 
         <!-- Important Notes -->
@@ -560,7 +537,7 @@ document.getElementById('csvUploadForm').addEventListener('submit', async functi
     formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
     
     try {
-        const response = await fetch('/admin/csv-import/upload', {
+        const response = await fetch('/admin/asset-checkout-import/upload', {
             method: 'POST',
             body: formData
         });
@@ -701,18 +678,28 @@ function displayCSVData(data) {
                 </div>
             </td>
             <td class="px-3 py-4">
-                ${!row.person_name || row.person_name.trim() === '' || row.person_name.trim().toLowerCase() === 'unknown customer' ?
+                ${row.has_validation_errors ?
                     `<div class="flex items-center gap-2">
                         <div>
                             <div class="text-sm font-semibold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-300">
-                                ⚠️ Unknown Customer
+                                ⚠️ Missing Required Fields
                             </div>
-                            <div class="text-xs text-red-500 mt-1">Empty name - click Preview to fix</div>
+                            <div class="text-xs text-red-500 mt-1">${row.validation_error_message || 'Click Preview to fix'}</div>
                         </div>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">${row.primary_email || 'No email'}</div>` :
-                    `<div class="text-sm text-gray-900">${row.person_name}</div>
-                    <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>`
+                    (!row.person_name || row.person_name.trim() === '' || row.person_name.trim().toLowerCase() === 'unknown customer' ?
+                        `<div class="flex items-center gap-2">
+                            <div>
+                                <div class="text-sm font-semibold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-300">
+                                    ⚠️ Unknown Customer
+                                </div>
+                                <div class="text-xs text-red-500 mt-1">Empty name - click Preview to fix</div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">${row.primary_email || 'No email'}</div>` :
+                        `<div class="text-sm text-gray-900">${row.person_name}</div>
+                        <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>`)
                 }
             </td>
             <td class="px-3 py-4">
@@ -812,7 +799,7 @@ async function previewTicket(index, isGrouped = false) {
         document.getElementById('previewModal').classList.remove('hidden');
         document.getElementById('previewContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div><p class="mt-4 text-gray-600">Loading preview...</p></div>';
 
-        const response = await fetch('/admin/csv-import/preview-ticket', {
+        const response = await fetch('/admin/asset-checkout-import/preview-ticket', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -894,11 +881,15 @@ function populatePreviewModal(preview) {
                        preview.status === 'CLOSED' ? 'text-gray-600 bg-gray-100' :
                        'text-green-600 bg-green-100';
 
-    // Check if name is empty
+    // Check if name is empty or has validation errors
     const nameIsEmpty = preview.name_is_empty || false;
+    // Set global hasValidationErrors variable (declared at the bottom)
+    hasValidationErrors = preview.has_validation_errors || false;
+    const missingFields = preview.missing_fields || [];
+    const validationMessage = preview.validation_error_message || '';
 
-    // Warning banner for empty name
-    const warningBanner = nameIsEmpty ? `
+    // Warning banner for validation errors
+    const warningBanner = hasValidationErrors ? `
         <div class="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-6">
             <div class="flex items-start">
                 <div class="flex-shrink-0">
@@ -907,9 +898,10 @@ function populatePreviewModal(preview) {
                     </svg>
                 </div>
                 <div class="ml-3">
-                    <h3 class="text-sm font-medium text-red-800">⚠️ Action Required: Customer Name is Missing</h3>
+                    <h3 class="text-sm font-medium text-red-800">⚠️ Action Required: Missing Required Fields</h3>
                     <div class="mt-2 text-sm text-red-700">
-                        <p>The customer name field is empty. Please fill in the customer name below before creating the ticket.</p>
+                        <p>${validationMessage}</p>
+                        <p class="mt-2">Please fix the errors below before creating the ticket. You cannot import this ticket until all required fields are filled.</p>
                     </div>
                 </div>
             </div>
@@ -1004,30 +996,64 @@ function populatePreviewModal(preview) {
                     </div>
                     <div class="p-4 space-y-3" id="customerInfo">
                         <div>
-                            <label class="text-sm font-medium text-gray-600">Name: ${nameIsEmpty ? '<span class="text-red-600">*</span>' : ''}</label>
-                            ${nameIsEmpty ? `
+                            <label class="text-sm font-medium text-gray-600">Name: ${missingFields.includes('person_name') ? '<span class="text-red-600">*</span>' : ''}</label>
+                            ${missingFields.includes('person_name') ? `
                                 <input type="text"
                                        id="customerNameInput"
+                                       data-field="person_name"
                                        class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
                                        placeholder="Enter customer name"
                                        value="${preview.customer_info.name || ''}"
-                                       oninput="validateCustomerName()">
+                                       oninput="validateRequiredFields()">
                                 <p class="mt-1 text-sm text-red-600">⚠️ Customer name is required</p>
                             ` : `
                                 <p class="text-gray-900">${preview.customer_info.name}</p>
                             `}
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-gray-600">Email:</label>
-                            <p class="text-gray-900">${preview.customer_info.email}</p>
+                            <label class="text-sm font-medium text-gray-600">Email: ${missingFields.includes('primary_email') ? '<span class="text-red-600">*</span>' : ''}</label>
+                            ${missingFields.includes('primary_email') ? `
+                                <input type="email"
+                                       id="primaryEmailInput"
+                                       data-field="primary_email"
+                                       class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                       placeholder="Enter email address"
+                                       value="${preview.customer_info.email || ''}"
+                                       oninput="validateRequiredFields()">
+                                <p class="mt-1 text-sm text-red-600">⚠️ Email is required</p>
+                            ` : `
+                                <p class="text-gray-900">${preview.customer_info.email}</p>
+                            `}
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-gray-600">Phone:</label>
-                            <p class="text-gray-900">${preview.customer_info.phone || 'Not provided'}</p>
+                            <label class="text-sm font-medium text-gray-600">Phone: ${missingFields.includes('phone_number') ? '<span class="text-red-600">*</span>' : ''}</label>
+                            ${missingFields.includes('phone_number') ? `
+                                <input type="tel"
+                                       id="phoneNumberInput"
+                                       data-field="phone_number"
+                                       class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                       placeholder="Enter phone number"
+                                       value="${preview.customer_info.phone || ''}"
+                                       oninput="validateRequiredFields()">
+                                <p class="mt-1 text-sm text-red-600">⚠️ Phone number is required</p>
+                            ` : `
+                                <p class="text-gray-900">${preview.customer_info.phone || 'Not provided'}</p>
+                            `}
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-gray-600">Company:</label>
-                            <p class="text-gray-900">${preview.customer_info.company}</p>
+                            <label class="text-sm font-medium text-gray-600">Company: ${missingFields.includes('org_name') ? '<span class="text-red-600">*</span>' : ''}</label>
+                            ${missingFields.includes('org_name') ? `
+                                <input type="text"
+                                       id="orgNameInput"
+                                       data-field="org_name"
+                                       class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                       placeholder="Enter company name"
+                                       value="${preview.customer_info.company || ''}"
+                                       oninput="validateRequiredFields()">
+                                <p class="mt-1 text-sm text-red-600">⚠️ Company name is required</p>
+                            ` : `
+                                <p class="text-gray-900">${preview.customer_info.company}</p>
+                            `}
                         </div>
                     </div>
                 </div>
@@ -1060,21 +1086,85 @@ function populatePreviewModal(preview) {
                 </div>
 
                 <!-- Shipping Address Card -->
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm ${missingFields.some(f => ['address_line1', 'city', 'state', 'postal_code'].includes(f)) ? 'border-red-300 border-2' : ''}">
                     <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
                         <h4 class="text-lg font-semibold text-gray-900 flex items-center">
                             🚚 <span class="ml-2">Shipping Address</span>
                         </h4>
                     </div>
                     <div class="p-4">
-                        <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-                            <p class="text-sm text-blue-800 mb-2">
-                                <strong>📍 This address will be mapped to the ticket's Shipping Address field</strong>
-                            </p>
-                            <div class="bg-white rounded border border-blue-200 p-3">
-                                <pre class="text-sm text-gray-700 whitespace-pre-wrap" id="shippingAddress">${preview.shipping_address}</pre>
+                        ${missingFields.some(f => ['address_line1', 'city', 'state', 'postal_code'].includes(f)) ? `
+                            <div class="bg-red-50 border border-red-200 rounded-md p-3 mb-3">
+                                <p class="text-sm text-red-800 font-medium">⚠️ Please fill in the missing address fields below</p>
                             </div>
-                        </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Address Line 1: ${missingFields.includes('address_line1') ? '<span class="text-red-600">*</span>' : ''}</label>
+                                    ${missingFields.includes('address_line1') ? `
+                                        <input type="text"
+                                               id="addressLine1Input"
+                                               data-field="address_line1"
+                                               class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                               placeholder="Enter address line 1"
+                                               value="${preview.shipping_info?.address_line1 || ''}"
+                                               oninput="validateRequiredFields()">
+                                    ` : `
+                                        <p class="text-gray-900">${preview.shipping_info?.address_line1 || ''}</p>
+                                    `}
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">City: ${missingFields.includes('city') ? '<span class="text-red-600">*</span>' : ''}</label>
+                                    ${missingFields.includes('city') ? `
+                                        <input type="text"
+                                               id="cityInput"
+                                               data-field="city"
+                                               class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                               placeholder="Enter city"
+                                               value="${preview.shipping_info?.city || ''}"
+                                               oninput="validateRequiredFields()">
+                                    ` : `
+                                        <p class="text-gray-900">${preview.shipping_info?.city || ''}</p>
+                                    `}
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">State: ${missingFields.includes('state') ? '<span class="text-red-600">*</span>' : ''}</label>
+                                    ${missingFields.includes('state') ? `
+                                        <input type="text"
+                                               id="stateInput"
+                                               data-field="state"
+                                               class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                               placeholder="Enter state"
+                                               value="${preview.shipping_info?.state || ''}"
+                                               oninput="validateRequiredFields()">
+                                    ` : `
+                                        <p class="text-gray-900">${preview.shipping_info?.state || ''}</p>
+                                    `}
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Postal Code: ${missingFields.includes('postal_code') ? '<span class="text-red-600">*</span>' : ''}</label>
+                                    ${missingFields.includes('postal_code') ? `
+                                        <input type="text"
+                                               id="postalCodeInput"
+                                               data-field="postal_code"
+                                               class="mt-1 block w-full px-3 py-2 border-2 border-red-300 bg-red-50 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-gray-900"
+                                               placeholder="Enter postal code"
+                                               value="${preview.shipping_info?.postal_code || ''}"
+                                               oninput="validateRequiredFields()">
+                                    ` : `
+                                        <p class="text-gray-900">${preview.shipping_info?.postal_code || ''}</p>
+                                    `}
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+                                <p class="text-sm text-blue-800 mb-2">
+                                    <strong>📍 This address will be mapped to the ticket's Shipping Address field</strong>
+                                </p>
+                                <div class="bg-white rounded border border-blue-200 p-3">
+                                    <pre class="text-sm text-gray-700 whitespace-pre-wrap" id="shippingAddress">${preview.shipping_address}</pre>
+                                </div>
+                            </div>
+                        `}
                     </div>
                 </div>
 
@@ -1112,45 +1202,77 @@ function populatePreviewModal(preview) {
     // Populate asset information
     populateAssetInfo(preview.all_assets || [preview.asset_info]);
 
-    // Initial validation check for empty name
-    if (nameIsEmpty) {
-        validateCustomerName();
-    }
+    // Always call validation check to update button state
+    validateRequiredFields();
 }
 
-// Validate customer name field
-function validateCustomerName() {
-    const nameInput = document.getElementById('customerNameInput');
+// Store validation state
+let hasValidationErrors = false;
+
+// Validate all required fields
+function validateRequiredFields() {
     const confirmButton = document.getElementById('confirmImport');
 
-    if (!nameInput) {
-        // Name field doesn't exist (not empty), enable button
+    // Get all required field inputs (those with data-field attribute)
+    const requiredInputs = document.querySelectorAll('input[data-field]');
+
+    // Check if there are validation errors but no inputs to fix
+    if (hasValidationErrors && requiredInputs.length === 0) {
+        // There are validation errors but no editable fields
         if (confirmButton) {
-            confirmButton.disabled = false;
-            confirmButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            confirmButton.disabled = true;
+            confirmButton.classList.add('opacity-50', 'cursor-not-allowed');
+            confirmButton.title = 'Cannot create ticket with validation errors. Please fix the CSV and re-upload.';
         }
         return;
     }
 
-    const name = nameInput.value.trim();
-
-    if (name === '') {
-        // Name is empty, disable button and show error styling
-        if (confirmButton) {
-            confirmButton.disabled = true;
-            confirmButton.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-        nameInput.classList.remove('border-green-300', 'bg-green-50');
-        nameInput.classList.add('border-red-300', 'bg-red-50');
-    } else {
-        // Name is filled, enable button and show success styling
+    // If no validation errors and no inputs, enable button
+    if (!hasValidationErrors && requiredInputs.length === 0) {
         if (confirmButton) {
             confirmButton.disabled = false;
             confirmButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            confirmButton.title = '';
         }
-        nameInput.classList.remove('border-red-300', 'bg-red-50');
-        nameInput.classList.add('border-green-300', 'bg-green-50');
+        return;
     }
+
+    // Check if all required fields are filled
+    let allFilled = true;
+    let emptyFields = [];
+
+    requiredInputs.forEach(input => {
+        const value = input.value.trim();
+        const fieldName = input.getAttribute('data-field');
+
+        if (value === '') {
+            allFilled = false;
+            emptyFields.push(fieldName);
+            input.classList.remove('border-green-300', 'bg-green-50');
+            input.classList.add('border-red-300', 'bg-red-50');
+        } else {
+            input.classList.remove('border-red-300', 'bg-red-50');
+            input.classList.add('border-green-300', 'bg-green-50');
+        }
+    });
+
+    // Update button state
+    if (confirmButton) {
+        if (allFilled) {
+            confirmButton.disabled = false;
+            confirmButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            confirmButton.title = '';
+        } else {
+            confirmButton.disabled = true;
+            confirmButton.classList.add('opacity-50', 'cursor-not-allowed');
+            confirmButton.title = `Please fill in: ${emptyFields.join(', ')}`;
+        }
+    }
+}
+
+// Keep old function name for backward compatibility
+function validateCustomerName() {
+    validateRequiredFields();
 }
 
 function populateQueueOptions(queues, suggestedQueueId) {
@@ -1479,7 +1601,7 @@ async function importSingleTicket(index) {
     const autoCreateCustomer = document.getElementById('autoCreateCustomer').checked;
     
     try {
-        const response = await fetch('/admin/csv-import/import-ticket', {
+        const response = await fetch('/admin/asset-checkout-import/import-ticket', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1545,7 +1667,7 @@ document.getElementById('bulkImportBtn').addEventListener('click', async functio
     importResults.innerHTML = '';
     
     try {
-        const response = await fetch('/admin/csv-import/bulk-import', {
+        const response = await fetch('/admin/asset-checkout-import/bulk-import', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1629,13 +1751,28 @@ document.getElementById('confirmImport').addEventListener('click', function() {
     const selectedQueueId = document.getElementById('queueSelect').value;
     const selectedCaseOwnerId = document.getElementById('caseOwnerSelect').value;
 
-    // Get updated customer name if it was edited
-    const customerNameInput = document.getElementById('customerNameInput');
-    const updatedCustomerName = customerNameInput ? customerNameInput.value.trim() : null;
+    // Collect all edited field values
+    const updatedFields = {};
+    const requiredInputs = document.querySelectorAll('input[data-field]');
 
-    // Validate customer name one more time before submitting
-    if (customerNameInput && !updatedCustomerName) {
-        alert('⚠️ Customer name is required. Please fill in the customer name before creating the ticket.');
+    let hasEmptyFields = false;
+    let emptyFieldNames = [];
+
+    requiredInputs.forEach(input => {
+        const fieldName = input.getAttribute('data-field');
+        const value = input.value.trim();
+
+        if (value === '') {
+            hasEmptyFields = true;
+            emptyFieldNames.push(fieldName);
+        } else {
+            updatedFields[fieldName] = value;
+        }
+    });
+
+    // Validate that all required fields are filled
+    if (hasEmptyFields) {
+        alert(`⚠️ Please fill in all required fields before creating the ticket:\n\n${emptyFieldNames.join('\n')}`);
         return;
     }
 
@@ -1644,7 +1781,7 @@ document.getElementById('confirmImport').addEventListener('click', function() {
     button.textContent = 'Creating...';
     button.disabled = true;
 
-    fetch('/admin/csv-import/import-ticket', {
+    fetch('/admin/asset-checkout-import/import-ticket', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1658,7 +1795,7 @@ document.getElementById('confirmImport').addEventListener('click', function() {
             case_owner_id: selectedCaseOwnerId,
             selected_accessories: selectedAccessories,  // Include selected accessories
             selected_assets: selectedAssets,  // Include selected assets
-            updated_customer_name: updatedCustomerName  // Include updated customer name
+            updated_fields: updatedFields  // Include all updated field values
         })
     })
     .then(response => response.json())
@@ -1832,7 +1969,7 @@ async function loadDataFromFileId(fileId) {
         const tempFile = `/tmp/csv_import_${fileId}.json`;
 
         // Make a request to get the data
-        const response = await fetch(`/admin/csv-import/load-data?file_id=${fileId}`);
+        const response = await fetch(`/admin/asset-checkout-import/load-data?file_id=${fileId}`);
 
         if (!response.ok) {
             throw new Error('Failed to load CSV data');

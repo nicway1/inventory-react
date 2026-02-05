@@ -1,1 +1,1 @@
-customer_name,customer_email,customer_phone,customer_company,customer_address,customer_country,return_description,asset_serial_number,priority,queue_name,case_owner_email,notes
+order-Id,customer_name,customer_email,customer_phone,customer_company,customer_address,customer_country,return_description,Reported_Issue,asset_serial_number,priority

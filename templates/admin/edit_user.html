@@ -429,7 +429,7 @@
                                             </div>
                                         </label>
                                     </div>
-                                    <!-- CSV Import (Checkout) -->
+                                    <!-- Import (Firstbase Asset Checkout Tickets) -->
                                     <div class="flex items-center hover:bg-gray-50 p-2 rounded">
                                         <input type="checkbox"
                                                id="import_csv_import"
@@ -442,12 +442,30 @@
                                                 <i class="fas fa-file-csv"></i>
                                             </span>
                                             <div>
-                                                <span class="font-medium">CSV Import (Checkout)</span>
-                                                <p class="text-xs text-gray-500">Import asset checkout tickets from CSV</p>
+                                                <span class="font-medium">Import (Firstbase Asset Checkout Tickets)</span>
+                                                <p class="text-xs text-gray-500">Import Firstbase asset checkout tickets from CSV</p>
                                             </div>
                                         </label>
                                     </div>
-                                    <!-- Bulk Import Asset Return -->
+                                    <!-- Import Asset Checkout Tickets -->
+                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
+                                        <input type="checkbox"
+                                               id="import_asset_checkout"
+                                               name="import_permissions"
+                                               value="asset_checkout"
+                                               {% if 'asset_checkout' in allowed_import_types %}checked{% endif %}
+                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <label for="import_asset_checkout" class="ml-3 text-sm text-gray-700 flex items-center">
+                                            <span class="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center mr-3">
+                                                <i class="fas fa-file-import"></i>
+                                            </span>
+                                            <div>
+                                                <span class="font-medium">Import Asset Checkout Tickets</span>
+                                                <p class="text-xs text-gray-500">Import non-Firstbase asset checkout tickets from CSV</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <!-- Import Asset Return Tickets -->
                                     <div class="flex items-center hover:bg-gray-50 p-2 rounded">
                                         <input type="checkbox"
                                                id="import_asset_return"
@@ -460,12 +478,12 @@
                                                 <i class="fas fa-undo"></i>
                                             </span>
                                             <div>
-                                                <span class="font-medium">Bulk Import Asset Return</span>
-                                                <p class="text-xs text-gray-500">Bulk import asset return tickets</p>
+                                                <span class="font-medium">Import Asset Return Tickets</span>
+                                                <p class="text-xs text-gray-500">Import asset return tickets</p>
                                             </div>
                                         </label>
                                     </div>
-                                    <!-- Bulk Import 1stBase -->
+                                    <!-- Import Firstbase Asset Returns Tickets -->
                                     <div class="flex items-center hover:bg-gray-50 p-2 rounded">
                                         <input type="checkbox"
                                                id="import_1stbase"
@@ -478,26 +496,8 @@
                                                 <i class="fas fa-database"></i>
                                             </span>
                                             <div>
-                                                <span class="font-medium">Bulk Import 1stBase</span>
-                                                <p class="text-xs text-gray-500">Import 1stBase orders as tickets</p>
-                                            </div>
-                                        </label>
-                                    </div>
-                                    <!-- Import from Retool -->
-                                    <div class="flex items-center hover:bg-gray-50 p-2 rounded">
-                                        <input type="checkbox"
-                                               id="import_retool"
-                                               name="import_permissions"
-                                               value="retool"
-                                               {% if 'retool' in allowed_import_types %}checked{% endif %}
-                                               class="import-permission-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                        <label for="import_retool" class="ml-3 text-sm text-gray-700 flex items-center">
-                                            <span class="w-8 h-8 rounded bg-teal-100 text-teal-600 flex items-center justify-center mr-3">
-                                                <i class="fas fa-tools"></i>
-                                            </span>
-                                            <div>
-                                                <span class="font-medium">Import from Retool</span>
-                                                <p class="text-xs text-gray-500">Import data directly from Retool</p>
+                                                <span class="font-medium">Import Firstbase Asset Returns Tickets</span>
+                                                <p class="text-xs text-gray-500">Import Firstbase asset return orders</p>
                                             </div>
                                         </label>
                                     </div>

@@ -11669,7 +11669,7 @@ def bulk_import_asset_return():
                 csv_reader = csv.DictReader(stream)
 
                 # Validate headers
-                required_headers = ['customer_name', 'customer_email', 'customer_country', 'return_description']
+                required_headers = ['order-Id', 'customer_name', 'customer_email', 'customer_phone', 'customer_company', 'customer_address', 'customer_country', 'return_description']
                 headers = csv_reader.fieldnames
 
                 missing_headers = [h for h in required_headers if h not in headers]
@@ -11709,6 +11709,7 @@ def bulk_import_asset_return():
                     customer_name = row.get('customer_name', '').strip()
                     preview_data.append({
                         'row_number': row_number,
+                        'order_id': row.get('order-Id', '').strip(),
                         'customer_name': customer_name,
                         'customer_email': row.get('customer_email', ''),
                         'customer_phone': row.get('customer_phone', ''),
@@ -11716,6 +11717,7 @@ def bulk_import_asset_return():
                         'customer_country': row.get('customer_country', ''),
                         'customer_address': customer_address,
                         'return_description': row.get('return_description', ''),
+                        'reported_issue': row.get('Reported_Issue', ''),
                         'asset_serial_number': row.get('asset_serial_number', ''),
                         'priority': row.get('priority', 'Medium'),
                         'queue_name': row.get('queue_name', ''),
@@ -11817,6 +11819,8 @@ def bulk_import_asset_return():
                     customer_email = request.form.get(f'row_{i}_customer_email', '').strip()
                     customer_country = request.form.get(f'row_{i}_customer_country', '').strip().upper()
                     return_description = request.form.get(f'row_{i}_return_description', '').strip()
+                    order_id = request.form.get(f'row_{i}_order_id', '').strip()
+                    reported_issue = request.form.get(f'row_{i}_reported_issue', '').strip()
 
                     if not customer_name or not customer_email or not customer_country or not return_description:
                         failed_imports.append({
@@ -11931,8 +11935,10 @@ def bulk_import_asset_return():
                             case_owner_id = case_owner.id
 
                     # Prepare description - just use the return_description as main description
-                    # Add asset serial number if provided
+                    # Add reported issue if provided
                     description = return_description
+                    if reported_issue:
+                        description += f"\n\nReported Issue: {reported_issue}"
                     if asset_serial_number:
                         description += f"\n\nAsset Serial Number: {asset_serial_number}"
 
@@ -11952,7 +11958,9 @@ def bulk_import_asset_return():
                         return_description=return_description,
                         queue_id=queue_id,
                         notes=notes if notes else None,
-                        shipping_carrier='singpost'
+                        shipping_carrier='singpost',
+                        firstbaseorderid=order_id if order_id else None,
+                        damage_description=reported_issue if reported_issue else None
                     )
                     db_session.add(ticket)
                     db_session.flush()  # Flush to get the ticket ID

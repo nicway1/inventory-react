@@ -5428,6 +5428,10 @@ def search_suggestions():
                 Ticket.subject.ilike(f'%{search_term}%'),
                 Ticket.serial_number.ilike(f'%{search_term}%'),
                 Ticket.shipping_tracking.ilike(f'%{search_term}%'),
+                Ticket.return_tracking.ilike(f'%{search_term}%'),
+                Ticket.firstbaseorderid.ilike(f'%{search_term}%'),
+                Ticket.description.ilike(f'%{search_term}%'),
+                Ticket.notes.ilike(f'%{search_term}%'),
                 *([Ticket.id == int(search_term.replace('TICK-', '').replace('#', ''))]
                   if search_term.replace('TICK-', '').replace('#', '').isdigit() else [])
             )

@@ -1,0 +1,5 @@
+order_item_id,order_id,product_title,person_name,serial_number,brand,address_line1,address_line2,city,state,postal_code,phone_number,primary_email,org_name,priority
+item-001,order-001,YubiKey 5C NFC,growrktest1,,Yubico,"18 West coast road, 03-08",The Stellar,Singapore,Singapore,126822,91523330,growrktst@gmail.com,GROWRK,medium
+item-002,order-001,MacBook Pro 16,growrktest1,DJWC69Y332,Apple,"18 West coast road, 03-08",The Stellar,Singapore,Singapore,126822,91523330,growrktst@gmail.com,GROWRK,High
+item-001,order-002,EarPods with 3.5mm Jack (APAC),growrktest2,,Apple,"19 West coast road, 03-08",The Stellar,Singapore,Singapore,126822,91997339,sup-apac@gmail.com,GROWRK,1
+item-002,order-002,Anker USB-C 30W Charger (5 ft USB-C to USB-C Cable Included) - UK Plug,growrktest2,,Anker,"19 West coast road, 03-08",The Stellar,Singapore,Singapore,126822,91997339,sup-apac@gmail.com,GROWRK,CRITICAL
