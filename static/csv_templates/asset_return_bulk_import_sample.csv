@@ -1,5 +1,5 @@
 order-Id,customer_name,customer_email,customer_phone,customer_company,customer_address,customer_country,return_description,Reported_Issue,asset_serial_number,priority
-ORD-001,John Smith,john.smith@example.com,+1-555-0101,Acme Corp,"123 Main Street, Suite 100, San Francisco, CA 94105",USA,MacBook Pro with cracked screen,Screen damaged from drop,C02XYZ123456,High
-ORD-002,Jane Doe,jane.doe@company.com,+65-9123-4567,Tech Solutions,"50 Raffles Place #12-01, Singapore 048623",SINGAPORE,iPad not charging properly,Charging port not working,DMPTST12345,Medium
-ORD-003,Bob Johnson,bob.j@business.org,+1-555-0202,Business Inc,"456 Oak Avenue, New York, NY 10001",USA,Faulty keyboard on MacBook,Multiple keys not responding,C02ABC987654,Low
-ORD-004,Alice Wong,alice.wong@email.com,+65-8765-4321,Digital Agency,"10 Anson Road #15-05, Singapore 079903",SINGAPORE,Monitor with dead pixels,Display has dead pixel clusters,MON456789,Critical
+ORD-001,John Smith,john.smith@example.com,+1-555-0101,Acme Corp,"123 Main Street, Suite 100, San Francisco, CA 94105",USA,MacBook Pro,Screen damaged from drop,C02XYZ123456,High
+ORD-002,Jane Doe,jane.doe@company.com,+65-9123-4567,Tech Solutions,"50 Raffles Place #12-01, Singapore 048623",SINGAPORE,iPad,Charging port not working,DMPTST12345,Medium
+ORD-003,Bob Johnson,bob.j@business.org,+1-555-0202,Business Inc,"456 Oak Avenue, New York, NY 10001",USA,MacBook,Multiple keys not responding,C02ABC987654,Low
+ORD-004,Alice Wong,alice.wong@email.com,+65-8765-4321,Digital Agency,"10 Anson Road #15-05, Singapore 079903",SINGAPORE,Monitor,Display has dead pixel clusters,MON456789,Critical
