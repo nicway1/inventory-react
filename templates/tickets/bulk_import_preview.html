@@ -67,7 +67,8 @@
         color: #ef4444;
     }
     .error-row {
-        background-color: #fef2f2;
+        background-color: #fee2e2 !important;
+        border-left: 4px solid #ef4444;
     }
     .error-field {
         border: 2px solid #ef4444 !important;
@@ -155,6 +156,24 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="import">
             <input type="hidden" name="row_count" value="{{ preview_data|length }}">
+
+            <!-- Warning for missing required fields -->
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">⚠️ Missing Required Fields Detected</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p><strong>Rows with RED background and RED left border</strong> have missing required fields and CANNOT be imported until all required fields are filled.</p>
+                            <p class="mt-1">Required fields are marked with <span class="text-red-600">*</span> and must be completed before submission.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Preview Table -->
             <div class="table-container mb-6">
