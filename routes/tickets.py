@@ -11982,7 +11982,13 @@ def bulk_import_asset_return():
                     successful_imports.append({
                         'row': row_number,
                         'ticket_id': ticket_id,
-                        'customer': customer_name
+                        'order_id': order_id if order_id else '-',
+                        'customer': customer_name,
+                        'email': customer_email,
+                        'phone': customer_phone,
+                        'company': customer_company,
+                        'country': customer_country,
+                        'category': 'Asset Return'
                     })
                     logger.info(f"Created Asset Return ticket {ticket_id} for customer {customer_name}")
 
@@ -12512,7 +12518,13 @@ def bulk_import_1stbase():
                     successful_imports.append({
                         'row': row_number,
                         'ticket_id': ticket_id,
-                        'customer': customer_name
+                        'order_id': order_id if order_id else '-',
+                        'customer': customer_name,
+                        'email': customer_email,
+                        'phone': customer_phone,
+                        'company': customer_company,
+                        'country': customer_country,
+                        'category': 'Asset Return'
                     })
                     logger.info(f"Created 1stbase ticket {ticket_id} for customer {customer_name}")
 

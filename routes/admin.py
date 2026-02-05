@@ -9605,10 +9605,16 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 
                 # Update import session with success
                 import_data = [{
+                    'row': 'Single',
                     'ticket_id': ticket.display_id,
                     'order_id': primary_item.get('order_id', ''),
                     'customer': primary_item.get('person_name', ''),
-                    'status': 'success'
+                    'email': primary_item.get('primary_email', ''),
+                    'phone': primary_item.get('phone_number', ''),
+                    'company': primary_item.get('org_name', ''),
+                    'product': primary_item.get('product_title', ''),
+                    'category': 'Asset Checkout',
+                    'status': 'Success'
                 }]
                 update_import_session(
                     import_session_id,

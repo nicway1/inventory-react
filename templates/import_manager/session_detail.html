@@ -425,7 +425,17 @@
                         {% for row in import_data[:100] %}
                         <tr>
                             {% for key, value in row.items() %}
-                            <td>{{ value if value is not none else '-' }}</td>
+                            <td>
+                                {% if key == 'ticket_id' and value %}
+                                    <a href="{{ url_for('tickets.view_ticket', ticket_id=value) }}"
+                                       class="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                       target="_blank">
+                                        #{{ value }}
+                                    </a>
+                                {% else %}
+                                    {{ value if value is not none else '-' }}
+                                {% endif %}
+                            </td>
                             {% endfor %}
                         </tr>
                         {% endfor %}
