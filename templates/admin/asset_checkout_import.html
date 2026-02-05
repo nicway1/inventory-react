@@ -1884,6 +1884,15 @@ document.getElementById('confirmImport').addEventListener('click', function() {
             // Mark the row as imported in the table
             markRowAsImported(currentPreviewIndex, data.ticket_id, updatedFields);
 
+            // Update the row in csvData to mark as duplicate so it shows as "ALREADY IMPORTED"
+            if (csvData && csvData[currentPreviewIndex]) {
+                csvData[currentPreviewIndex].is_duplicate = true;
+                csvData[currentPreviewIndex].cannot_import = true;
+            }
+
+            // Refresh the entire table to show updated status
+            displayCSVData(csvData);
+
             // Close preview modal
             document.getElementById('previewModal').classList.add('hidden');
 
