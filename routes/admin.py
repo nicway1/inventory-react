@@ -4349,12 +4349,15 @@ def csv_import_preview_ticket():
                 # Filter assets by company access for supervisors
                 from flask_login import current_user
                 from models.enums import UserType
+                from models.user_company_permission import UserCompanyPermission
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
-                    # Get list of accessible company IDs
+                    # Get list of accessible company IDs from database
                     accessible_company_ids = []
-                    for perm in current_user.company_permissions:
-                        if perm.can_view:
-                            accessible_company_ids.append(perm.company_id)
+                    company_perms = db_session.query(UserCompanyPermission).filter(
+                        UserCompanyPermission.user_id == current_user.id,
+                        UserCompanyPermission.can_view == True
+                    ).all()
+                    accessible_company_ids = [perm.company_id for perm in company_perms]
 
                     # Filter asset query to only include assets from accessible companies
                     if accessible_company_ids:
@@ -8658,12 +8661,15 @@ def asset_checkout_import_preview_ticket():
                 # Filter assets by company access for supervisors
                 from flask_login import current_user
                 from models.enums import UserType
+                from models.user_company_permission import UserCompanyPermission
                 if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
-                    # Get list of accessible company IDs
+                    # Get list of accessible company IDs from database
                     accessible_company_ids = []
-                    for perm in current_user.company_permissions:
-                        if perm.can_view:
-                            accessible_company_ids.append(perm.company_id)
+                    company_perms = db_session.query(UserCompanyPermission).filter(
+                        UserCompanyPermission.user_id == current_user.id,
+                        UserCompanyPermission.can_view == True
+                    ).all()
+                    accessible_company_ids = [perm.company_id for perm in company_perms]
 
                     # Filter asset query to only include assets from accessible companies
                     if accessible_company_ids:
