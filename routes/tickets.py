@@ -11985,8 +11985,8 @@ def bulk_import_asset_return():
                         'order_id': order_id if order_id else '-',
                         'customer': customer_name,
                         'email': customer_email,
-                        'phone': customer_phone,
-                        'company': customer_company,
+                        'phone': customer_phone if customer_phone else '-',
+                        'company': customer_company_name if customer_company_name else '-',
                         'country': customer_country,
                         'category': 'Asset Return'
                     })
@@ -12521,8 +12521,8 @@ def bulk_import_1stbase():
                         'order_id': order_id if order_id else '-',
                         'customer': customer_name,
                         'email': customer_email,
-                        'phone': customer_phone,
-                        'company': customer_company,
+                        'phone': customer_phone if customer_phone else '-',
+                        'company': customer_company_name if customer_company_name else '-',
                         'country': customer_country,
                         'category': 'Asset Return'
                     })
