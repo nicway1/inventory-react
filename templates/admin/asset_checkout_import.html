@@ -678,28 +678,33 @@ function displayCSVData(data) {
                 </div>
             </td>
             <td class="px-3 py-4">
-                ${row.has_validation_errors ?
-                    `<div class="flex items-center gap-2">
-                        <div>
-                            <div class="text-sm font-semibold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-300">
-                                ⚠️ Missing Required Fields
-                            </div>
-                            <div class="text-xs text-red-500 mt-1">${row.validation_error_message || 'Click Preview to fix'}</div>
-                        </div>
-                    </div>
-                    <div class="text-xs text-gray-500 mt-1">${row.primary_email || 'No email'}</div>` :
-                    (!row.person_name || row.person_name.trim() === '' || row.person_name.trim().toLowerCase() === 'unknown customer' ?
+                ${row.is_duplicate ?
+                    // Already imported - show normal customer info without validation errors
+                    `<div class="text-sm text-gray-900">${row.person_name || 'Unknown'}</div>
+                    <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>` :
+                    // Not imported yet - check for validation errors
+                    (row.has_validation_errors ?
                         `<div class="flex items-center gap-2">
                             <div>
                                 <div class="text-sm font-semibold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-300">
-                                    ⚠️ Unknown Customer
+                                    ⚠️ Missing Required Fields
                                 </div>
-                                <div class="text-xs text-red-500 mt-1">Empty name - click Preview to fix</div>
+                                <div class="text-xs text-red-500 mt-1">${row.validation_error_message || 'Click Preview to fix'}</div>
                             </div>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">${row.primary_email || 'No email'}</div>` :
-                        `<div class="text-sm text-gray-900">${row.person_name}</div>
-                        <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>`)
+                        (!row.person_name || row.person_name.trim() === '' || row.person_name.trim().toLowerCase() === 'unknown customer' ?
+                            `<div class="flex items-center gap-2">
+                                <div>
+                                    <div class="text-sm font-semibold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-300">
+                                        ⚠️ Unknown Customer
+                                    </div>
+                                    <div class="text-xs text-red-500 mt-1">Empty name - click Preview to fix</div>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">${row.primary_email || 'No email'}</div>` :
+                            `<div class="text-sm text-gray-900">${row.person_name}</div>
+                            <div class="text-xs text-gray-500">${row.primary_email || 'No email'}</div>`))
                 }
             </td>
             <td class="px-3 py-4">
