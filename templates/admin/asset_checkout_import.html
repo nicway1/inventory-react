@@ -1885,8 +1885,9 @@ document.getElementById('confirmImport').addEventListener('click', function() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to create ticket. Please try again.');
+        console.error('Error creating ticket:', error);
+        console.error('Error stack:', error.stack);
+        alert('Failed to create ticket. Please try again.\n\nError: ' + error.message);
     })
     .finally(() => {
         button.textContent = originalText;

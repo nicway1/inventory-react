@@ -4836,8 +4836,7 @@ def csv_import_import_ticket():
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         logger.info(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
-        logger.info("[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
-        logger.info("[CSV IMPORT] Selected assets data: {selected_assets}")
+        logger.info(f"[CSV IMPORT] Selected assets data: {selected_assets}")
         if updated_customer_name:
             logger.info(f"[CSV IMPORT] Updated customer name: {updated_customer_name}")
         
@@ -5161,11 +5160,11 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             if selected_case_owner_id:
                 try:
                     case_owner_id = int(selected_case_owner_id)
-                    logger.info("[CSV DEBUG] Using selected case owner: {case_owner_id}")
+                    logger.info(f"[CSV DEBUG] Using selected case owner: {case_owner_id}")
                 except (ValueError, TypeError):
-                    logger.info("[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
+                    logger.info(f"[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
             
-            logger.info("[CSV DEBUG] Creating ticket with subject: {subject}")
+            logger.info(f"[CSV DEBUG] Creating ticket with subject: {subject}")
             ticket = Ticket(
                 subject=subject,
                 description=description,
@@ -5184,7 +5183,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             db_session.add(ticket)
             db_session.flush()  # Ensure ticket gets an ID
             db_session.commit()
-            logger.info("[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
+            logger.info(f"[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
             
             # Send queue notifications for the imported ticket
             try:
@@ -5198,55 +5197,55 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             assigned_assets = []
             
             # Assign selected assets
-            logger.info("[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
-            logger.info("[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
+            logger.info(f"[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
+            logger.info(f"[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
             
             # Check for duplicate asset IDs in the selection
             asset_ids = [asset_data.get('assetId') for asset_data in selected_assets if asset_data.get('assetId')]
             unique_asset_ids = list(set(asset_ids))
-            logger.info("[CSV DEBUG] Asset IDs: {asset_ids}")
-            logger.info("[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
+            logger.info(f"[CSV DEBUG] Asset IDs: {asset_ids}")
+            logger.info(f"[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
             if len(asset_ids) != len(unique_asset_ids):
-                logger.info("[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
+                logger.info(f"[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
             
             if selected_assets:
                 from models.asset import Asset
-                logger.info("[CSV DEBUG] Processing {len(selected_assets)} selected assets")
+                logger.info(f"[CSV DEBUG] Processing {len(selected_assets)} selected assets")
                 
                 # Deduplicate assets by ID to prevent constraint violations
                 processed_asset_ids = set()
                 
                 for asset_data in selected_assets:
                     asset_id = asset_data.get('assetId')
-                    logger.info("[CSV DEBUG] Processing asset ID: {asset_id}")
+                    logger.info(f"[CSV DEBUG] Processing asset ID: {asset_id}")
                     if asset_id and asset_id not in processed_asset_ids:
                         processed_asset_ids.add(asset_id)
                         # Get the asset from database
                         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
                         if asset:
-                            logger.info("[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
+                            logger.info(f"[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
                             if asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
                                 # Use the existing function to safely assign asset
                                 try:
-                                    logger.info("[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
+                                    logger.info(f"[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
                                     success = safely_assign_asset_to_ticket(ticket, asset, db_session)
                                     if success:
                                         assigned_assets.append(asset.name)
-                                        logger.info("[CSV DEBUG] Successfully assigned asset {asset.name}")
+                                        logger.info(f"[CSV DEBUG] Successfully assigned asset {asset.name}")
                                         
                                         # Also assign the asset to the customer and update status
                                         if ticket.customer_id:
                                             asset.customer_id = ticket.customer_id
-                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                            logger.info(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
                                         
                                         if ticket.assigned_to_id:
                                             asset.assigned_to_id = ticket.assigned_to_id
-                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                            logger.info(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
                                         
                                         # Update asset status to DEPLOYED
                                         from models.asset import AssetStatus
                                         asset.status = AssetStatus.DEPLOYED
-                                        logger.info("[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                                        logger.info(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
                                         
                                         # Create activity log for asset assignment
                                         from models.activity import Activity
@@ -5262,21 +5261,21 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                                         )
                                         db_session.add(activity)
                                     else:
-                                        logger.info("[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
+                                        logger.info(f"[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
                                 except Exception as e:
-                                    logger.info("[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
+                                    logger.info(f"[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
                                     import traceback
                                     traceback.print_exc()
                             else:
-                                logger.info("[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
+                                logger.info(f"[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
                         else:
-                            logger.info("[CSV DEBUG] Asset {asset_id} not found in database")
+                            logger.info(f"[CSV DEBUG] Asset {asset_id} not found in database")
                     elif asset_id in processed_asset_ids:
-                        logger.info("[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
+                        logger.info(f"[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
             
             # Commit asset assignments
             if assigned_assets:
-                logger.info("[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
+                logger.info(f"[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
                 db_session.commit()
             
             # Assign selected accessories
@@ -5343,7 +5342,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             db_session.close()
             
     except Exception as e:
-        logger.info("Error importing ticket: {str(e)}")
+        logger.error(f"Error importing ticket: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to import ticket: {str(e)}'})
@@ -5770,16 +5769,16 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                             # Also assign the asset to the customer and update status
                             if ticket.customer_id:
                                 asset.customer_id = ticket.customer_id
-                                logger.info("[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                logger.info(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
                             
                             if ticket.assigned_to_id:
                                 asset.assigned_to_id = ticket.assigned_to_id
-                                logger.info("[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                logger.info(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
                             
                             # Update asset status to DEPLOYED
                             from models.asset import AssetStatus
                             asset.status = AssetStatus.DEPLOYED
-                            logger.info("[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                            logger.info(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
                             
                             # Create activity log for asset assignment
                             from models.activity import Activity
@@ -9111,8 +9110,7 @@ def asset_checkout_import_import_ticket():
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         logger.info(f"[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
-        logger.info("[CSV IMPORT] Received {len(selected_accessories)} accessories and {len(selected_assets)} assets")
-        logger.info("[CSV IMPORT] Selected assets data: {selected_assets}")
+        logger.info(f"[CSV IMPORT] Selected assets data: {selected_assets}")
         if updated_fields:
             logger.info(f"[CSV IMPORT] Updated fields: {updated_fields}")
         
@@ -9428,11 +9426,11 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             if selected_case_owner_id:
                 try:
                     case_owner_id = int(selected_case_owner_id)
-                    logger.info("[CSV DEBUG] Using selected case owner: {case_owner_id}")
+                    logger.info(f"[CSV DEBUG] Using selected case owner: {case_owner_id}")
                 except (ValueError, TypeError):
-                    logger.info("[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
+                    logger.info(f"[CSV DEBUG] Invalid case owner ID, using current user: {current_user.id}")
             
-            logger.info("[CSV DEBUG] Creating ticket with subject: {subject}")
+            logger.info(f"[CSV DEBUG] Creating ticket with subject: {subject}")
             ticket = Ticket(
                 subject=subject,
                 description=description,
@@ -9451,7 +9449,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             db_session.add(ticket)
             db_session.flush()  # Ensure ticket gets an ID
             db_session.commit()
-            logger.info("[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
+            logger.info(f"[CSV DEBUG] Ticket created successfully with ID: {ticket.id}")
             
             # Send queue notifications for the imported ticket
             try:
@@ -9465,55 +9463,55 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             assigned_assets = []
             
             # Assign selected assets
-            logger.info("[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
-            logger.info("[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
+            logger.info(f"[CSV DEBUG] About to process assets. selected_assets = {selected_assets}")
+            logger.info(f"[CSV DEBUG] Number of selected assets: {len(selected_assets)}")
             
             # Check for duplicate asset IDs in the selection
             asset_ids = [asset_data.get('assetId') for asset_data in selected_assets if asset_data.get('assetId')]
             unique_asset_ids = list(set(asset_ids))
-            logger.info("[CSV DEBUG] Asset IDs: {asset_ids}")
-            logger.info("[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
+            logger.info(f"[CSV DEBUG] Asset IDs: {asset_ids}")
+            logger.info(f"[CSV DEBUG] Unique Asset IDs: {unique_asset_ids}")
             if len(asset_ids) != len(unique_asset_ids):
-                logger.info("[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
+                logger.info(f"[CSV DEBUG] WARNING: Duplicate asset IDs detected in selection!")
             
             if selected_assets:
                 from models.asset import Asset
-                logger.info("[CSV DEBUG] Processing {len(selected_assets)} selected assets")
+                logger.info(f"[CSV DEBUG] Processing {len(selected_assets)} selected assets")
                 
                 # Deduplicate assets by ID to prevent constraint violations
                 processed_asset_ids = set()
                 
                 for asset_data in selected_assets:
                     asset_id = asset_data.get('assetId')
-                    logger.info("[CSV DEBUG] Processing asset ID: {asset_id}")
+                    logger.info(f"[CSV DEBUG] Processing asset ID: {asset_id}")
                     if asset_id and asset_id not in processed_asset_ids:
                         processed_asset_ids.add(asset_id)
                         # Get the asset from database
                         asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
                         if asset:
-                            logger.info("[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
+                            logger.info(f"[CSV DEBUG] Found asset: {asset.name}, Status: {asset.status}")
                             if asset.status and asset.status.value in ['In Stock', 'Ready to Deploy']:
                                 # Use the existing function to safely assign asset
                                 try:
-                                    logger.info("[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
+                                    logger.info(f"[CSV DEBUG] Attempting to assign asset {asset_id} to ticket {ticket.id}")
                                     success = safely_assign_asset_to_ticket(ticket, asset, db_session)
                                     if success:
                                         assigned_assets.append(asset.name)
-                                        logger.info("[CSV DEBUG] Successfully assigned asset {asset.name}")
+                                        logger.info(f"[CSV DEBUG] Successfully assigned asset {asset.name}")
                                         
                                         # Also assign the asset to the customer and update status
                                         if ticket.customer_id:
                                             asset.customer_id = ticket.customer_id
-                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
+                                            logger.info(f"[CSV DEBUG] Assigned asset {asset.name} to customer {ticket.customer_id}")
                                         
                                         if ticket.assigned_to_id:
                                             asset.assigned_to_id = ticket.assigned_to_id
-                                            logger.info("[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
+                                            logger.info(f"[CSV DEBUG] Assigned asset {asset.name} to user {ticket.assigned_to_id}")
                                         
                                         # Update asset status to DEPLOYED
                                         from models.asset import AssetStatus
                                         asset.status = AssetStatus.DEPLOYED
-                                        logger.info("[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
+                                        logger.info(f"[CSV DEBUG] Updated asset {asset.name} status to DEPLOYED")
                                         
                                         # Create activity log for asset assignment
                                         from models.activity import Activity
@@ -9529,21 +9527,21 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
                                         )
                                         db_session.add(activity)
                                     else:
-                                        logger.info("[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
+                                        logger.info(f"[CSV DEBUG] Asset {asset_id} assignment failed or already assigned")
                                 except Exception as e:
-                                    logger.info("[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
+                                    logger.info(f"[CSV DEBUG] Error assigning asset {asset_id}: {str(e)}")
                                     import traceback
                                     traceback.print_exc()
                             else:
-                                logger.info("[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
+                                logger.info(f"[CSV DEBUG] Asset {asset_id} not available for assignment. Status: {asset.status}")
                         else:
-                            logger.info("[CSV DEBUG] Asset {asset_id} not found in database")
+                            logger.info(f"[CSV DEBUG] Asset {asset_id} not found in database")
                     elif asset_id in processed_asset_ids:
-                        logger.info("[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
+                        logger.info(f"[CSV DEBUG] Asset {asset_id} already processed, skipping duplicate")
             
             # Commit asset assignments
             if assigned_assets:
-                logger.info("[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
+                logger.info(f"[CSV DEBUG] Committing {len(assigned_assets)} asset assignments")
                 db_session.commit()
             
             # Assign selected accessories
@@ -9610,7 +9608,7 @@ Imported from CSV on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
             db_session.close()
             
     except Exception as e:
-        logger.info("Error importing ticket: {str(e)}")
+        logger.error(f"Error importing ticket: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to import ticket: {str(e)}'})
