@@ -169,6 +169,7 @@
                             <th style="min-width: 350px;">Customer Address <span class="required-star">*</span></th>
                             <th style="min-width: 110px;">Country <span class="required-star">*</span></th>
                             <th style="min-width: 200px;">Return Description <span class="required-star">*</span></th>
+                            <th style="min-width: 200px;">Reported Issue</th>
                             <th style="min-width: 120px;">Asset Serial</th>
                             <th style="min-width: 90px;">Priority</th>
                             <th style="min-width: 100px;">Queue</th>
@@ -264,6 +265,10 @@
                                           class="required-field {% if not row.return_description %}error-field{% endif %}"
                                           required
                                           placeholder="Describe the return issue">{{ row.return_description }}</textarea>
+                            </td>
+                            <td>
+                                <textarea name="row_{{ loop.index0 }}_reported_issue"
+                                          placeholder="Detailed issue reported by customer">{{ row.reported_issue }}</textarea>
                             </td>
                             <td>
                                 <input type="text"
