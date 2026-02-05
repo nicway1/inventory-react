@@ -4240,6 +4240,8 @@ def csv_import_preview_ticket():
     """Preview a single ticket from CSV data with enhanced features"""
     from models.user_import_permission import UserImportPermission
     from flask import session
+    from flask_login import current_user
+    from models.enums import UserType
 
     # Check if user has csv_import permission
     user = db_manager.get_user(session['user_id'])
@@ -4342,9 +4344,37 @@ def csv_import_preview_ticket():
                 
                 # Initialize matches list
                 matches = []
-                
+
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
+
+                # For supervisors and country admins, filter assets by company
+                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    accessible_company_ids = []
+
+                    # Add user's own company
+                    if current_user.company_id:
+                        accessible_company_ids.append(current_user.company_id)
+
+                    # Add companies they have permission to view
+                    from models.user_company_permission import UserCompanyPermission
+                    company_perms = db_session.query(UserCompanyPermission).filter(
+                        UserCompanyPermission.user_id == current_user.id,
+                        UserCompanyPermission.can_view == True
+                    ).all()
+                    for perm in company_perms:
+                        if perm.company_id not in accessible_company_ids:
+                            accessible_company_ids.append(perm.company_id)
+
+                    # Filter assets to only show those from accessible companies
+                    # Do NOT show unassigned assets (company_id is NULL)
+                    if accessible_company_ids:
+                        asset_query = asset_query.filter(
+                            Asset.company_id.in_(accessible_company_ids)
+                        )
+                    else:
+                        # If no accessible companies, show no assets
+                        asset_query = asset_query.filter(Asset.id == -1)
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
@@ -8634,9 +8664,37 @@ def asset_checkout_import_preview_ticket():
                 
                 # Initialize matches list
                 matches = []
-                
+
                 # Search for matching assets in inventory
                 asset_query = db_session.query(Asset)
+
+                # For supervisors and country admins, filter assets by company
+                if current_user.user_type in [UserType.SUPERVISOR, UserType.COUNTRY_ADMIN]:
+                    accessible_company_ids = []
+
+                    # Add user's own company
+                    if current_user.company_id:
+                        accessible_company_ids.append(current_user.company_id)
+
+                    # Add companies they have permission to view
+                    from models.user_company_permission import UserCompanyPermission
+                    company_perms = db_session.query(UserCompanyPermission).filter(
+                        UserCompanyPermission.user_id == current_user.id,
+                        UserCompanyPermission.can_view == True
+                    ).all()
+                    for perm in company_perms:
+                        if perm.company_id not in accessible_company_ids:
+                            accessible_company_ids.append(perm.company_id)
+
+                    # Filter assets to only show those from accessible companies
+                    # Do NOT show unassigned assets (company_id is NULL)
+                    if accessible_company_ids:
+                        asset_query = asset_query.filter(
+                            Asset.company_id.in_(accessible_company_ids)
+                        )
+                    else:
+                        # If no accessible companies, show no assets
+                        asset_query = asset_query.filter(Asset.id == -1)
 
                 # 1. Search by serial number (highest priority for assets)
                 if serial_number:
