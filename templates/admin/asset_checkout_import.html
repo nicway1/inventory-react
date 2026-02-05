@@ -784,6 +784,74 @@ document.getElementById('selectAll').addEventListener('change', function() {
     });
 });
 
+// Mark row as imported after successful ticket creation
+function markRowAsImported(rowIndex, ticketId, updatedFields = {}) {
+    // Find the table row
+    const tbody = document.getElementById('ticketsTableBody');
+    const rows = tbody.querySelectorAll('tr');
+
+    if (rowIndex < rows.length) {
+        const row = rows[rowIndex];
+
+        // Add visual indicator - green background
+        row.classList.add('bg-green-50');
+
+        // Remove any beige/tan background from validation errors
+        row.classList.remove('bg-yellow-50', 'bg-orange-50');
+
+        // Find the cells
+        const cells = row.querySelectorAll('td');
+
+        // Update customer cell (second column) to remove validation error if present
+        if (cells.length > 1) {
+            const customerCell = cells[1];
+            // Remove the validation error styling and replace with success message
+            const errorDiv = customerCell.querySelector('.bg-red-50');
+            if (errorDiv) {
+                // Get the row data - use updatedFields if available, otherwise fall back to csvData
+                const rowData = window.csvData ? window.csvData[rowIndex] : null;
+
+                // Use updatedFields for corrected values, or fall back to original rowData
+                const displayName = updatedFields.person_name || (rowData ? rowData.person_name : 'Customer');
+                const displayEmail = updatedFields.primary_email || (rowData ? rowData.primary_email : '');
+
+                customerCell.innerHTML = `
+                    <div class="text-sm text-gray-900">${displayName}</div>
+                    <div class="text-xs text-gray-500">${displayEmail}</div>
+                    <div class="text-xs text-green-600 mt-1">✓ Corrected and imported</div>
+                `;
+            }
+        }
+
+        // Find the actions cell (last td) and update it
+        const actionsCell = cells[cells.length - 1];
+
+        if (actionsCell) {
+            actionsCell.innerHTML = `
+                <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                    ✓ IMPORTED
+                </span>
+                <a href="/tickets/${ticketId}" target="_blank" class="ml-2 text-blue-600 hover:text-blue-900 text-sm">
+                    View Ticket
+                </a>
+            `;
+        }
+
+        // Disable the checkbox for this row
+        const checkbox = row.querySelector('.row-checkbox');
+        if (checkbox) {
+            checkbox.disabled = true;
+            checkbox.checked = false;
+        }
+
+        // Update the data to mark as imported
+        if (window.csvData && window.csvData[rowIndex]) {
+            window.csvData[rowIndex].is_imported = true;
+            window.csvData[rowIndex].cannot_import = true;
+        }
+    }
+}
+
 // Preview ticket
 async function previewTicket(index, isGrouped = false) {
     currentPreviewIndex = index;
@@ -1801,12 +1869,15 @@ document.getElementById('confirmImport').addEventListener('click', function() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Mark the row as imported in the table
+            markRowAsImported(currentPreviewIndex, data.ticket_id, updatedFields);
+
             // Close preview modal
             document.getElementById('previewModal').classList.add('hidden');
-            
+
             // Clear selected items after successful ticket creation
             clearAllSelections();
-            
+
             // Show success action modal
             showSuccessActionModal(data);
         } else {
