@@ -486,21 +486,38 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
-    # Calculate queue ticket counts
+    # Calculate queue ticket counts in batch (single query instead of 2 per queue)
     db_session = db_manager.get_session()
     queue_ticket_counts = {}
     try:
-        for queue in queues:
-            total_count = db_session.query(Ticket).filter(Ticket.queue_id == queue.id).count()
-            open_count = db_session.query(Ticket).filter(
-                Ticket.queue_id == queue.id,
+        queue_ids_list = [q.id for q in queues]
+        if queue_ids_list:
+            # Get total counts per queue in one query
+            total_counts = db_session.query(
+                Ticket.queue_id,
+                func.count(Ticket.id)
+            ).filter(
+                Ticket.queue_id.in_(queue_ids_list)
+            ).group_by(Ticket.queue_id).all()
+
+            # Get open counts per queue in one query
+            open_counts = db_session.query(
+                Ticket.queue_id,
+                func.count(Ticket.id)
+            ).filter(
+                Ticket.queue_id.in_(queue_ids_list),
                 Ticket.status != TicketStatus.RESOLVED,
                 Ticket.status != TicketStatus.RESOLVED_DELIVERED
-            ).count()
-            queue_ticket_counts[queue.id] = {
-                'total': total_count,
-                'open': open_count
-            }
+            ).group_by(Ticket.queue_id).all()
+
+            total_map = {qid: cnt for qid, cnt in total_counts}
+            open_map = {qid: cnt for qid, cnt in open_counts}
+
+            for qid in queue_ids_list:
+                queue_ticket_counts[qid] = {
+                    'total': total_map.get(qid, 0),
+                    'open': open_map.get(qid, 0)
+                }
     finally:
         db_session.close()
 
@@ -549,22 +566,9 @@ def list_tickets_sf():
     finally:
         db_session.close()
 
-    # Calculate SLA status for all tickets (using a single session for performance)
-    from utils.sla_calculator import get_sla_status
-    from database import SessionLocal
-    ticket_sla_data = {}
-    sla_db = SessionLocal()
-    try:
-        for ticket in tickets:
-            sla_info = get_sla_status(ticket, db=sla_db)
-            if sla_info['has_sla']:
-                ticket_sla_data[ticket.id] = {
-                    'status': sla_info['status'],
-                    'days_remaining': sla_info['days_remaining'],
-                    'due_date': sla_info['due_date'].isoformat() if sla_info['due_date'] else None
-                }
-    finally:
-        sla_db.close()
+    # Calculate SLA status for all tickets in batch (few queries instead of N+1)
+    from utils.sla_calculator import get_batch_sla_status
+    ticket_sla_data = get_batch_sla_status(tickets)
 
     # Get all users for bulk assign dropdown
     from models.user import User
@@ -577,12 +581,14 @@ def list_tickets_sf():
         user_has_firstbase_access = current_user.is_super_admin or current_user.is_developer
         if not user_has_firstbase_access:
             try:
-                # Check company permissions
+                # Check company permissions using session-bound user to avoid lazy load error
                 firstbase_company = users_db.query(Company).filter(
                     Company.name.ilike('%firstbase%')
                 ).first()
                 if firstbase_company:
-                    user_has_firstbase_access = current_user.can_access_company(firstbase_company.id)
+                    fresh_user = users_db.query(User).get(current_user.id)
+                    if fresh_user:
+                        user_has_firstbase_access = fresh_user.can_access_company(firstbase_company.id)
             except Exception as e:
                 logger.error(f"Error checking Firstbase access in list view: {str(e)}")
                 user_has_firstbase_access = False
@@ -3473,7 +3479,10 @@ def view_ticket(ticket_id):
                     Company.name.ilike('%firstbase%')
                 ).first()
                 if firstbase_company:
-                    user_has_firstbase_access = current_user.can_access_company(firstbase_company.id)
+                    # Use session-bound user to avoid lazy load error on detached current_user
+                    fresh_user = db_session.query(User).get(current_user.id)
+                    if fresh_user:
+                        user_has_firstbase_access = fresh_user.can_access_company(firstbase_company.id)
             except Exception as e:
                 logger.error(f"Error checking Firstbase access: {str(e)}")
                 user_has_firstbase_access = False
@@ -6857,7 +6866,7 @@ def track_claw(ticket_id):
                 # Track using Oxylabs proxy method
                 result = ship24_tracker.track_parcel_sync(
                     tracking_number,
-                    carrier=None,  # Auto-detect carrier
+                    carrier=ticket.shipping_carrier or None,
                     method='oxylabs'  # Use Oxylabs proxy (HFD uses direct API)
                 )
             except Exception as api_error:
@@ -7252,7 +7261,7 @@ def track_return(ticket_id):
                 # Track using Oxylabs proxy method
                 result = ship24_tracker.track_parcel_sync(
                     tracking_number,
-                    carrier=None,  # Auto-detect carrier
+                    carrier=getattr(ticket, 'return_carrier', None),
                     method='oxylabs'  # Use Oxylabs proxy (HFD uses direct API)
                 )
             except Exception as api_error:
