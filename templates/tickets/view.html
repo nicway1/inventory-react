@@ -8791,9 +8791,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     hideAddOutboundTrackingModal();
-                    showNotification('Outbound tracking added successfully', 'success');
-                    // Reload page to show new tracking info
-                    window.location.reload();
+                    showNotification('Outbound tracking added successfully. Fetching tracking data...', 'success');
+                    // Fetch tracking data before reloading so status updates
+                    fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/track_auto?force_refresh=true`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(() => { window.location.reload(); })
+                    .catch(() => { window.location.reload(); });
                 } else {
                     showNotification(data.error || 'Failed to add tracking information', 'error');
                 }
@@ -8873,9 +8877,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     hideAddReturnTrackingModal();
                     const actionText = hasExistingTracking ? 'updated' : 'added';
-                    showNotification(`Return tracking ${actionText} successfully`, 'success');
-                    // Reload page to show new tracking info
-                    window.location.reload();
+                    showNotification(`Return tracking ${actionText} successfully. Fetching tracking data...`, 'success');
+                    // Fetch tracking data before reloading so status updates
+                    fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/track_auto?force_refresh=true`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(() => { window.location.reload(); })
+                    .catch(() => { window.location.reload(); });
                 } else {
                     showNotification(data.message || 'Failed to add tracking information', 'error');
                 }
@@ -11870,9 +11878,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Hide modal and reload page to show new package
+                    // Hide modal, fetch tracking data, then reload
                     hideAddPackageModal();
-                    window.location.reload();
+                    fetch(`${window.CURRENT_ORIGIN}/tickets/{{ ticket.id }}/track_auto?force_refresh=true`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(() => { window.location.reload(); })
+                    .catch(() => { window.location.reload(); });
                 } else {
                     alert('Error adding package: ' + (data.message || 'Unknown error'));
                 }
