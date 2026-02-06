@@ -1331,13 +1331,20 @@ class Ship24Tracker:
 
                 logger.info(f"[Purolator] Page loaded, content length: {len(page_text)}")
 
+                # If Playwright returned empty or very small content, fall back to Web Unblocker
+                if len(page_text) < 500:
+                    logger.info(f"[Purolator] Playwright returned empty/minimal content, falling back to Web Unblocker")
+                    await browser.close()
+                    debug_info['playwright_fallback_reason'] = f'Empty content ({len(page_text)} bytes)'
+                    return await self._purolator_web_unblocker_fallback(tracking_number, tracking_url, debug_info)
+
                 # Check for CAPTCHA/blocks in the rendered page
                 page_lower = page_text.lower()
                 if 'captcha' in page_lower and 'tracking' not in page_lower:
-                    debug_info['blocked'] = True
-                    debug_info['block_type'] = 'CAPTCHA'
+                    logger.info(f"[Purolator] CAPTCHA detected, falling back to Web Unblocker")
                     await browser.close()
-                    return self._purolator_error_response(tracking_number, tracking_url, debug_info, 'Blocked by CAPTCHA')
+                    debug_info['playwright_fallback_reason'] = 'CAPTCHA detected'
+                    return await self._purolator_web_unblocker_fallback(tracking_number, tracking_url, debug_info)
 
                 # Parse the HTML
                 tracking_data = self._parse_purolator_html(page_text, tracking_number)
@@ -1360,21 +1367,11 @@ class Ship24Tracker:
 
                 await browser.close()
 
+                # If Playwright parsed nothing useful, fall back to Web Unblocker
                 if tracking_data.get('status') in ['Unknown', None, 'No tracking information found']:
-                    return {
-                        'success': True,
-                        'tracking_number': tracking_number,
-                        'carrier': 'Purolator',
-                        'status': 'Unable to Parse',
-                        'events': tracking_data.get('events', []),
-                        'current_location': tracking_data.get('location', 'Unknown'),
-                        'estimated_delivery': tracking_data.get('estimated_delivery'),
-                        'last_updated': datetime.utcnow().isoformat(),
-                        'tracking_url': tracking_url,
-                        'source': 'Purolator (Playwright+Residential)',
-                        'warning': 'Page loaded but could not extract tracking data. Check debug info for HTML sample.',
-                        'debug_info': debug_info
-                    }
+                    logger.info(f"[Purolator] Playwright parsed no data, falling back to Web Unblocker")
+                    debug_info['playwright_fallback_reason'] = 'No tracking data parsed from Playwright result'
+                    return await self._purolator_web_unblocker_fallback(tracking_number, tracking_url, debug_info)
 
                 logger.info(f"[Purolator] Successfully parsed: status={tracking_data.get('status')}, events={len(tracking_data.get('events', []))}")
                 return {
@@ -1395,7 +1392,9 @@ class Ship24Tracker:
             import traceback
             debug_info['traceback'] = traceback.format_exc()
             logger.error(f"[Purolator] Error: {str(e)}")
-            return self._purolator_error_response(tracking_number, tracking_url, debug_info, f'Error: {str(e)}')
+            logger.info(f"[Purolator] Playwright error, falling back to Web Unblocker: {str(e)}")
+            debug_info['playwright_fallback_reason'] = f'Playwright error: {str(e)}'
+            return await self._purolator_web_unblocker_fallback(tracking_number, tracking_url, debug_info)
 
     async def _purolator_web_unblocker_fallback(self, tracking_number: str, tracking_url: str, debug_info: dict) -> Optional[Dict]:
         """Fallback: try Purolator via Oxylabs Web Unblocker when Playwright is not available"""
