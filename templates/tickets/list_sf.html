@@ -706,6 +706,190 @@
         border-color: var(--sf-blue);
     }
 
+    /* Maintenance Assets Section */
+    .sf-maintenance-section {
+        background: white;
+        border-radius: 0.5rem;
+        border: 1px solid var(--sf-gray-200);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .sf-maintenance-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .sf-maintenance-header:hover {
+        background: var(--sf-gray-100);
+    }
+
+    .sf-maintenance-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sf-gray-800);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-maintenance-title i {
+        color: #f97316;
+    }
+
+    .sf-maintenance-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.5rem;
+        height: 1.5rem;
+        padding: 0 0.5rem;
+        background: #f97316;
+        color: white;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .sf-maintenance-toggle {
+        transition: transform 0.2s ease;
+    }
+
+    .sf-maintenance-toggle.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .sf-maintenance-content {
+        transition: max-height 0.3s ease;
+        overflow: hidden;
+    }
+
+    .sf-maintenance-content.collapsed {
+        max-height: 0;
+    }
+
+    .sf-maintenance-actions {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .sf-maintenance-search {
+        flex: 1;
+        min-width: 250px;
+        max-width: 400px;
+    }
+
+    .sf-maintenance-search input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        border: 1px solid var(--sf-gray-300);
+        border-radius: 0.25rem;
+    }
+
+    .sf-maintenance-search input:focus {
+        outline: none;
+        border-color: var(--sf-blue);
+        box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+    }
+
+    .sf-maintenance-bulk-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sf-maintenance-table-wrapper {
+        overflow-x: auto;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .sf-maintenance-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .sf-maintenance-table thead {
+        background: var(--sf-gray-50);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .sf-maintenance-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--sf-gray-600);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--sf-gray-200);
+    }
+
+    .sf-maintenance-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--sf-gray-200);
+        color: var(--sf-gray-800);
+    }
+
+    .sf-maintenance-table tbody tr:hover {
+        background: var(--sf-gray-50);
+    }
+
+    .sf-maintenance-empty {
+        padding: 3rem 1.25rem;
+        text-align: center;
+        color: var(--sf-gray-500);
+    }
+
+    .sf-maintenance-empty i {
+        font-size: 3rem;
+        color: var(--sf-gray-300);
+        margin-bottom: 1rem;
+    }
+
+    .sf-maintenance-loading {
+        padding: 3rem 1.25rem;
+        text-align: center;
+    }
+
+    .sf-maintenance-status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .sf-maintenance-status-badge.pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .sf-maintenance-status-badge.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .sf-maintenance-status-badge.ewaste {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
     /* Queue Selector Bar */
     .sf-queue-bar {
         background: white;
@@ -1706,6 +1890,88 @@
                         <button onclick="clearSelection()" class="sf-btn sf-btn-neutral" style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
                             <i class="fas fa-times"></i> Clear Selection
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Assets Section -->
+            <div class="sf-maintenance-section" id="maintenanceSection">
+                <div class="sf-maintenance-header" onclick="toggleMaintenanceSection()">
+                    <div class="sf-maintenance-title">
+                        <i class="fas fa-tools"></i>
+                        <span>Maintenance Assets</span>
+                        <span class="sf-maintenance-count-badge" id="maintenanceCountBadge">0</span>
+                    </div>
+                    <i class="fas fa-chevron-down sf-maintenance-toggle" id="maintenanceToggleIcon"></i>
+                </div>
+
+                <div class="sf-maintenance-content" id="maintenanceContent">
+                    <!-- Actions Bar -->
+                    <div class="sf-maintenance-actions">
+                        <div class="sf-maintenance-search">
+                            <input type="text"
+                                   id="maintenanceSearchInput"
+                                   placeholder="Search by serial, asset tag, model..."
+                                   onkeyup="searchMaintenanceAssets()">
+                        </div>
+
+                        <div class="sf-maintenance-bulk-actions">
+                            {% if current_user.is_super_admin or current_user.is_developer %}
+                            <button id="bulkMarkCompletedBtn"
+                                    class="sf-btn sf-btn-neutral"
+                                    style="background: #10b981; border-color: #10b981; color: white;"
+                                    onclick="bulkMarkCompleted()"
+                                    disabled>
+                                <i class="fas fa-check"></i> Mark as Completed
+                            </button>
+                            {% endif %}
+
+                            <button class="sf-btn sf-btn-neutral" onclick="refreshMaintenanceAssets()">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="sf-maintenance-table-wrapper">
+                        <table class="sf-maintenance-table">
+                            <thead>
+                                <tr>
+                                    {% if current_user.is_super_admin or current_user.is_developer %}
+                                    <th style="width: 40px;">
+                                        <input type="checkbox"
+                                               id="selectAllMaintenance"
+                                               onchange="toggleSelectAllMaintenance()">
+                                    </th>
+                                    {% endif %}
+                                    <th style="width: 100px;">Asset Tag</th>
+                                    <th style="width: 150px;">Serial</th>
+                                    <th>Product Details</th>
+                                    <th style="width: 120px;">Company</th>
+                                    <th style="width: 100px;">Country</th>
+                                    <th style="width: 100px;">Status</th>
+                                    <th style="width: 100px;">Erased</th>
+                                    {% if current_user.is_super_admin or current_user.is_developer %}
+                                    <th style="width: 120px;">Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody id="maintenanceTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div class="sf-maintenance-empty" id="maintenanceEmptyState" style="display: none;">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No assets require maintenance</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div class="sf-maintenance-loading" id="maintenanceLoadingState" style="display: none;">
+                        <div class="sf-spinner"></div>
+                        <p>Loading maintenance assets...</p>
                     </div>
                 </div>
             </div>
@@ -4678,6 +4944,276 @@ function startRefreshTracking() {
         document.getElementById('trackingCloseBtn').style.display = 'inline-flex';
     });
 }
+
+// ============================================================================
+// MAINTENANCE ASSETS SECTION
+// ============================================================================
+
+// Maintenance Section State
+let maintenanceData = [];
+let maintenanceSectionCollapsed = true;
+let selectedMaintenanceAssets = new Set();
+
+// Toggle maintenance section collapse
+function toggleMaintenanceSection() {
+    const content = document.getElementById('maintenanceContent');
+    const icon = document.getElementById('maintenanceToggleIcon');
+
+    maintenanceSectionCollapsed = !maintenanceSectionCollapsed;
+
+    if (maintenanceSectionCollapsed) {
+        content.classList.add('collapsed');
+        icon.classList.add('collapsed');
+    } else {
+        content.classList.remove('collapsed');
+        icon.classList.remove('collapsed');
+
+        // Load data on first expand
+        if (maintenanceData.length === 0) {
+            loadMaintenanceAssets();
+        }
+    }
+}
+
+// Load maintenance assets from API
+async function loadMaintenanceAssets() {
+    const loadingState = document.getElementById('maintenanceLoadingState');
+    const emptyState = document.getElementById('maintenanceEmptyState');
+    const tableBody = document.getElementById('maintenanceTableBody');
+    const searchInput = document.getElementById('maintenanceSearchInput');
+
+    try {
+        // Show loading
+        loadingState.style.display = 'block';
+        emptyState.style.display = 'none';
+        tableBody.innerHTML = '';
+
+        // Build URL with search parameter
+        const searchTerm = searchInput.value.trim();
+        const url = '/inventory/maintenance-assets' + (searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : '');
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        maintenanceData = data.assets || [];
+
+        // Update count badge
+        const countBadge = document.getElementById('maintenanceCountBadge');
+        countBadge.textContent = data.total_count || 0;
+
+        // Hide loading
+        loadingState.style.display = 'none';
+
+        // Render table or show empty state
+        if (maintenanceData.length === 0) {
+            emptyState.style.display = 'block';
+        } else {
+            renderMaintenanceTable();
+        }
+
+    } catch (error) {
+        console.error('Error loading maintenance assets:', error);
+        loadingState.style.display = 'none';
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 2rem; color: #dc2626;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error loading maintenance assets. Please try again.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Render maintenance table
+function renderMaintenanceTable() {
+    const tableBody = document.getElementById('maintenanceTableBody');
+    const isAdmin = {% if current_user.is_super_admin or current_user.is_developer %}true{% else %}false{% endif %};
+
+    tableBody.innerHTML = maintenanceData.map(asset => {
+        const isSelected = selectedMaintenanceAssets.has(asset.id);
+        const erasedStatus = (asset.erased || '').toUpperCase();
+        const erasedBadgeClass = erasedStatus === 'COMPLETED' ? 'completed' :
+                                 erasedStatus === 'EWASTE' ? 'ewaste' : 'pending';
+
+        return `
+            <tr data-asset-id="${asset.id}">
+                ${isAdmin ? `
+                <td>
+                    <input type="checkbox"
+                           class="maintenance-asset-checkbox"
+                           ${isSelected ? 'checked' : ''}
+                           onchange="toggleMaintenanceAssetSelection(${asset.id})">
+                </td>
+                ` : ''}
+                <td><strong>${asset.asset_tag || '-'}</strong></td>
+                <td>${asset.serial_num || '-'}</td>
+                <td>
+                    <div>${asset.product || asset.model || '-'}</div>
+                    ${asset.cpu_type ? `<div style="font-size: 0.75rem; color: var(--sf-gray-600);">${asset.cpu_type}</div>` : ''}
+                </td>
+                <td>${asset.customer || '-'}</td>
+                <td>${asset.country || '-'}</td>
+                <td>${asset.inventory || 'Unknown'}</td>
+                <td>
+                    <span class="sf-maintenance-status-badge ${erasedBadgeClass}">
+                        ${asset.erased || 'Pending'}
+                    </span>
+                </td>
+                ${isAdmin ? `
+                <td>
+                    <select class="sf-select"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                            onchange="updateSingleAssetStatus(${asset.id}, this.value)">
+                        <option value="">Update...</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="EWASTE">E-Waste</option>
+                    </select>
+                </td>
+                ` : ''}
+            </tr>
+        `;
+    }).join('');
+
+    updateBulkActionButtons();
+}
+
+// Search maintenance assets
+function searchMaintenanceAssets() {
+    // Debounce search
+    clearTimeout(window.maintenanceSearchTimeout);
+    window.maintenanceSearchTimeout = setTimeout(() => {
+        loadMaintenanceAssets();
+    }, 500);
+}
+
+// Refresh maintenance assets
+function refreshMaintenanceAssets() {
+    selectedMaintenanceAssets.clear();
+    loadMaintenanceAssets();
+}
+
+// Toggle single asset selection
+function toggleMaintenanceAssetSelection(assetId) {
+    if (selectedMaintenanceAssets.has(assetId)) {
+        selectedMaintenanceAssets.delete(assetId);
+    } else {
+        selectedMaintenanceAssets.add(assetId);
+    }
+    updateBulkActionButtons();
+}
+
+// Toggle select all
+function toggleSelectAllMaintenance() {
+    const selectAllCheckbox = document.getElementById('selectAllMaintenance');
+    const checkboxes = document.querySelectorAll('.maintenance-asset-checkbox');
+
+    if (selectAllCheckbox.checked) {
+        maintenanceData.forEach(asset => selectedMaintenanceAssets.add(asset.id));
+        checkboxes.forEach(cb => cb.checked = true);
+    } else {
+        selectedMaintenanceAssets.clear();
+        checkboxes.forEach(cb => cb.checked = false);
+    }
+
+    updateBulkActionButtons();
+}
+
+// Update bulk action button states
+function updateBulkActionButtons() {
+    const bulkBtn = document.getElementById('bulkMarkCompletedBtn');
+    if (bulkBtn) {
+        bulkBtn.disabled = selectedMaintenanceAssets.size === 0;
+    }
+}
+
+// Bulk mark as completed
+async function bulkMarkCompleted() {
+    if (selectedMaintenanceAssets.size === 0) return;
+
+    if (!confirm(`Mark ${selectedMaintenanceAssets.size} asset(s) as COMPLETED?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/inventory/bulk-update-erased', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                asset_ids: Array.from(selectedMaintenanceAssets),
+                erased_status: 'COMPLETED'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update assets');
+        }
+
+        // Success - refresh data
+        selectedMaintenanceAssets.clear();
+        await loadMaintenanceAssets();
+
+        // Show success message
+        alert('Assets marked as completed successfully');
+
+    } catch (error) {
+        console.error('Error updating assets:', error);
+        alert('Error updating assets. Please try again.');
+    }
+}
+
+// Update single asset status
+async function updateSingleAssetStatus(assetId, status) {
+    if (!status) return;
+
+    try {
+        const response = await fetch('/inventory/bulk-update-erased', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                asset_ids: [assetId],
+                erased_status: status
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update asset');
+        }
+
+        // Success - refresh data
+        await loadMaintenanceAssets();
+
+    } catch (error) {
+        console.error('Error updating asset:', error);
+        alert('Error updating asset. Please try again.');
+    }
+}
+
+// Initialize maintenance section on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Start collapsed
+    const content = document.getElementById('maintenanceContent');
+    const icon = document.getElementById('maintenanceToggleIcon');
+    if (content && icon) {
+        content.classList.add('collapsed');
+        icon.classList.add('collapsed');
+    }
+});
 
 </script>
 {% endif %}
