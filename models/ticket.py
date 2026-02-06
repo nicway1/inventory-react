@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLEnum, Text, Boolean, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -63,6 +63,13 @@ class RepairStatus(enum.Enum):
 
 class Ticket(Base):
     __tablename__ = 'tickets'
+    __table_args__ = (
+        Index('ix_tickets_created_at', 'created_at'),
+        Index('ix_tickets_queue_id', 'queue_id'),
+        Index('ix_tickets_status', 'status'),
+        Index('ix_tickets_assigned_to_id', 'assigned_to_id'),
+        Index('ix_tickets_requester_id', 'requester_id'),
+    )
 
     id = Column(Integer, primary_key=True)
     subject = Column(String(200), nullable=False)

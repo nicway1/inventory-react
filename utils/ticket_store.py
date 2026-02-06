@@ -5,6 +5,7 @@ from models.ticket import Ticket, TicketPriority
 from models.shipment import Shipment
 from models.user import UserType
 from utils.db_manager import DatabaseManager
+from sqlalchemy.orm import selectinload, load_only
 import logging
 import time
 
@@ -255,11 +256,30 @@ class TicketStore:
 
         db_session = self.db_manager.get_session()
         try:
+            from models.user import User
+            from models.queue import Queue
+            from models.customer_user import CustomerUser
+
+            # Use selectinload instead of joinedload to avoid wide cartesian product SQL
+            # Also use load_only to skip large text columns not needed for list view
             query = db_session.query(Ticket)\
-                .options(self.db_manager.joinedload(Ticket.assigned_to))\
-                .options(self.db_manager.joinedload(Ticket.requester))\
-                .options(self.db_manager.joinedload(Ticket.queue))\
-                .options(self.db_manager.joinedload(Ticket.customer))
+                .options(
+                    load_only(
+                        Ticket.id, Ticket.subject, Ticket.status, Ticket.custom_status,
+                        Ticket.priority, Ticket.category, Ticket.queue_id,
+                        Ticket.assigned_to_id, Ticket.requester_id, Ticket.customer_id,
+                        Ticket.created_at, Ticket.updated_at, Ticket.country,
+                        Ticket.shipping_tracking, Ticket.shipping_carrier,
+                        Ticket.shipping_status, Ticket.shipping_tracking_created_at,
+                        Ticket.return_tracking, Ticket.return_carrier, Ticket.return_status,
+                        Ticket.item_packed, Ticket.item_packed_at,
+                        Ticket.replacement_tracking, Ticket.replacement_status,
+                    )
+                )\
+                .options(selectinload(Ticket.assigned_to).load_only(User.id, User.username))\
+                .options(selectinload(Ticket.requester).load_only(User.id, User.username))\
+                .options(selectinload(Ticket.queue).load_only(Queue.id, Queue.name))\
+                .options(selectinload(Ticket.customer).load_only(CustomerUser.id, CustomerUser.name))
 
             # Super admin and developer can see all tickets
             if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
@@ -277,12 +297,7 @@ class TicketStore:
                     (Ticket.assigned_to_id == user_id)
                 ).order_by(Ticket.created_at.desc()).all()
 
-            # Eagerly access related data to ensure it's loaded before session closes
-            for ticket in tickets:
-                _ = ticket.assigned_to.username if ticket.assigned_to else None
-                _ = ticket.requester.username if ticket.requester else None
-                _ = ticket.queue.name if ticket.queue else None
-                _ = ticket.customer.name if ticket.customer else None
+            # selectinload handles eager loading automatically, no manual access loop needed
 
             # Detach objects from session so they can be cached
             db_session.expunge_all()
