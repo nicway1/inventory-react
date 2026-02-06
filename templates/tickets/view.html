@@ -1869,18 +1869,18 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Issue Type</label>
                                             <select id="issueType" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" onchange="toggleCustomIssueType(this)">
                                                 <option value="">-- Select Issue Type --</option>
-                                                <!-- Default Issue Types -->
                                                 <option value="Wrong Accessories">Wrong Accessories Assigned</option>
                                                 <option value="Wrong Address">Wrong Shipping Address</option>
                                                 <option value="Missing Items">Missing Items</option>
                                                 <option value="Damaged Items">Damaged Items</option>
                                                 <option value="Tracking Issue">Tracking Issue</option>
-                                                <!-- Custom Issue Types from Database -->
-                                                {% if custom_issue_types %}
-                                                    {% for issue_type in custom_issue_types %}
-                                                    <option value="{{ issue_type.name }}">{{ issue_type.name }}</option>
-                                                    {% endfor %}
-                                                {% endif %}
+                                                <option value="User not ready for collection">User not ready for collection</option>
+                                                <option value="User uncontactable">User uncontactable</option>
+                                                <option value="User request reschedule">User request reschedule</option>
+                                                <option value="User do not have the Asset">User do not have the Asset</option>
+                                                <option value="User unaware of order">User unaware of order</option>
+                                                <option value="Wrong/Missing Number">Wrong/Missing Number</option>
+                                                <option value="Wrong/Missing Asset Detail">Wrong/Missing Asset Detail</option>
                                                 <option value="Other">Other (Custom)</option>
                                             </select>
                                         </div>
@@ -2605,6 +2605,13 @@ body.dark-theme .sf-card-body .sf-field-label {
                                                 <option value="Wrong Device">Wrong Device Returned</option>
                                                 <option value="Tracking Issue">Tracking Issue</option>
                                                 <option value="Address Issue">Address Issue</option>
+                                                <option value="User not ready for collection">User not ready for collection</option>
+                                                <option value="User uncontactable">User uncontactable</option>
+                                                <option value="User request reschedule">User request reschedule</option>
+                                                <option value="User do not have the Asset">User do not have the Asset</option>
+                                                <option value="User unaware of order">User unaware of order</option>
+                                                <option value="Wrong/Missing Number">Wrong/Missing Number</option>
+                                                <option value="Wrong/Missing Asset Detail">Wrong/Missing Asset Detail</option>
                                                 <option value="Other">Other (Custom)</option>
                                             </select>
                                         </div>
@@ -12852,8 +12859,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateDaysOpenCounter, 3600000);
     // Load issues on page load
     loadTicketIssues({{ ticket.id }});
-    // Load custom issue types to populate dropdown
-    loadCustomIssueTypes();
+    // Load custom issue types to populate dropdown - DISABLED to use hardcoded defaults only
+    // loadCustomIssueTypes();
 });
 
 // ============================================================================
