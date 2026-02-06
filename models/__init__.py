@@ -62,6 +62,7 @@ from models.service_record import ServiceRecord
 from models.blog_post import BlogPost, BlogPostStatus
 from models.sla_config import SLAConfig
 from models.queue_holiday import QueueHoliday
+from models.queue_notification_config import QueueNotificationConfig, queue_notification_group_association
 
 __all__ = [
     "Base",
@@ -152,5 +153,7 @@ __all__ = [
     "BlogPost",
     "BlogPostStatus",
     "SLAConfig",
-    "QueueHoliday"
+    "QueueHoliday",
+    "QueueNotificationConfig",
+    "queue_notification_group_association"
 ]

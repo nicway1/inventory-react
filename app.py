@@ -67,6 +67,7 @@ from routes.specs_api import specs_bp
 from routes.blog import blog_bp
 from routes.website import website_bp
 from routes.sla import sla_bp
+from routes.api_v2 import api_v2_bp
 
 # Add permissions property to User model for Flask-Login
 # User.permissions = property(lambda self: self.get_permissions)
@@ -251,6 +252,8 @@ def create_app():
     csrf.exempt(blog_bp)  # Exempt blog public API from CSRF
     app.register_blueprint(website_bp, url_prefix='/site')  # Public TrueLog website
     app.register_blueprint(sla_bp)  # SLA and Holiday management
+    app.register_blueprint(api_v2_bp)  # API v2 endpoints (admin, customers, etc.)
+    csrf.exempt(api_v2_bp)  # Exempt API v2 from CSRF (uses JWT auth)
 
     # Track user activity on every request
     @app.before_request
