@@ -13091,10 +13091,10 @@ async function showIssueMentionDropdown(searchText) {
                     <span class="ml-auto text-xs text-gray-500">${data.suggestions.length} result${data.suggestions.length !== 1 ? 's' : ''}</span>
                 </div>
             </div>
-            <div class="overflow-y-auto" style="max-height: 240px;"></div>
+            <div id="issueMentionList" class="overflow-y-auto" style="max-height: 240px;"></div>
         `;
 
-        const listContainer = dropdown.querySelector('div:last-child');
+        const listContainer = document.getElementById('issueMentionList');
 
         data.suggestions.slice(0, 10).forEach((item, index) => {
             const button = document.createElement('button');
