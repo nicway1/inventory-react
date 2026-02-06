@@ -300,6 +300,7 @@
                         <div class="mt-1 flex gap-2">
                             <select id="pin_queue_id"
                                     name="queue_id"
+                                    required
                                     disabled
                                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">-- Select a Queue --</option>
@@ -715,6 +716,7 @@
                         <div class="mt-1 flex gap-2">
                             <select id="checkout_queue_id"
                                     name="queue_id"
+                                    required
                                     disabled
                                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">-- Select a Queue --</option>
@@ -834,6 +836,7 @@
                         <div class="mt-1 flex gap-2">
                             <select id="intake_queue_id"
                                     name="queue_id"
+                                    required
                                     disabled
                                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">-- Select a Queue --</option>
@@ -965,6 +968,7 @@
                         <div class="mt-1 flex gap-2">
                             <select id="queue_id"
                                     name="queue_id"
+                                    required
                                     disabled
                                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">-- Select a Queue --</option>
@@ -1006,6 +1010,7 @@
                         <div class="mt-1 flex gap-2">
                             <select id="internal_transfer_queue_id"
                                     name="queue_id"
+                                    required
                                     disabled
                                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <option value="">-- Select a Queue --</option>
@@ -2243,9 +2248,11 @@ $(document).ready(function() {
                 return false;
             }
 
-            const checkoutQueueId = $('#checkout_queue_id').val();
-            if (!checkoutQueueId) {
-                alert('Please select a queue');
+            const checkoutQueueEl = document.getElementById('checkout_queue_id');
+            if (!checkoutQueueEl.value) {
+                checkoutQueueEl.setCustomValidity('Please select a queue');
+                checkoutQueueEl.reportValidity();
+                checkoutQueueEl.setCustomValidity('');
                 return false;
             }
 
@@ -2322,11 +2329,13 @@ $(document).ready(function() {
             // No check for outbound tracking - it's now optional
 
             // Validate queue selection
-            const returnQueueId = $('#queue_id').val();
-            if (!returnQueueId) {
+            const returnQueueEl = document.getElementById('queue_id');
+            if (!returnQueueEl.value) {
                 console.log('Submit validation failed: Queue not selected. Preventing submission.');
                 e.preventDefault();
-                alert('Please select a queue');
+                returnQueueEl.setCustomValidity('Please select a queue');
+                returnQueueEl.reportValidity();
+                returnQueueEl.setCustomValidity('');
                 return false;
             }
 
@@ -2395,11 +2404,13 @@ $(document).ready(function() {
                 alert('Please select an asset');
                 return false;
             }
-            const pinQueueId = $('#pin_queue_id').val();
-            if (!pinQueueId) {
+            const pinQueueEl = document.getElementById('pin_queue_id');
+            if (!pinQueueEl.value) {
                 console.log('Submit validation failed: Queue not selected. Preventing submission.');
                 e.preventDefault();
-                alert('Please select a queue');
+                pinQueueEl.setCustomValidity('Please select a queue');
+                pinQueueEl.reportValidity();
+                pinQueueEl.setCustomValidity('');
                 return false;
             }
         } else if (category === 'ASSET_REPAIR') {
@@ -2438,11 +2449,13 @@ $(document).ready(function() {
                 return false;
             }
 
-            const queueId = $('#intake_queue_id').val();
-            if (!queueId) {
+            const intakeQueueEl = document.getElementById('intake_queue_id');
+            if (!intakeQueueEl.value) {
                 console.log('Submit validation failed: Queue not selected. Preventing submission.');
                 e.preventDefault();
-                alert('Please select a queue');
+                intakeQueueEl.setCustomValidity('Please select a queue');
+                intakeQueueEl.reportValidity();
+                intakeQueueEl.setCustomValidity('');
                 return false;
             }
 
@@ -2502,11 +2515,13 @@ $(document).ready(function() {
             }
 
             // Validate queue selection
-            const transferQueueId = $('#internal_transfer_queue_id').val();
-            if (!transferQueueId) {
+            const transferQueueEl = document.getElementById('internal_transfer_queue_id');
+            if (!transferQueueEl.value) {
                 console.log('Submit validation failed: Queue not selected. Preventing submission.');
                 e.preventDefault();
-                alert('Please select a queue');
+                transferQueueEl.setCustomValidity('Please select a queue');
+                transferQueueEl.reportValidity();
+                transferQueueEl.setCustomValidity('');
                 return false;
             }
 
@@ -2735,8 +2750,11 @@ function submitAssetReturnForm() {
         return false;
     }
 
-    if (!$('#queue_id').val()) {
-        alert('Please select a queue');
+    const returnFormQueueEl = document.getElementById('queue_id');
+    if (!returnFormQueueEl.value) {
+        returnFormQueueEl.setCustomValidity('Please select a queue');
+        returnFormQueueEl.reportValidity();
+        returnFormQueueEl.setCustomValidity('');
         return false;
     }
 
