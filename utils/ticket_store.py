@@ -229,7 +229,7 @@ class TicketStore:
         """Get a specific ticket by ID (alias for get_ticket)"""
         return self.get_ticket(ticket_id)
 
-    def get_user_tickets(self, user_id, user_type, use_cache=True, queue_ids=None):
+    def get_user_tickets(self, user_id, user_type, use_cache=True, queue_ids=None, limit=500):
         """Get tickets based on user's role and ID
 
         Args:
@@ -237,11 +237,13 @@ class TicketStore:
             user_type: The user's type (UserType enum)
             use_cache: Whether to use cached results (default True)
             queue_ids: Optional list of queue IDs to filter by (for COUNTRY_ADMIN/SUPERVISOR)
+            limit: Maximum number of tickets to load (default 500, None for all)
         """
         global _ticket_cache
 
-        # Check cache first (include queue_ids in cache key)
-        cache_key = _get_cache_key(user_id, user_type) + f"_q{sorted(queue_ids) if queue_ids else 'all'}"
+        # Check cache first (include queue_ids and limit in cache key)
+        limit_key = f"_l{limit}" if limit else "_lall"
+        cache_key = _get_cache_key(user_id, user_type) + f"_q{sorted(queue_ids) if queue_ids else 'all'}" + limit_key
         if use_cache and cache_key in _ticket_cache:
             cache_entry = _ticket_cache[cache_key]
             if _is_cache_valid(cache_entry):
@@ -283,19 +285,25 @@ class TicketStore:
 
             # Super admin and developer can see all tickets
             if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
-                tickets = query.order_by(Ticket.created_at.desc()).all()
+                query = query.order_by(Ticket.created_at.desc())
             # COUNTRY_ADMIN and SUPERVISOR - filter by queue in database
             elif user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
                 if queue_ids is not None:
                     # Filter by queue IDs in database query (MUCH faster than Python filtering)
                     query = query.filter(Ticket.queue_id.in_(queue_ids))
-                tickets = query.order_by(Ticket.created_at.desc()).all()
+                query = query.order_by(Ticket.created_at.desc())
             else:
                 # CLIENT and regular users only see their own tickets
-                tickets = query.filter(
+                query = query.filter(
                     (Ticket.requester_id == user_id) |
                     (Ticket.assigned_to_id == user_id)
-                ).order_by(Ticket.created_at.desc()).all()
+                ).order_by(Ticket.created_at.desc())
+
+            # Apply limit if specified (cap to most recent N tickets for performance)
+            if limit:
+                tickets = query.limit(limit).all()
+            else:
+                tickets = query.all()
 
             # selectinload handles eager loading automatically, no manual access loop needed
 

@@ -1448,7 +1448,7 @@
 
             <!-- Search -->
             <div class="sf-search-section" id="singleSearchSection">
-                <input type="text" class="sf-search-input" placeholder="Search tickets..." id="searchInput" onkeyup="applyFilters()">
+                <input type="text" class="sf-search-input" placeholder="Search tickets..." id="searchInput" onkeyup="handleSearchInput()">
                 <button class="sf-bulk-search-btn" onclick="toggleBulkSearch()" title="Switch to Bulk Search">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -1860,6 +1860,15 @@
                     <div class="sf-spinner"></div>
                 </div>
 
+                {% if tickets_capped %}
+                <div id="ticketsCappedBanner" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;">
+                    <span style="color: #856404;">
+                        Showing latest 500 tickets. Use search to find older tickets, or
+                        <a href="?show_all=true" style="color: #0056b3; text-decoration: underline;">load all tickets</a> (may be slower).
+                    </span>
+                </div>
+                {% endif %}
+
                 <div id="tableContent">
                     <table class="sf-table">
                         <thead>
@@ -1993,6 +2002,12 @@
 
     // My Tickets filter state
     let filterMyTicketsOnly = false;
+
+    // Server search state (for when tickets are capped at 500)
+    const ticketsCapped = {{ tickets_capped | tojson }};
+    let serverSearchResults = null;
+    let serverSearchTimeout = null;
+    let isServerSearching = false;
 
     // Custom statuses from database
     const customStatuses = {{ custom_statuses | tojson | safe }};
@@ -2239,10 +2254,15 @@
         document.getElementById('queueFilterCount').textContent = selectedQueues.length || '0';
         document.getElementById('carrierFilterCount').textContent = selectedCarriers.length || '0';
 
-        filteredTickets = allTickets.filter(ticket => {
-            // Search filter - handle both single and bulk search modes
+        // When server search results are available (capped mode with search), use them as base
+        const baseTickets = (ticketsCapped && serverSearchResults && search.length >= 2) ? serverSearchResults : allTickets;
+
+        filteredTickets = baseTickets.filter(ticket => {
+            // Search filter - skip if using server search results (already filtered by server)
             let matchesSearch = true;
-            if (isBulkSearchMode && bulkSearchTerms.length > 0) {
+            if (ticketsCapped && serverSearchResults && search.length >= 2) {
+                // Server already filtered - no client-side search needed
+            } else if (isBulkSearchMode && bulkSearchTerms.length > 0) {
                 // Bulk search mode: check if any term matches
                 const ticketId = ticket.id.toString().toUpperCase();
                 const subject = (ticket.subject || '').toUpperCase();
@@ -2377,6 +2397,50 @@
         bulkSearchTerms = [];
         updateBulkSearchCount();
         applyFilters();
+    }
+
+    // Server-side search for when tickets are capped
+    function handleSearchInput() {
+        const search = document.getElementById('searchInput').value.trim();
+
+        if (!ticketsCapped) {
+            // Not capped - use fast client-side filtering
+            applyFilters();
+            return;
+        }
+
+        // When capped, use server search for queries >= 2 chars
+        if (search.length >= 2) {
+            clearTimeout(serverSearchTimeout);
+            serverSearchTimeout = setTimeout(function() {
+                performServerSearch(search);
+            }, 300);
+        } else {
+            // Short/empty query - clear server results and filter locally
+            clearTimeout(serverSearchTimeout);
+            serverSearchResults = null;
+            applyFilters();
+        }
+    }
+
+    function performServerSearch(query) {
+        isServerSearching = true;
+        fetch('/tickets/api/search-tickets?q=' + encodeURIComponent(query))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                isServerSearching = false;
+                if (data.tickets) {
+                    serverSearchResults = data.tickets;
+                }
+                applyFilters();
+            })
+            .catch(function(err) {
+                isServerSearching = false;
+                console.error('Search error:', err);
+                // Fall back to client-side search
+                serverSearchResults = null;
+                applyFilters();
+            });
     }
 
     function getCheckedValues(containerId) {
@@ -2891,6 +2955,10 @@
             document.getElementById('bulkSearchSection').classList.add('hidden');
             document.getElementById('singleSearchSection').classList.remove('hidden');
         }
+
+        // Clear server search state
+        serverSearchResults = null;
+        clearTimeout(serverSearchTimeout);
 
         applyFilters();
     }

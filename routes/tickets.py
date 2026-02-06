@@ -410,8 +410,12 @@ def list_tickets_sf():
         logging.info(f"DEBUG SF - Will filter by {len(queue_ids) if queue_ids else 0} queue IDs in database query")
 
     # Get tickets with queue filter applied in database (MUCH faster!)
-    tickets = ticket_store.get_user_tickets(user_id, user.user_type, queue_ids=queue_ids)
-    logging.info(f"DEBUG SF - got {len(tickets)} tickets from get_user_tickets (already filtered by queue in database)")
+    # Default: load latest 500 tickets for fast page load. Use show_all=true to load all.
+    show_all = request.args.get('show_all', 'false').lower() == 'true'
+    ticket_limit = None if show_all else 500
+    tickets = ticket_store.get_user_tickets(user_id, user.user_type, queue_ids=queue_ids, limit=ticket_limit)
+    tickets_capped = not show_all and len(tickets) >= 500
+    logging.info(f"DEBUG SF - got {len(tickets)} tickets from get_user_tickets (limit={ticket_limit}, capped={tickets_capped})")
 
     # Apply date filtering if date parameters are provided
     if date_from or date_to:
@@ -599,7 +603,7 @@ def list_tickets_sf():
     finally:
         users_db.close()
 
-    return render_template('tickets/list_sf.html', tickets=tickets, user=user, users=users, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data, user_has_firstbase_access=user_has_firstbase_access)
+    return render_template('tickets/list_sf.html', tickets=tickets, user=user, users=users, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data, user_has_firstbase_access=user_has_firstbase_access, tickets_capped=tickets_capped)
 
 
 @tickets_bp.route('/refresh-all-statuses', methods=['POST'])
@@ -8523,6 +8527,134 @@ def get_customers():
             'success': False,
             'error': str(e)
         }), 500
+    finally:
+        db_session.close()
+
+
+@tickets_bp.route('/api/search-tickets')
+@login_required
+def search_tickets_api():
+    """Search tickets across ALL tickets (not limited by page cap) for global search"""
+    from models.ticket import Ticket
+    from models.customer_user import CustomerUser
+    from sqlalchemy import or_, cast, String
+
+    query_text = request.args.get('q', '').strip()
+    if not query_text or len(query_text) < 2:
+        return jsonify({'tickets': []})
+
+    user_id = session.get('user_id')
+    user = db_manager.get_user(user_id)
+    db_session = db_manager.get_session()
+
+    try:
+        search_term = f'%{query_text}%'
+
+        q = db_session.query(
+            Ticket.id,
+            Ticket.subject,
+            Ticket.status,
+            Ticket.custom_status,
+            Ticket.priority,
+            Ticket.category,
+            Ticket.queue_id,
+            Ticket.created_at,
+            Ticket.updated_at,
+            Ticket.assigned_to_id,
+            Ticket.customer_id,
+            Ticket.shipping_tracking,
+            Ticket.shipping_carrier,
+            Ticket.shipping_status,
+            Ticket.shipping_tracking_created_at,
+            Ticket.return_tracking,
+            Ticket.return_carrier,
+            Ticket.return_status,
+            Ticket.item_packed,
+            Ticket.item_packed_at,
+        )
+
+        # Apply user permission filters
+        if user.is_super_admin or user.is_developer:
+            pass  # Can see all tickets
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            accessible_queue_ids = user.get_accessible_queue_ids()
+            if accessible_queue_ids:
+                q = q.filter(Ticket.queue_id.in_(accessible_queue_ids))
+        else:
+            q = q.filter(
+                or_(Ticket.requester_id == user_id, Ticket.assigned_to_id == user_id)
+            )
+
+        # Search across subject, id, and customer name
+        q = q.outerjoin(CustomerUser, Ticket.customer_id == CustomerUser.id)
+        q = q.filter(
+            or_(
+                Ticket.subject.ilike(search_term),
+                cast(Ticket.id, String).ilike(search_term),
+                CustomerUser.name.ilike(search_term),
+            )
+        )
+
+        results = q.order_by(Ticket.created_at.desc()).limit(100).all()
+
+        # Format results - get related data
+        ticket_ids = [r.id for r in results]
+        # Batch load assigned users and queues
+        from models.user import User
+        from models.queue import Queue
+        assigned_users = {}
+        queues_map = {}
+        customers_map = {}
+
+        if ticket_ids:
+            assigned_to_ids = list(set(r.assigned_to_id for r in results if r.assigned_to_id))
+            if assigned_to_ids:
+                users_data = db_session.query(User.id, User.username).filter(User.id.in_(assigned_to_ids)).all()
+                assigned_users = {u.id: u.username for u in users_data}
+
+            queue_ids_list = list(set(r.queue_id for r in results if r.queue_id))
+            if queue_ids_list:
+                queues_data = db_session.query(Queue.id, Queue.name).filter(Queue.id.in_(queue_ids_list)).all()
+                queues_map = {q.id: q.name for q in queues_data}
+
+            customer_ids = list(set(r.customer_id for r in results if r.customer_id))
+            if customer_ids:
+                customers_data = db_session.query(CustomerUser.id, CustomerUser.name).filter(CustomerUser.id.in_(customer_ids)).all()
+                customers_map = {c.id: c.name for c in customers_data}
+
+        tickets_list = []
+        for r in results:
+            tickets_list.append({
+                'id': r.id,
+                'subject': r.subject,
+                'category': r.category.value if r.category else None,
+                'priority': r.priority.value if r.priority else 'MEDIUM',
+                'status': r.custom_status if r.custom_status else (r.status.value if r.status else 'NEW'),
+                'queue': queues_map.get(r.queue_id, 'Unassigned'),
+                'queue_id': r.queue_id,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+                'updated_at': r.updated_at.isoformat() if r.updated_at else None,
+                'customer_name': customers_map.get(r.customer_id, ''),
+                'assignee': assigned_users.get(r.assigned_to_id, ''),
+                'shipping_tracking': r.shipping_tracking,
+                'shipping_carrier': r.shipping_carrier,
+                'shipping_status': r.shipping_status,
+                'shipping_tracking_created_at': r.shipping_tracking_created_at.isoformat() if r.shipping_tracking_created_at else None,
+                'return_tracking': r.return_tracking,
+                'return_carrier': r.return_carrier,
+                'return_status': r.return_status,
+                'item_packed': r.item_packed or False,
+                'item_packed_at': r.item_packed_at.isoformat() if r.item_packed_at else None,
+                'sla_status': None,
+                'sla_days_remaining': None,
+                'sla_due_date': None,
+            })
+
+        return jsonify({'tickets': tickets_list, 'total': len(tickets_list)})
+
+    except Exception as e:
+        logger.error(f"Error in ticket search API: {str(e)}")
+        return jsonify({'tickets': [], 'error': str(e)}), 500
     finally:
         db_session.close()
 
