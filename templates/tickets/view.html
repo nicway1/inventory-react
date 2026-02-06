@@ -6081,7 +6081,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             autocomplete="off">
                                         <input type="hidden" id="serviceAssignToId" name="assigned_to_id" value="">
                                         <!-- @mention dropdown for service assignment -->
-                                        <div id="serviceMentionDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto" style="bottom: 100%; margin-bottom: 4px;">
+                                        <div id="serviceMentionDropdown" class="hidden absolute z-50 w-80 bg-white border border-gray-300 rounded-xl shadow-2xl overflow-hidden" style="bottom: 100%; margin-bottom: 8px; max-height: 280px;">
                                             <div id="serviceMentionList"></div>
                                         </div>
                                     </div>
@@ -6356,28 +6356,64 @@ body.dark-theme .sf-card-body .sf-field-label {
                             const data = await response.json();
 
                             if (data.suggestions && data.suggestions.length > 0) {
-                                mentionList.innerHTML = '';
+                                const userSuggestions = data.suggestions.filter(item => item.type === 'user' || item.type === 'group');
 
-                                data.suggestions.filter(item => item.type === 'user').forEach(item => {
-                                    const div = document.createElement('div');
-                                    div.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #eee; background: white;';
-                                    div.onmouseenter = () => div.style.backgroundColor = '#f3f4f6';
-                                    div.onmouseleave = () => div.style.backgroundColor = 'white';
-                                    div.innerHTML = `
-                                        <span style="width: 32px; height: 32px; border-radius: 50%; background: #dbeafe; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">
-                                            ${item.name.charAt(0).toUpperCase()}
-                                        </span>
-                                        <div>
-                                            <div style="font-weight: 500; color: #1f2937; font-size: 14px;">${item.name}</div>
-                                            <div style="font-size: 12px; color: #6b7280;">User</div>
+                                // Add header and list container
+                                mentionList.innerHTML = `
+                                    <div class="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                            </svg>
+                                            <span class="text-xs font-semibold text-gray-700">Mention someone</span>
+                                            <span class="ml-auto text-xs text-gray-500">${userSuggestions.length} result${userSuggestions.length !== 1 ? 's' : ''}</span>
                                         </div>
+                                    </div>
+                                    <div id="serviceMentionItems" class="overflow-y-auto" style="max-height: 240px;"></div>
+                                `;
+
+                                const listContainer = document.getElementById('serviceMentionItems');
+
+                                userSuggestions.forEach(item => {
+                                    const button = document.createElement('button');
+                                    button.type = 'button';
+                                    button.className = 'w-full text-left px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 flex items-center gap-3 transition-all duration-150 border-b border-gray-100 last:border-b-0';
+
+                                    const isGroup = item.type === 'group';
+                                    const avatarBg = isGroup ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-blue-500 to-indigo-600';
+                                    const avatarContent = isGroup ? '👥' : item.name.charAt(0).toUpperCase();
+                                    const badge = isGroup ? '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">Group</span>' : '';
+
+                                    button.innerHTML = `
+                                        <div class="w-10 h-10 rounded-full ${avatarBg} flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                                            ${avatarContent}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-semibold text-gray-900 text-sm">@${item.name}</span>
+                                                ${badge}
+                                            </div>
+                                            <div class="text-xs text-gray-500 truncate">${isGroup ? 'Notify all members' : 'User'}</div>
+                                        </div>
+                                        <svg class="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                        </svg>
                                     `;
-                                    div.onclick = () => selectServiceMention(item);
-                                    mentionList.appendChild(div);
+
+                                    button.addEventListener('mouseenter', function() {
+                                        this.style.transform = 'translateX(2px)';
+                                    });
+                                    button.addEventListener('mouseleave', function() {
+                                        this.style.transform = 'translateX(0)';
+                                    });
+
+                                    button.onclick = () => selectServiceMention(item);
+                                    listContainer.appendChild(button);
                                 });
 
-                                if (mentionList.children.length > 0) {
+                                if (userSuggestions.length > 0) {
                                     dropdown.classList.remove('hidden');
+                                    dropdown.style.animation = 'slideUpFade 0.2s ease-out';
                                 } else {
                                     dropdown.classList.add('hidden');
                                 }
