@@ -1081,6 +1081,12 @@
                     </svg>
                     Accessories
                 </button>
+                <button class="sf-tab" id="tabMaintenance" onclick="switchTab('maintenance')" style="padding: 0.75rem 1.5rem; font-size: 0.875rem; font-weight: 600; color: var(--sf-gray-600); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; vertical-align: middle;">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                    Maintenance
+                </button>
             </div>
 
             <!-- Preview header -->
@@ -1206,16 +1212,8 @@
             </div>
 
             <!-- Maintenance Assets Section -->
-            <div class="sf-maintenance-section" id="maintenanceSection">
-                <div class="sf-maintenance-header" onclick="toggleMaintenanceSection()">
-                    <div class="sf-maintenance-title">
-                        <i class="fas fa-tools"></i>
-                        <span>Maintenance Assets</span>
-                        <span class="sf-maintenance-count-badge" id="maintenanceCountBadge">0</span>
-                    </div>
-                    <i class="fas fa-chevron-down sf-maintenance-toggle" id="maintenanceToggleIcon"></i>
-                </div>
-
+            <div class="sf-maintenance-section" id="maintenanceSection" style="display: none;">
+                <!-- Actions Bar -->
                 <div class="sf-maintenance-content" id="maintenanceContent">
                     <!-- Actions Bar -->
                     <div class="sf-maintenance-actions">
@@ -2360,7 +2358,7 @@ function updateTableHeaders(tab) {
     }
 }
 
-// Switch between Tech Assets and Accessories tabs
+// Switch between Tech Assets, Accessories, and Maintenance tabs
 async function switchTab(tab) {
     currentTab = tab;
     currentPage = 1;
@@ -2368,42 +2366,74 @@ async function switchTab(tab) {
     // Update tab styles
     const techTab = document.getElementById('tabTechAssets');
     const accTab = document.getElementById('tabAccessories');
+    const maintenanceTab = document.getElementById('tabMaintenance');
 
-    // Update category filter for the selected tab
-    updateCategoryFilter();
+    // Get content sections
+    const techSummary = document.getElementById('techSummaryCards');
+    const accSummary = document.getElementById('accessorySummaryCards');
+    const maintenanceSection = document.getElementById('maintenanceSection');
+    const chartsSection = document.querySelector('.sf-charts-section');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const tableContainer = document.querySelector('.sf-table-container');
 
-    // Update table headers for the selected tab
-    updateTableHeaders(tab);
-
-    // Update search placeholder based on tab
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.placeholder = tab === 'tech' ? 'Search assets...' : 'Search accessories by name, category, manufacturer...';
-        searchInput.value = ''; // Clear search when switching tabs
-    }
+    // Reset all tab styles
+    techTab.style.color = 'var(--sf-gray-600)';
+    techTab.style.borderBottomColor = 'transparent';
+    accTab.style.color = 'var(--sf-gray-600)';
+    accTab.style.borderBottomColor = 'transparent';
+    maintenanceTab.style.color = 'var(--sf-gray-600)';
+    maintenanceTab.style.borderBottomColor = 'transparent';
 
     if (tab === 'tech') {
         techTab.style.color = 'var(--sf-blue)';
         techTab.style.borderBottomColor = 'var(--sf-blue)';
-        accTab.style.color = 'var(--sf-gray-600)';
-        accTab.style.borderBottomColor = 'transparent';
 
-        document.getElementById('techSummaryCards').style.display = 'grid';
-        document.getElementById('accessorySummaryCards').style.display = 'none';
+        // Show tech content, hide others
+        techSummary.style.display = 'grid';
+        accSummary.style.display = 'none';
+        maintenanceSection.style.display = 'none';
+        chartsSection.style.display = 'block';
+        tableContainer.style.display = 'block';
+
         document.getElementById('viewTitle').textContent = 'Tech Assets Overview';
+
+        // Update category filter and table headers
+        updateCategoryFilter();
+        updateTableHeaders(tab);
+
+        // Update search placeholder
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.placeholder = 'Search assets...';
+            searchInput.value = '';
+        }
 
         // Show tech asset data
         filteredData = [...assetData];
         applyFilters();
-    } else {
+    } else if (tab === 'accessories') {
         accTab.style.color = 'var(--sf-blue)';
         accTab.style.borderBottomColor = 'var(--sf-blue)';
-        techTab.style.color = 'var(--sf-gray-600)';
-        techTab.style.borderBottomColor = 'transparent';
 
-        document.getElementById('techSummaryCards').style.display = 'none';
-        document.getElementById('accessorySummaryCards').style.display = 'grid';
+        // Show accessories content, hide others
+        techSummary.style.display = 'none';
+        accSummary.style.display = 'grid';
+        maintenanceSection.style.display = 'none';
+        chartsSection.style.display = 'block';
+        tableContainer.style.display = 'block';
+
         document.getElementById('viewTitle').textContent = 'Accessories Overview';
+
+        // Update category filter and table headers
+        updateCategoryFilter();
+        updateTableHeaders(tab);
+
+        // Update search placeholder
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.placeholder = 'Search accessories by name, category, manufacturer...';
+            searchInput.value = '';
+        }
 
         // Load accessories if not already loaded
         if (accessoryData.length === 0) {
@@ -2413,6 +2443,24 @@ async function switchTab(tab) {
             updateAccessorySummary();
             updateChart();
             updateAccessoryTable();
+        }
+    } else if (tab === 'maintenance') {
+        maintenanceTab.style.color = 'var(--sf-blue)';
+        maintenanceTab.style.borderBottomColor = 'var(--sf-blue)';
+
+        // Show maintenance content, hide others
+        techSummary.style.display = 'none';
+        accSummary.style.display = 'none';
+        maintenanceSection.style.display = 'block';
+        chartsSection.style.display = 'none';
+        tableContainer.style.display = 'none';
+        if (bulkActionsBar) bulkActionsBar.style.display = 'none';
+
+        document.getElementById('viewTitle').textContent = 'Maintenance Assets';
+
+        // Load maintenance data if not already loaded
+        if (maintenanceData.length === 0) {
+            loadMaintenanceAssets();
         }
     }
 
@@ -2822,29 +2870,7 @@ async function applyBulkEdit() {
 
 // Maintenance Section State
 let maintenanceData = [];
-let maintenanceSectionCollapsed = true;
 let selectedMaintenanceAssets = new Set();
-
-// Toggle maintenance section collapse
-function toggleMaintenanceSection() {
-    const content = document.getElementById('maintenanceContent');
-    const icon = document.getElementById('maintenanceToggleIcon');
-
-    maintenanceSectionCollapsed = !maintenanceSectionCollapsed;
-
-    if (maintenanceSectionCollapsed) {
-        content.classList.add('collapsed');
-        icon.classList.add('collapsed');
-    } else {
-        content.classList.remove('collapsed');
-        icon.classList.remove('collapsed');
-
-        // Load data on first expand
-        if (maintenanceData.length === 0) {
-            loadMaintenanceAssets();
-        }
-    }
-}
 
 // Load maintenance assets from API
 async function loadMaintenanceAssets() {
@@ -3075,16 +3101,6 @@ async function updateSingleAssetStatus(assetId, status) {
     }
 }
 
-// Initialize maintenance section on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Start collapsed
-    const content = document.getElementById('maintenanceContent');
-    const icon = document.getElementById('maintenanceToggleIcon');
-    if (content && icon) {
-        content.classList.add('collapsed');
-        icon.classList.add('collapsed');
-    }
-});
 
 </script>
 {% endblock %}
