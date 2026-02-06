@@ -2543,7 +2543,11 @@
             document.getElementById('ticketTableBody').innerHTML = html;
         }
 
-        document.getElementById('displayedCount').textContent = filteredTickets.length;
+        // Show actual total count when capped and no filters are applied
+        const isShowingAllTickets = filteredTickets.length === allTickets.length;
+        const displayCount = (ticketsCapped && isShowingAllTickets) ? actualTicketCounts.total : filteredTickets.length;
+
+        document.getElementById('displayedCount').textContent = displayCount;
         document.getElementById('showingFrom').textContent = filteredTickets.length > 0 ? start + 1 : 0;
         document.getElementById('showingTo').textContent = Math.min(end, filteredTickets.length);
         document.getElementById('totalFiltered').textContent = filteredTickets.length;
