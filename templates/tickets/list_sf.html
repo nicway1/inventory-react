@@ -2094,7 +2094,7 @@
             {% for ticket in tickets %}
             {
                 id: {{ ticket.id }},
-                subject: {{ ticket.subject | tojson }},
+                subject: {{ ticket.subject | hide_claw | tojson }},
                 category: {{ (ticket.get_category_display_name() if ticket.category else None) | tojson }},
                 priority: {{ (ticket.priority.value if ticket.priority else 'MEDIUM') | tojson }},
                 status: {{ (ticket.custom_status if ticket.custom_status else (ticket.status.value if ticket.status else 'NEW')) | tojson }},

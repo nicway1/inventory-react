@@ -1538,7 +1538,7 @@
                                 <option value="Bulk Delivery Quotation">Bulk Delivery Quotation</option>
                                 <option value="Repair Quote">Repair Quote</option>
                                 <option value="ITAD Quote">ITAD Quote</option>
-                                <option value="Asset Checkout (claw)">Asset Checkout (claw)</option>
+                                <option value="Asset Checkout (claw)">Asset Checkout</option>
                                 <option value="Asset Return (claw)">Asset Return</option>
                                 <option value="Asset Intake">Asset Intake</option>
                                 <option value="Internal Transfer">Internal Transfer</option>
@@ -1656,11 +1656,11 @@
                                 <td class="font-mono">{{ ticket.display_id if ticket.display_id else ticket.id }}</td>
                                 <td>
                                     {% if ticket.id %}
-                                    <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" onclick="openTicketInTab({{ ticket.id }}, '{{ (ticket.subject or 'Untitled')|e|replace("'", "\\'") }}'); return false;" class="text-blue-600 hover:text-blue-900 font-medium">
-                                        {{ ticket.subject or 'Untitled' }}
+                                    <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" onclick="openTicketInTab({{ ticket.id }}, '{{ (ticket.subject or 'Untitled')|hide_claw|e|replace("'", "\\'") }}'); return false;" class="text-blue-600 hover:text-blue-900 font-medium">
+                                        {{ (ticket.subject or 'Untitled')|hide_claw }}
                                     </a>
                                     {% else %}
-                                    <span class="text-gray-500">{{ ticket.subject or 'Untitled' }}</span>
+                                    <span class="text-gray-500">{{ (ticket.subject or 'Untitled')|hide_claw }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -2712,7 +2712,7 @@
 
             row.innerHTML = `
                 <td class="ticket-id">#${ticket.displayId}</td>
-                <td class="ticket-subject" title="${ticket.subject}">${ticket.subject}</td>
+                <td class="ticket-subject" title="${ticket.subject.replace(' (claw)', '')}">${ticket.subject.replace(' (claw)', '')}</td>
                 <td><span class="status-badge" style="${statusColor}">${ticket.status}</span></td>
                 <td><span class="priority-badge" style="${priorityColor}">${ticket.priority}</span></td>
                 <td>${ticket.category || 'Uncategorized'}</td>

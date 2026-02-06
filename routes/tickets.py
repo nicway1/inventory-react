@@ -2663,7 +2663,7 @@ Shipping Method: Claw (Ship24)"""
                 try:
                     # Create the ticket
                     ticket_id = ticket_store.create_ticket(
-                        subject=subject if subject else f"Asset Return (claw) - {customer.name}",
+                        subject=subject if subject else f"Asset Return - {customer.name}",
                         description=system_description,
                         requester_id=user_id,
                         category=TicketCategory.ASSET_RETURN_CLAW,
@@ -8476,6 +8476,7 @@ def get_customers():
 def get_mention_suggestions():
     """Get users and groups for @mention autocomplete"""
     from models.group import Group
+    from models.user_mention_permission import UserMentionPermission
 
     query = request.args.get('q', '').lower().strip()
     db_session = db_manager.get_session()
@@ -8483,10 +8484,31 @@ def get_mention_suggestions():
     try:
         suggestions = []
 
+        # Check if current user has mention filtering enabled
+        current_user_obj = db_session.query(User).get(current_user.id)
+        mention_filter_enabled = current_user_obj.mention_filter_enabled if current_user_obj else False
+
+        # Get allowed user/group IDs if filtering is enabled
+        allowed_user_ids = None
+        allowed_group_ids = None
+        if mention_filter_enabled:
+            mention_perms = db_session.query(UserMentionPermission).filter_by(user_id=current_user.id).all()
+            allowed_user_ids = [p.target_id for p in mention_perms if p.target_type == 'user']
+            allowed_group_ids = [p.target_id for p in mention_perms if p.target_type == 'group']
+
         # Get users (limit to 10 for performance)
-        users = db_session.query(User).filter(
+        user_query = db_session.query(User).filter(
             User.username.ilike(f'%{query}%')
-        ).limit(10).all()
+        )
+
+        # Apply mention filter if enabled
+        if mention_filter_enabled and allowed_user_ids is not None:
+            if allowed_user_ids:
+                user_query = user_query.filter(User.id.in_(allowed_user_ids))
+            else:
+                user_query = user_query.filter(User.id == -1)  # No match
+
+        users = user_query.limit(10).all()
 
         for user in users:
             suggestions.append({
@@ -8500,10 +8522,19 @@ def get_mention_suggestions():
 
         # Get active groups (limit to 10 for performance)
         try:
-            groups = db_session.query(Group).filter(
+            group_query = db_session.query(Group).filter(
                 Group.name.ilike(f'%{query}%'),
                 Group.is_active == True
-            ).limit(10).all()
+            )
+
+            # Apply mention filter if enabled
+            if mention_filter_enabled and allowed_group_ids is not None:
+                if allowed_group_ids:
+                    group_query = group_query.filter(Group.id.in_(allowed_group_ids))
+                else:
+                    group_query = group_query.filter(Group.id == -1)  # No match
+
+            groups = group_query.limit(10).all()
 
             for group in groups:
                 suggestions.append({
@@ -9933,8 +9964,37 @@ def get_available_accessories():
     """Get list of available accessories"""
     db_session = db_manager.get_session()
     try:
-        # Query all accessories with available quantity > 0
-        accessories = db_session.query(Accessory).filter(Accessory.available_quantity > 0).all()
+        # Query accessories with available quantity > 0, filtered by company permissions
+        accessory_query = db_session.query(Accessory).filter(Accessory.available_quantity > 0)
+
+        user = current_user
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            pass
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_company_permission import UserCompanyPermission
+            from models.company import Company
+            user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id, can_view=True
+            ).all()
+            if user_company_permissions:
+                permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                all_permitted_ids = list(permitted_company_ids)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_ids = [c.id for c in company.child_companies.all()]
+                        all_permitted_ids.extend(child_ids)
+                all_permitted_ids = list(set(all_permitted_ids))
+                accessory_query = accessory_query.filter(Accessory.company_id.in_(all_permitted_ids))
+            else:
+                accessory_query = accessory_query.filter(Accessory.id == -1)
+        elif user.user_type == UserType.CLIENT:
+            if user.company_id:
+                accessory_query = accessory_query.filter(Accessory.company_id == user.company_id)
+            else:
+                accessory_query = accessory_query.filter(Accessory.id == -1)
+
+        accessories = accessory_query.all()
         
         # Convert to list of dictionaries
         accessories_list = []
@@ -10046,11 +10106,43 @@ def get_accessories():
         db_session = db_manager.get_session()
         result = []
         
-        # Get all accessories with available quantity > 0
+        # Get accessories with available quantity > 0, filtered by company permissions
         logger.info("Querying accessories with available_quantity > 0")
-        accessories = db_session.query(Accessory).filter(
+        accessory_query = db_session.query(Accessory).filter(
             Accessory.available_quantity > 0
-        ).all()
+        )
+
+        user = current_user
+        if user.user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+            # Super admins can see all accessories
+            pass
+        elif user.user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+            from models.user_company_permission import UserCompanyPermission
+            from models.company import Company
+            user_company_permissions = db_session.query(UserCompanyPermission).filter_by(
+                user_id=user.id,
+                can_view=True
+            ).all()
+            if user_company_permissions:
+                permitted_company_ids = [perm.company_id for perm in user_company_permissions]
+                # Include child companies of parent companies
+                permitted_companies = db_session.query(Company).filter(Company.id.in_(permitted_company_ids)).all()
+                all_permitted_ids = list(permitted_company_ids)
+                for company in permitted_companies:
+                    if company.is_parent_company or company.child_companies.count() > 0:
+                        child_ids = [c.id for c in company.child_companies.all()]
+                        all_permitted_ids.extend(child_ids)
+                all_permitted_ids = list(set(all_permitted_ids))
+                accessory_query = accessory_query.filter(Accessory.company_id.in_(all_permitted_ids))
+            else:
+                accessory_query = accessory_query.filter(Accessory.id == -1)
+        elif user.user_type == UserType.CLIENT:
+            if user.company_id:
+                accessory_query = accessory_query.filter(Accessory.company_id == user.company_id)
+            else:
+                accessory_query = accessory_query.filter(Accessory.id == -1)
+
+        accessories = accessory_query.all()
         
         logger.info(f"Found {len(accessories)} accessories with available quantity")
         

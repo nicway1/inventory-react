@@ -2852,7 +2852,7 @@ def _create_asset_checkout_ticket(data, user_id, db_session):
 
     company_name = customer.company.name if customer.company else 'N/A'
 
-    subject = f"Asset Checkout (claw) - {asset.model} to {customer.name}"
+    subject = f"Asset Checkout - {asset.model} to {customer.name}"
     description = f"""Asset Checkout Details:
 Serial Number: {serial_number}
 Model: {asset.model}
@@ -2987,7 +2987,7 @@ def _create_asset_return_ticket(data, user_id, db_session):
     company_name = customer.company.name if customer.company else 'N/A'
 
     if not subject:
-        subject = f"Asset Return (claw) - {customer.name}"
+        subject = f"Asset Return - {customer.name}"
 
     description = f"""Asset Return (Claw) Details:
 Customer Information:
