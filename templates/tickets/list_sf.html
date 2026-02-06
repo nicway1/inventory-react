@@ -2009,6 +2009,9 @@
     let serverSearchTimeout = null;
     let isServerSearching = false;
 
+    // Actual ticket counts from server (for summary cards - shows real totals even when capped)
+    const actualTicketCounts = {{ ticket_counts | tojson | safe }};
+
     // Custom statuses from database
     const customStatuses = {{ custom_statuses | tojson | safe }};
 
@@ -2451,71 +2454,21 @@
 
     // Update summary cards
     function updateSummaryCards() {
-        // Summary cards always show counts from allTickets (not filtered)
-        document.getElementById('totalCount').textContent = allTickets.length;
+        // Summary cards use actual counts from server (not calculated from loaded tickets)
+        // This ensures correct totals even when tickets are capped at 500
+        document.getElementById('totalCount').textContent = actualTicketCounts.total || 0;
+        document.getElementById('openCount').textContent = actualTicketCounts.open || 0;
+        document.getElementById('inProgressCount').textContent = actualTicketCounts.in_progress || 0;
+        document.getElementById('resolvedCount').textContent = actualTicketCounts.resolved || 0;
+        document.getElementById('onHoldCount').textContent = actualTicketCounts.on_hold || 0;
 
-        // Count tickets by status category
-        // "Open" includes: New, OPEN, or any status containing "new" (case-insensitive)
-        const openCount = allTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'new' || s === 'open' || s.includes('new');
-        }).length;
-
-        // "In Progress" includes: In Progress, IN_PROGRESS, Processing, or statuses containing "progress" or "processing"
-        const inProgressCount = allTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
-                   s.includes('progress') || s.includes('processing');
-        }).length;
-
-        // "Resolved" includes: Resolved, RESOLVED, RESOLVED_DELIVERED, or statuses containing "resolved" or "delivered" or "complete"
-        const resolvedCount = allTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
-        }).length;
-
-        // "On Hold" includes: On Hold, ON_HOLD, or statuses containing "hold" or "duplicate" or "cancelled"
-        const onHoldCount = allTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
-                   s.includes('duplicate') || s.includes('cancel');
-        }).length;
-
-        document.getElementById('openCount').textContent = openCount;
-        document.getElementById('inProgressCount').textContent = inProgressCount;
-        document.getElementById('resolvedCount').textContent = resolvedCount;
-        document.getElementById('onHoldCount').textContent = onHoldCount;
-
-        // Personal stats - tickets assigned to current user (from allTickets, not filtered)
-        const myTickets = allTickets.filter(t => t.assignee === currentUsername);
-
-        const myOpenCount = myTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'new' || s === 'open' || s.includes('new');
-        }).length;
-
-        const myInProgressCount = myTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'in progress' || s === 'in_progress' || s === 'processing' ||
-                   s.includes('progress') || s.includes('processing');
-        }).length;
-
-        const myOnHoldCount = myTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'on hold' || s === 'on_hold' || s.includes('hold') ||
-                   s.includes('duplicate') || s.includes('cancel');
-        }).length;
-
-        const myResolvedCount = myTickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'resolved' || s.includes('resolved') || s.includes('delivered') || s.includes('complete');
-        }).length;
-
-        document.getElementById('myTotalCount').textContent = myTickets.length;
-        document.getElementById('myOpenCount').textContent = myOpenCount;
-        document.getElementById('myInProgressCount').textContent = myInProgressCount;
-        document.getElementById('myOnHoldCount').textContent = myOnHoldCount;
-        document.getElementById('myResolvedCount').textContent = myResolvedCount;
+        // My Tickets counts from server
+        const myTicketCounts = actualTicketCounts.my_tickets || {};
+        document.getElementById('myTotalCount').textContent = myTicketCounts.total || 0;
+        document.getElementById('myOpenCount').textContent = myTicketCounts.open || 0;
+        document.getElementById('myInProgressCount').textContent = myTicketCounts.in_progress || 0;
+        document.getElementById('myOnHoldCount').textContent = myTicketCounts.on_hold || 0;
+        document.getElementById('myResolvedCount').textContent = myTicketCounts.resolved || 0;
     }
 
     // Sort and render table

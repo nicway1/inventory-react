@@ -417,6 +417,10 @@ def list_tickets_sf():
     tickets_capped = not show_all and len(tickets) >= 500
     logging.info(f"DEBUG SF - got {len(tickets)} tickets from get_user_tickets (limit={ticket_limit}, capped={tickets_capped})")
 
+    # Get actual total counts (for summary cards - should show real totals even when capped)
+    ticket_counts = ticket_store.get_user_ticket_counts(user_id, user.user_type, queue_ids=queue_ids)
+    logging.info(f"DEBUG SF - actual totals: {ticket_counts['total']} tickets, {ticket_counts['open']} open, {ticket_counts['in_progress']} in progress")
+
     # Apply date filtering if date parameters are provided
     if date_from or date_to:
         filtered_by_date = []
@@ -603,7 +607,7 @@ def list_tickets_sf():
     finally:
         users_db.close()
 
-    return render_template('tickets/list_sf.html', tickets=tickets, user=user, users=users, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data, user_has_firstbase_access=user_has_firstbase_access, tickets_capped=tickets_capped)
+    return render_template('tickets/list_sf.html', tickets=tickets, user=user, users=users, queues=queues, queue_ticket_counts=queue_ticket_counts, custom_statuses=custom_statuses_list, folders_data=folders_data, ticket_sla_data=ticket_sla_data, user_has_firstbase_access=user_has_firstbase_access, tickets_capped=tickets_capped, ticket_counts=ticket_counts)
 
 
 @tickets_bp.route('/refresh-all-statuses', methods=['POST'])

@@ -324,6 +324,142 @@ class TicketStore:
         finally:
             db_session.close()
 
+    def get_user_ticket_counts(self, user_id, user_type, queue_ids=None):
+        """Get ticket count statistics for a user (total and by status category).
+
+        Args:
+            user_id: The user ID
+            user_type: The user's type (UserType enum)
+            queue_ids: Optional list of queue IDs to filter by (for COUNTRY_ADMIN/SUPERVISOR)
+
+        Returns:
+            dict with keys: total, open, in_progress, resolved, on_hold, my_tickets
+        """
+        from models.ticket import Ticket, TicketStatus
+        from sqlalchemy import func, case, or_
+
+        db_session = self.db_manager.get_session()
+        try:
+            # Base query - same permission logic as get_user_tickets
+            query = db_session.query(Ticket)
+
+            # Apply user permission filters
+            if user_type in [UserType.SUPER_ADMIN, UserType.DEVELOPER]:
+                pass  # Can see all tickets
+            elif user_type in [UserType.COUNTRY_ADMIN, UserType.SUPERVISOR]:
+                if queue_ids is not None:
+                    query = query.filter(Ticket.queue_id.in_(queue_ids))
+            else:
+                query = query.filter(
+                    (Ticket.requester_id == user_id) |
+                    (Ticket.assigned_to_id == user_id)
+                )
+
+            # Get total count
+            total = query.count()
+
+            # Get counts by status category using CASE statements
+            # Use custom_status if set, otherwise use status
+            status_expr = case(
+                (Ticket.custom_status.isnot(None), func.lower(Ticket.custom_status)),
+                else_=func.lower(Ticket.status)
+            )
+
+            # Count "open" statuses
+            open_count = query.filter(
+                or_(
+                    status_expr == 'new',
+                    status_expr == 'open',
+                    status_expr.like('%new%')
+                )
+            ).count()
+
+            # Count "in progress" statuses
+            in_progress_count = query.filter(
+                or_(
+                    status_expr == 'in progress',
+                    status_expr == 'in_progress',
+                    status_expr == 'processing',
+                    status_expr.like('%progress%'),
+                    status_expr.like('%processing%')
+                )
+            ).count()
+
+            # Count "resolved" statuses
+            resolved_count = query.filter(
+                or_(
+                    status_expr == 'resolved',
+                    status_expr.like('%resolved%'),
+                    status_expr.like('%delivered%'),
+                    status_expr.like('%complete%')
+                )
+            ).count()
+
+            # Count "on hold" statuses
+            on_hold_count = query.filter(
+                or_(
+                    status_expr == 'on hold',
+                    status_expr == 'on_hold',
+                    status_expr.like('%hold%'),
+                    status_expr.like('%duplicate%'),
+                    status_expr.like('%cancel%')
+                )
+            ).count()
+
+            # Get "my tickets" count (assigned to current user)
+            my_tickets_query = query.filter(Ticket.assigned_to_id == user_id)
+            my_total = my_tickets_query.count()
+            my_open = my_tickets_query.filter(
+                or_(
+                    status_expr == 'new',
+                    status_expr == 'open',
+                    status_expr.like('%new%')
+                )
+            ).count()
+            my_in_progress = my_tickets_query.filter(
+                or_(
+                    status_expr == 'in progress',
+                    status_expr == 'in_progress',
+                    status_expr == 'processing',
+                    status_expr.like('%progress%'),
+                    status_expr.like('%processing%')
+                )
+            ).count()
+            my_on_hold = my_tickets_query.filter(
+                or_(
+                    status_expr == 'on hold',
+                    status_expr == 'on_hold',
+                    status_expr.like('%hold%'),
+                    status_expr.like('%duplicate%'),
+                    status_expr.like('%cancel%')
+                )
+            ).count()
+            my_resolved = my_tickets_query.filter(
+                or_(
+                    status_expr == 'resolved',
+                    status_expr.like('%resolved%'),
+                    status_expr.like('%delivered%'),
+                    status_expr.like('%complete%')
+                )
+            ).count()
+
+            return {
+                'total': total,
+                'open': open_count,
+                'in_progress': in_progress_count,
+                'resolved': resolved_count,
+                'on_hold': on_hold_count,
+                'my_tickets': {
+                    'total': my_total,
+                    'open': my_open,
+                    'in_progress': my_in_progress,
+                    'on_hold': my_on_hold,
+                    'resolved': my_resolved
+                }
+            }
+        finally:
+            db_session.close()
+
     def assign_ticket(self, ticket_id, assigned_to_id, queue_id):
         """Assign a ticket to a user and/or queue"""
         ticket = self.tickets.get(ticket_id)
