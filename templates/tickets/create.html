@@ -193,6 +193,7 @@
 
                     <form id="ticketForm" method="POST" enctype="multipart/form-data" class="p-6">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="form_token" value="{{ form_token }}">
 
                         <!-- Category Selection - SF Style -->
                         <div class="mb-6">
@@ -2806,6 +2807,14 @@ function submitAssetReturnForm() {
     csrfInput.name = 'csrf_token';
     csrfInput.value = csrfToken;
     form.appendChild(csrfInput);
+
+    // Add idempotency token
+    const formToken = document.querySelector('input[name="form_token"]').value;
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'hidden';
+    tokenInput.name = 'form_token';
+    tokenInput.value = formToken;
+    form.appendChild(tokenInput);
     
     // Add category
     const categoryInput = document.createElement('input');

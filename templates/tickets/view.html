@@ -6517,8 +6517,9 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                         <!-- Comment Input - Fixed at Bottom -->
                         <div class="border-t border-gray-200 bg-white p-4">
-                            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" id="commentFormMessenger" onsubmit="if(commentSubmitting){return false;} commentSubmitting=true; var btn=this.querySelector('button[type=submit]'); if(btn){btn.disabled=true;}">
+                            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" id="commentFormMessenger" onsubmit="if(commentSubmitting){return false;} commentSubmitting=true; var btn=this.querySelector('button[type=submit]'); if(btn){btn.disabled=true;} document.getElementById('comment_token').value=crypto.randomUUID();">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="comment_token" id="comment_token" value="">
 
                                 <div class="flex items-end space-x-2">
                                     <!-- Textarea with @mention -->

@@ -26,6 +26,7 @@ from models.ticket_attachment import TicketAttachment as Attachment
 import requests
 from bs4 import BeautifulSoup
 import sys
+import uuid
 from config import TRACKINGMORE_API_KEY
 import traceback
 
@@ -2069,16 +2070,28 @@ def create_ticket():
         
         if request.method == 'GET':
             logger.debug("Handling GET request")
-            
-            return render_template('tickets/create.html', **get_template_context())
+            # Generate idempotency token to prevent duplicate submissions
+            form_token = str(uuid.uuid4())
+            session['form_token'] = form_token
+            return render_template('tickets/create.html', form_token=form_token, **get_template_context())
 
         if request.method == 'POST':
             logger.debug("Handling POST request")
-            
+
+            # Idempotency check: prevent duplicate ticket creation
+            submitted_token = request.form.get('form_token')
+            stored_token = session.pop('form_token', None)
+            if not submitted_token or submitted_token != stored_token:
+                logger.warning(f"Duplicate or invalid form submission detected (submitted={submitted_token}, stored={stored_token})")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'error': 'Duplicate submission detected. Please refresh and try again.'}), 409
+                flash('Duplicate submission detected. Your ticket was already created.', 'warning')
+                return redirect(url_for('tickets.list_tickets_sf'))
+
             # Log all form fields to debug
             for key, value in request.form.items():
                 logger.debug(f"Form field: {key} = {value}")
-            
+
             # Get common form data
             category = request.form.get('category')
             subject = request.form.get('subject')
@@ -3569,6 +3582,18 @@ def add_comment(ticket_id):
     if not content:
         flash('Comment cannot be empty')
         return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id))
+
+    # Idempotency check: prevent duplicate comment submission
+    submitted_token = request.form.get('comment_token')
+    if submitted_token:
+        used_comment_tokens = session.get('used_comment_tokens', [])
+        if submitted_token in used_comment_tokens:
+            logger.warning(f"Duplicate comment submission detected for ticket {ticket_id}")
+            flash('Comment already posted.', 'warning')
+            return redirect(url_for('tickets.view_ticket', ticket_id=ticket_id) + '#comments')
+        # Store token as used (keep last 10 to avoid session bloat)
+        used_comment_tokens.append(submitted_token)
+        session['used_comment_tokens'] = used_comment_tokens[-10:]
 
     comment = comment_store.add_comment(
         ticket_id=ticket_id,
