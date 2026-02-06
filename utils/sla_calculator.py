@@ -223,6 +223,131 @@ def get_sla_status(ticket, db=None) -> dict:
     }
 
 
+def get_batch_sla_status(tickets, db=None) -> dict:
+    """
+    Get SLA status for multiple tickets efficiently using batch queries.
+    Instead of N+1 queries, loads all SLA configs and holidays in bulk.
+
+    Args:
+        tickets: List of ticket objects
+        db: Optional database session to reuse
+
+    Returns:
+        dict mapping ticket_id -> SLA status dict (only tickets with SLA)
+    """
+    from database import SessionLocal
+    from models.sla_config import SLAConfig
+    from models.queue_holiday import QueueHoliday
+    from models.ticket import TicketStatus
+
+    if not tickets:
+        return {}
+
+    should_close = db is None
+    if db is None:
+        db = SessionLocal()
+
+    try:
+        result = {}
+
+        # Collect unique queue_id + category pairs from non-resolved tickets
+        queue_category_pairs = set()
+        queue_ids = set()
+        for ticket in tickets:
+            if ticket.status in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                continue
+            if ticket.queue_id and ticket.category:
+                queue_category_pairs.add((ticket.queue_id, ticket.category))
+                queue_ids.add(ticket.queue_id)
+
+        if not queue_category_pairs:
+            return {}
+
+        # Batch load all active SLA configs for relevant queues
+        all_sla_configs = db.query(SLAConfig).filter(
+            SLAConfig.queue_id.in_(queue_ids),
+            SLAConfig.is_active == True
+        ).all()
+
+        # Index by (queue_id, category)
+        sla_config_map = {}
+        for cfg in all_sla_configs:
+            sla_config_map[(cfg.queue_id, cfg.ticket_category)] = {
+                'id': cfg.id,
+                'working_days': cfg.working_days,
+                'description': cfg.description
+            }
+
+        # Batch load holidays for all relevant queues
+        now = datetime.utcnow()
+        earliest_ticket = min((t.created_at for t in tickets if t.created_at), default=now)
+        earliest_date = earliest_ticket.date() if isinstance(earliest_ticket, datetime) else earliest_ticket
+        max_working_days = max((c['working_days'] for c in sla_config_map.values()), default=30)
+        end_search = now.date() + timedelta(days=max_working_days * 3)
+
+        all_holidays = db.query(QueueHoliday).filter(
+            QueueHoliday.queue_id.in_(queue_ids),
+            QueueHoliday.holiday_date >= earliest_date,
+            QueueHoliday.holiday_date <= end_search
+        ).all()
+
+        # Index holidays by queue_id
+        holidays_by_queue = {}
+        for h in all_holidays:
+            holidays_by_queue.setdefault(h.queue_id, []).append(h.holiday_date)
+
+        # Now calculate SLA for each ticket using cached data
+        for ticket in tickets:
+            if ticket.status in [TicketStatus.RESOLVED, TicketStatus.RESOLVED_DELIVERED]:
+                continue
+
+            if not ticket.queue_id or not ticket.category:
+                continue
+
+            sla_config = sla_config_map.get((ticket.queue_id, ticket.category))
+            if not sla_config:
+                continue
+
+            # Calculate due date in-memory
+            working_days = sla_config['working_days']
+            if working_days <= 0:
+                due_date = ticket.created_at
+            else:
+                current_date = ticket.created_at.date() if isinstance(ticket.created_at, datetime) else ticket.created_at
+                queue_holidays = holidays_by_queue.get(ticket.queue_id, [])
+                days_counted = 0
+                while days_counted < working_days:
+                    current_date += timedelta(days=1)
+                    if current_date.weekday() < 5 and current_date not in queue_holidays:
+                        days_counted += 1
+                due_date = datetime.combine(current_date, time(17, 0))
+
+            time_diff = due_date - now
+            days_remaining = time_diff.days
+            is_breached = now > due_date
+
+            if is_breached:
+                status = 'breached'
+            elif days_remaining <= 1:
+                status = 'at_risk'
+            else:
+                status = 'on_track'
+
+            result[ticket.id] = {
+                'status': status,
+                'days_remaining': days_remaining,
+                'due_date': due_date.isoformat() if due_date else None
+            }
+
+        return result
+    except Exception as e:
+        logger.error(f"Error in batch SLA calculation: {str(e)}")
+        return {}
+    finally:
+        if should_close:
+            db.close()
+
+
 def get_sla_summary_stats(tickets: list) -> dict:
     """
     Get summary statistics for a list of tickets
