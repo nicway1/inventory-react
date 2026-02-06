@@ -3778,8 +3778,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                 </div>
                                 <!-- Tab-specific action buttons -->
                                 <div id="shippingTabActions" class="flex gap-2">
-                                    <!-- SingPost actions (shown by default) -->
-                                    <div id="singpostActions" class="flex gap-2">
+                                    <!-- SingPost actions (hidden) -->
+                                    <div id="singpostActions" class="flex gap-2 hidden">
                                         <button class="sf-button" onclick="refreshSingpostIframe()">
                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -3799,8 +3799,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                             Open in New Tab
                                         </a>
                                     </div>
-                                    <!-- Retool actions (hidden by default) -->
-                                    <div id="retoolActions" class="flex gap-2 hidden">
+                                    <!-- Retool actions (shown by default) -->
+                                    <div id="retoolActions" class="flex gap-2">
                                         <button class="sf-button" onclick="refreshRetoolIframe()">
                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -3827,7 +3827,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                         <!-- Tab Navigation -->
                         <div class="border-b border-gray-200">
                             <nav class="flex -mb-px" aria-label="Shipping Tabs">
-                                <button id="tabSingpost" onclick="switchShippingTab('singpost')"
+                                <button id="tabSingpost" onclick="switchShippingTab('singpost')" style="display: none;"
                                         class="shipping-tab active px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50">
                                     <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
@@ -3835,7 +3835,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                     SingPost (Ezy2Ship)
                                 </button>
                                 <button id="tabRetool" onclick="switchShippingTab('retool')"
-                                        class="shipping-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                        class="shipping-tab active px-6 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50">
                                     <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                                     </svg>
@@ -3846,7 +3846,7 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                         <div class="sf-card-body p-0">
                             <!-- SingPost Tab Content -->
-                            <div id="singpostTabContent" class="shipping-tab-content">
+                            <div id="singpostTabContent" class="shipping-tab-content hidden">
                                 <div id="singpostContainer" class="relative" style="height: 700px;">
                                     <!-- Login notice banner -->
                                     <div id="singpostLoginNotice" class="absolute top-0 left-0 right-0 z-10 bg-amber-50 border-b border-amber-200 px-4 py-3">
@@ -3903,7 +3903,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                             </script>
 
                             <!-- Retool Tab Content -->
-                            <div id="retoolTabContent" class="shipping-tab-content hidden">
+                            <div id="retoolTabContent" class="shipping-tab-content">
                                 <div id="retoolContainer" class="relative" style="height: 700px;">
                                     <iframe
                                         id="retoolIframe"
