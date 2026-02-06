@@ -173,11 +173,18 @@ function autoResize(textarea) {
 }
 
 // Handle Enter key (Shift+Enter for new line, Enter to submit)
+var commentSubmitting = false;
 function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
+        if (commentSubmitting) return;
         const form = document.getElementById('commentFormMessenger');
-        if (form) form.submit();
+        if (form) {
+            commentSubmitting = true;
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
+            form.submit();
+        }
     }
 }
 
@@ -6510,7 +6517,7 @@ body.dark-theme .sf-card-body .sf-field-label {
 
                         <!-- Comment Input - Fixed at Bottom -->
                         <div class="border-t border-gray-200 bg-white p-4">
-                            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" id="commentFormMessenger">
+                            <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" id="commentFormMessenger" onsubmit="if(commentSubmitting){return false;} commentSubmitting=true; var btn=this.querySelector('button[type=submit]'); if(btn){btn.disabled=true;}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                 <div class="flex items-end space-x-2">
@@ -13607,7 +13614,14 @@ function autoResize(textarea) {
 function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        document.getElementById('commentFormMessenger').submit();
+        if (typeof commentSubmitting !== 'undefined' && commentSubmitting) return;
+        commentSubmitting = true;
+        const form = document.getElementById('commentFormMessenger');
+        if (form) {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
+            form.submit();
+        }
     }
 }
 

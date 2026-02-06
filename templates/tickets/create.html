@@ -2219,10 +2219,20 @@ $(document).ready(function() {
         }
     });
 
+    // Prevent double submission
+    var ticketFormSubmitting = false;
+
     // Add form submit handler
     $('#ticketForm').on('submit', function(e) {
         const category = $('#category').val();
         console.log(`Form submit event triggered for category: ${category}`);
+
+        // Prevent double submission
+        if (ticketFormSubmitting) {
+            console.log('Form already submitting, blocking duplicate.');
+            e.preventDefault();
+            return false;
+        }
         
         // For ASSET_CHECKOUT_CLAW, handle with AJAX for popup functionality
         if (category === 'ASSET_CHECKOUT_CLAW') {
@@ -2279,6 +2289,9 @@ $(document).ready(function() {
             console.log('[QUEUE DEBUG] checkout_queue_id value:', queueIdValue);
             console.log('[QUEUE DEBUG] FormData queue_id:', formData.get('queue_id'));
             
+            ticketFormSubmitting = true;
+            $('#mainSubmitButton').prop('disabled', true).html('<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating...');
+
             fetch(this.action, {
                 method: 'POST',
                 body: formData,
@@ -2291,10 +2304,14 @@ $(document).ready(function() {
                 if (data.success) {
                     showAssetCheckoutSuccessModal(data);
                 } else {
+                    ticketFormSubmitting = false;
+                    $('#mainSubmitButton').prop('disabled', false).html('<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg> Create Ticket');
                     alert('Error creating ticket: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
+                ticketFormSubmitting = false;
+                $('#mainSubmitButton').prop('disabled', false).html('<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg> Create Ticket');
                 console.error('Error:', error);
                 alert('An error occurred while creating the ticket');
             });
@@ -2349,6 +2366,8 @@ $(document).ready(function() {
             $('#asset_checkout_serial').val('ASSET_RETURN_NO_ASSET');
 
             console.log('Submit validation passed for Asset Return. Submitting form...');
+            ticketFormSubmitting = true;
+            $('#mainSubmitButton').prop('disabled', true).html('<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating...');
             return true; // Allow the form to submit
         }
         
@@ -2465,6 +2484,8 @@ $(document).ready(function() {
             }
 
             console.log('Submit validation passed for Asset Intake. Submitting form...');
+            ticketFormSubmitting = true;
+            $('#mainSubmitButton').prop('disabled', true).html('<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating...');
             return true;
         } else if (category === 'INTERNAL_TRANSFER') {
             console.log('Validating INTERNAL_TRANSFER category...');
@@ -2554,6 +2575,8 @@ $(document).ready(function() {
             }
 
             console.log('Submit validation passed for Internal Transfer. Submitting form...');
+            ticketFormSubmitting = true;
+            $('#mainSubmitButton').prop('disabled', true).html('<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating...');
             return true;
         }
 
@@ -2607,11 +2630,14 @@ $(document).ready(function() {
             }
             
             console.log('Submit validation passed for custom category. Submitting form...');
+            ticketFormSubmitting = true;
+            $('#mainSubmitButton').prop('disabled', true).html('<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating...');
             return true;
         }
         
         console.log('Form validation completed. Allowing submission.');
-        // ... rest of submit logic ...
+        ticketFormSubmitting = true;
+        $('#mainSubmitButton').prop('disabled', true).html('<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Creating...');
         return true;
     });
 
@@ -2889,11 +2915,15 @@ function submitAssetReturnForm() {
     serialInput.value = 'ASSET_RETURN_NO_ASSET';
     form.appendChild(serialInput);
     
+    // Prevent double submission
+    ticketFormSubmitting = true;
+    $('#asset_return_submit').prop('disabled', true).text('Creating...');
+
     // Add the form to the document and submit it
     document.body.appendChild(form);
     console.log('Submitting custom form for Asset Return...');
     form.submit();
-    
+
     return true;
 }
 
