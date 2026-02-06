@@ -2705,6 +2705,8 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         {% set tracking_url = 'https://www.fedex.com/fedextrack/?trknbr=' ~ ticket.shipping_tracking %}
                                     {% elif ticket.shipping_carrier == 'singpost' %}
                                         {% set tracking_url = 'https://www.singpost.com/track-items?trackingid=' ~ ticket.shipping_tracking %}
+                                    {% elif ticket.shipping_carrier == 'purolator' %}
+                                        {% set tracking_url = 'https://www.purolator.com/en/shipping/tracker?pin=' ~ ticket.shipping_tracking %}
                                     {% elif ticket.shipping_tracking.startswith('http') %}
                                         {% set tracking_url = ticket.shipping_tracking %}
                                     {% endif %}
@@ -7121,13 +7123,14 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </form>
                         </div>
-                        
+
                         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button type="submit" form="addShipmentForm" 
+                            <button type="submit" form="addShipmentForm"
                                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
                                 Add Shipment
                             </button>
@@ -7192,13 +7195,14 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </form>
                         </div>
-                        
+
                         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button type="button" id="submitReturnTrackingBtn" 
+                            <button type="button" id="submitReturnTrackingBtn"
                                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
                                 {% if ticket.return_tracking %}
                                 Update Return Tracking
@@ -7262,13 +7266,14 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </form>
                         </div>
-                        
+
                         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button type="button" id="submitPackageBtn" 
+                            <button type="button" id="submitPackageBtn"
                                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-purple-600 text-base font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:ml-3 sm:w-auto sm:text-sm">
                                 Add Package
                             </button>
@@ -7415,6 +7420,7 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         <option value="fedex">FedEx</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                         <option value="other">Other / Custom URL</option>
                                     </select>
                                 </div>

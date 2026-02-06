@@ -6118,7 +6118,7 @@ def update_shipping_carrier(ticket_id):
             return jsonify({'success': False, 'message': 'No carrier specified'}), 400
 
         # Validate carrier
-        valid_carriers = ['auto', 'singpost', 'dhl', 'ups', 'bluedart', 'dtdc', 'claw']
+        valid_carriers = ['auto', 'singpost', 'dhl', 'ups', 'bluedart', 'dtdc', 'claw', 'purolator']
         if carrier not in valid_carriers:
             return jsonify({'success': False, 'message': f'Invalid carrier. Valid options are: {", ".join(valid_carriers)}'}), 400
 

@@ -579,10 +579,11 @@
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <!-- Package 2 -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -606,10 +607,11 @@
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <!-- Package 3 -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -633,10 +635,11 @@
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <!-- Package 4 -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -660,10 +663,11 @@
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <!-- Package 5 -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -687,6 +691,7 @@
                                         <option value="ups">UPS</option>
                                         <option value="bluedart">BlueDart</option>
                                         <option value="dtdc">DTDC</option>
+                                        <option value="purolator">Purolator</option>
                                     </select>
                                 </div>
                             </div>
@@ -2237,7 +2242,13 @@ $(document).ready(function() {
                 alert('Please provide a shipping address');
                 return false;
             }
-            
+
+            const checkoutQueueId = $('#checkout_queue_id').val();
+            if (!checkoutQueueId) {
+                alert('Please select a queue');
+                return false;
+            }
+
             // Force update accessories data
             if (selectedAccessories.length > 0) {
                 const jsonData = JSON.stringify(selectedAccessories);
@@ -2310,6 +2321,15 @@ $(document).ready(function() {
             // Tracking validation is now optional
             // No check for outbound tracking - it's now optional
 
+            // Validate queue selection
+            const returnQueueId = $('#queue_id').val();
+            if (!returnQueueId) {
+                console.log('Submit validation failed: Queue not selected. Preventing submission.');
+                e.preventDefault();
+                alert('Please select a queue');
+                return false;
+            }
+
             // Set a default subject if not provided
             if (!$('#subject').val()) {
                 const customer = $('#return_customer_id option:selected').text();
@@ -2373,6 +2393,13 @@ $(document).ready(function() {
                  console.log('Submit validation failed: #serial_number is empty. Preventing submission.');
                 e.preventDefault();
                 alert('Please select an asset');
+                return false;
+            }
+            const pinQueueId = $('#pin_queue_id').val();
+            if (!pinQueueId) {
+                console.log('Submit validation failed: Queue not selected. Preventing submission.');
+                e.preventDefault();
+                alert('Please select a queue');
                 return false;
             }
         } else if (category === 'ASSET_REPAIR') {
@@ -2471,6 +2498,15 @@ $(document).ready(function() {
                 console.log('Submit validation failed: Onboarding address not provided. Preventing submission.');
                 e.preventDefault();
                 alert('Please provide onboarding address');
+                return false;
+            }
+
+            // Validate queue selection
+            const transferQueueId = $('#internal_transfer_queue_id').val();
+            if (!transferQueueId) {
+                console.log('Submit validation failed: Queue not selected. Preventing submission.');
+                e.preventDefault();
+                alert('Please select a queue');
                 return false;
             }
 
@@ -2698,7 +2734,12 @@ function submitAssetReturnForm() {
         alert('Please provide a return address');
         return false;
     }
-    
+
+    if (!$('#queue_id').val()) {
+        alert('Please select a queue');
+        return false;
+    }
+
     // Set the subject for the ticket
     const customer = $('#return_customer_id option:selected').text();
     $('#return_subject').val(`Asset Return (claw) - ${customer}`);
