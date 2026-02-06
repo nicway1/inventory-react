@@ -13033,38 +13033,51 @@ function checkIssueMention(textarea) {
     }
 }
 
-function showIssueMentionDropdown(searchText) {
+async function showIssueMentionDropdown(searchText) {
     const dropdown = document.getElementById('issueMentionDropdown');
-    const filtered = issueAvailableUsers.filter(user =>
-        user.username.toLowerCase().includes(searchText)
-    );
 
-    if (filtered.length === 0) {
+    try {
+        // Fetch mention suggestions from API (includes both users and groups)
+        const response = await fetch(`/tickets/api/mention-suggestions?q=${encodeURIComponent(searchText)}`);
+        const data = await response.json();
+
+        if (!data.suggestions || data.suggestions.length === 0) {
+            hideIssueMentionDropdown();
+            return;
+        }
+
+        dropdown.innerHTML = '';
+        data.suggestions.slice(0, 10).forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center';
+
+            // Different styling for groups vs users
+            const isGroup = item.type === 'group';
+            const avatarBg = isGroup ? 'bg-green-100' : 'bg-blue-500';
+            const avatarText = isGroup ? 'text-green-600' : 'text-white';
+            const avatarContent = isGroup ? '👥' : item.name[0].toUpperCase();
+
+            button.innerHTML = `
+                <div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center ${avatarText} font-semibold text-sm mr-3">
+                    ${avatarContent}
+                </div>
+                <div>
+                    <div class="font-medium text-sm">${item.name}</div>
+                    <div class="text-xs text-gray-500">${isGroup ? 'Group' : (item.email || 'User')}</div>
+                </div>
+            `;
+            button.onclick = function() {
+                selectIssueMention(item.name);
+            };
+            dropdown.appendChild(button);
+        });
+
+        dropdown.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading mention suggestions:', error);
         hideIssueMentionDropdown();
-        return;
     }
-
-    dropdown.innerHTML = '';
-    filtered.slice(0, 10).forEach((user) => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center';
-        item.innerHTML = `
-            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm mr-3">
-                ${user.username[0].toUpperCase()}
-            </div>
-            <div>
-                <div class="font-medium text-sm">${user.username}</div>
-                <div class="text-xs text-gray-500">${user.email}</div>
-            </div>
-        `;
-        item.onclick = function() {
-            selectIssueMention(user.username);
-        };
-        dropdown.appendChild(item);
-    });
-
-    dropdown.classList.remove('hidden');
 }
 
 function hideIssueMentionDropdown() {
