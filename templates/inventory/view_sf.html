@@ -1413,6 +1413,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadChartSettings();
     await loadFilters();
     await loadAssets();
+    loadMaintenanceCount(); // Load maintenance count badge
 });
 
 // Load saved chart settings
@@ -2870,6 +2871,30 @@ async function applyBulkEdit() {
 // Maintenance Section State
 let maintenanceData = [];
 let selectedMaintenanceAssets = new Set();
+
+// Load maintenance count only (on page load)
+async function loadMaintenanceCount() {
+    try {
+        const response = await fetch('/inventory/maintenance-assets', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+        const countBadge = document.getElementById('maintenanceCountBadge');
+        if (countBadge) {
+            countBadge.textContent = data.total_count || 0;
+        }
+    } catch (error) {
+        console.error('Error loading maintenance count:', error);
+    }
+}
 
 // Load maintenance assets from API
 async function loadMaintenanceAssets() {
