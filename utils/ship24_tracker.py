@@ -196,6 +196,14 @@ class Ship24Tracker:
                 result['tracking_links'] = self._get_all_tracking_links(tracking_number)
             return result
 
+        # If carrier is 'purolator', use Purolator scraper directly
+        if carrier and carrier.lower() == 'purolator':
+            logger.info(f"Using Purolator Oxylabs for {tracking_number}")
+            result = await self.track_with_purolator_oxylabs(tracking_number)
+            if result:
+                result['tracking_links'] = self._get_all_tracking_links(tracking_number, carrier_hint='purolator')
+            return result
+
         # If method is 'oxylabs', use Ship24 Oxylabs directly
         if method == 'oxylabs':
             logger.info(f"Using Oxylabs method for {tracking_number}")
@@ -375,6 +383,13 @@ class Ship24Tracker:
             # Use HFD tracking (always uses Oxylabs)
             result = await self.track_with_hfd(tracking_number)
             if result:
+                return result
+
+        elif provider == 'purolator':
+            # Use Purolator tracking (always uses Oxylabs)
+            result = await self.track_with_purolator_oxylabs(tracking_number)
+            if result:
+                result['tracking_links'] = self._get_all_tracking_links(tracking_number, carrier_hint='purolator')
                 return result
 
         elif provider == 'ship24':
@@ -1218,6 +1233,426 @@ class Ship24Tracker:
             'tracking_url': tracking_url,
             'source': 'Ship24 (Oxylabs)',
             'debug_info': debug_info,
+            'message': 'Could not fetch tracking data. Use the tracking link to check manually.'
+        }
+
+    async def track_with_purolator_oxylabs(self, tracking_number: str) -> Optional[Dict]:
+        """
+        Track a parcel using Purolator website via Playwright + Oxylabs residential proxy (Canada)
+        Similar approach to HFD Israel tracking which uses residential proxy to bypass anti-bot
+        """
+        tracking_url = f"https://www.purolator.com/en/shipping/tracker?pin={tracking_number}"
+        logger.info(f"[Purolator] Tracking: {tracking_url}")
+
+        debug_info = {
+            'method': 'purolator_playwright_residential',
+            'tracking_number': tracking_number,
+            'tracking_url': tracking_url,
+            'timestamp': datetime.utcnow().isoformat(),
+            'steps': []
+        }
+
+        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog2_v04Ol')
+        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'WU4W0o1r3j49=')
+
+        debug_info['credentials'] = {
+            'username': oxylabs_username,
+            'password_set': bool(oxylabs_password),
+            'from_env': 'OXYLABS_USERNAME' in os.environ
+        }
+        debug_info['steps'].append({'step': 1, 'action': 'credentials_loaded', 'status': 'ok'})
+
+        if not PLAYWRIGHT_AVAILABLE:
+            debug_info['error'] = 'Playwright not available'
+            # Fall back to Web Unblocker as last resort
+            return await self._purolator_web_unblocker_fallback(tracking_number, tracking_url, debug_info)
+
+        try:
+            from playwright.async_api import async_playwright
+
+            async with async_playwright() as p:
+                launch_options = get_browser_launch_options()
+                if is_pythonanywhere():
+                    launch_options['executable_path'] = '/usr/bin/chromium'
+
+                browser = await p.chromium.launch(**launch_options)
+
+                # Use Oxylabs residential proxy with Canadian IP
+                context_options = {
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'viewport': {'width': 1366, 'height': 768},
+                    'locale': 'en-CA',
+                    'bypass_csp': True,
+                    'proxy': {
+                        'server': 'http://pr.oxylabs.io:7777',
+                        'username': f'customer-{oxylabs_username}-cc-ca',  # Canada residential IP
+                        'password': oxylabs_password
+                    }
+                }
+                logger.info(f"[Purolator] Using Oxylabs residential proxy (Canada)")
+                debug_info['steps'].append({'step': 2, 'action': 'proxy_configured', 'proxy': 'residential_canada', 'status': 'ok'})
+
+                context = await browser.new_context(**context_options)
+                page = await context.new_page()
+
+                # Stealth scripts to hide automation
+                await page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    window.chrome = { runtime: {} };
+                    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                    Object.defineProperty(navigator, 'languages', { get: () => ['en-CA', 'en', 'fr-CA'] });
+                """)
+
+                # Navigate to Purolator tracking page
+                logger.info(f"[Purolator] Navigating to page...")
+                debug_info['steps'].append({'step': 3, 'action': 'navigating', 'status': 'ok'})
+                await page.goto(tracking_url, wait_until='networkidle', timeout=60000)
+
+                # Wait for tracking content to load
+                logger.info(f"[Purolator] Waiting for content to render...")
+                await page.wait_for_timeout(5000)
+
+                # Try to wait for tracking-specific elements
+                try:
+                    await page.wait_for_selector('table, [class*="tracking"], [class*="scan"], [class*="status"], [class*="timeline"], [class*="detail"]', timeout=15000)
+                    logger.info(f"[Purolator] Tracking content found")
+                except Exception:
+                    logger.info(f"[Purolator] No tracking selector found, continuing with page content")
+
+                await page.wait_for_timeout(3000)
+
+                # Get page content
+                page_text = await page.content()
+                debug_info['steps'].append({
+                    'step': 4, 'action': 'page_loaded',
+                    'content_length': len(page_text),
+                    'status': 'ok'
+                })
+
+                logger.info(f"[Purolator] Page loaded, content length: {len(page_text)}")
+
+                # Check for CAPTCHA/blocks in the rendered page
+                page_lower = page_text.lower()
+                if 'captcha' in page_lower and 'tracking' not in page_lower:
+                    debug_info['blocked'] = True
+                    debug_info['block_type'] = 'CAPTCHA'
+                    await browser.close()
+                    return self._purolator_error_response(tracking_number, tracking_url, debug_info, 'Blocked by CAPTCHA')
+
+                # Parse the HTML
+                tracking_data = self._parse_purolator_html(page_text, tracking_number)
+
+                debug_info['parsing'] = {
+                    'status': tracking_data.get('status'),
+                    'events_count': len(tracking_data.get('events', [])),
+                    'text_length': len(page_text)
+                }
+
+                if page_text:
+                    html_sample = page_text[:2000].replace('\x00', '').replace('\r', '\\r').replace('\n', '\\n').replace('\t', '\\t')
+                    debug_info['parsing']['html_sample'] = html_sample
+
+                debug_info['steps'].append({
+                    'step': 5, 'action': 'parse_html', 'status': 'ok',
+                    'parsed_status': tracking_data.get('status'),
+                    'events_found': len(tracking_data.get('events', []))
+                })
+
+                await browser.close()
+
+                if tracking_data.get('status') in ['Unknown', None, 'No tracking information found']:
+                    return {
+                        'success': True,
+                        'tracking_number': tracking_number,
+                        'carrier': 'Purolator',
+                        'status': 'Unable to Parse',
+                        'events': tracking_data.get('events', []),
+                        'current_location': tracking_data.get('location', 'Unknown'),
+                        'estimated_delivery': tracking_data.get('estimated_delivery'),
+                        'last_updated': datetime.utcnow().isoformat(),
+                        'tracking_url': tracking_url,
+                        'source': 'Purolator (Playwright+Residential)',
+                        'warning': 'Page loaded but could not extract tracking data. Check debug info for HTML sample.',
+                        'debug_info': debug_info
+                    }
+
+                logger.info(f"[Purolator] Successfully parsed: status={tracking_data.get('status')}, events={len(tracking_data.get('events', []))}")
+                return {
+                    'success': True,
+                    'tracking_number': tracking_number,
+                    'carrier': 'Purolator',
+                    'status': tracking_data.get('status', 'Unknown'),
+                    'events': tracking_data.get('events', []),
+                    'current_location': tracking_data.get('location', 'Unknown'),
+                    'estimated_delivery': tracking_data.get('estimated_delivery'),
+                    'last_updated': datetime.utcnow().isoformat(),
+                    'tracking_url': tracking_url,
+                    'source': 'Purolator (Playwright+Residential)',
+                    'debug_info': debug_info
+                }
+
+        except Exception as e:
+            import traceback
+            debug_info['traceback'] = traceback.format_exc()
+            logger.error(f"[Purolator] Error: {str(e)}")
+            return self._purolator_error_response(tracking_number, tracking_url, debug_info, f'Error: {str(e)}')
+
+    async def _purolator_web_unblocker_fallback(self, tracking_number: str, tracking_url: str, debug_info: dict) -> Optional[Dict]:
+        """Fallback: try Purolator via Oxylabs Web Unblocker when Playwright is not available"""
+        logger.info(f"[Purolator] Falling back to Web Unblocker")
+
+        oxylabs_username = os.environ.get('OXYLABS_USERNAME', 'truelog2_v04Ol')
+        oxylabs_password = os.environ.get('OXYLABS_PASSWORD', 'WU4W0o1r3j49=')
+
+        try:
+            import requests
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+            proxies = {
+                'http': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000',
+                'https': f'https://{oxylabs_username}:{oxylabs_password}@unblock.oxylabs.io:60000'
+            }
+
+            response = requests.get(
+                tracking_url,
+                proxies=proxies,
+                verify=False,
+                timeout=240,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-CA,en;q=0.9',
+                    'x-oxylabs-render': 'html',
+                    'x-oxylabs-geo-location': 'Canada',
+                },
+                allow_redirects=True
+            )
+
+            page_text = response.text
+            debug_info['fallback'] = {
+                'method': 'web_unblocker',
+                'status_code': response.status_code,
+                'content_length': len(page_text)
+            }
+
+            if response.status_code != 200:
+                return self._purolator_error_response(tracking_number, tracking_url, debug_info, f'HTTP Error {response.status_code}')
+
+            lower_text = page_text.lower()
+            if 'captcha' in lower_text and 'tracking' not in lower_text:
+                return self._purolator_error_response(tracking_number, tracking_url, debug_info, 'Blocked by CAPTCHA (fallback)')
+
+            tracking_data = self._parse_purolator_html(page_text, tracking_number)
+
+            # Store text content and script data for debugging
+            if page_text:
+                from bs4 import BeautifulSoup
+                debug_soup = BeautifulSoup(page_text, 'html.parser')
+                visible_text = debug_soup.get_text(separator='\n')
+                text_lines = [line.strip() for line in visible_text.split('\n') if line.strip()]
+                debug_info['page_text_sample'] = '\n'.join(text_lines[:200])
+                debug_info['html_full_length'] = len(page_text)
+                # Look for JSON data in script tags containing tracking info
+                for script in debug_soup.find_all('script'):
+                    script_text = script.string or ''
+                    if tracking_number in script_text or ('tracking' in script_text.lower()[:500] and len(script_text) > 100):
+                        debug_info['script_with_data'] = script_text[:5000]
+                        break
+                # Check for __NEXT_DATA__ or similar embedded JSON
+                next_data = debug_soup.find('script', id='__NEXT_DATA__')
+                if next_data and next_data.string:
+                    debug_info['next_data_sample'] = next_data.string[:5000]
+
+            return {
+                'success': True,
+                'tracking_number': tracking_number,
+                'carrier': 'Purolator',
+                'status': tracking_data.get('status', 'Unable to Parse'),
+                'events': tracking_data.get('events', []),
+                'current_location': tracking_data.get('location', 'Unknown'),
+                'estimated_delivery': tracking_data.get('estimated_delivery'),
+                'origin': tracking_data.get('origin'),
+                'destination': tracking_data.get('destination'),
+                'service': tracking_data.get('service'),
+                'last_updated': datetime.utcnow().isoformat(),
+                'tracking_url': tracking_url,
+                'source': 'Purolator (Web Unblocker Fallback)',
+                'tracking_links': {'Purolator': f'https://www.purolator.com/en/shipping/tracker?pin={tracking_number}'},
+                'debug_info': debug_info
+            }
+
+        except Exception as e:
+            import traceback
+            debug_info['traceback'] = traceback.format_exc()
+            return self._purolator_error_response(tracking_number, tracking_url, debug_info, f'Fallback error: {str(e)}')
+
+    def _parse_purolator_html(self, html_content: str, tracking_number: str) -> Dict:
+        """Parse Purolator tracking page HTML to extract tracking data.
+
+        Purolator page renders as text with this structure:
+        - Shipment details: Origin, Destination, Service, Shipment Date
+        - Delivery Date line: "Tue. Feb. 3, 2026 12:15 p.m."
+        - History section with repeating groups of: Date, City, Description
+          e.g. "Tue. Feb. 3, 2026 - 12:15 p.m." / "CALGARY, AB" / "Shipment delivered"
+        """
+        from bs4 import BeautifulSoup
+        import re
+
+        result = {
+            'status': None,
+            'events': [],
+            'location': None,
+            'estimated_delivery': None,
+            'origin': None,
+            'destination': None,
+            'service': None,
+        }
+
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            visible_text = soup.get_text(separator='\n')
+            lines = [line.strip() for line in visible_text.split('\n') if line.strip()]
+
+            # Purolator date pattern: "Mon. Feb. 3, 2026 - 12:15 p.m." or "Wed. Jan. 28, 2026"
+            date_pattern = re.compile(
+                r'^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\.\s+'
+                r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.\s+'
+                r'\d{1,2},\s+\d{4}'
+            )
+            # City pattern: "CALGARY, AB" or "ETOBICOKE, ON"
+            city_pattern = re.compile(r'^[A-Z]{2,}(?:\s+[A-Z]+)*,\s*[A-Z]{2}$')
+
+            # Extract shipment details
+            for i, line in enumerate(lines):
+                if line == 'Origin' and i + 1 < len(lines):
+                    result['origin'] = lines[i + 1]
+                elif line == 'Destination' and i + 1 < len(lines):
+                    result['destination'] = lines[i + 1]
+                elif line == 'Service' and i + 1 < len(lines):
+                    result['service'] = lines[i + 1]
+                elif line == 'Delivery Date' and i + 1 < len(lines):
+                    next_line = lines[i + 1]
+                    if date_pattern.match(next_line):
+                        result['estimated_delivery'] = next_line
+
+            # Find "History" section and parse events
+            # Format: repeating groups of Date / City / Description
+            history_idx = None
+            for i, line in enumerate(lines):
+                if line == 'History':
+                    history_idx = i
+                    break
+
+            if history_idx is not None:
+                # Skip the header row "Date City Description"
+                event_lines = []
+                started = False
+                for i in range(history_idx + 1, len(lines)):
+                    line = lines[i]
+                    # Skip the table header
+                    if line in ('Date', 'City', 'Description'):
+                        started = True
+                        continue
+                    if started or date_pattern.match(line):
+                        started = True
+                        # Stop at footer/unrelated content
+                        if any(kw in line.lower() for kw in ['get email', 'notifications', 'purolator your way', 'shipping', 'resources', 'quick start', 'contact us']):
+                            break
+                        event_lines.append(line)
+
+                # Parse event_lines in groups of 3: date, city, description
+                events = []
+                i = 0
+                while i < len(event_lines):
+                    line = event_lines[i]
+                    if date_pattern.match(line):
+                        event_date = line
+                        event_city = ''
+                        event_desc = ''
+                        # Next line should be city
+                        if i + 1 < len(event_lines) and city_pattern.match(event_lines[i + 1]):
+                            event_city = event_lines[i + 1]
+                            # Line after that should be description
+                            if i + 2 < len(event_lines) and not date_pattern.match(event_lines[i + 2]):
+                                event_desc = event_lines[i + 2]
+                                i += 3
+                            else:
+                                i += 2
+                        elif i + 1 < len(event_lines) and not date_pattern.match(event_lines[i + 1]):
+                            # No city, just description
+                            event_desc = event_lines[i + 1]
+                            i += 2
+                        else:
+                            i += 1
+
+                        events.append({
+                            'date': event_date,
+                            'description': event_desc,
+                            'location': event_city
+                        })
+                    else:
+                        i += 1
+
+                result['events'] = events
+
+            # Set location from destination or first event
+            if result['destination']:
+                result['location'] = result['destination']
+            elif result['events'] and result['events'][0].get('location'):
+                result['location'] = result['events'][0]['location']
+
+            # Derive status from events or page text
+            if result['events']:
+                first_desc = result['events'][0].get('description', '').lower()
+                if 'delivered' in first_desc:
+                    result['status'] = 'Delivered'
+                elif 'out for delivery' in first_desc or 'on vehicle' in first_desc:
+                    result['status'] = 'Out for Delivery'
+                elif 'in transit' in first_desc or 'departed' in first_desc or 'arrived' in first_desc:
+                    result['status'] = 'In Transit'
+                elif 'picked up' in first_desc or 'pickup' in first_desc:
+                    result['status'] = 'Picked Up'
+                elif 'created' in first_desc or 'label' in first_desc:
+                    result['status'] = 'Label Created'
+                else:
+                    result['status'] = 'In Transit'
+
+            # Fallback status from page text
+            if not result['status']:
+                page_text_lower = visible_text.lower()
+                if 'delivered' in page_text_lower:
+                    result['status'] = 'Delivered'
+                elif 'in transit' in page_text_lower:
+                    result['status'] = 'In Transit'
+                elif 'out for delivery' in page_text_lower:
+                    result['status'] = 'Out for Delivery'
+                elif 'picked up' in page_text_lower:
+                    result['status'] = 'Picked Up'
+
+        except Exception as e:
+            logger.error(f"[Purolator] HTML parsing error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+        return result
+
+    def _purolator_error_response(self, tracking_number: str, tracking_url: str, debug_info: dict, error_message: str) -> dict:
+        """Generate Purolator error response"""
+        debug_info['error_message'] = error_message
+        return {
+            'success': False,
+            'tracking_number': tracking_number,
+            'carrier': 'Purolator',
+            'status': 'Error',
+            'error': error_message,
+            'events': [],
+            'current_location': 'Unknown',
+            'last_updated': datetime.utcnow().isoformat(),
+            'tracking_url': tracking_url,
+            'source': 'Purolator (Oxylabs)',
+            'debug_info': debug_info,
+            'tracking_links': {'Purolator': f'https://www.purolator.com/en/shipping/tracker?pin={tracking_number}'},
             'message': 'Could not fetch tracking data. Use the tracking link to check manually.'
         }
 
@@ -2850,7 +3285,7 @@ class Ship24Tracker:
         # Otherwise it's a tracking number, construct full URL
         return f'https://run.hfd.co.il/info/{tn}'
 
-    def _get_all_tracking_links(self, tracking_number: str) -> Dict[str, str]:
+    def _get_all_tracking_links(self, tracking_number: str, carrier_hint: Optional[str] = None) -> Dict[str, str]:
         """Get all tracking links for manual checking"""
         links = {
             'Ship24': f'https://www.ship24.com/tracking?p={tracking_number}',
@@ -2859,8 +3294,15 @@ class Ship24Tracker:
             'ParcelsApp': f'https://parcelsapp.com/en/tracking/{tracking_number}',
         }
 
-        # HFD Israel tracking
-        if self._is_hfd_tracking(tracking_number):
+        # Purolator tracking
+        if carrier_hint and carrier_hint.lower() == 'purolator':
+            links = {
+                'Purolator': f'https://www.purolator.com/en/shipping/tracker?pin={tracking_number}',
+                **links
+            }
+
+        # HFD Israel tracking (skip if carrier is explicitly purolator)
+        if self._is_hfd_tracking(tracking_number) and (not carrier_hint or carrier_hint.lower() != 'purolator'):
             hfd_url = self._get_hfd_tracking_url(tracking_number)
             links = {
                 'HFD Israel': hfd_url,

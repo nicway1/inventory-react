@@ -258,38 +258,120 @@
     .timeline-title {
         font-size: 16px;
         font-weight: 700;
-        color: #000;
-        margin-bottom: 16px;
+        color: #0f172a;
+        margin-bottom: 20px;
     }
 
-    .event-item {
+    .stepper-step {
+        display: flex;
+        margin-bottom: 28px;
         position: relative;
-        padding-left: 24px;
-        padding-bottom: 16px;
-        border-left: 2px solid #e5e7eb;
-        margin-left: 8px;
     }
 
-    .event-item:last-child {
-        border-left-color: transparent;
+    .stepper-step:last-child {
+        margin-bottom: 0;
     }
 
-    .event-dot {
+    .stepper-line {
         position: absolute;
-        left: -9px;
-        top: 0;
-        width: 16px;
-        height: 16px;
-        background: #667eea;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 0 0 2px #667eea;
+        left: 19px;
+        top: 40px;
+        bottom: -28px;
+        width: 2px;
+        background-color: #e2e8f0;
+        z-index: 1;
     }
 
-    .event-description {
+    .stepper-step:last-child .stepper-line {
+        display: none;
+    }
+
+    .stepper-circle {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        z-index: 2;
         font-size: 14px;
-        color: #1f2937;
-        line-height: 1.6;
+    }
+
+    .stepper-completed .stepper-circle {
+        background-color: #0f172a;
+        color: white;
+    }
+
+    .stepper-active .stepper-circle {
+        border: 2px solid #0f172a;
+        color: #0f172a;
+        background: white;
+    }
+
+    .stepper-pending .stepper-circle {
+        border: 2px solid #e2e8f0;
+        color: #94a3b8;
+        background: white;
+    }
+
+    .stepper-content {
+        flex: 1;
+        padding-top: 2px;
+    }
+
+    .stepper-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+
+    .stepper-completed .stepper-title {
+        color: #0f172a;
+    }
+
+    .stepper-active .stepper-title {
+        color: #0f172a;
+    }
+
+    .stepper-pending .stepper-title {
+        color: #94a3b8;
+    }
+
+    .stepper-status {
+        font-size: 12px;
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-top: 4px;
+    }
+
+    .stepper-completed .stepper-status {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+
+    .stepper-active .stepper-status {
+        background-color: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .stepper-pending .stepper-status {
+        background-color: #f1f5f9;
+        color: #64748b;
+    }
+
+    .stepper-time {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+
+    .stepper-location {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 2px;
     }
 
     .loading-spinner {
@@ -542,6 +624,7 @@
             >
             <select id="carrierSelect" class="carrier-select">
                 <option value="auto">Auto-Detect Carrier</option>
+                <option value="purolator">Purolator</option>
                 <option value="hfd">HFD (Israel)</option>
                 <option value="singpost">Singapore Post</option>
                 <option value="dhl">DHL Express</option>
@@ -563,6 +646,7 @@
             <select id="providerSelect" class="carrier-select" title="Tracking Provider">
                 <option value="auto">Auto Provider</option>
                 <option value="ship24">Ship24</option>
+                <option value="purolator">Purolator</option>
                 <option value="hfd">HFD Israel</option>
                 <option value="17track">17track</option>
                 <option value="trackingmore">TrackingMore</option>
@@ -983,22 +1067,49 @@ function displayResults(results) {
                 </div>
 
                 ${result.events && result.events.length > 0 ? (() => {
-                    // Filter out empty events
                     const validEvents = result.events.filter(e => e.description || e.status_description);
                     return validEvents.length > 0 ? `
                     <div class="events-timeline">
                         <div class="timeline-title">Tracking History (${validEvents.length} events)</div>
-                        ${validEvents.map(event => `
-                            <div class="event-item">
-                                <div class="event-dot"></div>
-                                <div class="event-description">
-                                    <strong>${event.description || event.status_description || ''}</strong>
-                                    ${event.code ? `<span style="color: #667eea; font-size: 11px; margin-left: 8px;">[${event.code}]</span>` : ''}
-                                    ${event.timestamp || event.date ? `<br><small style="color: #78858F;">${event.timestamp || (event.date + (event.time ? ' ' + event.time : ''))}</small>` : ''}
-                                    ${event.location ? `<br><small style="color: #6b7280;">${event.location}</small>` : ''}
+                        ${validEvents.map((event, idx) => {
+                            const desc = (event.description || event.status_description || '').toLowerCase();
+                            let stepClass = 'stepper-completed';
+                            let icon = '&#10003;';
+                            let statusLabel = '';
+
+                            if (idx === 0) {
+                                stepClass = 'stepper-active';
+                                icon = (idx + 1);
+                                if (desc.includes('delivered')) {
+                                    stepClass = 'stepper-completed';
+                                    icon = '&#10003;';
+                                    statusLabel = '<span class="stepper-status">Delivered</span>';
+                                } else if (desc.includes('on vehicle') || desc.includes('out for delivery')) {
+                                    statusLabel = '<span class="stepper-status">Out for Delivery</span>';
+                                } else if (desc.includes('arrived') || desc.includes('departed') || desc.includes('transit')) {
+                                    statusLabel = '<span class="stepper-status">In Transit</span>';
+                                } else if (desc.includes('picked up')) {
+                                    statusLabel = '<span class="stepper-status">Picked Up</span>';
+                                } else {
+                                    statusLabel = '<span class="stepper-status">Latest</span>';
+                                }
+                            }
+
+                            const timeStr = event.timestamp || event.date || '';
+                            const locStr = event.location || '';
+
+                            return `
+                            <div class="stepper-step ${stepClass}">
+                                <div class="stepper-line"></div>
+                                <div class="stepper-circle">${icon}</div>
+                                <div class="stepper-content">
+                                    <div class="stepper-title">${event.description || event.status_description || ''}</div>
+                                    ${statusLabel}
+                                    ${timeStr ? `<div class="stepper-time">${timeStr}</div>` : ''}
+                                    ${locStr ? `<div class="stepper-location">${locStr}</div>` : ''}
                                 </div>
-                            </div>
-                        `).join('')}
+                            </div>`;
+                        }).join('')}
                     </div>
                 ` : '<p style="color: #78858F; margin-top: 16px;">No tracking events available yet.</p>';
                 })() : '<p style="color: #78858F; margin-top: 16px;">No tracking events available yet.</p>'}
