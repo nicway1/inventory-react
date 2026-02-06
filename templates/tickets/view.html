@@ -4114,11 +4114,9 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         </svg>
                                         Outbound Tracking
                                     </h2>
-                                    {% if ticket.shipping_status %}
-                                    <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
-                                        {{ ticket.shipping_status }}
+                                    <span class="outbound-status-badge sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                                        {{ ticket.shipping_status or 'Pending' }}
                                     </span>
-                                    {% endif %}
                                 </div>
                                 <div>
                                 {% if ticket.shipping_status != 'Received' %}
@@ -4203,11 +4201,9 @@ body.dark-theme .sf-card-body .sf-field-label {
                                         </svg>
                                         Outbound Tracking
                                     </h2>
-                                    {% if ticket.shipping_status %}
-                                    <span class="sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
-                                        {{ ticket.shipping_status }}
+                                    <span class="outbound-status-badge sf-badge {% if ticket.shipping_status == 'Delivered' %}sf-badge-success{% elif ticket.shipping_status == 'In Transit' %}sf-badge-info{% else %}sf-badge-warning{% endif %}">
+                                        {{ ticket.shipping_status or 'Pending' }}
                                     </span>
-                                    {% endif %}
                                 </div>
                                 <div>
                                 {% if ticket.shipping_status != 'Received' %}
@@ -9569,22 +9565,43 @@ function fetchShippingTracking() {
             // Display tracking data
             trackingResults.classList.remove('hidden');
             
-            // Update current status in the UI if possible (ADDED STATUS UPDATE)
-            try {
-                var statusElement = document.querySelector('.sf-badge');
-                if (statusElement && data.shipping_status) {
-                    statusElement.textContent = data.shipping_status;
-                    console.log('Updated outbound status to:', data.shipping_status);
+            // Update status in the UI immediately after tracking data loads
+            if (data.shipping_status) {
+                try {
+                    var newStatus = data.shipping_status;
+                    var isDelivered = newStatus.toLowerCase().indexOf('delivered') !== -1;
+
+                    // Update all outbound status badges (next to "Outbound Tracking" header)
+                    document.querySelectorAll('.outbound-status-badge').forEach(function(badge) {
+                        badge.textContent = newStatus;
+                        badge.className = 'outbound-status-badge sf-badge ' +
+                            (isDelivered ? 'sf-badge-success' : (newStatus === 'In Transit' ? 'sf-badge-info' : 'sf-badge-warning'));
+                    });
+
+                    // Update the Status text in the tracking details grid
+                    // Traverse up from trackingEvents to the card, then find the Status label
+                    var card = trackingEvents.closest('.sf-card-body') || trackingEvents.closest('.p-4');
+                    if (card) {
+                        card.querySelectorAll('.text-sm.text-gray-500').forEach(function(label) {
+                            if (label.textContent.trim() === 'Status') {
+                                var valueEl = label.nextElementSibling;
+                                if (valueEl && valueEl.classList.contains('font-medium')) {
+                                    valueEl.textContent = newStatus;
+                                }
+                            }
+                        });
+                    }
+
+                    // Hide refresh button and show delivered message if delivered
+                    if (isDelivered) {
+                        var refreshBtn = document.getElementById('refreshShippingTrackingBtn');
+                        if (refreshBtn) refreshBtn.classList.add('hidden');
+                    }
+
+                    console.log('Updated outbound status to:', newStatus);
+                } catch(statusUpdateError) {
+                    console.warn('Could not update status display:', statusUpdateError);
                 }
-                
-                // Also try to update the status in the grid display
-                var gridStatusElement = document.querySelector('[class*="grid"] [class*="Status"] .font-medium, [class*="grid"] [class*="status"] .font-medium');
-                if (gridStatusElement && data.shipping_status) {
-                    gridStatusElement.textContent = data.shipping_status;
-                    console.log('Updated grid status to:', data.shipping_status);
-                }
-            } catch(statusUpdateError) {
-                console.warn('Could not update status display:', statusUpdateError);
             }
             
             if (data.success && data.tracking_info && data.tracking_info.length > 0) {
