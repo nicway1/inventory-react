@@ -6741,8 +6741,30 @@ def track_auto(ticket_id):
         if not tracking_number:
             return jsonify({'error': 'No tracking number for this ticket'}), 404
         
+        # Check if carrier is explicitly set on the ticket (not auto-detect)
+        explicit_carrier = (ticket.shipping_carrier or '').lower()
+        if explicit_carrier and explicit_carrier not in ('auto', ''):
+            logger.info(f"Using explicit carrier from ticket: {explicit_carrier}")
+            if explicit_carrier == 'purolator':
+                return redirect(url_for('tickets.track_claw', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            elif explicit_carrier == 'hfd':
+                return redirect(url_for('tickets.track_claw', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            elif explicit_carrier == 'singpost':
+                return redirect(url_for('tickets.track_singpost', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            elif explicit_carrier == 'ups':
+                return redirect(url_for('tickets.track_ups', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            elif explicit_carrier == 'dhl':
+                return redirect(url_for('tickets.track_dhl', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            elif explicit_carrier == 'bluedart':
+                return redirect(url_for('tickets.track_bluedart', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            elif explicit_carrier == 'dtdc':
+                return redirect(url_for('tickets.track_dtdc', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+            # For other explicit carriers, fall through to track_claw which handles carrier param
+            else:
+                return redirect(url_for('tickets.track_claw', ticket_id=ticket_id, force_refresh=request.args.get('force_refresh', 'false')))
+
         logger.info(f"Auto-detecting carrier for tracking number: {tracking_number}")
-        
+
         # Auto-detect carrier based on tracking number format
         tn_lower = tracking_number.lower()
 

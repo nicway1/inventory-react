@@ -9544,18 +9544,8 @@ function fetchShippingTracking() {
     // Get the current location without any query parameters
     var baseUrl = window.location.protocol + '//' + window.location.host;
     
-    // Determine the correct endpoint based on ticket category
-    var category = '{{ ticket.category.name if ticket.category else "" }}';
-    var apiUrl;
-    
-    if (category === 'ASSET_CHECKOUT_CLAW') {
-        apiUrl = baseUrl + '/tickets/category/checkout_claw/{{ ticket.id }}/track?force_refresh=true';
-    } else if (category === 'ASSET_RETURN_CLAW') {
-        apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_auto?force_refresh=true';
-    } else {
-        // Default for other asset checkout categories
-        apiUrl = baseUrl + '/tickets/category/checkout_main/{{ ticket.id }}/track?force_refresh=true';
-    }
+    // Use track_auto for all categories - it checks explicit carrier first, then auto-detects
+    var apiUrl = baseUrl + '/tickets/{{ ticket.id }}/track_auto?force_refresh=true';
     
     console.log('Fetching tracking info with force refresh from:', apiUrl);
     
@@ -10291,16 +10281,9 @@ function refreshOutboundTracking() {
     
     console.log('Refreshing outbound tracking for ticket {{ ticket.id }}');
     
-    // Determine the correct tracking endpoint based on category
-    let trackingEndpoint;
-    const category = '{{ ticket.category.name if ticket.category else "" }}';
-    
-    if (category === 'ASSET_CHECKOUT_CLAW') {
-        trackingEndpoint = `/tickets/category/checkout_claw/{{ ticket.id }}/track`;
-    } else {
-        trackingEndpoint = `/tickets/category/checkout_main/{{ ticket.id }}/track`;
-    }
-    
+    // Use track_auto for all categories - it checks explicit carrier first, then auto-detects
+    let trackingEndpoint = `/tickets/{{ ticket.id }}/track_auto?force_refresh=true`;
+
     // Fetch outbound tracking
     fetch(trackingEndpoint)
         .then(response => response.json())
