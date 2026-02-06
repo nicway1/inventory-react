@@ -9583,45 +9583,8 @@ function fetchShippingTracking() {
                 });
                 trackingEvents.innerHTML = eventsHtml;
 
-                // Update status in the UI immediately
-                // Try multiple keys, then fall back to latest event description
-                var newStatus = data.shipping_status || data.status || sortedEvents[0].status || 'Unknown';
-                console.log('[STATUS UPDATE] Response keys:', Object.keys(data).join(', '));
-                console.log('[STATUS UPDATE] shipping_status:', data.shipping_status, 'status:', data.status, 'derived:', sortedEvents[0].status);
-                console.log('[STATUS UPDATE] Using status:', newStatus);
-
-                var isDelivered = newStatus.toLowerCase().indexOf('delivered') !== -1;
-
-                // 1. Update badge next to "Outbound Tracking" header
-                document.querySelectorAll('.outbound-status-badge').forEach(function(badge) {
-                    badge.textContent = newStatus;
-                    badge.className = 'outbound-status-badge sf-badge ' +
-                        (isDelivered ? 'sf-badge-success' : (newStatus.toLowerCase().indexOf('transit') !== -1 ? 'sf-badge-info' : 'sf-badge-warning'));
-                    console.log('[STATUS UPDATE] Updated badge');
-                });
-
-                // 2. Update "Status" value in the grid (Tracking Number / Carrier / Status row)
-                var trackingSection = trackingEvents.parentElement;
-                while (trackingSection && !trackingSection.classList.contains('sf-card-body') && !trackingSection.classList.contains('p-4')) {
-                    trackingSection = trackingSection.parentElement;
-                }
-                if (trackingSection) {
-                    var allLabels = trackingSection.querySelectorAll('.text-sm.text-gray-500');
-                    allLabels.forEach(function(label) {
-                        if (label.textContent.trim() === 'Status') {
-                            var valueEl = label.nextElementSibling;
-                            if (valueEl) {
-                                valueEl.textContent = newStatus;
-                                console.log('[STATUS UPDATE] Updated grid status text');
-                            }
-                        }
-                    });
-                }
-
-                // 3. Hide refresh button if delivered
-                if (isDelivered && trackingBtn) {
-                    trackingBtn.classList.add('hidden');
-                }
+                // Backend already updated the DB status - reload page to reflect it
+                window.location.reload();
             } else {
                 var debugInfo = data.debug_info ? '<div class="text-xs mt-1">Debug: ' + JSON.stringify(data.debug_info) + '</div>' : '';
                 trackingEvents.innerHTML =
