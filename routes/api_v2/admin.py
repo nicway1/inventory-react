@@ -3550,3 +3550,119 @@ def get_activity_log():
         )
     finally:
         db_session.close()
+
+
+# =============================================================================
+# SIMPLIFIED LIST ENDPOINTS FOR FORM DROPDOWNS
+# =============================================================================
+
+@api_v2_bp.route('/queues', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def list_queues_simple():
+    """
+    List queues for dropdown menus (simplified, non-admin)
+
+    GET /api/v2/queues
+
+    Query Parameters:
+        - limit: Maximum number of results (default: 100)
+
+    Returns:
+        List of queues with id, name, and description
+    """
+    db_session = db_manager.get_session()
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        user = request.current_api_user
+
+        # Get queues accessible to the user
+        if user.is_super_admin or user.is_developer:
+            queues = db_session.query(Queue).filter(
+                Queue.is_active == True
+            ).order_by(Queue.name).limit(limit).all()
+        else:
+            accessible_queue_ids = user.get_accessible_queue_ids(db_session)
+            queues = db_session.query(Queue).filter(
+                Queue.id.in_(accessible_queue_ids),
+                Queue.is_active == True
+            ).order_by(Queue.name).limit(limit).all()
+
+        queues_data = [{
+            'id': q.id,
+            'name': q.name,
+            'description': q.description
+        } for q in queues]
+
+        return api_response(
+            data=queues_data,
+            message=f'Retrieved {len(queues_data)} queues'
+        )
+
+    except Exception as e:
+        logger.error(f'Error listing queues: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to list queues: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+@api_v2_bp.route('/users', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def list_users_simple():
+    """
+    List users for dropdown menus (simplified, non-admin)
+
+    GET /api/v2/users
+
+    Query Parameters:
+        - limit: Maximum number of results (default: 100)
+        - search: Search by username or full_name
+
+    Returns:
+        List of users with id, username, full_name, email
+    """
+    db_session = db_manager.get_session()
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        search = request.args.get('search', '').strip()
+
+        query = db_session.query(User).filter(
+            User.is_deleted == False
+        )
+
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                (User.username.ilike(search_term)) |
+                (User.full_name.ilike(search_term)) |
+                (User.email.ilike(search_term))
+            )
+
+        users = query.order_by(User.username).limit(limit).all()
+
+        users_data = [{
+            'id': u.id,
+            'username': u.username,
+            'full_name': u.full_name or u.username,
+            'email': u.email or ''
+        } for u in users]
+
+        return api_response(
+            data=users_data,
+            message=f'Retrieved {len(users_data)} users'
+        )
+
+    except Exception as e:
+        logger.error(f'Error listing users: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to list users: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()

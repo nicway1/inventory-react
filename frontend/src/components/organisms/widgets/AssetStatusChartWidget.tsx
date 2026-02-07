@@ -46,7 +46,7 @@ export function AssetStatusChartWidget({
   className,
 }: AssetStatusChartWidgetProps) {
   const { data, isLoading, isError, error, refetch } = useWidgetData<AssetStatusData>(
-    'asset_status'
+    'asset_status_chart'
   )
 
   if (isError) {

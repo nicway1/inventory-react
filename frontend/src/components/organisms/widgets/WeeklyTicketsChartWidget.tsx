@@ -36,7 +36,7 @@ export function WeeklyTicketsChartWidget({
   className,
 }: WeeklyTicketsChartWidgetProps) {
   const { data, isLoading, isError, error, refetch } = useWidgetData<WeeklyTicketsData>(
-    'weekly_tickets'
+    'weekly_tickets_chart'
   )
 
   if (isError) {

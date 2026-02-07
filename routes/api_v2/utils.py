@@ -195,29 +195,34 @@ def paginate_query(query, page=1, per_page=20):
     Returns:
         Tuple of (items_list, pagination_meta)
     """
-    # Execute paginated query
-    paginated = query.paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False
-    )
+    # Get total count before pagination
+    total_items = query.count()
+
+    # Calculate pagination values
+    total_pages = (total_items + per_page - 1) // per_page if total_items > 0 else 0
+    has_prev = page > 1
+    has_next = page < total_pages
+
+    # Calculate offset and get paginated items
+    offset = (page - 1) * per_page
+    items = query.offset(offset).limit(per_page).all()
 
     pagination_meta = {
         'pagination': {
             'page': page,
             'per_page': per_page,
-            'total_items': paginated.total,
-            'total_pages': paginated.pages,
-            'has_next': paginated.has_next,
-            'has_prev': paginated.has_prev,
-            'next_page': paginated.next_num if paginated.has_next else None,
-            'prev_page': paginated.prev_num if paginated.has_prev else None
+            'total_items': total_items,
+            'total_pages': total_pages,
+            'has_next': has_next,
+            'has_prev': has_prev,
+            'next_page': page + 1 if has_next else None,
+            'prev_page': page - 1 if has_prev else None
         },
         'request_id': str(uuid.uuid4())[:8],
         'timestamp': datetime.utcnow().isoformat() + 'Z'
     }
 
-    return paginated.items, pagination_meta
+    return items, pagination_meta
 
 
 # =============================================================================
