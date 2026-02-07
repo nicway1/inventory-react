@@ -26,3 +26,9 @@ export type { AvatarProps, AvatarGroupProps } from './Avatar'
 
 export { Icon, IconButton, iconSizes } from './Icon'
 export type { IconProps, IconButtonProps } from './Icon'
+
+export { Select } from './Select'
+export type { SelectProps, SelectOption } from './Select'
+
+export { TextArea } from './TextArea'
+export type { TextAreaProps } from './TextArea'

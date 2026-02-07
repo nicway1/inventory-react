@@ -57,7 +57,6 @@ const APP_LAUNCHER_ITEMS = [
   { name: 'Dashboard', url: '/dashboard', icon: HomeIcon, color: 'bg-blue-500' },
   { name: 'Tickets', url: '/tickets', icon: TicketIcon, color: 'bg-green-500' },
   { name: 'Inventory', url: '/inventory', icon: CubeIcon, color: 'bg-purple-500' },
-  { name: 'Accessories', url: '/accessories', icon: PuzzlePieceIcon, color: 'bg-orange-500' },
   { name: 'Customers', url: '/customers', icon: UsersIcon, color: 'bg-pink-500' },
   { name: 'Reports', url: '/reports', icon: ChartBarIcon, color: 'bg-teal-500' },
   { name: 'Admin', url: '/admin', icon: Cog6ToothIcon, color: 'bg-gray-500' },
@@ -70,7 +69,8 @@ const URL_TO_ICON: Record<string, TabIconType> = {
   '/dashboard': 'home',
   '/tickets': 'ticket',
   '/inventory': 'inventory',
-  '/accessories': 'accessory',
+  '/inventory/assets': 'asset',
+  '/inventory/accessories': 'accessory',
   '/customers': 'customer',
   '/reports': 'report',
   '/admin': 'admin',
@@ -85,8 +85,12 @@ function getIconFromUrl(url: string): TabIconType {
   if (URL_TO_ICON[url]) {
     return URL_TO_ICON[url]
   }
-  // Check prefix match
-  for (const [prefix, icon] of Object.entries(URL_TO_ICON)) {
+  // Sort prefixes by length (longest first) to match most specific route
+  const sortedPrefixes = Object.entries(URL_TO_ICON).sort(
+    ([a], [b]) => b.length - a.length
+  )
+  // Check prefix match (most specific first)
+  for (const [prefix, icon] of sortedPrefixes) {
     if (url.startsWith(prefix)) {
       return icon
     }

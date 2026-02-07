@@ -1,100 +1,11 @@
 import { Routes, Route } from 'react-router-dom'
 import { LoginPage } from '@/pages/auth'
 import { DashboardPage } from '@/pages/dashboard'
+import { TicketListPage, TicketCreate, TicketDetailPage, TicketEdit } from '@/pages/tickets'
+import { InventoryList, AssetCreate, AssetDetail, AssetEdit, AccessoryDetail } from '@/pages/inventory'
+import { CustomerListPage, CustomerDetailPage } from '@/pages/customers'
 import { ProtectedRoute } from '@/components/atoms'
 import { PageLayout, ContentLayout } from '@/components/templates/PageLayout'
-
-function Tickets() {
-  return (
-    <PageLayout
-      title="Tickets"
-      subtitle="Manage repair and service tickets"
-      breadcrumbs={[{ label: 'Tickets' }]}
-      actions={
-        <button className="sf-btn sf-btn-brand">
-          New Ticket
-        </button>
-      }
-    >
-      <div className="card">
-        <div className="card-body">
-          <p className="text-gray-600 dark:text-gray-400">
-            Tickets list coming soon...
-          </p>
-        </div>
-      </div>
-    </PageLayout>
-  )
-}
-
-function Inventory() {
-  return (
-    <PageLayout
-      title="Inventory"
-      subtitle="Track and manage device inventory"
-      breadcrumbs={[{ label: 'Inventory' }]}
-      actions={
-        <button className="sf-btn sf-btn-brand">
-          Add Device
-        </button>
-      }
-    >
-      <div className="card">
-        <div className="card-body">
-          <p className="text-gray-600 dark:text-gray-400">
-            Inventory list coming soon...
-          </p>
-        </div>
-      </div>
-    </PageLayout>
-  )
-}
-
-function Accessories() {
-  return (
-    <PageLayout
-      title="Accessories"
-      subtitle="Manage accessories and components"
-      breadcrumbs={[{ label: 'Accessories' }]}
-      actions={
-        <button className="sf-btn sf-btn-brand">
-          Add Accessory
-        </button>
-      }
-    >
-      <div className="card">
-        <div className="card-body">
-          <p className="text-gray-600 dark:text-gray-400">
-            Accessories list coming soon...
-          </p>
-        </div>
-      </div>
-    </PageLayout>
-  )
-}
-
-function Customers() {
-  return (
-    <PageLayout
-      title="Customers"
-      subtitle="Manage customer accounts and contacts"
-      breadcrumbs={[{ label: 'Customers' }]}
-      actions={
-        <button className="sf-btn sf-btn-brand">
-          Add Customer
-        </button>
-      }
-    >
-      <div className="card">
-        <div className="card-body">
-          <p className="text-gray-600 dark:text-gray-400">
-            Customers list coming soon...
-          </p>
-        </div>
-      </div>
-    </PageLayout>
-  )
-}
 
 function Reports() {
   return (
@@ -171,38 +82,102 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Ticket Routes */}
       <Route
-        path="/tickets/*"
+        path="/tickets"
         element={
           <ProtectedRoute>
-            <Tickets />
+            <TicketListPage />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/inventory/*"
+        path="/tickets/new"
         element={
           <ProtectedRoute>
-            <Inventory />
+            <TicketCreate />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/accessories/*"
+        path="/tickets/:id"
         element={
           <ProtectedRoute>
-            <Accessories />
+            <TicketDetailPage />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/customers/*"
+        path="/tickets/:id/edit"
         element={
           <ProtectedRoute>
-            <Customers />
+            <TicketEdit />
           </ProtectedRoute>
         }
       />
+
+      {/* Inventory Routes */}
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute>
+            <InventoryList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory/assets/new"
+        element={
+          <ProtectedRoute>
+            <AssetCreate />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory/assets/:id"
+        element={
+          <ProtectedRoute>
+            <AssetDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory/assets/:id/edit"
+        element={
+          <ProtectedRoute>
+            <AssetEdit />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory/accessories/:id"
+        element={
+          <ProtectedRoute>
+            <AccessoryDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Customer Routes */}
+      <Route
+        path="/customers"
+        element={
+          <ProtectedRoute>
+            <CustomerListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customers/:id"
+        element={
+          <ProtectedRoute>
+            <CustomerDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Reports */}
       <Route
         path="/reports/*"
         element={
@@ -211,6 +186,8 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Admin (requires admin role) */}
       <Route
         path="/admin/*"
         element={

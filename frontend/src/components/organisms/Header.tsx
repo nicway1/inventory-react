@@ -25,6 +25,7 @@ import {
   ClockIcon,
   TruckIcon,
   ArrowUpTrayIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/utils/cn'
 import { useUIStore } from '@/store/ui.store'
@@ -44,6 +45,7 @@ interface NavItem {
 const navigationItems: NavItem[] = [
   { name: 'Inventory', href: '/inventory', icon: ArchiveBoxIcon },
   { name: 'Tickets', href: '/tickets', icon: TicketIcon },
+  { name: 'Customers', href: '/customers', icon: UsersIcon },
   { name: 'History', href: '/history', icon: ClockIcon, requiresAdmin: true },
   { name: 'Tracking', href: '/tracking', icon: TruckIcon, requiresDeveloper: true },
   { name: 'Import', href: '/import', icon: ArrowUpTrayIcon },

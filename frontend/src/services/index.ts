@@ -12,7 +12,13 @@ export * from './dashboard.service'
 export { searchService } from './search.service'
 export * from './search.service'
 
-// Domain services will be added here:
-// export * from './tickets.service'
-// export * from './inventory.service'
-// export * from './customers.service'
+// Domain services
+export { ticketsService } from './tickets.service'
+export * from './tickets.service'
+export { assetsService } from './assets.service'
+export * from './assets.service'
+export { customerService } from './customer.service'
+export * from './customer.service'
+export { accessoryService } from './accessory.service'
+export * from './accessory.service'
+export * from './inventory.service'
