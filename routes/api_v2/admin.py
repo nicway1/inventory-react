@@ -3578,14 +3578,11 @@ def list_queues_simple():
 
         # Get queues accessible to the user
         if user.is_super_admin or user.is_developer:
-            queues = db_session.query(Queue).filter(
-                Queue.is_active == True
-            ).order_by(Queue.name).limit(limit).all()
+            queues = db_session.query(Queue).order_by(Queue.name).limit(limit).all()
         else:
             accessible_queue_ids = user.get_accessible_queue_ids(db_session)
             queues = db_session.query(Queue).filter(
-                Queue.id.in_(accessible_queue_ids),
-                Queue.is_active == True
+                Queue.id.in_(accessible_queue_ids)
             ).order_by(Queue.name).limit(limit).all()
 
         queues_data = [{
