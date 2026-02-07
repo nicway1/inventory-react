@@ -4,6 +4,6 @@
  * Authentication pages.
  */
 
-// export { Login } from './Login'
+export { LoginPage } from './LoginPage'
 // export { ForgotPassword } from './ForgotPassword'
 // export { ResetPassword } from './ResetPassword'

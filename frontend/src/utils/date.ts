@@ -65,3 +65,11 @@ export function formatRelativeTime(date: string | Date): string {
 
   return 'just now'
 }
+
+/**
+ * Format distance to now (alias for formatRelativeTime)
+ * For compatibility with common date library naming conventions
+ */
+export function formatDistanceToNow(date: string | Date): string {
+  return formatRelativeTime(date)
+}

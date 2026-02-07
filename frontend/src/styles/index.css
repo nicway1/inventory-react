@@ -2,32 +2,811 @@
 @tailwind components;
 @tailwind utilities;
 
-/* TrueLog Custom Base Styles */
+/* ============================================
+   SALESFORCE LIGHTNING DESIGN SYSTEM STYLES
+   TrueLog React Frontend
+   ============================================ */
+
+/* ============================================
+   BASE LAYER - Foundation Styles
+   ============================================ */
 @layer base {
+  :root {
+    /* SLDS CSS Variables for runtime theming */
+    --slds-brand: #0176D3;
+    --slds-brand-dark: #014486;
+    --slds-brand-light: #1B96FF;
+    --slds-success: #2E844A;
+    --slds-warning: #DD7A01;
+    --slds-error: #C23934;
+    --slds-bg-page: #F3F3F3;
+    --slds-bg-card: #FFFFFF;
+    --slds-text-default: #181818;
+    --slds-text-weak: #706E6B;
+    --slds-border: #E5E5E5;
+    --slds-border-strong: #C9C9C9;
+  }
+
   html {
     @apply antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  }
-
-  body {
-    @apply bg-gray-50 text-gray-900;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  }
-
-  /* Smooth scrolling */
-  html {
     scroll-behavior: smooth;
   }
 
-  /* Focus styles for accessibility */
+  body {
+    @apply bg-slds-bg-page text-slds-text dark:bg-gray-950 dark:text-gray-100;
+    font-family: 'Salesforce Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* SLDS-style focus ring for accessibility */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+    @apply outline-none ring-2 ring-slds-brand ring-offset-2;
+  }
+
+  /* Remove default focus outline for mouse users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Smooth selection colors */
+  ::selection {
+    background-color: rgba(1, 118, 211, 0.2);
+    color: inherit;
   }
 }
 
-/* TrueLog Component Classes */
+/* ============================================
+   COMPONENTS LAYER - SLDS Component Classes
+   ============================================ */
 @layer components {
-  /* Liquid Glass Effect */
+
+  /* ----------------------------------------
+     PAGE HEADER
+     ---------------------------------------- */
+  .slds-page-header {
+    @apply bg-white border-b border-slds-border px-6 py-4;
+  }
+
+  .slds-page-header__content {
+    @apply flex items-center gap-4;
+  }
+
+  .slds-page-header__title {
+    @apply text-heading-1 text-gray-900 font-bold;
+  }
+
+  .slds-page-header__subtitle {
+    @apply text-body-small text-slds-text-weak;
+  }
+
+  .slds-page-header__actions {
+    @apply ml-auto flex items-center gap-2;
+  }
+
+  .slds-page-header__highlights {
+    @apply mt-4 flex flex-wrap gap-6;
+  }
+
+  .slds-highlight-item {
+    @apply flex flex-col;
+  }
+
+  .slds-highlight-label {
+    @apply text-caption text-slds-text-weak uppercase tracking-wide;
+  }
+
+  .slds-highlight-value {
+    @apply text-body font-medium text-gray-900;
+  }
+
+  /* ----------------------------------------
+     BREADCRUMBS
+     ---------------------------------------- */
+  .slds-breadcrumb {
+    @apply mb-2;
+  }
+
+  .slds-breadcrumb__list {
+    @apply flex items-center gap-1 text-body-small;
+  }
+
+  .slds-breadcrumb__item {
+    @apply flex items-center gap-1 text-slds-text-link;
+  }
+
+  .slds-breadcrumb__item:not(:last-child)::after {
+    content: '/';
+    @apply text-gray-400 ml-1;
+  }
+
+  .slds-breadcrumb__item.slds-is-current {
+    @apply text-gray-600 font-medium;
+  }
+
+  /* ----------------------------------------
+     CARDS
+     ---------------------------------------- */
+  .slds-card {
+    @apply bg-white rounded-slds border border-slds-border shadow-slds-card;
+    @apply transition-shadow duration-200;
+  }
+
+  .slds-card:hover {
+    @apply shadow-slds-card-hover;
+  }
+
+  .slds-card__header {
+    @apply flex items-center justify-between px-4 py-3 border-b border-slds-border;
+  }
+
+  .slds-card__header-content {
+    @apply flex items-center gap-3;
+  }
+
+  .slds-card__header-icon {
+    @apply flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-slds;
+    @apply bg-primary-100 text-primary-600;
+  }
+
+  .slds-card__header-title {
+    @apply text-heading-3 text-gray-900;
+  }
+
+  .slds-card__header-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .slds-card__body {
+    @apply px-4 py-4;
+  }
+
+  .slds-card__body_empty {
+    @apply py-8 text-center text-slds-text-weak;
+  }
+
+  .slds-card__footer {
+    @apply px-4 py-3 border-t border-slds-border bg-gray-50;
+  }
+
+  /* Card variants */
+  .slds-card_raised {
+    @apply shadow-md;
+  }
+
+  .slds-card_flat {
+    @apply shadow-none;
+  }
+
+  .slds-card_interactive {
+    @apply cursor-pointer hover:border-primary-300;
+  }
+
+  /* Legacy card classes (backward compatibility) */
+  .card {
+    @apply slds-card;
+  }
+
+  .card-header {
+    @apply slds-card__header;
+  }
+
+  .card-body {
+    @apply slds-card__body;
+  }
+
+  /* ----------------------------------------
+     BUTTONS
+     ---------------------------------------- */
+  .slds-button {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-4 py-2 min-h-slds-button;
+    @apply text-body font-semibold;
+    @apply rounded-slds border;
+    @apply transition-all duration-150;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Brand button (primary action) */
+  .slds-button_brand,
+  .btn-brand {
+    @apply slds-button;
+    @apply bg-slds-brand text-white border-slds-brand;
+    @apply hover:bg-slds-brand-dark hover:border-slds-brand-dark;
+    @apply focus:ring-slds-brand;
+    @apply shadow-primary hover:shadow-primary-hover;
+  }
+
+  /* Neutral button (secondary action) */
+  .slds-button_neutral,
+  .btn-neutral {
+    @apply slds-button;
+    @apply bg-white text-gray-700 border-slds-border-strong;
+    @apply hover:bg-gray-50 hover:border-gray-400;
+    @apply focus:ring-gray-500;
+  }
+
+  /* Outline brand button */
+  .slds-button_outline-brand,
+  .btn-outline-brand {
+    @apply slds-button;
+    @apply bg-transparent text-slds-brand border-slds-brand;
+    @apply hover:bg-primary-50;
+    @apply focus:ring-slds-brand;
+  }
+
+  /* Destructive button */
+  .slds-button_destructive,
+  .btn-destructive {
+    @apply slds-button;
+    @apply bg-slds-error text-white border-slds-error;
+    @apply hover:bg-danger-700 hover:border-danger-700;
+    @apply focus:ring-slds-error;
+  }
+
+  /* Success button */
+  .slds-button_success,
+  .btn-success {
+    @apply slds-button;
+    @apply bg-slds-success text-white border-slds-success;
+    @apply hover:bg-success-600 hover:border-success-600;
+    @apply focus:ring-slds-success;
+  }
+
+  /* Icon button */
+  .slds-button_icon,
+  .btn-icon {
+    @apply inline-flex items-center justify-center;
+    @apply p-2 min-h-slds-button min-w-[2rem];
+    @apply text-gray-500 rounded-slds;
+    @apply transition-colors duration-150;
+    @apply hover:bg-gray-100 hover:text-gray-700;
+    @apply focus:outline-none focus:ring-2 focus:ring-slds-brand focus:ring-offset-2;
+  }
+
+  /* Small button variant */
+  .slds-button_small,
+  .btn-sm {
+    @apply px-3 py-1 min-h-slds-button-sm text-body-small;
+  }
+
+  /* Large button variant */
+  .slds-button_large,
+  .btn-lg {
+    @apply px-6 py-3 min-h-slds-button-lg text-base;
+  }
+
+  /* Button group */
+  .slds-button-group {
+    @apply inline-flex;
+  }
+
+  .slds-button-group > .slds-button:not(:first-child) {
+    @apply -ml-px rounded-l-none;
+  }
+
+  .slds-button-group > .slds-button:not(:last-child) {
+    @apply rounded-r-none;
+  }
+
+  /* Legacy button classes (backward compatibility) */
+  .btn {
+    @apply slds-button;
+  }
+
+  .btn-primary {
+    @apply slds-button_brand;
+  }
+
+  .btn-secondary {
+    @apply slds-button_neutral;
+  }
+
+  .btn-danger {
+    @apply slds-button_destructive;
+  }
+
+  /* ----------------------------------------
+     FORM ELEMENTS
+     ---------------------------------------- */
+  .slds-form-element {
+    @apply mb-4;
+  }
+
+  .slds-form-element__label {
+    @apply block mb-1 text-body-small font-medium text-gray-700;
+  }
+
+  .slds-form-element__label .slds-required {
+    @apply text-slds-error no-underline mr-0.5;
+  }
+
+  .slds-form-element__control {
+    @apply relative;
+  }
+
+  .slds-form-element__help {
+    @apply mt-1 text-caption text-slds-text-weak;
+  }
+
+  .slds-form-element__error {
+    @apply mt-1 text-caption text-slds-error;
+  }
+
+  /* Input fields */
+  .slds-input,
+  .input {
+    @apply w-full px-3 py-2 min-h-slds-input;
+    @apply text-body text-gray-900 placeholder-slds-text-placeholder;
+    @apply bg-white border border-slds-border-strong rounded-slds;
+    @apply transition-all duration-150;
+    @apply focus:border-slds-brand focus:ring-2 focus:ring-primary-100 focus:outline-none;
+  }
+
+  .slds-input:disabled {
+    @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+  }
+
+  /* Dark mode input support */
+  .dark .slds-input,
+  .dark .input {
+    @apply bg-gray-800 border-gray-700 text-white placeholder-gray-500;
+  }
+
+  /* Select dropdown */
+  .slds-select {
+    @apply slds-input appearance-none cursor-pointer;
+    @apply pr-10;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23706E6B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+  }
+
+  /* Textarea */
+  .slds-textarea {
+    @apply slds-input resize-y;
+    min-height: 5rem;
+  }
+
+  /* Checkbox */
+  .slds-checkbox {
+    @apply flex items-start gap-2;
+  }
+
+  .slds-checkbox input[type="checkbox"] {
+    @apply w-4 h-4 mt-0.5 rounded border-slds-border-strong;
+    @apply text-slds-brand focus:ring-slds-brand focus:ring-offset-0;
+  }
+
+  /* Radio */
+  .slds-radio {
+    @apply flex items-start gap-2;
+  }
+
+  .slds-radio input[type="radio"] {
+    @apply w-4 h-4 mt-0.5 border-slds-border-strong;
+    @apply text-slds-brand focus:ring-slds-brand focus:ring-offset-0;
+  }
+
+  /* Error state */
+  .slds-has-error .slds-input,
+  .slds-has-error .slds-select,
+  .slds-has-error .slds-textarea {
+    @apply border-slds-error;
+    @apply focus:border-slds-error focus:ring-danger-100;
+  }
+
+  /* Form actions */
+  .slds-form-actions {
+    @apply flex items-center justify-end gap-3 pt-4 border-t border-slds-border mt-6;
+  }
+
+  /* ----------------------------------------
+     DATA TABLES
+     ---------------------------------------- */
+  .slds-table {
+    @apply w-full border-collapse;
+  }
+
+  .slds-table__header-row {
+    @apply bg-gray-50;
+  }
+
+  .slds-table th {
+    @apply px-4 py-2 text-left text-body-small font-semibold text-gray-600 uppercase tracking-wide;
+    @apply border-b border-slds-border;
+  }
+
+  .slds-table th.slds-is-sortable {
+    @apply cursor-pointer hover:bg-gray-100 select-none;
+  }
+
+  .slds-table .slds-th__action {
+    @apply flex items-center gap-1;
+  }
+
+  .slds-table__row {
+    @apply border-b border-slds-border transition-colors;
+  }
+
+  .slds-table__row:hover {
+    @apply bg-gray-50;
+  }
+
+  .slds-table td {
+    @apply px-4 py-3 text-body text-gray-900;
+  }
+
+  /* Zebra striping */
+  .slds-table_striped .slds-table__row:nth-child(even) {
+    @apply bg-gray-50;
+  }
+
+  .slds-table_striped .slds-table__row:nth-child(even):hover {
+    @apply bg-gray-100;
+  }
+
+  /* Bordered variant */
+  .slds-table_bordered {
+    @apply border border-slds-border rounded-slds overflow-hidden;
+  }
+
+  /* Sticky header */
+  .slds-table_sticky-header thead {
+    @apply sticky top-0 z-10;
+  }
+
+  /* Row actions (show on hover) */
+  .slds-table__row-actions {
+    @apply opacity-0 transition-opacity;
+  }
+
+  .slds-table__row:hover .slds-table__row-actions {
+    @apply opacity-100;
+  }
+
+  /* ----------------------------------------
+     BADGES / PILLS
+     ---------------------------------------- */
+  .slds-badge {
+    @apply inline-flex items-center px-2 py-0.5;
+    @apply text-caption font-medium rounded-slds-full;
+  }
+
+  .slds-badge_default,
+  .badge {
+    @apply slds-badge bg-gray-100 text-gray-700;
+  }
+
+  .slds-badge_brand,
+  .badge-primary {
+    @apply slds-badge bg-primary-100 text-primary-800;
+  }
+
+  .slds-badge_success,
+  .badge-success {
+    @apply slds-badge bg-success-100 text-success-800;
+  }
+
+  .slds-badge_warning,
+  .badge-warning {
+    @apply slds-badge bg-warning-100 text-warning-800;
+  }
+
+  .slds-badge_error,
+  .badge-danger {
+    @apply slds-badge bg-danger-100 text-danger-800;
+  }
+
+  .slds-badge_inverse {
+    @apply slds-badge bg-gray-800 text-white;
+  }
+
+  /* Dark mode badge support */
+  .dark .badge-primary {
+    @apply bg-primary-900/50 text-primary-300;
+  }
+
+  .dark .badge-success {
+    @apply bg-success-900/50 text-success-300;
+  }
+
+  .dark .badge-warning {
+    @apply bg-warning-900/50 text-warning-300;
+  }
+
+  .dark .badge-danger {
+    @apply bg-danger-900/50 text-danger-300;
+  }
+
+  /* ----------------------------------------
+     MODALS
+     ---------------------------------------- */
+  .slds-modal {
+    @apply fixed inset-0 z-slds-modal flex items-center justify-center p-4;
+  }
+
+  .slds-modal__container {
+    @apply bg-white rounded-slds-lg shadow-slds-modal w-full;
+    @apply max-w-slds-modal-md max-h-[90vh] flex flex-col;
+    @apply animate-scale-in;
+  }
+
+  .slds-modal__container_small {
+    @apply max-w-slds-modal-sm;
+  }
+
+  .slds-modal__container_large {
+    @apply max-w-slds-modal-lg;
+  }
+
+  .slds-modal__header {
+    @apply flex items-center justify-between px-6 py-4 border-b border-slds-border;
+  }
+
+  .slds-modal__title {
+    @apply text-heading-2 text-gray-900;
+  }
+
+  .slds-modal__close {
+    @apply slds-button_icon;
+  }
+
+  .slds-modal__content {
+    @apply px-6 py-4 overflow-y-auto flex-1;
+  }
+
+  .slds-modal__footer {
+    @apply flex items-center justify-end gap-3 px-6 py-4 border-t border-slds-border bg-gray-50;
+  }
+
+  .slds-backdrop {
+    @apply fixed inset-0 bg-black/50;
+  }
+
+  .slds-backdrop_open {
+    @apply animate-fade-in;
+  }
+
+  /* ----------------------------------------
+     TABS
+     ---------------------------------------- */
+  .slds-tabs_default {
+    @apply w-full;
+  }
+
+  .slds-tabs_default__nav {
+    @apply flex border-b border-slds-border;
+  }
+
+  .slds-tabs_default__item {
+    @apply relative;
+  }
+
+  .slds-tabs_default__item a,
+  .slds-tabs_default__item button {
+    @apply block px-4 py-3 text-body font-medium text-gray-600;
+    @apply border-b-2 border-transparent -mb-px;
+    @apply transition-colors;
+    @apply hover:text-gray-900 hover:border-gray-300;
+  }
+
+  .slds-tabs_default__item.slds-is-active a,
+  .slds-tabs_default__item.slds-is-active button {
+    @apply text-slds-brand border-slds-brand;
+  }
+
+  .slds-tabs_default__content {
+    @apply pt-4;
+  }
+
+  /* ----------------------------------------
+     ALERTS / NOTIFICATIONS
+     ---------------------------------------- */
+  .slds-alert {
+    @apply flex items-start gap-3 p-4 rounded-slds border;
+  }
+
+  .slds-alert_info {
+    @apply bg-primary-50 border-primary-200 text-primary-800;
+  }
+
+  .slds-alert_success {
+    @apply bg-success-50 border-success-200 text-success-800;
+  }
+
+  .slds-alert_warning {
+    @apply bg-warning-50 border-warning-200 text-warning-800;
+  }
+
+  .slds-alert_error {
+    @apply bg-danger-50 border-danger-200 text-danger-800;
+  }
+
+  .slds-alert__icon {
+    @apply flex-shrink-0 w-5 h-5;
+  }
+
+  .slds-alert__content {
+    @apply flex-1 text-body;
+  }
+
+  /* ----------------------------------------
+     TOASTS
+     ---------------------------------------- */
+  .slds-toast {
+    @apply flex items-center gap-3 p-4 rounded-slds shadow-lg;
+    @apply min-w-[300px] max-w-[500px];
+    @apply animate-slide-up;
+  }
+
+  .slds-toast_success {
+    @apply bg-slds-success text-white;
+  }
+
+  .slds-toast_warning {
+    @apply bg-slds-warning text-white;
+  }
+
+  .slds-toast_error {
+    @apply bg-slds-error text-white;
+  }
+
+  .slds-toast_info {
+    @apply bg-slds-brand text-white;
+  }
+
+  /* ----------------------------------------
+     DROPDOWNS
+     ---------------------------------------- */
+  .slds-dropdown {
+    @apply absolute z-slds-dropdown mt-1;
+    @apply bg-white border border-slds-border rounded-slds shadow-slds-dropdown;
+    @apply min-w-[10rem] py-1;
+    @apply animate-fade-in;
+  }
+
+  .slds-dropdown__item {
+    @apply block w-full px-4 py-2 text-left text-body text-gray-700;
+    @apply hover:bg-gray-100 hover:text-gray-900;
+    @apply transition-colors;
+  }
+
+  .slds-dropdown__item_selected {
+    @apply bg-primary-50 text-slds-brand;
+  }
+
+  .slds-dropdown__divider {
+    @apply my-1 border-t border-slds-border;
+  }
+
+  /* ----------------------------------------
+     SPINNERS / LOADING
+     ---------------------------------------- */
+  .slds-spinner {
+    @apply inline-block animate-spin;
+  }
+
+  .slds-spinner_small {
+    @apply w-4 h-4;
+  }
+
+  .slds-spinner_medium {
+    @apply w-8 h-8;
+  }
+
+  .slds-spinner_large {
+    @apply w-12 h-12;
+  }
+
+  .slds-spinner_brand {
+    @apply text-slds-brand;
+  }
+
+  .slds-spinner_inverse {
+    @apply text-white;
+  }
+
+  /* ----------------------------------------
+     AVATARS
+     ---------------------------------------- */
+  .slds-avatar {
+    @apply inline-flex items-center justify-center rounded-full bg-gray-200 text-gray-600 font-medium;
+  }
+
+  .slds-avatar_x-small {
+    @apply w-6 h-6 text-caption;
+  }
+
+  .slds-avatar_small {
+    @apply w-8 h-8 text-body-small;
+  }
+
+  .slds-avatar_medium {
+    @apply w-10 h-10 text-body;
+  }
+
+  .slds-avatar_large {
+    @apply w-12 h-12 text-heading-3;
+  }
+
+  .slds-avatar img {
+    @apply w-full h-full object-cover rounded-full;
+  }
+
+  /* ----------------------------------------
+     ICONS
+     ---------------------------------------- */
+  .slds-icon-container {
+    @apply inline-flex items-center justify-center rounded-slds;
+  }
+
+  .slds-icon-container_circle {
+    @apply rounded-full;
+  }
+
+  .slds-icon_xx-small {
+    @apply w-3 h-3;
+  }
+
+  .slds-icon_x-small {
+    @apply w-4 h-4;
+  }
+
+  .slds-icon_small {
+    @apply w-5 h-5;
+  }
+
+  .slds-icon_medium {
+    @apply w-6 h-6;
+  }
+
+  .slds-icon_large {
+    @apply w-8 h-8;
+  }
+
+  /* Standard object icon backgrounds */
+  .slds-icon-standard-asset {
+    @apply bg-slds-asset text-white;
+  }
+
+  .slds-icon-standard-case {
+    @apply bg-slds-case text-white;
+  }
+
+  .slds-icon-standard-account {
+    @apply bg-slds-account text-white;
+  }
+
+  .slds-icon-standard-contact {
+    @apply bg-slds-contact text-white;
+  }
+
+  /* ----------------------------------------
+     EMPTY STATES
+     ---------------------------------------- */
+  .slds-empty-state {
+    @apply flex flex-col items-center justify-center py-12 px-6 text-center;
+  }
+
+  .slds-empty-state__icon {
+    @apply w-16 h-16 mb-4 text-gray-300;
+  }
+
+  .slds-empty-state__title {
+    @apply text-heading-2 text-gray-900 mb-2;
+  }
+
+  .slds-empty-state__message {
+    @apply text-body text-slds-text-weak mb-6 max-w-md;
+  }
+
+  /* ----------------------------------------
+     LEGACY GLASS EFFECT (Progressive Enhancement)
+     ---------------------------------------- */
   .glass {
     @apply relative overflow-hidden rounded-glass;
     backdrop-filter: blur(20px);
@@ -44,88 +823,90 @@
                 0 15px 25px -5px rgba(0, 0, 0, 0.25);
   }
 
-  /* Button Base */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2;
-    @apply text-sm font-medium rounded-lg;
-    @apply transition-all duration-200 ease-out;
-    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  /* ----------------------------------------
+     NAVIGATION
+     ---------------------------------------- */
+  .slds-global-nav {
+    @apply flex items-center h-14 px-4 bg-slds-bg-inverse text-white;
   }
 
-  .btn-primary {
-    @apply btn bg-gradient-to-br from-primary-500 to-primary-600 text-white;
-    @apply shadow-primary hover:shadow-primary-hover;
-    @apply hover:from-primary-600 hover:to-primary-700;
-    @apply focus:ring-primary-500;
+  .slds-global-nav__logo {
+    @apply flex-shrink-0 mr-6;
   }
 
-  .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-200;
-    @apply hover:bg-gray-50 hover:border-gray-300;
-    @apply focus:ring-gray-500;
+  .slds-global-nav__items {
+    @apply flex items-center gap-1;
   }
 
-  .btn-danger {
-    @apply btn bg-danger-600 text-white;
-    @apply hover:bg-danger-700;
-    @apply focus:ring-danger-500;
+  .slds-global-nav__item a {
+    @apply px-3 py-2 rounded-slds text-body text-white/80;
+    @apply hover:text-white hover:bg-white/10;
+    @apply transition-colors;
   }
 
-  /* Form Input */
-  .input {
-    @apply w-full px-3 py-2 text-sm;
-    @apply bg-white border border-gray-300 rounded-lg;
-    @apply placeholder-gray-400;
-    @apply transition-all duration-200;
-    @apply focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20;
+  .slds-global-nav__item.slds-is-active a {
+    @apply text-white bg-white/20;
   }
 
-  /* Card Component */
-  .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
-    @apply overflow-hidden;
-  }
-
-  .card-header {
-    @apply px-6 py-4 border-b border-gray-200;
-  }
-
-  .card-body {
-    @apply px-6 py-4;
-  }
-
-  /* Badge */
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5;
-    @apply text-xs font-medium rounded-full;
-  }
-
-  .badge-primary {
-    @apply badge bg-primary-100 text-primary-800;
-  }
-
-  .badge-success {
-    @apply badge bg-success-100 text-success-800;
-  }
-
-  .badge-warning {
-    @apply badge bg-warning-100 text-warning-800;
-  }
-
-  .badge-danger {
-    @apply badge bg-danger-100 text-danger-800;
+  .slds-global-nav__actions {
+    @apply ml-auto flex items-center gap-2;
   }
 }
 
-/* Utility Classes */
+/* ============================================
+   UTILITIES LAYER - Helper Classes
+   ============================================ */
 @layer utilities {
   /* Text utilities */
   .text-balance {
     text-wrap: balance;
   }
 
+  /* Truncate with ellipsis */
+  .truncate-2-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .truncate-3-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   /* Animation utilities */
   .animate-in {
-    animation: fadeIn 0.3s ease-out forwards;
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+
+  /* Scrollbar styling */
+  .slds-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .slds-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  .slds-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+
+  .slds-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

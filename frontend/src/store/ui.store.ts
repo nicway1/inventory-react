@@ -11,6 +11,7 @@ interface UIState {
   // Sidebar
   sidebarOpen: boolean
   sidebarCollapsed: boolean
+  isMobileMenuOpen: boolean
 
   // Modals
   activeModal: string | null
@@ -23,6 +24,8 @@ interface UIState {
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setSidebarCollapsed: (collapsed: boolean) => void
+  toggleMobileMenu: () => void
+  setMobileMenuOpen: (open: boolean) => void
 
   openModal: (modalId: string, data?: Record<string, unknown>) => void
   closeModal: () => void
@@ -36,19 +39,26 @@ export const useUIStore = create<UIState>((set) => ({
   // Initial state
   sidebarOpen: true,
   sidebarCollapsed: false,
+  isMobileMenuOpen: false,
   activeModal: null,
   modalData: null,
   toasts: [],
 
   // Sidebar actions
   toggleSidebar: () =>
-    set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
   setSidebarOpen: (open) =>
     set({ sidebarOpen: open }),
 
   setSidebarCollapsed: (collapsed) =>
     set({ sidebarCollapsed: collapsed }),
+
+  toggleMobileMenu: () =>
+    set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
+
+  setMobileMenuOpen: (open) =>
+    set({ isMobileMenuOpen: open }),
 
   // Modal actions
   openModal: (modalId, data = null) =>

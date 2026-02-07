@@ -5,7 +5,7 @@
  * These define the overall page structure and compose organisms.
  */
 
-// Export template components here
-// export { MainLayout } from './MainLayout'
+export { PageLayout, ContentLayout } from './PageLayout'
+
+// TODO: Implement these components
 // export { AuthLayout } from './AuthLayout'
-// export { DashboardLayout } from './DashboardLayout'

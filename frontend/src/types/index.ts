@@ -7,3 +7,5 @@
 
 // Re-export all types from domain-specific files
 export * from './common'
+export * from './auth'
+export * from './dashboard'
