@@ -18,14 +18,14 @@ import { cn } from '@/utils/cn'
  * Login form validation schema
  */
 const loginSchema = z.object({
-  email: z
+  username: z
     .string()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address'),
+    .min(1, 'Username is required')
+    .min(3, 'Username must be at least 3 characters'),
   password: z
     .string()
     .min(1, 'Password is required')
-    .min(6, 'Password must be at least 6 characters'),
+    .min(4, 'Password must be at least 4 characters'),
   remember_me: z.boolean().optional().default(false),
 })
 
@@ -213,7 +213,7 @@ export function LoginPage() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
       remember_me: false,
     },
@@ -228,7 +228,7 @@ export function LoginPage() {
 
     try {
       const response = await authService.login({
-        email: data.email,
+        username: data.username,
         password: data.password,
         remember_me: data.remember_me,
       })
@@ -413,15 +413,15 @@ export function LoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Email Field */}
+            {/* Username Field */}
             <InputField
-              id="email"
-              type="email"
-              name="email"
-              label="Email Address"
-              placeholder="you@company.com"
-              autoComplete="email"
-              error={errors.email?.message}
+              id="username"
+              type="text"
+              name="username"
+              label="Username"
+              placeholder="Enter your username"
+              autoComplete="username"
+              error={errors.username?.message}
               disabled={isSubmitting}
               register={register}
             />

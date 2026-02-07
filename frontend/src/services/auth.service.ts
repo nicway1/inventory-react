@@ -19,7 +19,7 @@ const AUTH_BASE_URL = '/v2/auth'
  */
 export const authService = {
   /**
-   * Login with email and password
+   * Login with username and password
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>(

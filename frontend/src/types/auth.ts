@@ -7,7 +7,7 @@
 /**
  * User type enum representing different user roles in the system
  */
-export type UserType = 'ADMIN' | 'TECHNICIAN' | 'CLIENT'
+export type UserType = 'SUPER_ADMIN' | 'DEVELOPER' | 'SUPERVISOR' | 'COUNTRY_ADMIN' | 'TECHNICIAN' | 'CLIENT'
 
 /**
  * Authenticated user interface
@@ -27,7 +27,7 @@ export interface User {
  * Login request payload
  */
 export interface LoginRequest {
-  email: string
+  username: string
   password: string
   remember_me?: boolean
 }

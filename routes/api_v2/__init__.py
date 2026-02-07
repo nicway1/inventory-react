@@ -186,6 +186,9 @@ from . import dashboard
 # Import report template and generation endpoints
 from . import reports
 
+# Import authentication endpoints (login, logout, refresh, me)
+from . import auth
+
 
 # Error handlers for the v2 API blueprint
 @api_v2_bp.errorhandler(404)
