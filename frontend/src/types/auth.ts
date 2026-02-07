@@ -16,11 +16,14 @@ export interface User {
   id: number
   email: string
   username: string
-  first_name: string
-  last_name: string
+  full_name: string
   user_type: UserType
   permissions: string[]
   company_id: number
+  company_name?: string
+  is_admin?: boolean
+  is_supervisor?: boolean
+  theme_preference?: string
 }
 
 /**

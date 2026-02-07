@@ -63,16 +63,15 @@ def format_user_response(user):
     return {
         'id': user.id,
         'username': user.username,
-        'email': user.email,
-        'first_name': user.first_name or '',
-        'last_name': user.last_name or '',
+        'email': user.email or '',
+        'full_name': user.full_name or user.username,
         'user_type': user.user_type.value,
         'company_id': user.company_id,
         'company_name': user.company.name if user.company else None,
         'is_admin': user.is_admin,
         'is_supervisor': user.is_supervisor,
         'permissions': permissions,
-        'theme_preference': user.theme_preference or 'light',
+        'theme_preference': getattr(user, 'theme_preference', 'light') or 'light',
     }
 
 
