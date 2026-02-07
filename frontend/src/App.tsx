@@ -11,7 +11,7 @@ function Tickets() {
       subtitle="Manage repair and service tickets"
       breadcrumbs={[{ label: 'Tickets' }]}
       actions={
-        <button className="btn-primary">
+        <button className="sf-btn sf-btn-brand">
           New Ticket
         </button>
       }
@@ -34,7 +34,7 @@ function Inventory() {
       subtitle="Track and manage device inventory"
       breadcrumbs={[{ label: 'Inventory' }]}
       actions={
-        <button className="btn-primary">
+        <button className="sf-btn sf-btn-brand">
           Add Device
         </button>
       }
@@ -57,7 +57,7 @@ function Accessories() {
       subtitle="Manage accessories and components"
       breadcrumbs={[{ label: 'Accessories' }]}
       actions={
-        <button className="btn-primary">
+        <button className="sf-btn sf-btn-brand">
           Add Accessory
         </button>
       }
@@ -80,7 +80,7 @@ function Customers() {
       subtitle="Manage customer accounts and contacts"
       breadcrumbs={[{ label: 'Customers' }]}
       actions={
-        <button className="btn-primary">
+        <button className="sf-btn sf-btn-brand">
           Add Customer
         </button>
       }
@@ -140,7 +140,7 @@ function NotFound() {
         <p className="text-xl text-gray-600 dark:text-gray-400 mt-4">
           Page not found
         </p>
-        <a href="/" className="btn-primary mt-6 inline-flex">
+        <a href="/" className="sf-btn sf-btn-brand mt-6 inline-flex">
           Go Home
         </a>
       </div>

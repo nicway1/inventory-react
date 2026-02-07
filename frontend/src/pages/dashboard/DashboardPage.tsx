@@ -1,21 +1,30 @@
 /**
  * DashboardPage Component
  *
- * Main dashboard page with responsive grid layout for widgets.
- * Supports pull-to-refresh and loading states.
+ * Main dashboard page matching Flask TrueLog layout with:
+ * - PageLayout wrapper (Header + TabSystem)
+ * - Responsive widget grid (4-6 columns on desktop)
+ * - Dashboard header with refresh button
+ * - Widget cards in Salesforce style
  */
 
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { cn } from '@/utils/cn'
 import { useDashboardRefresh } from '@/hooks/useDashboard'
 import { useAuthStore } from '@/store/auth.store'
+import { PageLayout } from '@/components/templates/PageLayout'
 import {
   TicketStatsWidget,
   InventoryStatsWidget,
+  CustomerStatsWidget,
+  QueueStatsWidget,
+  WeeklyTicketsChartWidget,
+  AssetStatusChartWidget,
+  RecentActivitiesWidget,
   RecentTicketsWidget,
   QuickActionsWidget,
-  StatsCard,
 } from '@/components/organisms/widgets'
 
 export function DashboardPage() {
@@ -48,22 +57,34 @@ export function DashboardPage() {
     [navigate]
   )
 
+  const handleNavigateToCustomers = useCallback(() => {
+    navigate('/customers')
+  }, [navigate])
+
+  const handleQueueClick = useCallback(
+    (queueId: number) => {
+      navigate(`/tickets?queue=${queueId}`)
+    },
+    [navigate]
+  )
+
   const handleQuickAction = useCallback(
     (actionId: string) => {
       switch (actionId) {
-        case 'create-ticket':
+        case 'new-ticket':
           navigate('/tickets/new')
           break
-        case 'create-asset':
+        case 'add-asset':
           navigate('/inventory/new')
           break
-        case 'scan-qr':
-          // TODO: Open QR scanner modal
-          console.log('Scan QR action')
+        case 'add-customer':
+          navigate('/customers/new')
           break
-        case 'search':
-          // TODO: Open search modal or navigate to search
-          navigate('/search')
+        case 'reports':
+          navigate('/reports')
+          break
+        case 'inventory':
+          navigate('/inventory')
           break
         default:
           console.log('Unknown action:', actionId)
@@ -75,12 +96,12 @@ export function DashboardPage() {
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#f3f4f6] dark:bg-gray-950">
         <div className="text-center">
-          <p className="text-gray-600">Please log in to view the dashboard.</p>
+          <p className="text-gray-600 dark:text-gray-400">Please log in to view the dashboard.</p>
           <button
             onClick={() => navigate('/login')}
-            className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="mt-4 rounded-lg bg-[#0176d3] px-4 py-2 text-white hover:bg-[#014486]"
           >
             Go to Login
           </button>
@@ -90,143 +111,115 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-              {user && (
-                <p className="text-sm text-gray-500">
-                  Welcome back, {user.first_name || user.username}
-                </p>
-              )}
-            </div>
+    <PageLayout>
+      {/* Dashboard Content Area - Salesforce Style */}
+      <div className="sf-dashboard min-h-full">
+        {/* Dashboard Header Bar */}
+        <div className="bg-white dark:bg-gray-900 border-b border-[#dddbda] dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            {user && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                Welcome back, {user.first_name || user.username}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                'bg-white border border-gray-300 text-gray-700',
-                'hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
+                'inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-all',
+                'bg-white border border-[#dddbda] text-gray-700',
+                'hover:bg-gray-50 hover:border-gray-400',
+                'focus:outline-none focus:ring-2 focus:ring-[#0176d3] focus:ring-offset-2',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                'dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700'
               )}
             >
-              <svg
-                className={cn('h-4 w-4', isRefreshing && 'animate-spin')}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
+              <ArrowPathIcon className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Main content */}
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Responsive grid layout */}
-        {/* Mobile: 1 column, Tablet: 2 columns, Desktop: 3-4 columns */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {/* Quick Actions - spans 1 column */}
-          <div className="sm:col-span-1">
-            <QuickActionsWidget onAction={handleQuickAction} />
-          </div>
+        {/* Widget Grid - Responsive Salesforce-style layout */}
+        <div className="p-6">
+          {/*
+            Grid system matching Flask TrueLog:
+            - 4 columns on desktop
+            - 2 columns on tablets
+            - 1 column on mobile
 
-          {/* Ticket Stats - spans 1 column */}
-          <div className="sm:col-span-1">
-            <TicketStatsWidget
-              onNavigate={handleNavigateToTickets}
-              showResolved={true}
-              timePeriod="30d"
-            />
-          </div>
+            Widget sizes:
+            - widget-small: 1 column
+            - widget-medium: 2 columns
+            - widget-large: 3 columns
+            - widget-full: 4 columns (full width)
+          */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Row 1: Stats Widgets (small - 1 column each) */}
 
-          {/* Inventory Stats - spans 1 column */}
-          <div className="sm:col-span-1">
-            <InventoryStatsWidget onNavigate={handleNavigateToInventory} />
-          </div>
+            {/* Inventory Stats - Purple */}
+            <div className="col-span-1">
+              <InventoryStatsWidget onNavigate={handleNavigateToInventory} />
+            </div>
 
-          {/* Customer Stats Card - spans 1 column */}
-          <div className="sm:col-span-1">
-            <StatsCard
-              label="Customers"
-              value="--"
-              icon="users"
-              variant="blue"
-              onClick={() => navigate('/customers')}
-              subtitle="Click to view all customers"
-            />
-          </div>
+            {/* Ticket Stats - Green */}
+            <div className="col-span-1">
+              <TicketStatsWidget
+                onNavigate={handleNavigateToTickets}
+                showResolved={true}
+                timePeriod="30d"
+              />
+            </div>
 
-          {/* Recent Tickets - spans 2 columns on tablet+, full width on mobile */}
-          <div className="sm:col-span-2 lg:col-span-2 xl:col-span-2">
-            <RecentTicketsWidget
-              limit={5}
-              onTicketClick={handleTicketClick}
-              onViewAll={handleNavigateToTickets}
-            />
-          </div>
+            {/* Customer Stats - Blue */}
+            <div className="col-span-1">
+              <CustomerStatsWidget onNavigate={handleNavigateToCustomers} />
+            </div>
 
-          {/* Additional Stats Cards */}
-          <div className="sm:col-span-1">
-            <StatsCard
-              label="Accessories"
-              value="--"
-              variant="orange"
-              onClick={() => navigate('/accessories')}
-              customIcon={
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
-                  />
-                </svg>
-              }
-            />
-          </div>
+            {/* Quick Actions - Small */}
+            <div className="col-span-1">
+              <QuickActionsWidget onAction={handleQuickAction} />
+            </div>
 
-          <div className="sm:col-span-1">
-            <StatsCard
-              label="Active Shipments"
-              value="--"
-              variant="cyan"
-              customIcon={
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                  />
-                </svg>
-              }
-            />
+            {/* Row 2: Medium Widgets (2 columns each) */}
+
+            {/* Queue Stats - Orange - Medium (2 columns) */}
+            <div className="col-span-1 sm:col-span-2">
+              <QueueStatsWidget onQueueClick={handleQueueClick} />
+            </div>
+
+            {/* Weekly Tickets Chart - Medium (2 columns) */}
+            <div className="col-span-1 sm:col-span-2">
+              <WeeklyTicketsChartWidget />
+            </div>
+
+            {/* Row 3: Charts and Activities */}
+
+            {/* Asset Status Chart - Medium (2 columns) */}
+            <div className="col-span-1 sm:col-span-2">
+              <AssetStatusChartWidget />
+            </div>
+
+            {/* Recent Activities - Medium (2 columns) */}
+            <div className="col-span-1 sm:col-span-2">
+              <RecentActivitiesWidget limit={5} />
+            </div>
+
+            {/* Row 4: Recent Tickets - Full Width (4 columns) */}
+            <div className="col-span-1 sm:col-span-2 lg:col-span-4">
+              <RecentTicketsWidget
+                limit={5}
+                onTicketClick={handleTicketClick}
+                onViewAll={handleNavigateToTickets}
+              />
+            </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </PageLayout>
   )
 }
 

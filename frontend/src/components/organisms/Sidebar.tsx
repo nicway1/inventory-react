@@ -1,14 +1,19 @@
 /**
  * Sidebar Component
  *
- * Collapsible sidebar navigation with:
- * - Expanded/collapsed states
- * - Navigation items with icons
- * - Active state indication
- * - TrueLog logo at top
- * - User profile section at bottom
+ * App Launcher style sidebar matching Flask design with:
+ * - Colored app icons for each section
+ * - Collapsible desktop sidebar
  * - Mobile slide-out drawer
  * - Dark mode support
+ *
+ * App Colors (matching Flask):
+ * - Home: #0176d3 (Salesforce blue)
+ * - Tickets: #ff5d2d (red-orange)
+ * - Inventory: #2e844a (green)
+ * - Reports: #9050e9 (purple)
+ * - Customers: #fe9339 (orange)
+ * - Tracking: #00a1e0 (light blue)
  */
 
 import { Fragment } from 'react'
@@ -18,9 +23,9 @@ import {
   HomeIcon,
   TicketIcon,
   CubeIcon,
-  PuzzlePieceIcon,
-  UsersIcon,
   ChartBarIcon,
+  UsersIcon,
+  TruckIcon,
   Cog6ToothIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -30,21 +35,70 @@ import { cn } from '@/utils/cn'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 
-interface NavItem {
+// App item with custom color
+interface AppItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
+  color: string
+  bgColor: string
   adminOnly?: boolean
+  developerOnly?: boolean
 }
 
-const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Tickets', href: '/tickets', icon: TicketIcon },
-  { name: 'Inventory', href: '/inventory', icon: CubeIcon },
-  { name: 'Accessories', href: '/accessories', icon: PuzzlePieceIcon },
-  { name: 'Customers', href: '/customers', icon: UsersIcon },
-  { name: 'Reports', href: '/reports', icon: ChartBarIcon },
-  { name: 'Admin', href: '/admin', icon: Cog6ToothIcon, adminOnly: true },
+// App launcher items with Flask-matching colors
+const appItems: AppItem[] = [
+  {
+    name: 'Home',
+    href: '/dashboard',
+    icon: HomeIcon,
+    color: '#0176d3',
+    bgColor: 'bg-[#0176d3]',
+  },
+  {
+    name: 'Tickets',
+    href: '/tickets',
+    icon: TicketIcon,
+    color: '#ff5d2d',
+    bgColor: 'bg-[#ff5d2d]',
+  },
+  {
+    name: 'Inventory',
+    href: '/inventory',
+    icon: CubeIcon,
+    color: '#2e844a',
+    bgColor: 'bg-[#2e844a]',
+  },
+  {
+    name: 'Reports',
+    href: '/reports',
+    icon: ChartBarIcon,
+    color: '#9050e9',
+    bgColor: 'bg-[#9050e9]',
+  },
+  {
+    name: 'Customers',
+    href: '/customers',
+    icon: UsersIcon,
+    color: '#fe9339',
+    bgColor: 'bg-[#fe9339]',
+  },
+  {
+    name: 'Tracking',
+    href: '/tracking',
+    icon: TruckIcon,
+    color: '#00a1e0',
+    bgColor: 'bg-[#00a1e0]',
+    developerOnly: true,
+  },
+  {
+    name: 'Admin',
+    href: '/admin',
+    icon: Cog6ToothIcon,
+    color: '#747474',
+    bgColor: 'bg-[#747474]',
+    adminOnly: true,
+  },
 ]
 
 // TrueLog Logo Component
@@ -53,7 +107,7 @@ function Logo({ collapsed }: { collapsed: boolean }) {
     <div className="flex items-center h-16 px-4">
       <div className="flex items-center gap-3">
         {/* Logo Icon */}
-        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
+        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-truelog to-truelog-dark rounded-lg flex items-center justify-center">
           <span className="text-white font-bold text-lg">T</span>
         </div>
         {/* Logo Text */}
@@ -75,13 +129,13 @@ function Logo({ collapsed }: { collapsed: boolean }) {
   )
 }
 
-// Navigation Item Component
-function NavItemLink({
+// App Icon Component with custom color
+function AppIcon({
   item,
   collapsed,
   onClick,
 }: {
-  item: NavItem
+  item: AppItem
   collapsed: boolean
   onClick?: () => void
 }) {
@@ -97,21 +151,23 @@ function NavItemLink({
       className={cn(
         'group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
         isActive
-          ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
-          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white',
+          ? 'bg-gray-100 dark:bg-gray-800'
+          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
         collapsed && 'justify-center px-2'
       )}
       title={collapsed ? item.name : undefined}
     >
-      <item.icon
+      {/* Colored App Icon */}
+      <div
         className={cn(
-          'flex-shrink-0 h-5 w-5 transition-colors',
-          isActive
-            ? 'text-primary-600 dark:text-primary-400'
-            : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300'
+          'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center shadow-sm transition-transform group-hover:scale-105',
+          item.bgColor
         )}
-        aria-hidden="true"
-      />
+      >
+        <item.icon className="h-5 w-5 text-white" aria-hidden="true" />
+      </div>
+
+      {/* App Name */}
       <Transition
         show={!collapsed}
         enter="transition-opacity duration-200"
@@ -121,7 +177,16 @@ function NavItemLink({
         leaveFrom="opacity-100"
         leaveTo="opacity-0"
       >
-        <span className="whitespace-nowrap">{item.name}</span>
+        <span
+          className={cn(
+            'whitespace-nowrap',
+            isActive
+              ? 'text-gray-900 dark:text-white font-semibold'
+              : 'text-gray-700 dark:text-gray-300'
+          )}
+        >
+          {item.name}
+        </span>
       </Transition>
     </NavLink>
   )
@@ -133,7 +198,9 @@ function UserProfile({ collapsed }: { collapsed: boolean }) {
 
   if (!user) return null
 
-  const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.username[0].toUpperCase()
+  const initials =
+    `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() ||
+    user.username[0].toUpperCase()
 
   return (
     <div
@@ -143,8 +210,8 @@ function UserProfile({ collapsed }: { collapsed: boolean }) {
       )}
     >
       {/* Avatar */}
-      <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-        <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+      <div className="flex-shrink-0 w-8 h-8 bg-truelog/20 rounded-full flex items-center justify-center">
+        <span className="text-sm font-medium text-truelog-dark dark:text-truelog">
           {initials}
         </span>
       </div>
@@ -176,16 +243,19 @@ function UserProfile({ collapsed }: { collapsed: boolean }) {
 function DesktopSidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const user = useAuthStore((state) => state.user)
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isDeveloper = user?.role === 'developer'
 
-  const filteredNavigation = navigation.filter(
-    (item) => !item.adminOnly || isAdmin
-  )
+  const filteredApps = appItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false
+    if (item.developerOnly && !isDeveloper) return false
+    return true
+  })
 
   return (
     <div
       className={cn(
-        'hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ease-in-out',
+        'hidden lg:fixed lg:inset-y-0 lg:top-20 lg:flex lg:flex-col transition-all duration-300 ease-in-out',
         sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
       )}
     >
@@ -206,14 +276,19 @@ function DesktopSidebar() {
           )}
         </button>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {filteredNavigation.map((item) => (
-            <NavItemLink
-              key={item.name}
-              item={item}
-              collapsed={sidebarCollapsed}
-            />
+        {/* App Section Title */}
+        {!sidebarCollapsed && (
+          <div className="px-4 py-2">
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              Apps
+            </p>
+          </div>
+        )}
+
+        {/* App Navigation */}
+        <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+          {filteredApps.map((item) => (
+            <AppIcon key={item.name} item={item} collapsed={sidebarCollapsed} />
           ))}
         </nav>
 
@@ -228,11 +303,14 @@ function DesktopSidebar() {
 function MobileSidebar() {
   const { isMobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const user = useAuthStore((state) => state.user)
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isDeveloper = user?.role === 'developer'
 
-  const filteredNavigation = navigation.filter(
-    (item) => !item.adminOnly || isAdmin
-  )
+  const filteredApps = appItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false
+    if (item.developerOnly && !isDeveloper) return false
+    return true
+  })
 
   const handleClose = () => setMobileMenuOpen(false)
 
@@ -294,10 +372,17 @@ function MobileSidebar() {
                 {/* Logo */}
                 <Logo collapsed={false} />
 
-                {/* Navigation */}
-                <nav className="flex-1 px-3 py-4 space-y-1">
-                  {filteredNavigation.map((item) => (
-                    <NavItemLink
+                {/* App Section Title */}
+                <div className="px-4 py-2">
+                  <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Apps
+                  </p>
+                </div>
+
+                {/* App Navigation */}
+                <nav className="flex-1 px-3 py-2 space-y-1">
+                  {filteredApps.map((item) => (
+                    <AppIcon
                       key={item.name}
                       item={item}
                       collapsed={false}

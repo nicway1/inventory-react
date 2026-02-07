@@ -909,4 +909,159 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* ----------------------------------------
+     FLASK TRUELOG LAYOUT MATCHING
+     ---------------------------------------- */
+
+  /* Main dashboard background */
+  .sf-dashboard {
+    @apply bg-[#f3f4f6] dark:bg-gray-950 min-h-full;
+  }
+
+  /* Salesforce-style content padding */
+  .sf-content {
+    @apply p-6;
+  }
+
+  /* Salesforce button styles from Flask */
+  .sf-btn {
+    @apply inline-flex items-center gap-2;
+    @apply px-4 py-2 text-sm font-semibold rounded-md;
+    @apply cursor-pointer transition-all duration-150;
+    @apply border border-transparent;
+  }
+
+  .sf-btn-neutral {
+    @apply bg-white border-[#dddbda] text-gray-700;
+    @apply hover:bg-gray-50 hover:border-gray-400;
+    @apply dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200;
+    @apply dark:hover:bg-gray-700 dark:hover:border-gray-500;
+  }
+
+  .sf-btn-brand {
+    @apply bg-[#0176d3] text-white border-[#0176d3];
+    @apply hover:bg-[#014486] hover:border-[#014486];
+  }
+
+  .sf-btn-success {
+    @apply bg-[#2e844a] text-white border-[#2e844a];
+    @apply hover:bg-[#236838] hover:border-[#236838];
+  }
+
+  .sf-btn-destructive {
+    @apply bg-[#ea001e] text-white border-[#ea001e];
+    @apply hover:bg-[#c10017] hover:border-[#c10017];
+  }
+
+  /* Widget grid for dashboard */
+  .widget-grid {
+    @apply grid gap-5;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (min-width: 1600px) {
+    .widget-grid {
+      grid-template-columns: repeat(6, 1fr);
+    }
+  }
+
+  @media (min-width: 1400px) and (max-width: 1599px) {
+    .widget-grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .widget-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .widget-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Widget size classes */
+  .widget-small {
+    grid-column: span 1;
+  }
+
+  .widget-medium {
+    grid-column: span 2;
+  }
+
+  .widget-large {
+    grid-column: span 3;
+  }
+
+  .widget-full {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 1023px) {
+    .widget-medium,
+    .widget-large {
+      grid-column: span 2;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .widget-small,
+    .widget-medium,
+    .widget-large,
+    .widget-full {
+      grid-column: span 1;
+    }
+  }
+
+  /* Widget card styling */
+  .widget-card {
+    @apply bg-white dark:bg-gray-900;
+    @apply rounded-lg border border-[#dddbda] dark:border-gray-700;
+    @apply shadow-sm hover:shadow-md transition-shadow duration-200;
+    @apply overflow-hidden flex flex-col;
+  }
+
+  .widget-header {
+    @apply flex items-center justify-between;
+    @apply px-4 py-3 border-b border-[#dddbda] dark:border-gray-700;
+    @apply bg-gray-50 dark:bg-gray-800;
+  }
+
+  .widget-title {
+    @apply flex items-center gap-2;
+    @apply text-sm font-semibold text-gray-800 dark:text-gray-200;
+  }
+
+  .widget-icon {
+    @apply w-7 h-7 rounded-md flex items-center justify-center text-white;
+  }
+
+  .widget-body {
+    @apply p-4 flex-1 overflow-auto;
+  }
+
+  /* TrueLog brand color utilities */
+  .text-truelog {
+    color: #7BA7DE;
+  }
+
+  .text-truelog-dark {
+    color: #5089D3;
+  }
+
+  .bg-truelog {
+    background-color: #7BA7DE;
+  }
+
+  .bg-truelog-light {
+    background-color: #A5C5E9;
+  }
+
+  .border-truelog {
+    border-color: #7BA7DE;
+  }
 }

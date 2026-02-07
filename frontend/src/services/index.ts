@@ -9,6 +9,8 @@ export { apiClient } from './api'
 export { authService } from './auth.service'
 export { dashboardService } from './dashboard.service'
 export * from './dashboard.service'
+export { searchService } from './search.service'
+export * from './search.service'
 
 // Domain services will be added here:
 // export * from './tickets.service'

@@ -174,6 +174,16 @@ export default {
         'slds-lead': '#F88962',
         'slds-task': '#4BC076',
         'slds-event': '#EB7092',
+
+        // TrueLog Brand Colors
+        truelog: {
+          light: '#A5C5E9',
+          DEFAULT: '#7BA7DE',
+          dark: '#5089D3',
+        },
+
+        // Salesforce Blue (for branding consistency)
+        'sf-blue': '#0176d3',
       },
 
       fontFamily: {

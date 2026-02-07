@@ -16,6 +16,11 @@ export {
   useDashboardRefresh,
   dashboardKeys,
 } from './useDashboard'
+export {
+  useGlobalSearch,
+  useSearchSuggestions,
+  searchKeys,
+} from './useGlobalSearch'
 
 // Re-export organism hooks for convenience
 export { useToast } from '@/components/organisms/Toast'

@@ -1,15 +1,16 @@
 /**
  * Header Component
  *
- * Global header with:
- * - Global search input
- * - Notification bell with badge
- * - User dropdown menu
- * - Theme toggle (light/dark/system)
- * - Mobile menu toggle button
+ * Global header matching Flask TrueLog design with:
+ * - Fixed 80px height (h-20)
+ * - Three sections: Left (logo + nav), Center (search), Right (user menu)
+ * - TrueLog branding with logo and "Asset Management" text
+ * - Navigation buttons: Inventory, Tickets, History (admin), Tracking (dev), Import
+ * - Theme toggle, Notifications, User profile, Logout
  */
 
 import { Fragment, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Menu, Transition } from '@headlessui/react'
 import {
   MagnifyingGlassIcon,
@@ -17,120 +18,83 @@ import {
   Bars3Icon,
   SunIcon,
   MoonIcon,
-  ComputerDesktopIcon,
   UserCircleIcon,
-  Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
+  ArchiveBoxIcon,
+  TicketIcon,
+  ClockIcon,
+  TruckIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/utils/cn'
 import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import { useTheme, type Theme } from '@/providers/ThemeProvider'
 
-// Theme Toggle Button
+// Navigation item type
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  requiresAdmin?: boolean
+  requiresDeveloper?: boolean
+}
+
+// Navigation items matching Flask app
+const navigationItems: NavItem[] = [
+  { name: 'Inventory', href: '/inventory', icon: ArchiveBoxIcon },
+  { name: 'Tickets', href: '/tickets', icon: TicketIcon },
+  { name: 'History', href: '/history', icon: ClockIcon, requiresAdmin: true },
+  { name: 'Tracking', href: '/tracking', icon: TruckIcon, requiresDeveloper: true },
+  { name: 'Import', href: '/import', icon: ArrowUpTrayIcon },
+]
+
+// Theme Toggle Button - Simple light/dark toggle
 function ThemeToggle() {
   const { theme, setTheme } = useTheme()
 
-  const themeOptions: { value: Theme; label: string; icon: typeof SunIcon }[] = [
-    { value: 'light', label: 'Light', icon: SunIcon },
-    { value: 'dark', label: 'Dark', icon: MoonIcon },
-    { value: 'system', label: 'System', icon: ComputerDesktopIcon },
-  ]
-
-  const currentThemeIcon = themeOptions.find((t) => t.value === theme)?.icon || SunIcon
-  const CurrentIcon = currentThemeIcon
-
-  return (
-    <Menu as="div" className="relative">
-      <Menu.Button className="flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-        <span className="sr-only">Toggle theme</span>
-        <CurrentIcon className="h-5 w-5" aria-hidden="true" />
-      </Menu.Button>
-
-      <Transition
-        as={Fragment}
-        enter="transition ease-out duration-100"
-        enterFrom="transform opacity-0 scale-95"
-        enterTo="transform opacity-100 scale-100"
-        leave="transition ease-in duration-75"
-        leaveFrom="transform opacity-100 scale-100"
-        leaveTo="transform opacity-0 scale-95"
-      >
-        <Menu.Items className="absolute right-0 z-10 mt-2 w-36 origin-top-right rounded-lg bg-white dark:bg-gray-800 py-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10 focus:outline-none">
-          {themeOptions.map((option) => (
-            <Menu.Item key={option.value}>
-              {({ active }) => (
-                <button
-                  onClick={() => setTheme(option.value)}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-4 py-2 text-sm',
-                    active
-                      ? 'bg-gray-100 dark:bg-gray-700'
-                      : 'text-gray-700 dark:text-gray-200',
-                    theme === option.value && 'text-primary-600 dark:text-primary-400'
-                  )}
-                >
-                  <option.icon className="h-4 w-4" aria-hidden="true" />
-                  {option.label}
-                </button>
-              )}
-            </Menu.Item>
-          ))}
-        </Menu.Items>
-      </Transition>
-    </Menu>
-  )
-}
-
-// Notification Bell
-function NotificationBell() {
-  const [notificationCount] = useState(3) // TODO: Replace with real notification count
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light')
+  }
 
   return (
     <button
-      type="button"
-      className="relative flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+      onClick={toggleTheme}
+      className="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors dark:text-gray-200 dark:hover:text-white"
+      title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Theme`}
     >
-      <span className="sr-only">View notifications</span>
-      <BellIcon className="h-5 w-5" aria-hidden="true" />
-      {notificationCount > 0 && (
-        <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-medium text-white bg-danger-500 rounded-full">
-          {notificationCount > 99 ? '99+' : notificationCount}
-        </span>
+      {theme === 'light' ? (
+        <MoonIcon className="w-5 h-5" aria-hidden="true" />
+      ) : (
+        <SunIcon className="w-5 h-5" aria-hidden="true" />
       )}
     </button>
   )
 }
 
-// User Dropdown Menu
-function UserMenu() {
-  const { user, logout } = useAuthStore()
-
-  if (!user) return null
-
-  const initials =
-    `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() ||
-    user.username[0].toUpperCase()
-
-  const handleLogout = () => {
-    logout()
-    // TODO: Redirect to login page
-  }
+// Notification Bell with badge
+function NotificationBell() {
+  const [notificationCount] = useState(3) // TODO: Replace with real notification count
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
-    <Menu as="div" className="relative">
-      <Menu.Button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-        <div className="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-          <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
-            {initials}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors relative dark:text-gray-200 dark:hover:text-white"
+      >
+        <BellIcon className="w-5 h-5" aria-hidden="true" />
+        {notificationCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+            {notificationCount > 99 ? '99+' : notificationCount}
           </span>
-        </div>
-        <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-200">
-          {user.first_name} {user.last_name}
-        </span>
-      </Menu.Button>
+        )}
+      </button>
 
+      {/* Notifications Dropdown */}
       <Transition
+        show={isOpen}
         as={Fragment}
         enter="transition ease-out duration-100"
         enterFrom="transform opacity-0 scale-95"
@@ -139,78 +103,52 @@ function UserMenu() {
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white dark:bg-gray-800 py-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10 focus:outline-none">
-          {/* User Info */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {user.first_name} {user.last_name}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-              {user.email}
-            </p>
+        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg ring-1 ring-black/5 dark:ring-white/10 z-50">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+            <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+              Mark all read
+            </button>
           </div>
-
-          {/* Menu Items */}
-          <div className="py-1">
-            <Menu.Item>
-              {({ active }) => (
-                <a
-                  href="/profile"
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-2 text-sm',
-                    active
-                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-200'
-                  )}
-                >
-                  <UserCircleIcon className="h-4 w-4" aria-hidden="true" />
-                  Your Profile
-                </a>
-              )}
-            </Menu.Item>
-            <Menu.Item>
-              {({ active }) => (
-                <a
-                  href="/settings"
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-2 text-sm',
-                    active
-                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-200'
-                  )}
-                >
-                  <Cog6ToothIcon className="h-4 w-4" aria-hidden="true" />
-                  Settings
-                </a>
-              )}
-            </Menu.Item>
+          <div className="max-h-96 overflow-y-auto">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              <BellIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+              No notifications
+            </div>
           </div>
-
-          {/* Logout */}
-          <div className="py-1 border-t border-gray-200 dark:border-gray-700">
-            <Menu.Item>
-              {({ active }) => (
-                <button
-                  onClick={handleLogout}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-4 py-2 text-sm',
-                    active
-                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-200'
-                  )}
-                >
-                  <ArrowRightOnRectangleIcon
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
-                  Sign out
-                </button>
-              )}
-            </Menu.Item>
-          </div>
-        </Menu.Items>
+        </div>
       </Transition>
-    </Menu>
+    </div>
+  )
+}
+
+// User Profile Link and Logout
+function UserSection() {
+  const { user, logout } = useAuthStore()
+
+  if (!user) return null
+
+  const handleLogout = () => {
+    logout()
+  }
+
+  return (
+    <>
+      <Link
+        to="/profile"
+        className="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md transition-colors dark:text-gray-200 dark:hover:text-white"
+      >
+        <UserCircleIcon className="w-5 h-5 mr-2" aria-hidden="true" />
+        {user.username}
+      </Link>
+      <button
+        onClick={handleLogout}
+        className="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors dark:text-gray-200 dark:hover:text-red-400 dark:hover:bg-red-900/20"
+      >
+        <ArrowRightOnRectangleIcon className="w-5 h-5 mr-2" aria-hidden="true" />
+        Logout
+      </button>
+    </>
   )
 }
 
@@ -225,22 +163,58 @@ function GlobalSearch() {
   }
 
   return (
-    <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
-      <div className="relative">
-        <MagnifyingGlassIcon
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
-          name="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="block w-full pl-10 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:bg-white dark:focus:bg-gray-700 focus:ring-2 focus:ring-primary-500 transition-all"
-          placeholder="Search tickets, devices, customers..."
-        />
+    <form onSubmit={handleSearch} className="flex-1 w-full max-w-3xl relative" id="globalSearchContainer">
+      <div className="relative group">
+        {/* Gradient border effect on focus */}
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-0 group-focus-within:opacity-100 blur transition duration-300" />
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg">
+          {/* Search Icon */}
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+            <MagnifyingGlassIcon
+              className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              aria-hidden="true"
+            />
+          </div>
+          {/* Search Input */}
+          <input
+            type="search"
+            name="q"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="block w-full pl-10 pr-16 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg leading-5 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm shadow-sm transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600 text-gray-900 dark:text-white"
+            placeholder="Search assets, tickets, accessories, customers..."
+            aria-label="Global search"
+          />
+          {/* Keyboard Shortcut Hint */}
+          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none z-10">
+            <kbd className="inline-flex items-center px-2 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-sm">
+              /
+            </kbd>
+          </div>
+        </div>
       </div>
     </form>
+  )
+}
+
+// Navigation Button Component
+function NavButton({ item }: { item: NavItem }) {
+  const location = useLocation()
+  const isActive = location.pathname.startsWith(item.href)
+
+  return (
+    <Link
+      to={item.href}
+      className={cn(
+        'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+        isActive
+          ? 'text-truelog-dark bg-truelog-light/20'
+          : 'text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 dark:text-gray-200 dark:hover:text-white'
+      )}
+    >
+      <item.icon className="w-4 h-4 mr-1.5" aria-hidden="true" />
+      {item.name}
+    </Link>
   )
 }
 
@@ -260,24 +234,90 @@ function MobileMenuToggle() {
   )
 }
 
+// TrueLog Logo Component
+function TrueLogLogo() {
+  return (
+    <Link to="/" className="flex items-center space-x-3">
+      {/* Logo image - use actual TrueLog logo */}
+      <img
+        src="/images/truelglogo.png"
+        alt="TrueLog Logo"
+        className="h-14 w-auto object-contain"
+        onError={(e) => {
+          // Fallback if image doesn't load
+          const target = e.target as HTMLImageElement
+          target.style.display = 'none'
+        }}
+      />
+      <span className="text-2xl font-bold text-truelog-dark dark:text-truelog">
+        Asset Management
+      </span>
+    </Link>
+  )
+}
+
 // Main Header Export
 export function Header() {
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isDeveloper = user?.role === 'developer'
+
+  // Filter navigation items based on user role
+  const filteredNavItems = navigationItems.filter((item) => {
+    if (item.requiresAdmin && !isAdmin) return false
+    if (item.requiresDeveloper && !isDeveloper) return false
+    return true
+  })
+
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6">
-      {/* Mobile menu toggle */}
-      <MobileMenuToggle />
+    <header className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-800 h-20 z-[2000] relative">
+      <div className="w-full px-8 h-full">
+        <div className="flex items-center gap-6 h-full w-full overflow-visible">
+          {/* Left side: Logo and primary navigation */}
+          <div className="flex items-center gap-4 flex-wrap min-w-fit">
+            {/* Mobile menu toggle */}
+            <MobileMenuToggle />
 
-      {/* Search */}
-      <div className="flex flex-1 items-center gap-4">
-        <GlobalSearch />
-      </div>
+            {/* Logo and Name */}
+            <TrueLogLogo />
 
-      {/* Right side actions */}
-      <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <NotificationBell />
-        <div className="hidden sm:block h-6 w-px bg-gray-200 dark:bg-gray-700" />
-        <UserMenu />
+            {user && (
+              <>
+                {/* Vertical Divider - hidden on mobile */}
+                <div className="hidden lg:block h-10 w-px bg-gray-300 dark:bg-gray-600" />
+
+                {/* Navigation Buttons */}
+                <div className="hidden lg:flex flex-wrap items-center gap-1">
+                  {filteredNavItems.map((item) => (
+                    <NavButton key={item.name} item={item} />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Center: Global Search */}
+          {user && <GlobalSearch />}
+
+          {/* Right side navigation */}
+          <div className="flex items-center gap-3 ml-auto">
+            {user ? (
+              <>
+                <ThemeToggle />
+                <NotificationBell />
+                <UserSection />
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-900 hover:text-truelog-dark hover:bg-truelog-light/10 rounded-md dark:text-gray-200 dark:hover:text-white"
+              >
+                <ArrowRightOnRectangleIcon className="w-5 h-5 mr-2 rotate-180" aria-hidden="true" />
+                Login
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   )
