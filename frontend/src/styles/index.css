@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TrueLog Custom Base Styles */
+@layer base {
+  html {
+    @apply antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus styles for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+}
+
+/* TrueLog Component Classes */
+@layer components {
+  /* Liquid Glass Effect */
+  .glass {
+    @apply relative overflow-hidden rounded-glass;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.35),
+                0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  }
+
+  .glass:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.4),
+                0 15px 25px -5px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Button Base */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2;
+    @apply text-sm font-medium rounded-lg;
+    @apply transition-all duration-200 ease-out;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-br from-primary-500 to-primary-600 text-white;
+    @apply shadow-primary hover:shadow-primary-hover;
+    @apply hover:from-primary-600 hover:to-primary-700;
+    @apply focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-gray-700 border border-gray-200;
+    @apply hover:bg-gray-50 hover:border-gray-300;
+    @apply focus:ring-gray-500;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger-600 text-white;
+    @apply hover:bg-danger-700;
+    @apply focus:ring-danger-500;
+  }
+
+  /* Form Input */
+  .input {
+    @apply w-full px-3 py-2 text-sm;
+    @apply bg-white border border-gray-300 rounded-lg;
+    @apply placeholder-gray-400;
+    @apply transition-all duration-200;
+    @apply focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20;
+  }
+
+  /* Card Component */
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply overflow-hidden;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200;
+  }
+
+  .card-body {
+    @apply px-6 py-4;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5;
+    @apply text-xs font-medium rounded-full;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+
+  .badge-success {
+    @apply badge bg-success-100 text-success-800;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning-100 text-warning-800;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger-100 text-danger-800;
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animation utilities */
+  .animate-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+}
