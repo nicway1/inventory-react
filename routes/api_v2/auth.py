@@ -110,8 +110,13 @@ def api_login():
         }
     }
     """
-    data = validate_json_body()
-    validate_required_fields(data, ['username', 'password'])
+    data, error = validate_json_body()
+    if error:
+        return error
+
+    is_valid, error = validate_required_fields(data, ['username', 'password'])
+    if error:
+        return error
 
     username = data['username'].strip()
     password = data['password']
