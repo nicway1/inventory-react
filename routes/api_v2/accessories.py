@@ -64,6 +64,200 @@ def format_accessory_response(accessory):
 
 
 # =============================================================================
+# LIST ACCESSORIES
+# =============================================================================
+
+@api_v2_bp.route('/accessories', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def list_accessories():
+    """
+    List accessories with pagination and filtering
+
+    GET /api/v2/accessories
+
+    Query Parameters:
+        - page: Page number (default: 1)
+        - per_page: Items per page (default: 25, max: 100)
+        - search: Search by name, category, manufacturer
+        - category: Filter by category
+        - manufacturer: Filter by manufacturer
+        - status: Filter by status
+        - sort_by: Sort field (default: created_at)
+        - sort_order: asc or desc (default: desc)
+
+    Returns:
+        Paginated list of accessories
+    """
+    from .utils import paginate_query, get_pagination_params
+
+    db_session = db_manager.get_session()
+    try:
+        # Get pagination params
+        page, per_page = get_pagination_params()
+
+        # Get sorting params
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'desc')
+
+        # Build query
+        query = db_session.query(Accessory)
+
+        # Apply search filter
+        search = request.args.get('search', '').strip()
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                (Accessory.name.ilike(search_term)) |
+                (Accessory.category.ilike(search_term)) |
+                (Accessory.manufacturer.ilike(search_term))
+            )
+
+        # Apply category filter
+        category = request.args.get('category')
+        if category and category != 'all':
+            query = query.filter(Accessory.category == category)
+
+        # Apply manufacturer filter
+        manufacturer = request.args.get('manufacturer')
+        if manufacturer and manufacturer != 'all':
+            query = query.filter(Accessory.manufacturer.ilike(f'%{manufacturer}%'))
+
+        # Apply status filter
+        status = request.args.get('status')
+        if status and status != 'all':
+            query = query.filter(Accessory.status == status)
+
+        # Apply sorting
+        sort_column = getattr(Accessory, sort_by, Accessory.created_at)
+        if sort_order == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        # Paginate
+        accessories, pagination_meta = paginate_query(query, page, per_page)
+
+        # Format response
+        accessories_data = [format_accessory_response(acc) for acc in accessories]
+
+        return api_response(
+            data=accessories_data,
+            meta=pagination_meta,
+            message=f'Retrieved {len(accessories_data)} accessories'
+        )
+
+    except Exception as e:
+        logger.error(f'Error listing accessories: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to list accessories: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+# =============================================================================
+# GET SINGLE ACCESSORY
+# =============================================================================
+
+@api_v2_bp.route('/accessories/<int:accessory_id>', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def get_accessory(accessory_id):
+    """
+    Get a single accessory by ID
+
+    GET /api/v2/accessories/<id>
+
+    Returns:
+        Accessory details
+    """
+    db_session = db_manager.get_session()
+    try:
+        accessory = db_session.query(Accessory).filter(Accessory.id == accessory_id).first()
+
+        if not accessory:
+            return api_error(
+                ErrorCodes.RESOURCE_NOT_FOUND,
+                f'Accessory with ID {accessory_id} not found',
+                status_code=404
+            )
+
+        return api_response(
+            data=format_accessory_response(accessory),
+            message='Accessory retrieved successfully'
+        )
+
+    except Exception as e:
+        logger.error(f'Error getting accessory: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to get accessory: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+# =============================================================================
+# ACCESSORY FILTER OPTIONS
+# =============================================================================
+
+@api_v2_bp.route('/accessories/filter-options', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def get_accessory_filter_options():
+    """
+    Get filter options for accessories
+
+    GET /api/v2/accessories/filter-options
+
+    Returns:
+        Available filter options for categories, manufacturers, etc.
+    """
+    db_session = db_manager.get_session()
+    try:
+        # Get distinct categories
+        categories_query = db_session.query(Accessory.category).filter(
+            Accessory.category.isnot(None)
+        ).distinct().all()
+        categories = [{'value': c[0], 'label': c[0]} for c in categories_query if c[0]]
+
+        # Get distinct manufacturers
+        manufacturers_query = db_session.query(Accessory.manufacturer).filter(
+            Accessory.manufacturer.isnot(None)
+        ).distinct().all()
+        manufacturers = [{'value': m[0], 'label': m[0]} for m in manufacturers_query if m[0]]
+
+        # Get distinct countries
+        countries_query = db_session.query(Accessory.country).filter(
+            Accessory.country.isnot(None)
+        ).distinct().all()
+        countries = [{'value': c[0], 'label': c[0]} for c in countries_query if c[0]]
+
+        return api_response(
+            data={
+                'categories': categories,
+                'manufacturers': manufacturers,
+                'countries': countries
+            },
+            message='Filter options retrieved successfully'
+        )
+
+    except Exception as e:
+        logger.error(f'Error getting filter options: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to get filter options: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+# =============================================================================
 # CREATE ACCESSORY
 # =============================================================================
 

@@ -91,6 +91,230 @@ def format_asset_response(asset):
 
 
 # =============================================================================
+# LIST ASSETS
+# =============================================================================
+
+@api_v2_bp.route('/assets', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def list_assets():
+    """
+    List assets with pagination and filtering
+
+    GET /api/v2/assets
+
+    Query Parameters:
+        - page: Page number (default: 1)
+        - per_page: Items per page (default: 25, max: 100)
+        - search: Search by asset_tag, serial_number, name, model
+        - status: Filter by status (IN_STOCK, DEPLOYED, REPAIR, etc.)
+        - asset_type: Filter by asset type
+        - manufacturer: Filter by manufacturer
+        - customer: Filter by customer name
+        - condition: Filter by condition
+        - sort_by: Sort field (default: created_at)
+        - sort_order: asc or desc (default: desc)
+
+    Returns:
+        Paginated list of assets
+    """
+    from .utils import paginate_query, get_pagination_params, apply_sorting, get_sorting_params
+
+    db_session = db_manager.get_session()
+    try:
+        # Get pagination params
+        page, per_page = get_pagination_params()
+
+        # Get sorting params
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'desc')
+
+        # Build query
+        query = db_session.query(Asset)
+
+        # Apply search filter
+        search = request.args.get('search', '').strip()
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                (Asset.asset_tag.ilike(search_term)) |
+                (Asset.serial_num.ilike(search_term)) |
+                (Asset.name.ilike(search_term)) |
+                (Asset.model.ilike(search_term))
+            )
+
+        # Apply status filter
+        status = request.args.get('status')
+        if status and status != 'all':
+            try:
+                status_enum = AssetStatus(status)
+                query = query.filter(Asset.status == status_enum)
+            except ValueError:
+                pass
+
+        # Apply asset_type filter
+        asset_type = request.args.get('asset_type')
+        if asset_type and asset_type != 'all':
+            query = query.filter(Asset.asset_type == asset_type)
+
+        # Apply manufacturer filter
+        manufacturer = request.args.get('manufacturer')
+        if manufacturer and manufacturer != 'all':
+            query = query.filter(Asset.manufacturer.ilike(f'%{manufacturer}%'))
+
+        # Apply customer filter
+        customer = request.args.get('customer')
+        if customer and customer != 'all':
+            query = query.filter(Asset.customer.ilike(f'%{customer}%'))
+
+        # Apply condition filter
+        condition = request.args.get('condition')
+        if condition and condition != 'all':
+            query = query.filter(Asset.condition == condition)
+
+        # Apply sorting
+        sort_column = getattr(Asset, sort_by, Asset.created_at)
+        if sort_order == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        # Paginate
+        assets, pagination_meta = paginate_query(query, page, per_page)
+
+        # Format response
+        assets_data = [format_asset_response(asset) for asset in assets]
+
+        return api_response(
+            data=assets_data,
+            meta=pagination_meta,
+            message=f'Retrieved {len(assets_data)} assets'
+        )
+
+    except Exception as e:
+        logger.error(f'Error listing assets: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to list assets: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+# =============================================================================
+# GET SINGLE ASSET
+# =============================================================================
+
+@api_v2_bp.route('/assets/<int:asset_id>', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def get_asset(asset_id):
+    """
+    Get a single asset by ID
+
+    GET /api/v2/assets/<id>
+
+    Returns:
+        Asset details
+    """
+    db_session = db_manager.get_session()
+    try:
+        asset = db_session.query(Asset).filter(Asset.id == asset_id).first()
+
+        if not asset:
+            return api_error(
+                ErrorCodes.RESOURCE_NOT_FOUND,
+                f'Asset with ID {asset_id} not found',
+                status_code=404
+            )
+
+        return api_response(
+            data=format_asset_response(asset),
+            message='Asset retrieved successfully'
+        )
+
+    except Exception as e:
+        logger.error(f'Error getting asset: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to get asset: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+# =============================================================================
+# ASSET FILTER OPTIONS
+# =============================================================================
+
+@api_v2_bp.route('/assets/filter-options', methods=['GET'])
+@dual_auth_required
+@handle_exceptions
+def get_asset_filter_options():
+    """
+    Get filter options for assets
+
+    GET /api/v2/assets/filter-options
+
+    Returns:
+        Available filter options for status, types, manufacturers, etc.
+    """
+    from sqlalchemy import func
+
+    db_session = db_manager.get_session()
+    try:
+        # Get distinct statuses
+        statuses = [{'value': s.value, 'label': s.value.replace('_', ' ').title()} for s in AssetStatus]
+
+        # Get distinct asset types
+        types_query = db_session.query(Asset.asset_type).filter(
+            Asset.asset_type.isnot(None)
+        ).distinct().all()
+        types = [{'value': t[0], 'label': t[0]} for t in types_query if t[0]]
+
+        # Get distinct manufacturers
+        manufacturers_query = db_session.query(Asset.manufacturer).filter(
+            Asset.manufacturer.isnot(None)
+        ).distinct().all()
+        manufacturers = [{'value': m[0], 'label': m[0]} for m in manufacturers_query if m[0]]
+
+        # Get distinct customers
+        customers_query = db_session.query(Asset.customer).filter(
+            Asset.customer.isnot(None)
+        ).distinct().all()
+        customers = [{'value': c[0], 'label': c[0]} for c in customers_query if c[0]]
+
+        # Get distinct conditions
+        conditions_query = db_session.query(Asset.condition).filter(
+            Asset.condition.isnot(None)
+        ).distinct().all()
+        conditions = [{'value': c[0], 'label': c[0]} for c in conditions_query if c[0]]
+
+        return api_response(
+            data={
+                'statuses': statuses,
+                'types': types,
+                'manufacturers': manufacturers,
+                'customers': customers,
+                'conditions': conditions
+            },
+            message='Filter options retrieved successfully'
+        )
+
+    except Exception as e:
+        logger.error(f'Error getting filter options: {str(e)}')
+        return api_error(
+            ErrorCodes.DATABASE_ERROR,
+            f'Failed to get filter options: {str(e)}',
+            status_code=500
+        )
+    finally:
+        db_session.close()
+
+
+# =============================================================================
 # CREATE ASSET
 # =============================================================================
 
