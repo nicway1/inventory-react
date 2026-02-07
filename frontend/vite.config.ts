@@ -18,6 +18,11 @@ export default defineConfig({
         target: 'http://localhost:5009',
         changeOrigin: true,
       },
+      // Proxy static files to Flask (for images, etc.)
+      '/static': {
+        target: 'http://localhost:5009',
+        changeOrigin: true,
+      },
     },
   },
   build: {

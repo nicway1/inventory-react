@@ -238,15 +238,17 @@ function MobileMenuToggle() {
 function TrueLogLogo() {
   return (
     <Link to="/" className="flex items-center space-x-3">
-      {/* Logo image - use actual TrueLog logo */}
+      {/* Logo image - try React public folder first, then Flask static */}
       <img
         src="/images/truelglogo.png"
         alt="TrueLog Logo"
         className="h-14 w-auto object-contain"
         onError={(e) => {
-          // Fallback if image doesn't load
+          // Fallback to Flask static path
           const target = e.target as HTMLImageElement
-          target.style.display = 'none'
+          if (!target.src.includes('/static/')) {
+            target.src = '/static/images/truelglogo.png'
+          }
         }}
       />
       <span className="text-2xl font-bold text-truelog-dark dark:text-truelog">
