@@ -50,6 +50,7 @@ export function QueueStatsWidget({
           <p className="text-sm text-[#C23934]">Failed to load queue stats</p>
           <p className="mt-1 text-xs text-gray-500">{error?.message}</p>
           <button
+            type="button"
             onClick={() => refetch()}
             className="mt-3 text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >
@@ -109,7 +110,20 @@ export function QueueStatsWidget({
             return (
               <div
                 key={queue.id}
-                onClick={() => onQueueClick?.(queue.id)}
+                onClick={(e) => {
+                  if (onQueueClick) {
+                    e.preventDefault()
+                    onQueueClick(queue.id)
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (onQueueClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault()
+                    onQueueClick(queue.id)
+                  }
+                }}
+                role={onQueueClick ? 'button' : undefined}
+                tabIndex={onQueueClick ? 0 : undefined}
                 className={cn(
                   'p-3 rounded border border-[#DDDBDA] transition-all duration-150',
                   onQueueClick && 'cursor-pointer hover:border-[#FE9339] hover:shadow-sm'

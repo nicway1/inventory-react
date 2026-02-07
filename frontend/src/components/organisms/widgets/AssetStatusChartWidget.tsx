@@ -21,8 +21,13 @@ interface AssetStatusData {
   widget_id: string
   generated_at: string
   values: {
+    total_assets: number
+  }
+  chart_data: {
+    type: string
     labels: string[]
     values: number[]
+    colors: string[]
   }
 }
 
@@ -61,6 +66,7 @@ export function AssetStatusChartWidget({
           <p className="text-sm text-[#C23934]">Failed to load asset status chart</p>
           <p className="mt-1 text-xs text-gray-500">{error?.message}</p>
           <button
+            type="button"
             onClick={() => refetch()}
             className="mt-3 text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >
@@ -71,13 +77,13 @@ export function AssetStatusChartWidget({
     )
   }
 
-  // Transform data for Recharts
-  const chartData = data?.values?.labels?.map((label, index) => ({
+  // Transform data for Recharts - chart_data contains the labels and values
+  const chartData = data?.chart_data?.labels?.map((label, index) => ({
     name: label,
-    value: data.values.values[index] ?? 0,
+    value: data.chart_data?.values[index] ?? 0,
   })) ?? []
 
-  const total = chartData.reduce((sum, item) => sum + item.value, 0)
+  const total = data?.values?.total_assets ?? chartData.reduce((sum, item) => sum + item.value, 0)
 
   return (
     <div

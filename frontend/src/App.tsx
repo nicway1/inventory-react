@@ -4,26 +4,13 @@ import { DashboardPage } from '@/pages/dashboard'
 import { TicketListPage, TicketCreate, TicketDetailPage, TicketEdit } from '@/pages/tickets'
 import { InventoryList, AssetCreate, AssetDetail, AssetEdit, AccessoryDetail } from '@/pages/inventory'
 import { CustomerListPage, CustomerDetailPage } from '@/pages/customers'
+import { ReportsPage, GenerateReportPage } from '@/pages/reports'
+import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
+import { ProfilePage } from '@/pages/profile'
+import { SettingsPage } from '@/pages/settings'
+import { HistoryPage } from '@/pages/history'
 import { ProtectedRoute } from '@/components/atoms'
 import { PageLayout, ContentLayout } from '@/components/templates/PageLayout'
-
-function Reports() {
-  return (
-    <PageLayout
-      title="Reports"
-      subtitle="View analytics and generate reports"
-      breadcrumbs={[{ label: 'Reports' }]}
-    >
-      <div className="card">
-        <div className="card-body">
-          <p className="text-gray-600 dark:text-gray-400">
-            Reports coming soon...
-          </p>
-        </div>
-      </div>
-    </PageLayout>
-  )
-}
 
 function Admin() {
   return (
@@ -177,12 +164,58 @@ function App() {
         }
       />
 
-      {/* Reports */}
+      {/* Reports Routes */}
       <Route
-        path="/reports/*"
+        path="/reports"
         element={
           <ProtectedRoute>
-            <Reports />
+            <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports/generate/:templateId"
+        element={
+          <ProtectedRoute>
+            <GenerateReportPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Notifications Route */}
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Profile & Settings Routes */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* History/Audit Log (requires admin role) */}
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute allowedUserTypes={['SUPER_ADMIN', 'DEVELOPER']}>
+            <HistoryPage />
           </ProtectedRoute>
         }
       />

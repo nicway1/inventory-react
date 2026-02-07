@@ -12,7 +12,8 @@ import { formatDistanceToNow } from '@/utils/date'
 
 interface Activity {
   id: number
-  user_name: string
+  user_name?: string
+  user_id?: number
   content: string
   created_at: string
   type?: string
@@ -54,6 +55,7 @@ export function RecentActivitiesWidget({
           <p className="text-sm text-[#C23934]">Failed to load recent activities</p>
           <p className="mt-1 text-xs text-gray-500">{error?.message}</p>
           <button
+            type="button"
             onClick={() => refetch()}
             className="mt-3 text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >

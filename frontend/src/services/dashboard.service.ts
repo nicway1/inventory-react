@@ -11,8 +11,41 @@ import type {
   WidgetDataResponse,
   TicketStatsData,
   InventoryStatsData,
+  WidgetSize,
 } from '@/types/dashboard'
 import type { PaginatedResponse } from '@/types'
+import type { DashboardLayout, WidgetConfig } from '@/store/dashboard.store'
+
+/**
+ * Dashboard preferences response from API
+ */
+export interface DashboardPreferencesResponse {
+  success: boolean
+  data: {
+    widgets: Array<{
+      widget_id: string
+      enabled: boolean
+      position: number
+      size: WidgetSize
+      config: Record<string, unknown>
+    }>
+    last_updated: string | null
+  }
+  message?: string
+}
+
+/**
+ * Dashboard preferences request payload
+ */
+export interface DashboardPreferencesPayload {
+  widgets: Array<{
+    widget_id: string
+    enabled: boolean
+    position: number
+    size: WidgetSize
+    config: Record<string, unknown>
+  }>
+}
 
 /**
  * Get all available dashboard widgets
@@ -120,12 +153,92 @@ export async function getRecentTickets(options?: {
   return response.data.data.items
 }
 
+/**
+ * Get user's dashboard preferences
+ */
+export async function getDashboardPreferences(): Promise<DashboardLayout> {
+  try {
+    const response = await apiClient.get<DashboardPreferencesResponse>(
+      '/v2/user/preferences/dashboard'
+    )
+
+    if (response.data.success && response.data.data) {
+      const { widgets, last_updated } = response.data.data
+      return {
+        widgets: widgets.map((w) => ({
+          widgetId: w.widget_id,
+          enabled: w.enabled,
+          position: w.position,
+          size: w.size,
+          config: w.config || {},
+        })),
+        lastUpdated: last_updated,
+      }
+    }
+
+    // Return empty layout if no preferences saved
+    return { widgets: [], lastUpdated: null }
+  } catch (error) {
+    // If 404 or no preferences, return empty
+    console.error('Failed to fetch dashboard preferences:', error)
+    return { widgets: [], lastUpdated: null }
+  }
+}
+
+/**
+ * Save user's dashboard preferences
+ */
+export async function saveDashboardPreferences(
+  layout: DashboardLayout
+): Promise<DashboardLayout> {
+  const payload: DashboardPreferencesPayload = {
+    widgets: layout.widgets.map((w) => ({
+      widget_id: w.widgetId,
+      enabled: w.enabled,
+      position: w.position,
+      size: w.size,
+      config: w.config,
+    })),
+  }
+
+  const response = await apiClient.post<DashboardPreferencesResponse>(
+    '/v2/user/preferences/dashboard',
+    payload
+  )
+
+  if (response.data.success && response.data.data) {
+    const { widgets, last_updated } = response.data.data
+    return {
+      widgets: widgets.map((w) => ({
+        widgetId: w.widget_id,
+        enabled: w.enabled,
+        position: w.position,
+        size: w.size,
+        config: w.config || {},
+      })),
+      lastUpdated: last_updated,
+    }
+  }
+
+  return layout
+}
+
+/**
+ * Reset dashboard preferences to default
+ */
+export async function resetDashboardPreferences(): Promise<void> {
+  await apiClient.delete('/v2/user/preferences/dashboard')
+}
+
 export const dashboardService = {
   getWidgets,
   getWidgetData,
   getTicketStats,
   getInventoryStats,
   getRecentTickets,
+  getDashboardPreferences,
+  saveDashboardPreferences,
+  resetDashboardPreferences,
 }
 
 export default dashboardService

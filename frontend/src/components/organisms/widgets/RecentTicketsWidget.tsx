@@ -58,6 +58,7 @@ export function RecentTicketsWidget({
           <p className="text-sm text-[#C23934]">Failed to load recent tickets</p>
           <p className="mt-1 text-xs text-gray-500">{error?.message}</p>
           <button
+            type="button"
             onClick={() => refetch()}
             className="mt-3 text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >
@@ -97,7 +98,11 @@ export function RecentTicketsWidget({
         </div>
         {onViewAll && (
           <button
-            onClick={onViewAll}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              onViewAll()
+            }}
             className="text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >
             View all
@@ -132,7 +137,20 @@ export function RecentTicketsWidget({
                   'px-6 py-4 transition-colors',
                   onTicketClick && 'cursor-pointer hover:bg-[#F4F6F9]'
                 )}
-                onClick={() => onTicketClick?.(ticket.id)}
+                onClick={(e) => {
+                  if (onTicketClick) {
+                    e.preventDefault()
+                    onTicketClick(ticket.id)
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (onTicketClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault()
+                    onTicketClick(ticket.id)
+                  }
+                }}
+                role={onTicketClick ? 'button' : undefined}
+                tabIndex={onTicketClick ? 0 : undefined}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

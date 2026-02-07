@@ -116,3 +116,85 @@ export interface WidgetDataResponse<T = unknown> {
   success: boolean
   message?: string
 }
+
+// Customer stats from API
+export interface CustomerStatsData {
+  widget_id: string
+  generated_at: string
+  values: {
+    total: number
+  }
+  chart_data: null
+}
+
+// Queue stats from API
+export interface QueueStatsData {
+  widget_id: string
+  generated_at: string
+  values: {
+    queues: Array<{
+      id: number
+      name: string
+      open_count: number
+      total_count: number
+    }>
+    total_queues: number
+  }
+  chart_data: {
+    labels: string[]
+    values: number[]
+    colors: string[]
+  }
+}
+
+// Weekly tickets chart from API
+export interface WeeklyTicketsChartData {
+  widget_id: string
+  generated_at: string
+  values: {
+    week_start: string
+    week_total: number
+  }
+  chart_data: {
+    labels: string[]
+    values: number[]
+    colors: string[]
+  }
+}
+
+// Asset status chart from API
+export interface AssetStatusChartData {
+  widget_id: string
+  generated_at: string
+  values: {
+    total_assets: number
+  }
+  chart_data: {
+    type: string
+    labels: string[]
+    values: number[]
+    colors: string[]
+  }
+}
+
+// Activity item from API
+export interface ActivityItem {
+  id: number
+  content: string
+  type: string
+  created_at: string | null
+  user_id: number
+  user_name?: string
+  reference_id: number | null
+}
+
+// Recent activities from API
+export interface RecentActivitiesData {
+  widget_id: string
+  generated_at: string
+  values: {
+    activities: ActivityItem[]
+    total_count: number
+  }
+  chart_data: null
+}

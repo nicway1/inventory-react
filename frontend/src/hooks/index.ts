@@ -14,6 +14,9 @@ export {
   useWidgets,
   useWidgetData,
   useDashboardRefresh,
+  useDashboardPreferences,
+  useSaveDashboardPreferences,
+  useResetDashboardPreferences,
   dashboardKeys,
 } from './useDashboard'
 export {
@@ -69,6 +72,13 @@ export {
   useAccessoryRefresh,
   accessoryKeys,
 } from './useAccessories'
+
+export {
+  useNotifications,
+  useNotificationToasts,
+  useNotificationNavigation,
+  useNotificationStyles,
+} from './useNotifications'
 
 // Re-export organism hooks for convenience
 export { useToast } from '@/components/organisms/Toast'

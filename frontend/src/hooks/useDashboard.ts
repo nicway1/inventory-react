@@ -4,13 +4,16 @@
  * React Query hooks for dashboard data fetching.
  */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getTicketStats,
   getInventoryStats,
   getRecentTickets,
   getWidgets,
   getWidgetData,
+  getDashboardPreferences,
+  saveDashboardPreferences,
+  resetDashboardPreferences,
 } from '@/services/dashboard.service'
 import type {
   TicketStatsData,
@@ -18,6 +21,7 @@ import type {
   Widget,
 } from '@/types/dashboard'
 import type { TicketListItem } from '@/services/dashboard.service'
+import type { DashboardLayout } from '@/store/dashboard.store'
 
 // Query keys
 export const dashboardKeys = {
@@ -146,4 +150,44 @@ export function useDashboardRefresh() {
     refreshInventoryStats,
     refreshRecentTickets,
   }
+}
+
+/**
+ * Hook to fetch dashboard preferences
+ */
+export function useDashboardPreferences(options?: { enabled?: boolean }) {
+  return useQuery<DashboardLayout, Error>({
+    queryKey: [...dashboardKeys.all, 'preferences'],
+    queryFn: getDashboardPreferences,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: options?.enabled ?? true,
+  })
+}
+
+/**
+ * Hook to save dashboard preferences
+ */
+export function useSaveDashboardPreferences() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: saveDashboardPreferences,
+    onSuccess: (data) => {
+      queryClient.setQueryData([...dashboardKeys.all, 'preferences'], data)
+    },
+  })
+}
+
+/**
+ * Hook to reset dashboard preferences
+ */
+export function useResetDashboardPreferences() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: resetDashboardPreferences,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...dashboardKeys.all, 'preferences'] })
+    },
+  })
 }

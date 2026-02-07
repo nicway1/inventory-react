@@ -22,8 +22,13 @@ interface WeeklyTicketsData {
   widget_id: string
   generated_at: string
   values: {
+    week_start: string
+    week_total: number
+  }
+  chart_data: {
     labels: string[]
     values: number[]
+    colors: string[]
   }
 }
 
@@ -51,6 +56,7 @@ export function WeeklyTicketsChartWidget({
           <p className="text-sm text-[#C23934]">Failed to load weekly tickets chart</p>
           <p className="mt-1 text-xs text-gray-500">{error?.message}</p>
           <button
+            type="button"
             onClick={() => refetch()}
             className="mt-3 text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >
@@ -61,10 +67,10 @@ export function WeeklyTicketsChartWidget({
     )
   }
 
-  // Transform data for Recharts
-  const chartData = data?.values?.labels?.map((label, index) => ({
+  // Transform data for Recharts - chart_data contains the labels and values
+  const chartData = data?.chart_data?.labels?.map((label, index) => ({
     day: label,
-    tickets: data.values.values[index] ?? 0,
+    tickets: data.chart_data?.values[index] ?? 0,
   })) ?? []
 
   return (

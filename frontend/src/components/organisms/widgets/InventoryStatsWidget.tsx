@@ -33,6 +33,7 @@ export function InventoryStatsWidget({
           <p className="text-sm text-[#C23934]">Failed to load inventory stats</p>
           <p className="mt-1 text-xs text-gray-500">{error?.message}</p>
           <button
+            type="button"
             onClick={() => refetch()}
             className="mt-3 text-sm font-medium text-[#0176D3] hover:text-[#014486]"
           >
@@ -52,7 +53,20 @@ export function InventoryStatsWidget({
         onNavigate && 'cursor-pointer hover:shadow-[0_4px_8px_rgba(0,0,0,0.15)] hover:border-[#1B96FF]',
         className
       )}
-      onClick={onNavigate}
+      onClick={(e) => {
+        if (onNavigate) {
+          e.preventDefault()
+          onNavigate()
+        }
+      }}
+      onKeyDown={(e) => {
+        if (onNavigate && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          onNavigate()
+        }
+      }}
+      role={onNavigate ? 'button' : undefined}
+      tabIndex={onNavigate ? 0 : undefined}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">

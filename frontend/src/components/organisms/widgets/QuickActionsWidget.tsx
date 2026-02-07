@@ -167,6 +167,7 @@ export function QuickActionsWidget({
         <div className="grid grid-cols-2 gap-2">
           {actions.map((action) => (
             <button
+              type="button"
               key={action.id}
               onClick={() => handleClick(action.id)}
               className={cn(
@@ -185,6 +186,7 @@ export function QuickActionsWidget({
         <div className="space-y-2">
           {actions.map((action) => (
             <button
+              type="button"
               key={action.id}
               onClick={() => handleClick(action.id)}
               className={cn(

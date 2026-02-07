@@ -653,12 +653,17 @@ def _load_recent_activities(user: User, config: dict, db) -> dict:
 
     activities_list = []
     for a in activities:
+        # Get user name from the relationship
+        user_name = None
+        if a.user:
+            user_name = a.user.username or a.user.email or f'User {a.user_id}'
         activities_list.append({
             'id': a.id,
             'content': a.content,
             'type': a.type,
             'created_at': a.created_at.isoformat() + 'Z' if a.created_at else None,
             'user_id': a.user_id,
+            'user_name': user_name,
             'reference_id': a.reference_id
         })
 
